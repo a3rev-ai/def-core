@@ -1,0 +1,151 @@
+/* Digital Employee WordPress Bridge - Admin Styles */
+
+.de-wp-bridge-api-tools {
+	margin-top: 20px;
+}
+
+.de-wp-bridge-api-tools h3 {
+	margin-top: 30px;
+	margin-bottom: 15px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.de-wp-bridge-tools-table {
+	margin-top: 10px;
+}
+
+.de-wp-bridge-tools-table th {
+	padding: 15px 10px 15px 0;
+	font-weight: 600;
+	vertical-align: middle;
+}
+
+.de-wp-bridge-tools-table td {
+	padding: 15px 10px;
+	vertical-align: middle;
+}
+
+/* Toggle Switch */
+.de-wp-bridge-toggle-switch {
+	position: relative;
+	display: inline-block;
+	width: 50px;
+	height: 24px;
+	margin-right: 12px;
+	vertical-align: middle;
+}
+
+.de-wp-bridge-toggle-switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+	position: absolute;
+	z-index: 2;
+}
+
+.de-wp-bridge-slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	transition: 0.3s;
+	border-radius: 24px;
+	pointer-events: auto;
+	z-index: 1;
+}
+
+.de-wp-bridge-slider:before {
+	position: absolute;
+	content: "";
+	height: 18px;
+	width: 18px;
+	left: 3px;
+	bottom: 3px;
+	background-color: white;
+	transition: 0.3s;
+	border-radius: 50%;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.de-wp-bridge-toggle-switch input:checked + .de-wp-bridge-slider {
+	background-color: #2271b1;
+}
+
+.de-wp-bridge-toggle-switch input:focus + .de-wp-bridge-slider {
+	box-shadow: 0 0 1px #2271b1;
+}
+
+.de-wp-bridge-toggle-switch input:checked + .de-wp-bridge-slider:before {
+	transform: translateX(26px);
+}
+
+.de-wp-bridge-toggle-switch.de-wp-bridge-toggle-disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.de-wp-bridge-toggle-switch.de-wp-bridge-toggle-disabled .de-wp-bridge-slider {
+	cursor: not-allowed;
+	background-color: #2271b1;
+}
+
+.de-wp-bridge-route {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 4px 8px;
+	background-color: #f0f0f1;
+	border-radius: 3px;
+	font-size: 12px;
+	color: #50575e;
+	font-family: Consolas, Monaco, monospace;
+}
+
+.de-wp-bridge-methods {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 4px 8px;
+	background-color: #e5f5fa;
+	border-radius: 3px;
+	font-size: 11px;
+	color: #0073aa;
+	font-weight: 500;
+}
+
+.de-wp-bridge-addon-badge {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 3px 8px;
+	background-color: #f0f6fc;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	font-size: 11px;
+	color: #50575e;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+	.de-wp-bridge-tools-table th,
+	.de-wp-bridge-tools-table td {
+		display: block;
+		width: 100%;
+		padding: 10px 0;
+	}
+
+	.de-wp-bridge-tools-table th {
+		border-bottom: none;
+		padding-bottom: 5px;
+	}
+
+	.de-wp-bridge-route,
+	.de-wp-bridge-methods,
+	.de-wp-bridge-addon-badge {
+		display: block;
+		margin-left: 62px;
+		margin-top: 5px;
+	}
+}
+
