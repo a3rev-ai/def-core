@@ -77,6 +77,15 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 	protected $addon = '';
 
 	/**
+	 * Whether this tool has been registered.
+	 *
+	 * @var bool
+	 * @since 0.2.0
+	 * @version 0.2.0
+	 */
+	private $registered = false;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $addon Addon identifier.
@@ -86,6 +95,51 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 	public function __construct( string $addon = '' ) {
 		$this->addon = $addon;
 		$this->init();
+		$this->auto_register();
+	}
+
+	/**
+	 * Check if the tool should be registered.
+	 * Override this method in child classes to add conditional registration logic.
+	 *
+	 * @return bool True if tool should be registered, false otherwise.
+	 * @since 0.2.0
+	 * @version 0.2.0
+	 */
+	protected function should_register(): bool {
+		return true;
+	}
+
+	/**
+	 * Automatically register the tool.
+	 *
+	 * @since 0.2.0
+	 * @version 0.2.0
+	 */
+	private function auto_register(): void {
+		// Prevent double registration.
+		if ( $this->registered ) {
+			return;
+		}
+
+		// Hook into the registration action.
+		add_action(
+			'digital_employee_wp_bridge_register_tools',
+			function () {
+				if ( ! $this->registered && $this->should_register() ) {
+					$this->register();
+					$this->registered = true;
+				}
+			}
+		);
+
+		// If the hook has already fired, register immediately.
+		if ( did_action( 'digital_employee_wp_bridge_register_tools' ) ) {
+			if ( $this->should_register() ) {
+				$this->register();
+				$this->registered = true;
+			}
+		}
 	}
 
 	/**

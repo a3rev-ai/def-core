@@ -145,17 +145,6 @@ final class Digital_Employee_WP_Bridge_Routes {
 				'core'
 			);
 
-			// WooCommerce Licenses.
-			$registry->register_tool(
-				'/tools/wc/licenses',
-				__( 'WooCommerce Licenses', 'digital-employee-wp-bridge' ),
-				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_get_licenses' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
-				array(),
-				'core'
-			);
-
 			// WooCommerce Products (public - no authentication required).
 			$registry->register_tool(
 				'/tools/wc/products',
@@ -163,34 +152,6 @@ final class Digital_Employee_WP_Bridge_Routes {
 				array( 'GET' ),
 				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_get_products_list' ),
 				'__return_true',
-				array(),
-				'core'
-			);
-		}
-
-		// Check if WooCommerce Subscriptions is installed and active.
-		if ( $woocommerce_active && class_exists( 'WC_Subscriptions' ) ) {
-			// WooCommerce Subscriptions.
-			$registry->register_tool(
-				'/tools/wc/subscriptions',
-				__( 'WooCommerce Subscriptions', 'digital-employee-wp-bridge' ),
-				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_subscriptions' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
-				array(),
-				'core'
-			);
-		}
-
-		// Check if bbPress is installed and active.
-		if ( function_exists( 'bbpress' ) || class_exists( 'bbPress' ) ) {
-			// bbPress Tickets.
-			$registry->register_tool(
-				'/tools/bbp/tickets',
-				__( 'bbPress Tickets', 'digital-employee-wp-bridge' ),
-				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'bbp_get_user_tickets' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
 				array(),
 				'core'
 			);

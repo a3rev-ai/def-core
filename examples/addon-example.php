@@ -3,8 +3,9 @@
  * Example Addon for Digital Employee WordPress Bridge
  *
  * This file demonstrates how to create an addon that registers additional API tools.
+ * Follow the naming conventions: digital-employee-addon-<integration>
  *
- * @package digital-employee-wp-bridge-addon-example
+ * @package digital-employee-addon-example
  * @version 1.0.0
  *
  * @phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName
@@ -18,7 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Example: Using the Base Class
+ * Example: Using the Base Class (Recommended)
+ *
+ * Tools extending Digital_Employee_WP_Bridge_Tool_Base will automatically
+ * register themselves when instantiated. No need to manually call register().
  */
 class Example_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
 
@@ -27,10 +31,22 @@ class Example_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
 	 */
 	protected function init(): void {
 		// Namespace is automatically set to DE_WP_BRIDGE_API_NAME_SPACE.
-		$this->name    = __( 'Example Addon Tool', 'digital-employee-wp-bridge' );
+		$this->name    = __( 'Example Addon Tool', 'digital-employee-addon-example' );
 		$this->route   = '/tools/example/hello';
 		$this->methods = array( 'GET' );
-		$this->addon   = 'example-addon';
+		$this->addon   = 'example'; // Just the integration name
+	}
+
+	/**
+	 * Check if the tool should be registered.
+	 * Override this method for conditional registration.
+	 *
+	 * @return bool True if tool should be registered, false otherwise.
+	 */
+	protected function should_register(): bool {
+		// Example: Only register if a required plugin is active.
+		// return class_exists( 'Required_Plugin' );
+		return true; // Default: always register
 	}
 
 	/**
@@ -63,6 +79,8 @@ class Example_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
 /**
  * Example: Using the Registry Directly
  *
+ * Use this if you need more control or aren't using the base class.
+ *
  * @param \WP_REST_Request $request The request object.
  * @return \WP_REST_Response The response object.
  */
@@ -89,24 +107,40 @@ function example_addon_custom_tool( \WP_REST_Request $request ): \WP_REST_Respon
 
 /**
  * Register addon tools.
+ *
+ * Method 1: Using the base class (automatic registration).
+ * Tools extending Digital_Employee_WP_Bridge_Tool_Base will automatically
+ * register themselves when instantiated. No need to manually call register().
+ */
+add_action(
+	'plugins_loaded',
+	function () {
+		// Just instantiate - registration happens automatically!
+		// The base class handles all registration logic.
+		new Example_Addon_Tool();
+	},
+	20 // Priority 20 to ensure main plugin is loaded first.
+);
+
+/**
+ * Method 2: Using the registry directly (manual registration).
+ * Use this if you need more control or aren't using the base class.
+ *
+ * Note: The namespace is automatically set to DE_WP_BRIDGE_API_NAME_SPACE.
+ * You don't need to specify it in register_tool().
  */
 add_action(
 	'digital_employee_wp_bridge_register_tools',
 	function () {
-		// Method 1: Using the base class.
-		$tool = new Example_Addon_Tool( 'example-addon' );
-		$tool->register();
-
-		// Method 2: Using the registry directly.
 		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
 		$registry->register_tool(
-			'/tools/example/custom',
-			__( 'Example Custom Tool', 'digital-employee-wp-bridge' ),
-			array( 'GET' ),
-			'example_addon_custom_tool',
-			null, // Use default JWT auth check.
-			array(),
-			'example-addon'
+			'/tools/example/custom',                              // Route (namespace is automatic)
+			__( 'Example Custom Tool', 'digital-employee-addon-example' ), // Name
+			array( 'GET' ),                                       // HTTP methods
+			'example_addon_custom_tool',                          // Callback function
+			null,                                                 // Permission callback (null = default JWT auth)
+			array(),                                             // Route arguments
+			'example'                                             // Addon identifier
 		);
 	}
 );

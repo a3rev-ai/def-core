@@ -45,10 +45,6 @@ final class Digital_Employee_WP_Bridge_Cache {
 		add_action( 'woocommerce_new_order', array( __CLASS__, 'on_order_changed' ), 10, 1 );
 		add_action( 'woocommerce_update_order', array( __CLASS__, 'on_order_changed' ), 10, 1 );
 
-		// Invalidate subscription cache when subscription changes.
-		add_action( 'woocommerce_subscription_status_updated', array( __CLASS__, 'on_subscription_changed' ), 10, 1 );
-		add_action( 'woocommerce_subscription_date_updated', array( __CLASS__, 'on_subscription_changed' ), 10, 1 );
-
 		// Invalidate user cache when profile is updated.
 		add_action( 'profile_update', array( __CLASS__, 'on_user_updated' ), 10, 1 );
 
@@ -67,16 +63,6 @@ final class Digital_Employee_WP_Bridge_Cache {
 		add_action( 'woocommerce_delete_product_variation', array( __CLASS__, 'on_product_changed' ), 10, 0 );
 		add_action( 'woocommerce_trash_product', array( __CLASS__, 'on_product_changed' ), 10, 0 );
 		add_action( 'woocommerce_untrash_product', array( __CLASS__, 'on_product_changed' ), 10, 0 );
-
-		// Invalidate licenses cache when licenses change.
-		add_action( 'woocommerce_order_status_completed', array( __CLASS__, 'on_license_changed' ), 10, 1 );
-		add_action( 'woocommerce_subscription_status_updated', array( __CLASS__, 'on_license_changed' ), 10, 1 );
-
-		// Invalidate bbPress tickets cache when topics change.
-		add_action( 'bbp_new_topic', array( __CLASS__, 'on_ticket_changed' ), 10, 1 );
-		add_action( 'bbp_edit_topic', array( __CLASS__, 'on_ticket_changed' ), 10, 1 );
-		add_action( 'bbp_closed_topic', array( __CLASS__, 'on_ticket_changed' ), 10, 1 );
-		add_action( 'bbp_opened_topic', array( __CLASS__, 'on_ticket_changed' ), 10, 1 );
 	}
 
 	/**
@@ -202,24 +188,6 @@ final class Digital_Employee_WP_Bridge_Cache {
 	}
 
 	/**
-	 * Invalidate subscription cache when a subscription changes.
-	 *
-	 * @param \WC_Subscription $subscription The subscription object.
-	 * @return void
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function on_subscription_changed( $subscription ): void {
-		if ( ! is_object( $subscription ) || ! method_exists( $subscription, 'get_user_id' ) ) {
-			return;
-		}
-		$user_id = $subscription->get_user_id();
-		if ( $user_id ) {
-			self::invalidate( $user_id, 'subscriptions' );
-		}
-	}
-
-	/**
 	 * Invalidate user cache when profile is updated.
 	 *
 	 * @param int $user_id The user ID.
@@ -312,48 +280,6 @@ final class Digital_Employee_WP_Bridge_Cache {
 		$user_id = get_current_user_id();
 		if ( $user_id > 0 ) {
 			self::invalidate_user( $user_id, 'cart_' );
-		}
-	}
-
-	/**
-	 * Handle license change events.
-	 *
-	 * @param mixed $arg Argument passed by the action hook (order_id or subscription object).
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function on_license_changed( $arg ): void {
-		// Get user ID from order or subscription.
-		$user_id = 0;
-		if ( is_numeric( $arg ) ) {
-			// It's an order ID.
-			$order = wc_get_order( $arg );
-			if ( $order ) {
-				$user_id = $order->get_user_id();
-			}
-		} elseif ( is_object( $arg ) && method_exists( $arg, 'get_user_id' ) ) {
-			// It's a subscription object.
-			$user_id = $arg->get_user_id();
-		}
-
-		if ( $user_id > 0 ) {
-			self::invalidate_user( $user_id, 'licenses_' );
-			self::invalidate_user( $user_id, 'license_detail_' );
-		}
-	}
-
-	/**
-	 * Handle bbPress ticket/topic change events.
-	 *
-	 * @param int $topic_id The topic ID.
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function on_ticket_changed( int $topic_id ): void {
-		// Get topic author.
-		$topic = get_post( $topic_id );
-		if ( $topic && $topic->post_author > 0 ) {
-			self::invalidate_user( (int) $topic->post_author, 'bbp_tickets_' );
 		}
 	}
 

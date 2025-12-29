@@ -85,6 +85,9 @@ final class Digital_Employee_WP_Bridge {
 
 		// Routes (registers core tools and allows addons to register).
 		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-routes.php';
+
+		// Plugin inited action hook.
+		do_action( 'digital_employee_wp_bridge_inited' );
 	}
 
 	/**
