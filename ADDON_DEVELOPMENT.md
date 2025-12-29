@@ -99,7 +99,7 @@ add_action(
 
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> requires Digital Employee Framework — WordPress Bridge to be installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
+			<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> requires Digital Employee Framework - WordPress Bridge to be installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
 		</div>
 		<?php
 	}
@@ -277,7 +277,7 @@ if ( ! class_exists( 'Digital_Employee_WP_Bridge_Tool_Base' ) ) {
 			function () {
 				?>
 				<div class="notice notice-error">
-					<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> could not load base tool class from main plugin. Please ensure Digital Employee Framework — WordPress Bridge is installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
+					<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> could not load base tool class from main plugin. Please ensure Digital Employee Framework - WordPress Bridge is installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
 				</div>
 				<?php
 			}

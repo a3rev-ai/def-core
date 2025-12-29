@@ -93,6 +93,19 @@
 				}
 			}
 		});
+
+		// Handle collapsible widget guide sections
+		const widgetGuideToggles = document.querySelectorAll('.widget-guide-toggle');
+		widgetGuideToggles.forEach(function(toggle) {
+			toggle.addEventListener('click', function() {
+				const content = this.nextElementSibling;
+				if (content && content.classList.contains('widget-guide-content')) {
+					const isHidden = content.style.display === 'none';
+					content.style.display = isHidden ? 'block' : 'none';
+					this.classList.toggle('active', isHidden);
+				}
+			});
+		});
 	});
 })();
 

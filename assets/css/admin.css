@@ -126,6 +126,111 @@
 	color: #50575e;
 }
 
+/* Widget Guide Styles */
+.de-wp-bridge-widget-guide {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 10px;
+}
+
+.de-wp-bridge-widget-guide h3 {
+	margin-top: 0;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+}
+
+.de-wp-bridge-widget-guide h4 {
+	margin-top: 20px;
+	margin-bottom: 10px;
+	color: #23282d;
+}
+
+.de-wp-bridge-widget-guide code {
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 13px;
+}
+
+.de-wp-bridge-widget-guide pre {
+	background: #2c3338;
+	color: #f0f0f1;
+	padding: 15px;
+	border-radius: 4px;
+	overflow-x: auto;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.de-wp-bridge-widget-guide pre code {
+	background: transparent;
+	padding: 0;
+	color: inherit;
+}
+
+.de-wp-bridge-widget-guide .widget-attribute {
+	margin: 10px 0;
+	padding: 10px;
+	background: #f9f9f9;
+	border-left: 3px solid #2271b1;
+}
+
+.de-wp-bridge-widget-guide .widget-attribute strong {
+	color: #2271b1;
+}
+
+.de-wp-bridge-widget-guide ul {
+	margin-left: 20px;
+}
+
+.de-wp-bridge-widget-guide .example-box {
+	background: #f0f6fc;
+	border: 1px solid #c6e0f5;
+	padding: 15px;
+	margin: 15px 0;
+	border-radius: 4px;
+}
+
+/* Collapsible sections */
+.de-wp-bridge-widget-guide .widget-guide-section {
+	margin-top: 20px;
+}
+
+.de-wp-bridge-widget-guide .widget-guide-toggle {
+	cursor: pointer;
+	user-select: none;
+	margin: 0;
+	padding: 10px 0;
+	border-bottom: 1px solid #eee;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.de-wp-bridge-widget-guide .widget-guide-toggle:hover {
+	color: #2271b1;
+}
+
+.de-wp-bridge-widget-guide .widget-guide-arrow {
+	display: inline-block;
+	transition: transform 0.2s ease;
+	font-size: 10px;
+	color: #646970;
+	width: 12px;
+	text-align: center;
+}
+
+.de-wp-bridge-widget-guide .widget-guide-toggle.active .widget-guide-arrow {
+	transform: rotate(90deg);
+}
+
+.de-wp-bridge-widget-guide .widget-guide-content {
+	margin-top: 15px;
+	padding-left: 20px;
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 782px) {
 	.de-wp-bridge-tools-table th,
