@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digital Employee Framework - WordPress Bridge
  * Description: Issues a short-lived Signed Context Token (JWT) for authenticated WP users and securely bridges identity to an external app (e.g., Azure app in an iframe). Also exposes a JWKS endpoint for public key verification. Extensible main plugin that supports addons to register additional API tools.
- * Version: 0.2.0
+ * Version: 1.0.0
  * Author: a3rev
  * Author URI: https://a3rev.com/
  * Text Domain: digital-employee-wp-bridge
@@ -26,10 +26,10 @@ if ( ! defined( 'DE_WP_BRIDGE_PLUGIN_NAME' ) ) {
 	define( 'DE_WP_BRIDGE_PLUGIN_NAME', plugin_basename( __FILE__ ) );
 }
 if ( ! defined( 'DE_WP_BRIDGE_KEY' ) ) {
-	define( 'DE_WP_BRIDGE_KEY', 'digital_employee_wp_bridge' );
+	define( 'DE_WP_BRIDGE_KEY', 'digital-employee-wp-bridge' );
 }
 if ( ! defined( 'DE_WP_BRIDGE_VERSION' ) ) {
-	define( 'DE_WP_BRIDGE_VERSION', '0.2.0' );
+	define( 'DE_WP_BRIDGE_VERSION', '1.0.0' );
 }
 
 define( 'DE_WP_BRIDGE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
