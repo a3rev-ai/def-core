@@ -537,6 +537,7 @@ final class Digital_Employee_WP_Bridge_Admin {
 			<h4><?php esc_html_e( 'Direct Script Tag in Theme', 'digital-employee-wp-bridge' ); ?></h4>
 			<p><?php esc_html_e( 'Add this to your theme\'s header.php or footer.php (before closing </body> tag):', 'digital-employee-wp-bridge' ); ?></p>
 			<pre><code><?php
+			// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- This is example documentation code, not an actual script enqueue.
 			$script_example = '<script 
     src="https://a3revai.azurewebsites.net/widget/popup.js" 
     data-chat-url="https://a3revai.azurewebsites.net/"
@@ -545,7 +546,8 @@ final class Digital_Employee_WP_Bridge_Admin {
     async>
 </script>';
 			echo esc_html( $script_example );
-			?></code></pre>
+			?>
+			</code></pre>
 
 			<h3><?php esc_html_e( 'Configuration Options', 'digital-employee-wp-bridge' ); ?></h3>
 			<p><?php esc_html_e( 'The widget supports the following data attributes:', 'digital-employee-wp-bridge' ); ?></p>
