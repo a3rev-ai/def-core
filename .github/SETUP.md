@@ -4,14 +4,23 @@ This document explains how to set up the automated release workflow for the Digi
 
 ## Overview
 
-The workflow automatically:
-1. Detects version changes in the main plugin file
-2. Creates a git tag for the new version
+The workflow automatically on **every commit**:
+1. Detects version in the main plugin file
+2. Checks if version tag already exists on GitHub
 3. Builds a production-ready zip file
 4. Uploads the zip to private Amazon S3 bucket (no public access)
 5. Uploads changelog.txt from repository to public S3 bucket
 6. Invalidates CloudFront cache for the changelog
-7. Creates a GitHub release
+
+**Only for new versions (when tag doesn't exist):**
+7. Creates a git tag for the new version
+8. Creates a GitHub release with download links
+
+**This means:**
+- 🔄 Every commit updates S3 with latest code
+- 🏷️ Tags are only created once per version number
+- 📦 You can push bug fixes without bumping version (S3 gets updated)
+- 🆕 Bump version only when ready for official release
 
 ## Architecture
 
@@ -177,12 +186,25 @@ To release a new version:
    ```
 
 6. The workflow will automatically:
-   - Create tag `v1.0.1`
    - Build `digital-employee-wp-bridge.zip` (no version in filename)
    - Upload ZIP to **private** S3 bucket
    - Upload `changelog.txt` from repository to **public** S3 bucket
    - Invalidate CloudFront cache for changelog
-   - Create GitHub release
+   - **Create tag `v1.0.1`** (only if tag doesn't exist)
+   - **Create GitHub release** (only if tag doesn't exist)
+
+### Updating Code Without Version Bump
+
+You can push bug fixes or updates without changing the version:
+
+```bash
+# Make your code changes
+git add .
+git commit -m "Fix minor bug in admin panel"
+git push origin main
+```
+
+**Result:** S3 gets updated with latest code, but no new tag/release is created. Perfect for hotfixes!
 
 ## Files Excluded from Zip
 

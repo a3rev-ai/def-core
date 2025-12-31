@@ -9,13 +9,17 @@ This directory contains GitHub Actions workflows for automating releases and dep
 **Triggers:** Push to `main` or `master` branch
 
 **What it does:**
+
+**On Every Commit:**
 1. ✅ Extracts version from `digital-employee-wp-bridge.php`
 2. ✅ Checks if version tag already exists
-3. ✅ Creates new git tag (e.g., `v1.0.0`)
-4. ✅ Builds production zip file (excludes dev files)
-5. ✅ Uploads ZIP to **private** S3 bucket (no public access)
-6. ✅ Uploads changelog.txt from repository to **public** S3 bucket
-7. ✅ Invalidates CloudFront cache for changelog
+3. ✅ Builds production zip file (excludes dev files)
+4. ✅ Uploads ZIP to **private** S3 bucket (no public access)
+5. ✅ Uploads changelog.txt from repository to **public** S3 bucket
+6. ✅ Invalidates CloudFront cache for changelog
+
+**Only for New Versions (tag doesn't exist):**
+7. ✅ Creates new git tag (e.g., `v1.0.0`)
 8. ✅ Creates GitHub Release with download links
 
 ## 🚀 Quick Start
@@ -89,15 +93,23 @@ After successful deployment, files are available at:
 
 ## ⚠️ Important Notes
 
-- Tags are created automatically - don't create them manually
-- Only unique version numbers will trigger releases
-- Pushing the same version again will skip release creation
+- **Every commit triggers S3 upload** - Your latest code is always deployed
+- Tags are created automatically only for new versions
+- If tag exists, only S3 upload happens (no new tag/release created)
 - All development files are automatically excluded from the zip
 - ZIP filename has no version (e.g., `digital-employee-wp-bridge.zip`)
-- Each release overwrites the previous ZIP in S3
-- **Update changelog.txt in repository before releasing**
-- Changelog is uploaded and cache invalidated on each release
+- **Each commit overwrites the previous ZIP in S3** - Always latest code
+- **Update changelog.txt in repository before committing**
+- Changelog is uploaded and cache invalidated on each commit
 - Private bucket requires CloudFront authentication for access
+
+### Workflow Behavior
+
+| Scenario | Build ZIP | Upload S3 | Create Tag | Create Release |
+|----------|-----------|-----------|------------|----------------|
+| New version (tag doesn't exist) | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| Same version (tag exists) | ✅ Yes | ✅ Yes | ❌ No | ❌ No |
+| Bug fix without version bump | ✅ Yes | ✅ Yes | ❌ No | ❌ No |
 
 ## 🆘 Support
 
