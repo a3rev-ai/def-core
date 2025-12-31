@@ -1,7 +1,4 @@
 *** Digital Employee Framework - WordPress Bridge Changelog ***
 
-= 1.0.1 - 2026/01/02 =
-* Setup Worlflow
-
 = 1.0.0 - 2026/01/02 =
 * Initial Release
