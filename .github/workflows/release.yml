@@ -75,27 +75,6 @@ jobs:
           echo "zip_file=${ZIP_NAME}" >> $GITHUB_OUTPUT
         id: build_zip
 
-      - name: Generate changelog
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          cat > changelog.txt << 'EOF'
-          # Changelog - Digital Employee Framework WordPress Bridge
-          
-          ## Version ${{ steps.get_version.outputs.version }} - $(date +%Y-%m-%d)
-          
-          ### Changes
-          - Released version ${{ steps.get_version.outputs.version }}
-          
-          ### Download
-          - Download URL: https://${{ secrets.CLOUDFRONT_DOMAIN }}/digital-employee-wp-bridge/digital-employee-wp-bridge.zip
-          
-          ---
-          For detailed release notes, visit: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.get_version.outputs.version }}
-          EOF
-          
-          echo "Generated changelog.txt"
-          cat changelog.txt
-
       - name: Upload ZIP to Private S3 Bucket
         if: steps.check_tag.outputs.exists == 'false'
         env:

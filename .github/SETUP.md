@@ -9,7 +9,7 @@ The workflow automatically:
 2. Creates a git tag for the new version
 3. Builds a production-ready zip file
 4. Uploads the zip to private Amazon S3 bucket (no public access)
-5. Generates and uploads changelog.txt to public S3 bucket
+5. Uploads changelog.txt from repository to public S3 bucket
 6. Invalidates CloudFront cache for the changelog
 7. Creates a GitHub release
 
@@ -153,18 +153,34 @@ To release a new version:
    define( 'DE_WP_BRIDGE_VERSION', '1.0.1' );
    ```
 
-3. Commit and push to main/master branch:
+3. Update `changelog.txt` with the new version details:
+   ```txt
+   = 1.0.1 - 2026-01-02 =
+   * Added feature X
+   * Fixed bug Y
+   * Improved performance
+   ```
+
+4. Update `changelog.txt` in the repository root:
+   ```txt
+   = 1.0.1 - 2026-01-02 =
+   * Added new feature X
+   * Fixed bug Y
+   * Improved performance Z
+   ```
+
+5. Commit and push to main/master branch:
    ```bash
-   git add digital-employee-wp-bridge.php
+   git add digital-employee-wp-bridge.php changelog.txt
    git commit -m "Bump version to 1.0.1"
    git push origin main
    ```
 
-4. The workflow will automatically:
+6. The workflow will automatically:
    - Create tag `v1.0.1`
    - Build `digital-employee-wp-bridge.zip` (no version in filename)
    - Upload ZIP to **private** S3 bucket
-   - Generate and upload `changelog.txt` to **public** S3 bucket
+   - Upload `changelog.txt` from repository to **public** S3 bucket
    - Invalidate CloudFront cache for changelog
    - Create GitHub release
 
