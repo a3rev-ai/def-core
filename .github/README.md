@@ -14,7 +14,7 @@ This directory contains GitHub Actions workflows for automating releases and dep
 3. ✅ Creates new git tag (e.g., `v1.0.0`)
 4. ✅ Builds production zip file (excludes dev files)
 5. ✅ Uploads ZIP to **private** S3 bucket (no public access)
-6. ✅ Generates and uploads changelog.txt to **public** S3 bucket
+6. ✅ Uploads changelog.txt from repository to **public** S3 bucket
 7. ✅ Invalidates CloudFront cache for changelog
 8. ✅ Creates GitHub Release with download links
 
@@ -54,10 +54,22 @@ Add these in GitHub repository settings:
 
 Use semantic versioning: `MAJOR.MINOR.PATCH` (e.g., `1.0.0`, `1.2.3`)
 
-Update both places in the main plugin file:
+Update three places before release:
+
+**1. Plugin header:**
 ```php
-* Version: 1.0.0  // Plugin header
-define( 'DE_WP_BRIDGE_VERSION', '1.0.0' );  // Constant
+* Version: 1.0.0
+```
+
+**2. Version constant:**
+```php
+define( 'DE_WP_BRIDGE_VERSION', '1.0.0' );
+```
+
+**3. changelog.txt:**
+```txt
+= 1.0.0 - 2026-01-02 =
+* Initial release
 ```
 
 ## 📦 Download Locations
@@ -83,7 +95,8 @@ After successful deployment, files are available at:
 - All development files are automatically excluded from the zip
 - ZIP filename has no version (e.g., `digital-employee-wp-bridge.zip`)
 - Each release overwrites the previous ZIP in S3
-- Changelog is regenerated and cache invalidated on each release
+- **Update changelog.txt in repository before releasing**
+- Changelog is uploaded and cache invalidated on each release
 - Private bucket requires CloudFront authentication for access
 
 ## 🆘 Support
