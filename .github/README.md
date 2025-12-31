@@ -8,19 +8,16 @@ This directory contains GitHub Actions workflows for automating releases and dep
 
 **Triggers:** Push to `main` or `master` branch
 
-**What it does:**
-
-**On Every Commit:**
+**What it does on every commit:**
 1. ✅ Extracts version from `digital-employee-wp-bridge.php`
 2. ✅ Checks if version tag already exists
-3. ✅ Builds production zip file (excludes dev files)
-4. ✅ Uploads ZIP to **private** S3 bucket (no public access)
-5. ✅ Uploads changelog.txt from repository to **public** S3 bucket
-6. ✅ Invalidates CloudFront cache for changelog
-
-**Only for New Versions (tag doesn't exist):**
-7. ✅ Creates new git tag (e.g., `v1.0.0`)
-8. ✅ Creates GitHub Release with download links
+3. ✅ Deletes existing release and tag if version exists (to recreate with latest code)
+4. ✅ Builds production zip file (excludes dev files)
+5. ✅ Uploads ZIP to **private** S3 bucket (no public access)
+6. ✅ Uploads changelog.txt from repository to **public** S3 bucket
+7. ✅ Invalidates CloudFront cache for changelog
+8. ✅ Creates new git tag (e.g., `v1.0.0`)
+9. ✅ Creates GitHub Release with download links
 
 ## 🚀 Quick Start
 
@@ -93,9 +90,8 @@ After successful deployment, files are available at:
 
 ## ⚠️ Important Notes
 
-- **Every commit triggers S3 upload** - Your latest code is always deployed
-- Tags are created automatically only for new versions
-- If tag exists, only S3 upload happens (no new tag/release created)
+- **Every commit fully updates everything** - S3, tags, and GitHub releases
+- Existing tags/releases are deleted and recreated with latest code
 - All development files are automatically excluded from the zip
 - ZIP filename has no version (e.g., `digital-employee-wp-bridge.zip`)
 - **Each commit overwrites the previous ZIP in S3** - Always latest code
@@ -105,11 +101,13 @@ After successful deployment, files are available at:
 
 ### Workflow Behavior
 
-| Scenario | Build ZIP | Upload S3 | Create Tag | Create Release |
-|----------|-----------|-----------|------------|----------------|
-| New version (tag doesn't exist) | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| Same version (tag exists) | ✅ Yes | ✅ Yes | ❌ No | ❌ No |
-| Bug fix without version bump | ✅ Yes | ✅ Yes | ❌ No | ❌ No |
+| Scenario | Delete Old | Build ZIP | Upload S3 | Create Tag | Create Release |
+|----------|------------|-----------|-----------|------------|----------------|
+| **First release** (tag doesn't exist) | ❌ Skip | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Update existing version** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Bug fix, same version** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+
+**Every commit = Complete update of S3, GitHub tag, and GitHub release!** 🚀
 
 ## 🆘 Support
 
