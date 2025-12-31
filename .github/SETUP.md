@@ -7,20 +7,19 @@ This document explains how to set up the automated release workflow for the Digi
 The workflow automatically on **every commit**:
 1. Detects version in the main plugin file
 2. Checks if version tag already exists on GitHub
-3. Builds a production-ready zip file
-4. Uploads the zip to private Amazon S3 bucket (no public access)
-5. Uploads changelog.txt from repository to public S3 bucket
-6. Invalidates CloudFront cache for the changelog
-
-**Only for new versions (when tag doesn't exist):**
-7. Creates a git tag for the new version
-8. Creates a GitHub release with download links
+3. **If tag exists:** Deletes existing GitHub release and tag
+4. Builds a production-ready zip file
+5. Uploads the zip to private Amazon S3 bucket (no public access)
+6. Uploads changelog.txt from repository to public S3 bucket
+7. Invalidates CloudFront cache for the changelog
+8. Creates a git tag for the version (fresh or recreated)
+9. Creates a GitHub release with download links
 
 **This means:**
-- 🔄 Every commit updates S3 with latest code
-- 🏷️ Tags are only created once per version number
-- 📦 You can push bug fixes without bumping version (S3 gets updated)
-- 🆕 Bump version only when ready for official release
+- 🔄 Every commit fully updates S3, tags, and GitHub releases
+- 🏷️ Tags and releases are recreated if they already exist
+- 📦 You can push bug fixes without bumping version (everything gets updated)
+- 🆕 Bump version when you want a new version number
 
 ## Architecture
 
@@ -186,12 +185,14 @@ To release a new version:
    ```
 
 6. The workflow will automatically:
+   - Check if tag `v1.0.1` exists
+   - **Delete existing release and tag if they exist**
    - Build `digital-employee-wp-bridge.zip` (no version in filename)
    - Upload ZIP to **private** S3 bucket
    - Upload `changelog.txt` from repository to **public** S3 bucket
    - Invalidate CloudFront cache for changelog
-   - **Create tag `v1.0.1`** (only if tag doesn't exist)
-   - **Create GitHub release** (only if tag doesn't exist)
+   - **Create tag `v1.0.1`** (fresh or recreated)
+   - **Create GitHub release** (fresh or recreated)
 
 ### Updating Code Without Version Bump
 
@@ -204,7 +205,11 @@ git commit -m "Fix minor bug in admin panel"
 git push origin main
 ```
 
-**Result:** S3 gets updated with latest code, but no new tag/release is created. Perfect for hotfixes!
+**Result:** 
+- Existing tag/release for current version are deleted
+- S3 gets updated with latest code
+- Tag and release are recreated with latest code
+- Users always get the latest version from the same version number!
 
 ## Files Excluded from Zip
 
