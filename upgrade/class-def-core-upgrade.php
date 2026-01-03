@@ -1,36 +1,36 @@
 <?php
 /**
- * Upgrade class for the Digital Employee Framework - WordPress Bridge plugin.
+ * Upgrade class for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  */
 
 /**
- * Upgrade class for the Digital Employee Framework - WordPress Bridge plugin.
+ * Upgrade class for the Digital Employee Framework - Core plugin.
  */
-class Digital_Employee_WP_Bridge_Upgrade {
+class DEF_Core_Upgrade {
 
 	/**
 	 * The plugin path.
 	 *
 	 * @var string
 	 */
-	protected $plugin_path = DE_WP_BRIDGE_PLUGIN_NAME;
+	protected $plugin_path = DEF_CORE_PLUGIN_NAME;
 
 	/**
 	 * The plugin key.
 	 *
 	 * @var string
 	 */
-	protected $plugin_key = DE_WP_BRIDGE_KEY;
+	protected $plugin_key = DEF_CORE_KEY;
 
 	/**
 	 * The plugin version.
 	 *
 	 * @var string
 	 */
-	protected $plugin_version = DE_WP_BRIDGE_VERSION;
+	protected $plugin_version = DEF_CORE_VERSION;
 
 	/**
 	 * The CloudFront URL.
@@ -182,4 +182,4 @@ class Digital_Employee_WP_Bridge_Upgrade {
 	}
 }
 
-new Digital_Employee_WP_Bridge_Upgrade();
+new DEF_Core_Upgrade();

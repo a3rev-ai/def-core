@@ -1,15 +1,15 @@
 # Addon Development Guide
 
-This guide explains how to create addons for the Digital Employee WordPress Bridge plugin that can register additional API tools.
+This guide explains how to create addons for the Digital Employee Framework - Core plugin that can register additional API tools.
 
 ## Overview
 
-The Digital Employee WordPress Bridge plugin is extensible, allowing addons to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
+The Digital Employee Framework - Core plugin is extensible, allowing addons to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
 
 ## Naming Conventions
 
 ### Folder Structure
-- **Folder Name**: `digital-employee-addon-<integration>`
+- **Folder Name**: `def-addon-<integration>`
   - Example: `digital-employee-addon-bbpress`
   - Example: `digital-employee-addon-woocommerce`
 
@@ -19,34 +19,34 @@ The Digital Employee WordPress Bridge plugin is extensible, allowing addons to r
   - Example: `Digital Employee Add-on: WooCommerce`
 
 ### Code Naming
-- **Text Domain**: `digital-employee-addon-<integration>` (lowercase, hyphens)
-- **Constants**: `DE_ADDON_<INTEGRATION>_*` (uppercase, underscores)
-  - Example: `DE_ADDON_BBPRESS_VERSION`
-  - Example: `DE_ADDON_BBPRESS_PLUGIN_DIR`
-- **Class Names**: `Digital_Employee_Addon_<Integration>_*` (PascalCase)
-  - Example: `Digital_Employee_Addon_BbPress_Tools`
-  - Example: `Digital_Employee_Addon_BbPress_Cache`
-- **Function Names**: `digital_employee_addon_<integration>_*` (snake_case)
-  - Example: `digital_employee_addon_bbpress_load_addons`
+- **Text Domain**: `def-addon-<integration>` (lowercase, hyphens)
+- **Constants**: `DEF_ADDON_<INTEGRATION>_*` (uppercase, underscores)
+  - Example: `DEF_ADDON_BBPRESS_VERSION`
+  - Example: `DEF_ADDON_BBPRESS_PLUGIN_DIR`
+- **Class Names**: `DEF_Addon_<Integration>_*` (PascalCase)
+  - Example: `DEF_Addon_BbPress_Tools`
+  - Example: `DEF_Addon_BbPress_Cache`
+- **Function Names**: `def_addon_<integration>_*` (snake_case)
+  - Example: `def_addon_bbpress_load_addons`
 - **Addon Identifier**: Just the integration name (e.g., `'bbpress'`, `'woocommerce'`)
 
 ## Architecture
 
 ### Components
 
-1. **API Registry** (`Digital_Employee_WP_Bridge_API_Registry`)
+1. **API Registry** (`DEF_Core_API_Registry`)
    - Central registry for all API tools
    - Handles registration and routing
    - Prevents duplicate registrations
    - Uses `DE_WP_BRIDGE_API_NAME_SPACE` constant for namespace
 
-2. **Tool Base Class** (`Digital_Employee_WP_Bridge_Tool_Base`)
+2. **Tool Base Class** (`DEF_Core_Tool_Base`)
    - Abstract base class for tool implementations
    - Provides helper methods and common functionality
    - Ensures consistency across tools
    - **Auto-registers tools** when instantiated (no manual registration needed)
 
-3. **Registration Hook** (`digital_employee_wp_bridge_register_tools`)
+3. **Registration Hook** (`def_core_register_tools`)
    - Action hook fired during tool registration
    - Addons can hook into this for manual registration (if not using base class)
 
@@ -57,12 +57,12 @@ The Digital Employee WordPress Bridge plugin is extensible, allowing addons to r
 Create a new WordPress plugin with the following structure:
 
 ```
-digital-employee-addon-<integration>/
-├── digital-employee-addon-<integration>.php  # Main plugin file
+def-addon-<integration>/
+├── def-addon-<integration>.php  # Main plugin file
 ├── README.md                                  # Documentation
 └── includes/
-    ├── class-digital-employee-addon-<integration>-tools.php
-    └── class-digital-employee-addon-<integration>-cache.php (optional)
+    ├── class-def-addon-<integration>-tools.php
+    └── class-def-addon-<integration>-cache.php (optional)
 ```
 
 ### Step 2: Create the Main Plugin File
@@ -73,14 +73,14 @@ Create the main plugin file following the naming convention:
 <?php
 /**
  * Plugin Name: Digital Employee Add-on: <Integration>
- * Description: <Integration> addon for Digital Employee Framework WordPress Bridge. Provides <integration> API tools.
+ * Description: <Integration> addon for Digital Employee Framework - Core. Provides <integration> API tools.
  * Version: 0.1.0
  * Author: a3rev
  * Requires at least: 6.0
  * Requires PHP: 8.0
- * Requires Plugins: digital-employee-wp-bridge
+ * Requires Plugins: def-core
  *
- * @package digital-employee-addon-<integration>
+ * @package def-addon-<integration>
  */
 
 declare(strict_types=1);
@@ -93,35 +93,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action(
 	'admin_notices',
 	function () {
-		if ( class_exists( 'Digital_Employee_WP_Bridge' ) ) {
+		if ( class_exists( 'DEF_Core' ) ) {
 			return;
 		}
 
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> requires Digital Employee Framework - WordPress Bridge to be installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
+			<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-addon-<integration>' ); ?></p>
 		</div>
 		<?php
 	}
 );
 
-define( 'DE_ADDON_<INTEGRATION>_VERSION', '0.1.0' );
-define( 'DE_ADDON_<INTEGRATION>_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'DE_ADDON_<INTEGRATION>_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'DEF_ADDON_<INTEGRATION>_VERSION', '0.1.0' );
+define( 'DEF_ADDON_<INTEGRATION>_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'DEF_ADDON_<INTEGRATION>_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-add_action( 'digital_employee_wp_bridge_inited', 'digital_employee_addon_<integration>_load_addons', 10, 0 );
+add_action( 'def_core_inited', 'def_addon_<integration>_load_addons', 10, 0 );
 
 /**
  * Load addon files.
  */
-function digital_employee_addon_<integration>_load_addons(): void {
+function def_addon_<integration>_load_addons(): void {
 	// Load includes.
-	require_once DE_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-digital-employee-addon-<integration>-tools.php';
+	require_once DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-tools.php';
 	
 	// Load cache class if needed.
-	if ( file_exists( DE_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-digital-employee-addon-<integration>-cache.php' ) ) {
-		require_once DE_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-digital-employee-addon-<integration>-cache.php';
-		Digital_Employee_Addon_<Integration>_Cache::init();
+	if ( file_exists( DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-cache.php' ) ) {
+		require_once DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-cache.php';
+		DEF_Addon_<Integration>_Cache::init();
 	}
 }
 ```
@@ -133,11 +133,11 @@ Extend the base class to create your tool. The tool will **automatically registe
 ```php
 <?php
 /**
- * Class Digital_Employee_Addon_<Integration>_Tools
+ * Class DEF_Addon_<Integration>_Tools
  *
- * The <integration> addon tools for Digital Employee Framework WordPress Bridge.
+ * The <integration> addon tools for Digital Employee Framework - Core.
  *
- * @package digital-employee-addon-<integration>
+ * @package def-addon-<integration>
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -149,15 +149,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_Addon_<Integration>_Tool
+ * Class DEF_Addon_<Integration>_Tool
  *
  * Extends the base tool class to provide <integration> functionality.
  *
- * @package digital-employee-addon-<integration>
+ * @package def-addon-<integration>
  * @since 0.1.0
  * @version 0.1.0
  */
-class Digital_Employee_Addon_<Integration>_Tools extends Digital_Employee_WP_Bridge_Tool_Base {
+class DEF_Addon_<Integration>_Tools extends DEF_Core_Tool_Base {
 
 	/**
 	 * Initialize the tool.
@@ -166,7 +166,7 @@ class Digital_Employee_Addon_<Integration>_Tools extends Digital_Employee_WP_Bri
 	 * @version 0.1.0
 	 */
 	protected function init(): void {
-		$this->name    = __( '<Integration> Tool Name', 'digital-employee-addon-<integration>' );
+		$this->name    = __( '<Integration> Tool Name', 'def-addon-<integration>' );
 		$this->route   = '/tools/<integration>/endpoint';
 		$this->methods = array( 'GET' );
 		$this->addon   = '<integration>'; // Just the integration name
@@ -223,7 +223,7 @@ add_action(
 	'plugins_loaded',
 	function () {
 		// Instantiate the tool - it will auto-register via base class.
-		new Digital_Employee_Addon_<Integration>_Tools();
+		new DEF_Addon_<Integration>_Tools();
 	},
 	20 // Priority 20 to ensure main plugin is loaded first.
 );
@@ -231,7 +231,7 @@ add_action(
 
 **Important Notes:**
 - The base class **automatically registers** the tool when instantiated
-- No need to manually call `register()` or use `add_action( 'digital_employee_wp_bridge_register_tools' )`
+- No need to manually call `register()` or use `add_action( 'def_core_register_tools' )`
 - Override `should_register()` for conditional registration (e.g., only if a plugin is active)
 - The namespace is automatically set to `DE_WP_BRIDGE_API_NAME_SPACE` (you don't need to set it)
 
@@ -241,7 +241,7 @@ The addon needs to load the base class from the main plugin. Add this to your ma
 
 ```php
 // Load the base tool class from main plugin.
-if ( ! class_exists( 'Digital_Employee_WP_Bridge_Tool_Base' ) ) {
+if ( ! class_exists( 'DEF_Core_Tool_Base' ) ) {
 	// Try to find the main plugin directory.
 	$main_plugin_path = '';
 	
@@ -251,12 +251,12 @@ if ( ! class_exists( 'Digital_Employee_WP_Bridge_Tool_Base' ) ) {
 	} else {
 		// Method 2: Try to find it relative to this plugin.
 		$possible_paths = array(
-			plugin_dir_path( dirname( __FILE__ ) ) . 'digital-employee-wp-bridge/',
-			WP_PLUGIN_DIR . '/digital-employee-wp-bridge/',
+			plugin_dir_path( dirname( __FILE__ ) ) . 'def-core/',
+			WP_PLUGIN_DIR . '/def-core/',
 		);
 		
 		foreach ( $possible_paths as $path ) {
-			if ( file_exists( $path . 'digital-employee-wp-bridge.php' ) ) {
+			if ( file_exists( $path . 'def-core.php' ) ) {
 				$main_plugin_path = $path;
 				break;
 			}
@@ -264,20 +264,20 @@ if ( ! class_exists( 'Digital_Employee_WP_Bridge_Tool_Base' ) ) {
 	}
 	
 	if ( ! empty( $main_plugin_path ) ) {
-		$base_class_path = $main_plugin_path . 'includes/tools/class-digital-employee-wp-bridge-tool-base.php';
+		$base_class_path = $main_plugin_path . 'includes/tools/class-def-core-tool-base.php';
 		if ( file_exists( $base_class_path ) ) {
 			require_once $base_class_path;
 		}
 	}
 	
 	// If still not loaded, show error.
-	if ( ! class_exists( 'Digital_Employee_WP_Bridge_Tool_Base' ) ) {
+	if ( ! class_exists( 'DEF_Core_Tool_Base' ) ) {
 		add_action(
 			'admin_notices',
 			function () {
 				?>
 				<div class="notice notice-error">
-					<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> could not load base tool class from main plugin. Please ensure Digital Employee Framework - WordPress Bridge is installed and activated.', 'digital-employee-addon-<integration>' ); ?></p>
+					<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> could not load base tool class from main plugin. Please ensure Digital Employee Framework - Core is installed and activated.', 'def-addon-<integration>' ); ?></p>
 				</div>
 				<?php
 			}
@@ -293,13 +293,13 @@ You can also register tools directly without extending the base class:
 
 ```php
 add_action(
-	'digital_employee_wp_bridge_register_tools',
+	'def_core_register_tools',
 	function () {
-		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+		$registry = DEF_Core_API_Registry::instance();
 		
 		$registry->register_tool(
 			'/tools/my-addon/my-tool',     // Route (namespace is automatic)
-			__( 'My Custom Tool', 'digital-employee-addon-<integration>' ), // Name
+			__( 'My Custom Tool', 'def-addon-<integration>' ), // Name
 			array( 'GET', 'POST' ),        // HTTP methods
 			'my_callback_function',        // Callback function
 			null,                          // Permission callback (null = default JWT auth)
@@ -414,7 +414,7 @@ return $this->error_response( 'Error message', 400 );
 ### 5. Use Caching When Appropriate
 
 ```php
-$data = Digital_Employee_WP_Bridge_Cache::get_or_set(
+$data = DEF_Core_Cache::get_or_set(
 	'my_cache_key',
 	$user->ID,
 	3600, // 1 hour
@@ -442,7 +442,7 @@ See `examples/addon-example.php` for a complete example addon, or check the `dig
 
 ## API Reference
 
-### `Digital_Employee_WP_Bridge_API_Registry::instance()`
+### `DEF_Core_API_Registry::instance()`
 Get the registry instance.
 
 ### `register_tool( $route, $name, $methods, $callback, $permission_callback, $args, $addon )`

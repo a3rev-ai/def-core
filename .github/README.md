@@ -9,7 +9,7 @@ This directory contains GitHub Actions workflows for automating releases and dep
 **Triggers:** Push to `main` or `master` branch
 
 **What it does on every commit:**
-1. ✅ Extracts version from `digital-employee-wp-bridge.php`
+1. ✅ Extracts version from `def-core.php`
 2. ✅ Checks if version tag already exists
 3. ✅ Deletes existing release and tag if version exists (to recreate with latest code)
 4. ✅ Builds production zip file (excludes dev files)
@@ -22,7 +22,7 @@ This directory contains GitHub Actions workflows for automating releases and dep
 ## 🚀 Quick Start
 
 1. **Set up AWS credentials** - See [SETUP.md](./SETUP.md) for detailed instructions
-2. **Update plugin version** in `digital-employee-wp-bridge.php`
+2. **Update plugin version** in `def-core.php`
 3. **Commit and push** to main branch
 4. **Workflow runs automatically** - Check Actions tab
 
@@ -64,7 +64,7 @@ Update three places before release:
 
 **2. Version constant:**
 ```php
-define( 'DE_WP_BRIDGE_VERSION', '1.0.0' );
+define( 'DEF_CORE_VERSION', '1.0.0' );
 ```
 
 **3. changelog.txt:**
@@ -78,12 +78,12 @@ define( 'DE_WP_BRIDGE_VERSION', '1.0.0' );
 After successful deployment, files are available at:
 
 **Private S3 Bucket (requires authentication):**
-- ZIP: `s3://private-bucket/digital-employee-wp-bridge/digital-employee-wp-bridge.zip`
-- CloudFront: `https://your-cloudfront-domain/digital-employee-wp-bridge/digital-employee-wp-bridge.zip`
+- ZIP: `s3://private-bucket/def-core/def-core.zip`
+- CloudFront: `https://your-cloudfront-domain/def-core/def-core.zip`
 
 **Public S3 Bucket (publicly accessible):**
-- Changelog: `s3://public-bucket/digital-employee-wp-bridge/changelog.txt`
-- CloudFront: `https://your-cloudfront-domain/digital-employee-wp-bridge/changelog.txt`
+- Changelog: `s3://public-bucket/def-core/changelog.txt`
+- CloudFront: `https://your-cloudfront-domain/def-core/changelog.txt`
 
 **GitHub Release:**
 - Attached to the release on GitHub
@@ -93,7 +93,7 @@ After successful deployment, files are available at:
 - **Every commit fully updates everything** - S3, tags, and GitHub releases
 - Existing tags/releases are deleted and recreated with latest code
 - All development files are automatically excluded from the zip
-- ZIP filename has no version (e.g., `digital-employee-wp-bridge.zip`)
+- ZIP filename has no version (e.g., `def-core.zip`)
 - **Each commit overwrites the previous ZIP in S3** - Always latest code
 - **Update changelog.txt in repository before committing**
 - Changelog is uploaded and cache invalidated on each commit

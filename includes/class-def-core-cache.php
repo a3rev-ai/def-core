@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge_Cache
+ * Class DEF_Core_Cache
  *
- * Handles caching for the Digital Employee WordPress Bridge plugin.
+ * Handles caching for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -16,15 +16,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_WP_Bridge_Cache
+ * Class DEF_Core_Cache
  *
  * Provides user-scoped transient caching with automatic invalidation.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
-final class Digital_Employee_WP_Bridge_Cache {
+final class DEF_Core_Cache {
 	/**
 	 * Cache key prefix.
 	 *

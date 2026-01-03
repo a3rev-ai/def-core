@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge_API_Registry
+ * Class DEF_Core_API_Registry
  *
  * Registry system for API tools. Allows addons to register their own tools.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  * @version 0.2.0
  */
@@ -16,20 +16,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_WP_Bridge_API_Registry
+ * Class DEF_Core_API_Registry
  *
  * Registry system for API tools. Allows addons to register their own tools.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  * @version 0.2.0
  */
-final class Digital_Employee_WP_Bridge_API_Registry {
+final class DEF_Core_API_Registry {
 
 	/**
 	 * Registry instance.
 	 *
-	 * @var Digital_Employee_WP_Bridge_API_Registry
+	 * @var DEF_Core_API_Registry
 	 */
 	private static $instance;
 
@@ -52,7 +52,7 @@ final class Digital_Employee_WP_Bridge_API_Registry {
 	/**
 	 * Get the registry instance.
 	 *
-	 * @return Digital_Employee_WP_Bridge_API_Registry
+	 * @return DEF_Core_API_Registry
 	 * @since 0.2.0
 	 * @version 0.2.0
 	 */
@@ -118,7 +118,7 @@ final class Digital_Employee_WP_Bridge_API_Registry {
 
 		// Default permission callback to JWT auth check.
 		if ( null === $permission_callback ) {
-			$permission_callback = array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' );
+			$permission_callback = array( 'DEF_Core_Tools', 'permission_check' );
 		}
 
 		// Check if already registered.
@@ -126,7 +126,7 @@ final class Digital_Employee_WP_Bridge_API_Registry {
 			// Allow override if same addon, otherwise log warning.
 			$is_same_addon = ! empty( $addon ) && isset( $this->registered_tools[ $route ]['addon'] ) && $this->registered_tools[ $route ]['addon'] === $addon;
 			if ( ! $is_same_addon ) {
-				error_log( sprintf( 'Digital Employee WordPress Bridge: Tool %s already registered. Skipping duplicate registration.', $route ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( 'Digital Employee Framework - Core: Tool %s already registered. Skipping duplicate registration.', $route ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return false;
 			}
 			// Same addon overriding - allowed, continue registration.
@@ -196,7 +196,7 @@ final class Digital_Employee_WP_Bridge_API_Registry {
 				continue;
 			}
 			register_rest_route(
-				DE_WP_BRIDGE_API_NAME_SPACE,
+				DEF_CORE_API_NAME_SPACE,
 				$tool['route'],
 				array(
 					'methods'             => $tool['methods'],
@@ -229,7 +229,7 @@ final class Digital_Employee_WP_Bridge_API_Registry {
 	 * @version 0.2.0
 	 */
 	private function get_tools_status(): array {
-		$status = get_option( 'de_wp_bridge_tools_status', array() );
+		$status = get_option( 'def_core_tools_status', array() );
 		if ( ! is_array( $status ) ) {
 			return array();
 		}

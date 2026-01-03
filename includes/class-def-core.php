@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge
+ * Class DEF_Core
  *
- * Main plugin class for the Digital Employee Framework WordPress Bridge plugin.
+ * Main plugin class for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  * @version 0.2.0
  */
@@ -18,20 +18,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Main plugin class.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  */
-final class Digital_Employee_WP_Bridge {
+final class DEF_Core {
 	/**
-	 * The instance of the Digital_Employee_WP_Bridge class.
+	 * The instance of the DEF_Core class.
 	 *
-	 * @var Digital_Employee_WP_Bridge
+	 * @var DEF_Core
 	 */
 	private static $instance;
 
 	/**
 	 * Get the singleton instance.
 	 *
-	 * @return Digital_Employee_WP_Bridge The instance.
+	 * @return DEF_Core The instance.
 	 */
 	public static function instance(): self {
 		if ( ! isset( self::$instance ) ) {
@@ -52,15 +52,15 @@ final class Digital_Employee_WP_Bridge {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 
 		// Initialize components.
-		Digital_Employee_WP_Bridge_Admin::init();
-		Digital_Employee_WP_Bridge_Routes::init();
-		Digital_Employee_WP_Bridge_Cache::init();
+		DEF_Core_Admin::init();
+		DEF_Core_Routes::init();
+		DEF_Core_Cache::init();
 
 		// Register activation hook.
-		register_activation_hook( DE_WP_BRIDGE_PLUGIN_DIR . 'digital-employee-wp-bridge.php', array( __CLASS__, 'on_activate' ) );
+		register_activation_hook( DEF_CORE_PLUGIN_DIR . 'def-core.php', array( __CLASS__, 'on_activate' ) );
 
 		// Add settings link to plugin action links.
-		add_filter( 'plugin_action_links_' . plugin_basename( DE_WP_BRIDGE_PLUGIN_DIR . 'digital-employee-wp-bridge.php' ), array( $this, 'add_settings_link' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( DEF_CORE_PLUGIN_DIR . 'def-core.php' ), array( $this, 'add_settings_link' ) );
 	}
 
 	/**
@@ -72,31 +72,31 @@ final class Digital_Employee_WP_Bridge {
 	private function load_dependencies(): void {
 		// Main plugin class (this file).
 		// Core classes.
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-jwt.php';
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-cache.php';
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-admin.php';
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-tools.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-cache.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
 
 		// API Registry (must be loaded before routes).
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-api-registry.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-api-registry.php';
 
 		// Tool base class (for addons).
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/tools/class-digital-employee-wp-bridge-tool-base.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-base.php';
 
 		// Routes (registers core tools and allows addons to register).
-		require_once DE_WP_BRIDGE_PLUGIN_DIR . 'includes/class-digital-employee-wp-bridge-routes.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
 
 		// Plugin inited action hook.
-		do_action( 'digital_employee_wp_bridge_inited' );
+		do_action( 'def_core_inited' );
 	}
 
 	/**
 	 * Activation hook handler.
 	 */
 	public static function on_activate(): void {
-		Digital_Employee_WP_Bridge_JWT::ensure_keys_exist();
-		if ( get_option( DE_WP_BRIDGE_OPTION_ALLOWED_ORIGINS ) === false ) {
-			add_option( DE_WP_BRIDGE_OPTION_ALLOWED_ORIGINS, array(), '', false );
+		DEF_Core_JWT::ensure_keys_exist();
+		if ( get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS ) === false ) {
+			add_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array(), '', false );
 		}
 	}
 
@@ -109,33 +109,33 @@ final class Digital_Employee_WP_Bridge {
 	public function register_assets(): void {
 		// Register frontend scripts (only enqueued on frontend via wp_enqueue_scripts).
 		wp_register_script(
-			'digital-employee-wp-bridge',
-			DE_WP_BRIDGE_PLUGIN_URL . 'assets/js/digital-employee-wp-bridge.js',
+			'def-core',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core.js',
 			array(),
-			DE_WP_BRIDGE_VERSION,
+			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
 
 		wp_register_script(
-			'digital-employee-cart-sync',
-			DE_WP_BRIDGE_PLUGIN_URL . 'assets/js/digital-employee-cart-sync.js',
+			'def-core-cart-sync',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-cart-sync.js',
 			array(),
-			DE_WP_BRIDGE_VERSION,
+			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
 
 		// Register admin assets (only enqueued on admin pages).
 		wp_register_style(
-			'digital-employee-wp-bridge-admin',
-			DE_WP_BRIDGE_PLUGIN_URL . 'assets/css/admin.css',
+			'def-core-admin',
+			DEF_CORE_PLUGIN_URL . 'assets/css/def-core-admin.css',
 			array(),
-			DE_WP_BRIDGE_VERSION
+			DEF_CORE_VERSION
 		);
 		wp_register_script(
-			'digital-employee-wp-bridge-admin',
-			DE_WP_BRIDGE_PLUGIN_URL . 'assets/js/admin.js',
+			'def-core-admin',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-admin.js',
 			array(),
-			DE_WP_BRIDGE_VERSION,
+			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
 	}
@@ -154,16 +154,16 @@ final class Digital_Employee_WP_Bridge {
 
 		// Enqueue main bridge script.
 		$rest_data = array(
-			'restUrl'        => esc_url_raw( rest_url( DE_WP_BRIDGE_API_NAME_SPACE . '/context-token' ) ),
+			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'allowedOrigins' => $this->get_allowed_origins(),
 		);
-		wp_localize_script( 'digital-employee-wp-bridge', 'DEWPBridge', $rest_data );
-		wp_enqueue_script( 'digital-employee-wp-bridge' );
+		wp_localize_script( 'def-core', 'DEFCore', $rest_data );
+		wp_enqueue_script( 'def-core' );
 
 		// Enqueue cart sync script only if WooCommerce is installed and Add to Cart API is enabled.
 		if ( $this->should_enqueue_cart_sync() ) {
-			wp_enqueue_script( 'digital-employee-cart-sync' );
+			wp_enqueue_script( 'def-core-cart-sync' );
 		}
 	}
 
@@ -182,7 +182,7 @@ final class Digital_Employee_WP_Bridge {
 		}
 
 		// Check if Add to Cart tool is registered.
-		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+		$registry = DEF_Core_API_Registry::instance();
 		$route    = '/tools/wc/add-to-cart';
 
 		// Check if tool is registered.
@@ -200,7 +200,7 @@ final class Digital_Employee_WP_Bridge {
 	 * @return array Array of allowed origins.
 	 */
 	private function get_allowed_origins(): array {
-		$origins = get_option( DE_WP_BRIDGE_OPTION_ALLOWED_ORIGINS, array() );
+		$origins = get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array() );
 		if ( ! is_array( $origins ) ) {
 			$origins = array();
 		}
@@ -214,11 +214,11 @@ final class Digital_Employee_WP_Bridge {
 	 * @return array Modified links.
 	 */
 	public function add_settings_link( array $links ): array {
-		$url     = admin_url( 'options-general.php?page=digital-employee-wp-bridge' );
-		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'digital-employee-wp-bridge' ) . '</a>';
+		$url     = admin_url( 'options-general.php?page=def-core' );
+		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'def-core' ) . '</a>';
 		return $links;
 	}
 }
 
 // Initialize the plugin.
-Digital_Employee_WP_Bridge::instance();
+DEF_Core::instance();

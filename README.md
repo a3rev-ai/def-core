@@ -1,4 +1,4 @@
-# Digital Employee Framework - WordPress Bridge
+# Digital Employee Framework - Core
 
 ## Purpose
 

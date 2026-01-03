@@ -1,6 +1,6 @@
 <?php
 /**
- * Example Addon for Digital Employee WordPress Bridge
+ * Example Addon for Digital Employee Framework - Core
  *
  * This file demonstrates how to create an addon that registers additional API tools.
  * Follow the naming conventions: digital-employee-addon-<integration>
@@ -21,16 +21,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Example: Using the Base Class (Recommended)
  *
- * Tools extending Digital_Employee_WP_Bridge_Tool_Base will automatically
+ * Tools extending DEF_Core_Tool_Base will automatically
  * register themselves when instantiated. No need to manually call register().
  */
-class Example_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
+class Example_Addon_Tool extends DEF_Core_Tool_Base {
 
 	/**
 	 * Initialize the tool.
 	 */
 	protected function init(): void {
-		// Namespace is automatically set to DE_WP_BRIDGE_API_NAME_SPACE.
+		// Namespace is automatically set to DEF_CORE_API_NAME_SPACE.
 		$this->name    = __( 'Example Addon Tool', 'digital-employee-addon-example' );
 		$this->route   = '/tools/example/hello';
 		$this->methods = array( 'GET' );
@@ -109,7 +109,7 @@ function example_addon_custom_tool( \WP_REST_Request $request ): \WP_REST_Respon
  * Register addon tools.
  *
  * Method 1: Using the base class (automatic registration).
- * Tools extending Digital_Employee_WP_Bridge_Tool_Base will automatically
+ * Tools extending DEF_Core_Tool_Base will automatically
  * register themselves when instantiated. No need to manually call register().
  */
 add_action(
@@ -126,13 +126,13 @@ add_action(
  * Method 2: Using the registry directly (manual registration).
  * Use this if you need more control or aren't using the base class.
  *
- * Note: The namespace is automatically set to DE_WP_BRIDGE_API_NAME_SPACE.
+ * Note: The namespace is automatically set to DEF_CORE_API_NAME_SPACE.
  * You don't need to specify it in register_tool().
  */
 add_action(
-	'digital_employee_wp_bridge_register_tools',
+	'def_core_register_tools',
 	function () {
-		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+		$registry = DEF_Core_API_Registry::instance();
 		$registry->register_tool(
 			'/tools/example/custom',                              // Route (namespace is automatic)
 			__( 'Example Custom Tool', 'digital-employee-addon-example' ), // Name

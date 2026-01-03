@@ -57,14 +57,14 @@ GitHub Push (main/master)
 
 ### ✅ Current (New) Format
 ```
-digital-employee-wp-bridge.zip              (private bucket)
-digital-employee-wp-bridge/changelog.txt    (public bucket)
+def-core.zip              (private bucket)
+def-core/changelog.txt    (public bucket)
 ```
 
 ### ❌ Old Format (Removed)
 ```
-digital-employee-wp-bridge-v1.0.0.zip
-digital-employee-wp-bridge-latest.zip
+def-core-v1.0.0.zip
+def-core-latest.zip
 ```
 
 **Rationale:** Simplifies distribution and cache management. Auto-update systems always fetch the same filename.
@@ -100,7 +100,7 @@ Verifies if tag `vX.Y.Z` already exists to prevent duplicates.
 
 ### 3. Build ZIP
 ```bash
-PLUGIN_NAME="digital-employee-wp-bridge"
+PLUGIN_NAME="def-core"
 ZIP_NAME="${PLUGIN_NAME}.zip"  # No version!
 ```
 Excludes: `.git*`, `node_modules`, `.github`, etc.
@@ -193,7 +193,7 @@ CLOUDFRONT_DOMAIN           # e.g., d1234567890.cloudfront.net
 
 ## Plugins Configured
 
-1. ✅ **digital-employee-wp-bridge** (main plugin)
+1. ✅ **def-core** (main plugin)
 2. ✅ **digital-employee-addon-bbpress**
 3. ✅ **digital-employee-addon-a3rev-licenses**
 4. ✅ **digital-employee-addon-wc-subscriptions**
@@ -225,13 +225,13 @@ Each plugin has identical workflow structure with plugin-specific naming.
 ### Check Deployment Status
 ```bash
 # Check if ZIP exists in private bucket
-aws s3 ls s3://private-bucket/digital-employee-wp-bridge.zip
+aws s3 ls s3://private-bucket/def-core.zip
 
 # Check changelog in public bucket
-aws s3 ls s3://public-bucket/digital-employee-wp-bridge/
+aws s3 ls s3://public-bucket/def-core/
 
 # Test CloudFront access
-curl -I https://your-cloudfront-domain/digital-employee-wp-bridge/changelog.txt
+curl -I https://your-cloudfront-domain/def-core/changelog.txt
 ```
 
 ### Common Issues

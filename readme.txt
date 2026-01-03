@@ -1,4 +1,4 @@
-=== Digital Employee Framework - WordPress Bridge ===
+=== Digital Employee Framework - Core ===
 Contributors: a3rev
 Tags: jwt, api, authentication, sso, bridge, digital employee, ai
 Requires at least: 6.0
@@ -12,7 +12,7 @@ Secure JWT-based authentication bridge connecting WordPress with external Digita
 
 == Description ==
 
-Digital Employee Framework - WordPress Bridge is a powerful authentication and API bridge plugin that enables secure communication between your WordPress site and external Digital Employee Framework applications.
+Digital Employee Framework - Core is a powerful authentication and API bridge plugin that enables secure communication between your WordPress site and external Digital Employee Framework applications.
 
 = Key Features =
 
@@ -87,13 +87,13 @@ Full documentation and addon development guide available in the plugin directory
 
 = Manual Installation =
 
-1. Upload the `digital-employee-wp-bridge` folder to `/wp-content/plugins/`
+1. Upload the `def-core` folder to `/wp-content/plugins/`
 2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Configure settings under Settings > Digital Employee Bridge
+3. Configure settings under Settings > Digital Employees
 
 = Configuration =
 
-1. Navigate to **Settings > Digital Employee Bridge**
+1. Navigate to **Settings > Digital Employees**
 2. Configure **Allowed Origins** for postMessage session bridging
 3. (Optional) Configure **External Authentication** for Single Sign-On
 4. Enable/disable API tools as needed
@@ -130,7 +130,7 @@ JWKS (JSON Web Key Set) is a standard endpoint that exposes public keys used to 
 
 = Can I customize the JWT token expiration? =
 
-Yes. Use the `de_wp_bridge_token_expiration` filter to customize token lifetime (default is 5 minutes).
+Yes. Use the `def_core_token_expiration` filter to customize token lifetime (default is 5 minutes).
 
 == Screenshots ==
 
@@ -155,7 +155,7 @@ Yes. Use the `de_wp_bridge_token_expiration` filter to customize token lifetime 
 == Upgrade Notice ==
 
 = 1.0.0 =
-Initial release of Digital Employee Framework - WordPress Bridge.
+Initial release of Digital Employee Framework - Core.
 
 == Additional Info ==
 

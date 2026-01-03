@@ -1,17 +1,17 @@
 /**
- * Digital Employee WordPress Bridge - Admin Scripts
+ * Digital Employee Framework - Core - Admin Scripts
  */
 (function() {
 	'use strict';
 
 	document.addEventListener('DOMContentLoaded', function() {
 		// Handle toggle switches
-		const toggleSwitches = document.querySelectorAll('.de-wp-bridge-toggle-switch input[type="checkbox"]:not(:disabled)');
+		const toggleSwitches = document.querySelectorAll('.def-core-toggle-switch input[type="checkbox"]:not(:disabled)');
 		
 		toggleSwitches.forEach(function(toggle) {
 			// Make slider clickable - click on slider triggers checkbox
 			const slider = toggle.nextElementSibling;
-			if (slider && slider.classList.contains('de-wp-bridge-slider')) {
+			if (slider && slider.classList.contains('def-core-slider')) {
 				slider.addEventListener('click', function(e) {
 					e.preventDefault();
 					e.stopPropagation();
@@ -22,7 +22,7 @@
 			
 			// Handle checkbox change to add/remove hidden input for value 0
 			toggle.addEventListener('change', function() {
-				const toggleSwitch = this.closest('.de-wp-bridge-toggle-switch');
+				const toggleSwitch = this.closest('.def-core-toggle-switch');
 				const hiddenInput = toggleSwitch.querySelector('input[type="hidden"]');
 				
 				if (this.checked) {
@@ -49,7 +49,7 @@
 				const isEnabled = this.checked;
 				
 				// Trigger custom event
-				const event = new CustomEvent('de-wp-bridge-toggle-change', {
+				const event = new CustomEvent('def-core-toggle-change', {
 					detail: {
 						toolKey: toolKey ? toolKey[1] : '',
 						toolName: toolName,
@@ -72,11 +72,11 @@
 				const row = this.closest('tr');
 				if (row) {
 					if (this.checked) {
-						row.classList.remove('de-wp-bridge-disabled');
-						row.classList.add('de-wp-bridge-enabled');
+						row.classList.remove('def-core-disabled');
+						row.classList.add('def-core-enabled');
 					} else {
-						row.classList.remove('de-wp-bridge-enabled');
-						row.classList.add('de-wp-bridge-disabled');
+						row.classList.remove('def-core-enabled');
+						row.classList.add('def-core-disabled');
 					}
 				}
 			});
@@ -87,9 +87,9 @@
 			const row = toggle.closest('tr');
 			if (row) {
 				if (toggle.checked) {
-					row.classList.add('de-wp-bridge-enabled');
+					row.classList.add('def-core-enabled');
 				} else {
-					row.classList.add('de-wp-bridge-disabled');
+					row.classList.add('def-core-disabled');
 				}
 			}
 		});

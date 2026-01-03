@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge_Tools
+ * Class DEF_Core_Tools
  *
- * Tools for the a3 AI Session Bridge plugin.
+ * Tools for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -16,15 +16,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_WP_Bridge_Tools
+ * Class DEF_Core_Tools
  *
- * Tools for the a3 AI Session Bridge plugin.
+ * Tools for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
-final class Digital_Employee_WP_Bridge_Tools {
+final class DEF_Core_Tools {
 
 	/**
 	 * Issue a context token.
@@ -46,9 +46,9 @@ final class Digital_Employee_WP_Bridge_Tools {
 			'email'        => $user->user_email,
 			'roles'        => array_values( (array) $user->roles ),
 			'iss'          => get_site_url(),
-			'aud'          => DE_WP_BRIDGE_AUDIENCE,
+			'aud'          => DEF_CORE_AUDIENCE,
 		);
-		$jwt    = Digital_Employee_WP_Bridge_JWT::issue_token( $claims, 300 ); // 5 minutes.
+		$jwt    = DEF_Core_JWT::issue_token( $claims, 300 ); // 5 minutes.
 		return new \WP_REST_Response(
 			array(
 				'token' => $jwt,
@@ -66,7 +66,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 	 * @version 0.1.0
 	 */
 	public static function rest_get_jwks(): \WP_REST_Response {
-		return new \WP_REST_Response( Digital_Employee_WP_Bridge_JWT::get_jwks(), 200 );
+		return new \WP_REST_Response( DEF_Core_JWT::get_jwks(), 200 );
 	}
 
 	/**
@@ -141,7 +141,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 		if ( ! $jwt ) {
 			return null;
 		}
-		$payload = Digital_Employee_WP_Bridge_JWT::verify_token( $jwt );
+		$payload = DEF_Core_JWT::verify_token( $jwt );
 		if ( ! is_array( $payload ) ) {
 			return null;
 		}
@@ -217,7 +217,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 			);
 		}
 
-		$data = Digital_Employee_WP_Bridge_Cache::get_or_set(
+		$data = DEF_Core_Cache::get_or_set(
 			'me',
 			$user->ID,
 			604800, // 7 days - user profile rarely changes (should be cached for a week).
@@ -275,7 +275,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 			$cache_key .= "_status{$status}";
 		}
 
-		$data = Digital_Employee_WP_Bridge_Cache::get_or_set(
+		$data = DEF_Core_Cache::get_or_set(
 			$cache_key,
 			$user->ID,
 			604800, // 7 days - orders are more dynamic (should be cached for a week).
@@ -360,7 +360,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 			);
 		}
 
-		$data = Digital_Employee_WP_Bridge_Cache::get_or_set(
+		$data = DEF_Core_Cache::get_or_set(
 			"order_detail_{$order_id}",
 			$user->ID,
 			604800, // 7 days - order details change less frequently (should be cached for a week).
@@ -436,7 +436,7 @@ final class Digital_Employee_WP_Bridge_Tools {
 			);
 		}
 
-		return Digital_Employee_WP_Bridge_Cache::get_or_set(
+		return DEF_Core_Cache::get_or_set(
 			'products_list',
 			0, // User ID 0 for public/shared cache.
 			3600, // 1 hour - products change less frequently (should be cached for an hour).
@@ -686,12 +686,12 @@ final class Digital_Employee_WP_Bridge_Tools {
 
 			// Invalidate user's cart cache.
 			if ( $current_user_id > 0 ) {
-				Digital_Employee_WP_Bridge_Cache::invalidate_user( $current_user_id, 'cart_' );
+				DEF_Core_Cache::invalidate_user( $current_user_id, 'cart_' );
 			} else {
 				// For guests, invalidate by session customer ID.
 				$customer_id = WC()->session ? WC()->session->get_customer_id() : '';
 				if ( $customer_id ) {
-					Digital_Employee_WP_Bridge_Cache::invalidate_user( (int) $customer_id, 'cart_' );
+					DEF_Core_Cache::invalidate_user( (int) $customer_id, 'cart_' );
 				}
 			}
 

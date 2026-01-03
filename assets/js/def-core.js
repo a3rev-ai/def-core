@@ -1,8 +1,8 @@
 (() => {
   // Minimal bridge script: responds to iframe postMessage with a short-lived JWT for the logged-in WP user
-  const allowed = Array.isArray(window.DEWPBridge?.allowedOrigins) ? window.DEWPBridge.allowedOrigins : [];
-  const restUrl = window.DEWPBridge?.restUrl || "";
-  const nonce = window.DEWPBridge?.nonce || "";
+  const allowed = Array.isArray(window.DEFCore?.allowedOrigins) ? window.DEFCore.allowedOrigins : [];
+  const restUrl = window.DEFCore?.restUrl || "";
+  const nonce = window.DEFCore?.nonce || "";
 
   function isAllowedOrigin(origin) {
     if (!origin) return false;

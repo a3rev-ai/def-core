@@ -4,7 +4,7 @@
  *
  * Provides a base class for tool implementations that addons can extend.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  * @version 0.2.0
  */
@@ -16,23 +16,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Abstract Class Digital_Employee_WP_Bridge_Tool_Base
+ * Abstract Class DEF_Core_Tool_Base
  *
  * Base class for API tool implementations.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.2.0
  * @version 0.2.0
  */
-abstract class Digital_Employee_WP_Bridge_Tool_Base {
+abstract class DEF_Core_Tool_Base {
 
 	/**
 	 * Tool namespace (informational only, not used for registration).
-	 * All tools are registered under DE_WP_BRIDGE_API_NAME_SPACE.
+	 * All tools are registered under DEF_CORE_API_NAME_SPACE.
 	 *
 	 * @var string
 	 */
-	protected $namespace = DE_WP_BRIDGE_API_NAME_SPACE;
+	protected $namespace = DEF_CORE_API_NAME_SPACE;
 
 	/**
 	 * Tool display name.
@@ -124,7 +124,7 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 
 		// Hook into the registration action.
 		add_action(
-			'digital_employee_wp_bridge_register_tools',
+			'def_core_register_tools',
 			function () {
 				if ( ! $this->registered && $this->should_register() ) {
 					$this->register();
@@ -134,7 +134,7 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 		);
 
 		// If the hook has already fired, register immediately.
-		if ( did_action( 'digital_employee_wp_bridge_register_tools' ) ) {
+		if ( did_action( 'def_core_register_tools' ) ) {
 			if ( $this->should_register() ) {
 				$this->register();
 				$this->registered = true;
@@ -176,7 +176,7 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 			return false;
 		}
 
-		return Digital_Employee_WP_Bridge_API_Registry::instance()->register_tool(
+		return DEF_Core_API_Registry::instance()->register_tool(
 			$this->route,
 			$this->name,
 			$this->methods,
@@ -210,7 +210,7 @@ abstract class Digital_Employee_WP_Bridge_Tool_Base {
 	 * @version 0.2.0
 	 */
 	protected function verify_and_get_user(): ?\WP_User {
-		return Digital_Employee_WP_Bridge_Tools::verify_and_get_user();
+		return DEF_Core_Tools::verify_and_get_user();
 	}
 
 	/**

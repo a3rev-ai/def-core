@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge_JWT
+ * Class DEF_Core_JWT
  *
- * JWT functionality for the Digital Employee WordPress Bridge plugin.
+ * JWT functionality for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -16,15 +16,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_WP_Bridge_JWT
+ * Class DEF_Core_JWT
  *
- * JWT functionality for the Digital Employee WordPress Bridge plugin.
+ * JWT functionality for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
-final class Digital_Employee_WP_Bridge_JWT {
+final class DEF_Core_JWT {
 	/**
 	 * Ensure RSA keypair exists. Generate if missing.
 	 *
@@ -32,13 +32,13 @@ final class Digital_Employee_WP_Bridge_JWT {
 	 * @version 0.1.0
 	 */
 	public static function ensure_keys_exist(): void {
-		$keys = get_option( DE_WP_BRIDGE_OPTION_KEYS );
+		$keys = get_option( DEF_CORE_OPTION_KEYS );
 		if ( is_array( $keys ) && ! empty( $keys['private'] ) && ! empty( $keys['public'] ) && ! empty( $keys['kid'] ) ) {
 			return;
 		}
 		if ( ! function_exists( 'openssl_pkey_new' ) ) {
 			// Fallback: store marker so we don't regen each hit; token issuing will fail without keys.
-			add_option( DE_WP_BRIDGE_OPTION_KEYS, array( 'error' => 'openssl_missing' ), '', false );
+			add_option( DEF_CORE_OPTION_KEYS, array( 'error' => 'openssl_missing' ), '', false );
 			return;
 		}
 		$config = array(
@@ -60,10 +60,10 @@ final class Digital_Employee_WP_Bridge_JWT {
 			'kid'     => $kid,
 			'created' => time(),
 		);
-		if ( get_option( DE_WP_BRIDGE_OPTION_KEYS ) === false ) {
-			add_option( DE_WP_BRIDGE_OPTION_KEYS, $data, '', false );
+		if ( get_option( DEF_CORE_OPTION_KEYS ) === false ) {
+			add_option( DEF_CORE_OPTION_KEYS, $data, '', false );
 		} else {
-			update_option( DE_WP_BRIDGE_OPTION_KEYS, $data, false );
+			update_option( DEF_CORE_OPTION_KEYS, $data, false );
 		}
 	}
 
@@ -105,10 +105,10 @@ final class Digital_Employee_WP_Bridge_JWT {
 	 * @version 0.1.0
 	 */
 	public static function issue_token( array $claims, int $ttl_seconds = 300 ): string {
-		$keys = get_option( DE_WP_BRIDGE_OPTION_KEYS );
+		$keys = get_option( DEF_CORE_OPTION_KEYS );
 		if ( ! is_array( $keys ) || empty( $keys['private'] ) ) {
 			self::ensure_keys_exist();
-			$keys = get_option( DE_WP_BRIDGE_OPTION_KEYS );
+			$keys = get_option( DEF_CORE_OPTION_KEYS );
 		}
 		if ( empty( $keys['private'] ) ) {
 			return '';
@@ -149,7 +149,7 @@ final class Digital_Employee_WP_Bridge_JWT {
 	 * @version 0.1.0
 	 */
 	public static function get_jwks(): array {
-		$keys = get_option( DE_WP_BRIDGE_OPTION_KEYS );
+		$keys = get_option( DEF_CORE_OPTION_KEYS );
 		if ( ! is_array( $keys ) || empty( $keys['public'] ) ) {
 			return array( 'keys' => array() );
 		}
@@ -187,7 +187,7 @@ final class Digital_Employee_WP_Bridge_JWT {
 	 */
 	private static function fetch_external_jwks( string $jwks_url ) {
 		// Cache key based on URL.
-		$cache_key = 'de_wp_bridge_external_jwks_' . md5( $jwks_url );
+		$cache_key = 'def_core_external_jwks_' . md5( $jwks_url );
 		$cached    = get_transient( $cache_key );
 
 		if ( false !== $cached && is_array( $cached ) ) {
@@ -200,7 +200,7 @@ final class Digital_Employee_WP_Bridge_JWT {
 			array(
 				'timeout'     => 5,
 				'httpversion' => '1.1',
-				'user-agent'  => 'digital-employee-wp-bridge/' . DE_WP_BRIDGE_VERSION,
+				'user-agent'  => 'def-core/' . DEF_CORE_VERSION,
 			)
 		);
 
@@ -315,8 +315,8 @@ final class Digital_Employee_WP_Bridge_JWT {
 	 */
 	private static function verify_token_with_external_jwks( string $jwt ) {
 		// Check if external JWKS is configured.
-		$external_jwks_url = get_option( 'de_wp_bridge_external_jwks_url', '' );
-		$external_issuer   = get_option( 'de_wp_bridge_external_issuer', '' );
+		$external_jwks_url = get_option( 'def_core_external_jwks_url', '' );
+		$external_issuer   = get_option( 'def_core_external_issuer', '' );
 
 		// If not configured, return null (will fall back to local verification).
 		if ( empty( $external_jwks_url ) ) {
@@ -432,7 +432,7 @@ final class Digital_Employee_WP_Bridge_JWT {
 		$signing_input     = $h . '.' . $p;
 
 		// Get local keys.
-		$keys = get_option( DE_WP_BRIDGE_OPTION_KEYS );
+		$keys = get_option( DEF_CORE_OPTION_KEYS );
 		if ( ! is_array( $keys ) || empty( $keys['public'] ) ) {
 			return null;
 		}

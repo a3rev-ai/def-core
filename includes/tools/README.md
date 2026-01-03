@@ -1,20 +1,20 @@
 # API Tools Directory
 
-This directory contains tool implementations and base classes for the Digital Employee Framework WordPress Bridge plugin.
+This directory contains tool implementations and base classes for the Digital Employee Framework - Core plugin.
 
 ## Structure
 
-- `class-digital-employee-wp-bridge-tool-base.php` - Abstract base class for tool implementations
+- `class-def-core-tool-base.php` - Abstract base class for tool implementations
 
 ## For Addon Developers
 
 ### Using the Base Class
 
-Extend `Digital_Employee_WP_Bridge_Tool_Base` to create your own tool:
+Extend `DEF_Core_Tool_Base` to create your own tool:
 
 ```php
 <?php
-class My_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
+class My_Addon_Tool extends DEF_Core_Tool_Base {
     
     protected function init(): void {
         $this->namespace = 'a3-ai/v1';
@@ -40,7 +40,7 @@ class My_Addon_Tool extends Digital_Employee_WP_Bridge_Tool_Base {
 }
 
 // Register the tool
-add_action( 'digital_employee_wp_bridge_register_tools', function() {
+add_action( 'def_core_register_tools', function() {
     $tool = new My_Addon_Tool( 'my-addon' );
     $tool->register();
 } );
@@ -52,8 +52,8 @@ You can also register tools directly using the registry:
 
 ```php
 <?php
-add_action( 'digital_employee_wp_bridge_register_tools', function() {
-    $registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+add_action( 'def_core_register_tools', function() {
+    $registry = DEF_Core_API_Registry::instance();
     
     $registry->register_tool(
         'a3-ai/v1',                    // Namespace

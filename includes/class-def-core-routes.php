@@ -1,10 +1,10 @@
 <?php
 /**
- * Class Digital_Employee_WP_Bridge_Routes
+ * Class DEF_Core_Routes
  *
- * Registers the REST routes for the a3 AI Session Bridge plugin.
+ * Registers the REST routes for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -16,15 +16,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class Digital_Employee_WP_Bridge_Routes
+ * Class DEF_Core_Routes
  *
- * Registers the REST routes for the a3 AI Session Bridge plugin.
+ * Registers the REST routes for the Digital Employee Framework - Core plugin.
  *
- * @package digital-employee-wp-bridge
+ * @package def-core
  * @since 0.1.0
  * @version 0.1.0
  */
-final class Digital_Employee_WP_Bridge_Routes {
+final class DEF_Core_Routes {
 	/**
 	 * Initialize the routes.
 	 *
@@ -49,7 +49,7 @@ final class Digital_Employee_WP_Bridge_Routes {
 		self::register_core_tools();
 
 		// Allow addons to register their tools.
-		do_action( 'digital_employee_wp_bridge_register_tools' );
+		do_action( 'def_core_register_tools' );
 	}
 
 	/**
@@ -61,30 +61,30 @@ final class Digital_Employee_WP_Bridge_Routes {
 	public static function register_rest_routes(): void {
 		// Core routes (not tools, so registered directly).
 		register_rest_route(
-			DE_WP_BRIDGE_API_NAME_SPACE,
+			DEF_CORE_API_NAME_SPACE,
 			'/context-token',
 			array(
 				'methods'             => 'GET',
 				'permission_callback' => function () {
 					return is_user_logged_in();
 				},
-				'callback'            => array( 'Digital_Employee_WP_Bridge_Tools', 'rest_issue_context_token' ),
+				'callback'            => array( 'DEF_Core_Tools', 'rest_issue_context_token' ),
 			)
 		);
 
 		register_rest_route(
-			DE_WP_BRIDGE_API_NAME_SPACE,
+			DEF_CORE_API_NAME_SPACE,
 			'/jwks',
 			array(
 				'methods'             => 'GET',
 				'permission_callback' => '__return_true',
-				'callback'            => array( 'Digital_Employee_WP_Bridge_Tools', 'rest_get_jwks' ),
+				'callback'            => array( 'DEF_Core_Tools', 'rest_get_jwks' ),
 			)
 		);
 
 		// Register all tools with WordPress REST API.
 		// Tools are already registered in register_tools() on 'init' hook.
-		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+		$registry = DEF_Core_API_Registry::instance();
 		$registry->register_all_tools();
 	}
 
@@ -95,15 +95,15 @@ final class Digital_Employee_WP_Bridge_Routes {
 	 * @version 0.2.0
 	 */
 	private static function register_core_tools(): void {
-		$registry = Digital_Employee_WP_Bridge_API_Registry::instance();
+		$registry = DEF_Core_API_Registry::instance();
 
 		// User profile tool (always available).
 		$registry->register_tool(
 			'/tools/me',
-			__( 'User Profile', 'digital-employee-wp-bridge' ),
+			__( 'User Profile', 'def-core' ),
 			array( 'GET' ),
-			array( 'Digital_Employee_WP_Bridge_Tools', 'me' ),
-			array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
+			array( 'DEF_Core_Tools', 'me' ),
+			array( 'DEF_Core_Tools', 'permission_check' ),
 			array(),
 			'core'
 		);
@@ -115,10 +115,10 @@ final class Digital_Employee_WP_Bridge_Routes {
 			// WooCommerce Orders.
 			$registry->register_tool(
 				'/tools/wc/orders',
-				__( 'WooCommerce Orders', 'digital-employee-wp-bridge' ),
+				__( 'WooCommerce Orders', 'def-core' ),
 				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_orders' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
+				array( 'DEF_Core_Tools', 'wc_orders' ),
+				array( 'DEF_Core_Tools', 'permission_check' ),
 				array(),
 				'core'
 			);
@@ -126,10 +126,10 @@ final class Digital_Employee_WP_Bridge_Routes {
 			// WooCommerce Order Detail.
 			$registry->register_tool(
 				'/tools/wc/orders/(?P<order_id>\d+)',
-				__( 'WooCommerce Order Detail', 'digital-employee-wp-bridge' ),
+				__( 'WooCommerce Order Detail', 'def-core' ),
 				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_order_detail' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check' ),
+				array( 'DEF_Core_Tools', 'wc_order_detail' ),
+				array( 'DEF_Core_Tools', 'permission_check' ),
 				array(),
 				'core'
 			);
@@ -137,10 +137,10 @@ final class Digital_Employee_WP_Bridge_Routes {
 			// WooCommerce Add to Cart (respects guest checkout settings).
 			$registry->register_tool(
 				'/tools/wc/add-to-cart',
-				__( 'WooCommerce Add to Cart', 'digital-employee-wp-bridge' ),
+				__( 'WooCommerce Add to Cart', 'def-core' ),
 				array( 'POST' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_add_to_cart' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'permission_check_add_to_cart' ), // Custom permission check.
+				array( 'DEF_Core_Tools', 'wc_add_to_cart' ),
+				array( 'DEF_Core_Tools', 'permission_check_add_to_cart' ), // Custom permission check.
 				array(),
 				'core'
 			);
@@ -148,9 +148,9 @@ final class Digital_Employee_WP_Bridge_Routes {
 			// WooCommerce Products (public - no authentication required).
 			$registry->register_tool(
 				'/tools/wc/products',
-				__( 'WooCommerce Products', 'digital-employee-wp-bridge' ),
+				__( 'WooCommerce Products', 'def-core' ),
 				array( 'GET' ),
-				array( 'Digital_Employee_WP_Bridge_Tools', 'wc_get_products_list' ),
+				array( 'DEF_Core_Tools', 'wc_get_products_list' ),
 				'__return_true',
 				array(),
 				'core'

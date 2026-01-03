@@ -1,4 +1,4 @@
-*** Digital Employee Framework - WordPress Bridge Changelog ***
+*** Digital Employee Framework - Core Changelog ***
 
 = 1.0.0 - 2026/01/02 =
 * Initial Release
