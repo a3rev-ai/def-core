@@ -87,7 +87,12 @@ final class DEF_Core {
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
 
 		// Plugin inited action hook.
-		do_action( 'def_core_inited' );
+		add_action(
+			'plugins_loaded',
+			function () {
+				do_action( 'def_core_inited' );
+			}
+		);
 	}
 
 	/**
