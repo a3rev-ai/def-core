@@ -80,10 +80,10 @@ final class DEF_Core {
 		// API Registry (must be loaded before routes).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-api-registry.php';
 
-		// Tool base class (for addons).
+		// Tool base class (for modules).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-base.php';
 
-		// Routes (registers core tools and allows addons to register).
+		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
 
 		// Plugin inited action hook.

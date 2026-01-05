@@ -2,7 +2,7 @@
 /**
  * Class DEF_Core_API_Registry
  *
- * Registry system for API tools. Allows addons to register their own tools.
+ * Registry system for API tools. Allows modules to register their own tools.
  *
  * @package def-core
  * @since 0.2.0
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Class DEF_Core_API_Registry
  *
- * Registry system for API tools. Allows addons to register their own tools.
+ * Registry system for API tools. Allows modules to register their own tools.
  *
  * @package def-core
  * @since 0.2.0
@@ -44,7 +44,7 @@ final class DEF_Core_API_Registry {
 	 *     callback: callable,
 	 *     args?: array,
 	 *     version?: string,
-	 *     addon?: string
+	 *     module?: string
 	 * }>
 	 */
 	private $registered_tools = array();
@@ -82,7 +82,7 @@ final class DEF_Core_API_Registry {
 	 * @param callable $callback Callback function to handle the request.
 	 * @param callable $permission_callback Permission callback (defaults to JWT auth check).
 	 * @param array    $args Optional. Additional route arguments.
-	 * @param string   $addon Optional. Addon identifier (for tracking).
+	 * @param string   $module Optional. Module identifier (for tracking).
 	 * @return bool True on success, false on failure.
 	 * @since 0.2.0
 	 * @version 0.2.0
@@ -94,7 +94,7 @@ final class DEF_Core_API_Registry {
 		callable $callback,
 		?callable $permission_callback = null,
 		array $args = array(),
-		string $addon = ''
+		string $module = ''
 	): bool {
 		// Validate route.
 		if ( empty( $route ) || ! is_string( $route ) ) {
@@ -123,13 +123,13 @@ final class DEF_Core_API_Registry {
 
 		// Check if already registered.
 		if ( isset( $this->registered_tools[ $route ] ) ) {
-			// Allow override if same addon, otherwise log warning.
-			$is_same_addon = ! empty( $addon ) && isset( $this->registered_tools[ $route ]['addon'] ) && $this->registered_tools[ $route ]['addon'] === $addon;
-			if ( ! $is_same_addon ) {
+			// Allow override if same module, otherwise log warning.
+			$is_same_module = ! empty( $module ) && isset( $this->registered_tools[ $route ]['module'] ) && $this->registered_tools[ $route ]['module'] === $module;
+			if ( ! $is_same_module ) {
 				error_log( sprintf( 'Digital Employee Framework - Core: Tool %s already registered. Skipping duplicate registration.', $route ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return false;
 			}
-			// Same addon overriding - allowed, continue registration.
+			// Same module overriding - allowed, continue registration.
 		}
 
 		// Register the tool.
@@ -140,7 +140,7 @@ final class DEF_Core_API_Registry {
 			'callback'            => $callback,
 			'permission_callback' => $permission_callback,
 			'args'                => $args,
-			'addon'               => $addon,
+			'module'              => $module,
 			'version'             => $args['version'] ?? '1.0',
 		);
 
@@ -166,19 +166,19 @@ final class DEF_Core_API_Registry {
 	/**
 	 * Get all registered tools.
 	 *
-	 * @param string $addon Optional. Filter by addon identifier.
+	 * @param string $module Optional. Filter by module identifier.
 	 * @return array Registered tools.
 	 * @since 0.2.0
 	 * @version 0.2.0
 	 */
-	public function get_tools( string $addon = '' ): array {
-		if ( empty( $addon ) ) {
+	public function get_tools( string $module = '' ): array {
+		if ( empty( $module ) ) {
 			return $this->registered_tools;
 		}
 		return array_filter(
 			$this->registered_tools,
-			function ( $tool ) use ( $addon ) {
-				return isset( $tool['addon'] ) && $tool['addon'] === $addon;
+			function ( $tool ) use ( $module ) {
+				return isset( $tool['module'] ) && $tool['module'] === $module;
 			}
 		);
 	}
@@ -263,7 +263,7 @@ final class DEF_Core_API_Registry {
 	 *     methods: string|array<string>,
 	 *     enabled: bool,
 	 *     is_core: bool,
-	 *     addon?: string
+	 *     module?: string
 	 * }> Registered tools with enabled status. Keys are routes.
 	 * @since 0.2.0
 	 * @version 0.2.0
@@ -280,7 +280,7 @@ final class DEF_Core_API_Registry {
 				'methods' => $tool['methods'],
 				'enabled' => $is_core || $this->is_tool_enabled( $tool['route'] ),
 				'is_core' => $is_core,
-				'addon'   => $tool['addon'] ?? '',
+				'module'  => $tool['module'] ?? '',
 			);
 		}
 		return $tools_with_status;

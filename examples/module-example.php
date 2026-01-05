@@ -1,11 +1,11 @@
 <?php
 /**
- * Example Addon for Digital Employee Framework - Core
+ * Example Module for Digital Employee Framework - Core
  *
- * This file demonstrates how to create an addon that registers additional API tools.
- * Follow the naming conventions: digital-employee-addon-<integration>
+ * This file demonstrates how to create a module that registers additional API tools.
+ * Follow the naming conventions: def-<integration>
  *
- * @package digital-employee-addon-example
+ * @package def-example
  * @version 1.0.0
  *
  * @phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName
@@ -24,17 +24,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Tools extending DEF_Core_Tool_Base will automatically
  * register themselves when instantiated. No need to manually call register().
  */
-class Example_Addon_Tool extends DEF_Core_Tool_Base {
+class DEF_Example_Tool extends DEF_Core_Tool_Base {
 
 	/**
 	 * Initialize the tool.
 	 */
 	protected function init(): void {
 		// Namespace is automatically set to DEF_CORE_API_NAME_SPACE.
-		$this->name    = __( 'Example Addon Tool', 'digital-employee-addon-example' );
+		$this->name    = __( 'Example Module Tool', 'def-example' );
 		$this->route   = '/tools/example/hello';
 		$this->methods = array( 'GET' );
-		$this->addon   = 'example'; // Just the integration name
+		$this->module  = 'example'; // Just the module name
 	}
 
 	/**
@@ -84,7 +84,7 @@ class Example_Addon_Tool extends DEF_Core_Tool_Base {
  * @param \WP_REST_Request $request The request object.
  * @return \WP_REST_Response The response object.
  */
-function example_addon_custom_tool( \WP_REST_Request $request ): \WP_REST_Response {
+function def_example_custom_tool(): \WP_REST_Response {
 	$user = wp_get_current_user();
 	if ( ! $user || 0 === $user->ID ) {
 		return new \WP_REST_Response(
@@ -106,7 +106,7 @@ function example_addon_custom_tool( \WP_REST_Request $request ): \WP_REST_Respon
 }
 
 /**
- * Register addon tools.
+ * Register module tools.
  *
  * Method 1: Using the base class (automatic registration).
  * Tools extending DEF_Core_Tool_Base will automatically
@@ -117,7 +117,7 @@ add_action(
 	function () {
 		// Just instantiate - registration happens automatically!
 		// The base class handles all registration logic.
-		new Example_Addon_Tool();
+		new DEF_Example_Tool();
 	},
 	20 // Priority 20 to ensure main plugin is loaded first.
 );
@@ -135,12 +135,12 @@ add_action(
 		$registry = DEF_Core_API_Registry::instance();
 		$registry->register_tool(
 			'/tools/example/custom',                              // Route (namespace is automatic)
-			__( 'Example Custom Tool', 'digital-employee-addon-example' ), // Name
+			__( 'Example Custom Tool', 'def-example' ), // Name
 			array( 'GET' ),                                       // HTTP methods
-			'example_addon_custom_tool',                          // Callback function
+			'def_example_custom_tool',                          // Callback function
 			null,                                                 // Permission callback (null = default JWT auth)
 			array(),                                             // Route arguments
-			'example'                                             // Addon identifier
+			'example'                                             // Module identifier
 		);
 	}
 );

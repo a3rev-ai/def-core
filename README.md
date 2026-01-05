@@ -70,7 +70,7 @@ The bridge plugin does not:
 
 - This repository is part of the a3rev-ai organization.
 - Framework code lives in: `digital-employee-framework`
-- Client-specific plugins and addons live in private repositories
+- Client-specific plugins and modules live in private repositories
 - This repo must remain reusable across clients
 
 ## Contribution Rules

@@ -229,12 +229,12 @@ The following files/directories are automatically excluded from the production z
 s3://private-bucket/
   ├── def-core/
   │   └── def-core.zip
-  ├── digital-employee-addon-bbpress/
-  │   └── digital-employee-addon-bbpress.zip
-  ├── digital-employee-addon-a3rev-licenses/
-  │   └── digital-employee-addon-a3rev-licenses.zip
-  └── digital-employee-addon-wc-subscriptions/
-      └── digital-employee-addon-wc-subscriptions.zip
+  ├── def-bbpress/
+  │   └── def-bbpress.zip
+  ├── def-a3rev-licenses/
+  │   └── def-a3rev-licenses.zip
+  └── def-wc-subscriptions/
+      └── def-wc-subscriptions.zip
 ```
 
 ### Public S3 Bucket (Changelogs)
@@ -242,11 +242,11 @@ s3://private-bucket/
 s3://public-bucket/
   ├── def-core/
   │   └── changelog.txt
-  ├── digital-employee-addon-bbpress/
+  ├── def-bbpress/
   │   └── changelog.txt
-  ├── digital-employee-addon-a3rev-licenses/
+  ├── def-a3rev-licenses/
   │   └── changelog.txt
-  └── digital-employee-addon-wc-subscriptions/
+  └── def-wc-subscriptions/
       └── changelog.txt
 ```
 

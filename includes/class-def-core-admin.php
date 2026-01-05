@@ -495,8 +495,8 @@ final class DEF_Core_Admin {
 									</span>
 									<code class="def-core-route"><?php echo esc_html( $tool['route'] ); ?></code>
 									<span class="def-core-methods"><?php echo esc_html( implode( ', ', $tool['methods'] ) ); ?></span>
-									<?php if ( ! empty( $tool['addon'] ) ) : ?>
-										<span class="def-core-addon-badge"><?php echo esc_html( $tool['addon'] ); ?></span>
+									<?php if ( ! empty( $tool['module'] ) ) : ?>
+										<span class="def-core-module-badge"><?php echo esc_html( $tool['module'] ); ?></span>
 									<?php endif; ?>
 								</td>
 							</tr>

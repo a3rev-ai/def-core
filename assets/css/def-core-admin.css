@@ -115,7 +115,7 @@
 	font-weight: 500;
 }
 
-.def-core-addon-badge {
+.def-core-module-badge {
 	display: inline-block;
 	margin-left: 8px;
 	padding: 3px 8px;
@@ -247,7 +247,7 @@
 
 	.def-core-route,
 	.def-core-methods,
-	.def-core-addon-badge {
+	.def-core-module-badge {
 		display: block;
 		margin-left: 62px;
 		margin-top: 5px;

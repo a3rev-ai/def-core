@@ -134,7 +134,7 @@ final class DEF_Core_Tools {
 	 *
 	 * @return \WP_User|null The user object or null if not found.
 	 * @since 0.1.0
-	 * @version 0.2.0 - Made public for addon use
+	 * @version 0.2.0 - Made public for module use
 	 */
 	public static function verify_and_get_user(): ?\WP_User {
 		$jwt = self::get_bearer_token();

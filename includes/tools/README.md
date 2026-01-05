@@ -6,7 +6,7 @@ This directory contains tool implementations and base classes for the Digital Em
 
 - `class-def-core-tool-base.php` - Abstract base class for tool implementations
 
-## For Addon Developers
+## For Module Developers
 
 ### Using the Base Class
 
@@ -14,13 +14,13 @@ Extend `DEF_Core_Tool_Base` to create your own tool:
 
 ```php
 <?php
-class My_Addon_Tool extends DEF_Core_Tool_Base {
+class My_Module_Tool extends DEF_Core_Tool_Base {
     
     protected function init(): void {
         $this->namespace = 'a3-ai/v1';
-        $this->route = '/tools/my-addon/my-tool';
-        $this->methods = array( 'GET', 'POST' );
-        $this->addon = 'my-addon';
+        $this->route     = '/tools/my-module/my-tool';
+        $this->methods   = array( 'GET', 'POST' );
+        $this->module    = 'my-module';
     }
     
     public function handle_request( \WP_REST_Request $request ): \WP_REST_Response {
@@ -31,7 +31,7 @@ class My_Addon_Tool extends DEF_Core_Tool_Base {
         
         // Your tool logic here
         $data = array(
-            'message' => 'Hello from my addon!',
+            'message' => 'Hello from my module!',
             'user_id' => $user->ID,
         );
         
@@ -41,7 +41,7 @@ class My_Addon_Tool extends DEF_Core_Tool_Base {
 
 // Register the tool
 add_action( 'def_core_register_tools', function() {
-    $tool = new My_Addon_Tool( 'my-addon' );
+    $tool = new My_Module_Tool( 'my-module' );
     $tool->register();
 } );
 ```
@@ -57,12 +57,12 @@ add_action( 'def_core_register_tools', function() {
     
     $registry->register_tool(
         'a3-ai/v1',                    // Namespace
-        '/tools/my-addon/my-tool',     // Route
+        '/tools/my-module/my-tool',     // Route
         array( 'GET', 'POST' ),        // Methods
         'my_callback_function',         // Callback
         null,                           // Permission callback (null = default JWT auth)
         array(),                        // Args
-        'my-addon'                     // Addon identifier
+        'my-module'                     // Module identifier
     );
 } );
 
@@ -75,7 +75,7 @@ function my_callback_function( \WP_REST_Request $request ): \WP_REST_Response {
 ## Best Practices
 
 1. **Use the base class** for consistency and helper methods
-2. **Set a unique addon identifier** to track your tools
+2. **Set a unique module identifier** to track your tools
 3. **Use proper permission callbacks** - default is JWT auth check
 4. **Follow REST API conventions** - use appropriate HTTP methods
 5. **Return proper responses** - use `success_response()` and `error_response()` helpers

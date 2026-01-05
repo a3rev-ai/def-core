@@ -194,9 +194,9 @@ CLOUDFRONT_DOMAIN           # e.g., d1234567890.cloudfront.net
 ## Plugins Configured
 
 1. ✅ **def-core** (main plugin)
-2. ✅ **digital-employee-addon-bbpress**
-3. ✅ **digital-employee-addon-a3rev-licenses**
-4. ✅ **digital-employee-addon-wc-subscriptions**
+2. ✅ **def-bbpress**
+3. ✅ **def-a3rev-licenses**
+4. ✅ **def-wc-subscriptions**
 
 Each plugin has identical workflow structure with plugin-specific naming.
 

@@ -48,7 +48,7 @@ final class DEF_Core_Routes {
 		// Register core tools via registry.
 		self::register_core_tools();
 
-		// Allow addons to register their tools.
+		// Allow modules to register their tools.
 		do_action( 'def_core_register_tools' );
 	}
 

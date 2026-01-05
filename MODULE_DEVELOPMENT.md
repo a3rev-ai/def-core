@@ -1,34 +1,34 @@
-# Addon Development Guide
+# Module Development Guide
 
-This guide explains how to create addons for the Digital Employee Framework - Core plugin that can register additional API tools.
+This guide explains how to create modules for the Digital Employee Framework - Core plugin that can register additional API tools.
 
 ## Overview
 
-The Digital Employee Framework - Core plugin is extensible, allowing addons to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
+The Digital Employee Framework - Core plugin is extensible, allowing modules to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
 
 ## Naming Conventions
 
 ### Folder Structure
-- **Folder Name**: `def-addon-<integration>`
-  - Example: `digital-employee-addon-bbpress`
-  - Example: `digital-employee-addon-woocommerce`
+- **Folder Name**: `def-<integration>`
+  - Example: `def-bbpress`
+  - Example: `def-woocommerce`
 
 ### Plugin Header
-- **Plugin Name**: `Digital Employee Add-on: <Integration>`
-  - Example: `Digital Employee Add-on: bbPress`
-  - Example: `Digital Employee Add-on: WooCommerce`
+- **Plugin Name**: `Digital Employee - <Integration>`
+  - Example: `Digital Employee - bbPress`
+  - Example: `Digital Employee - WooCommerce`
 
 ### Code Naming
-- **Text Domain**: `def-addon-<integration>` (lowercase, hyphens)
-- **Constants**: `DEF_ADDON_<INTEGRATION>_*` (uppercase, underscores)
-  - Example: `DEF_ADDON_BBPRESS_VERSION`
-  - Example: `DEF_ADDON_BBPRESS_PLUGIN_DIR`
-- **Class Names**: `DEF_Addon_<Integration>_*` (PascalCase)
-  - Example: `DEF_Addon_BbPress_Tools`
-  - Example: `DEF_Addon_BbPress_Cache`
-- **Function Names**: `def_addon_<integration>_*` (snake_case)
-  - Example: `def_addon_bbpress_load_addons`
-- **Addon Identifier**: Just the integration name (e.g., `'bbpress'`, `'woocommerce'`)
+- **Text Domain**: `def-<integration>` (lowercase, hyphens)
+- **Constants**: `DEF_MODULE_<INTEGRATION>_*` (uppercase, underscores)
+  - Example: `DEF_MODULE_BBPRESS_VERSION`
+  - Example: `DEF_MODULE_BBPRESS_PLUGIN_DIR`
+- **Class Names**: `DEF_<Integration>_*` (PascalCase)
+  - Example: `DEF_BbPress_Tool`
+  - Example: `DEF_BbPress_Cache`
+- **Function Names**: `def_module_<integration>_*` (snake_case)
+  - Example: `def_module_bbpress_load`
+- **Module Identifier**: Just the integration name (e.g., `'bbpress'`, `'woocommerce'`)
 
 ## Architecture
 
@@ -38,7 +38,7 @@ The Digital Employee Framework - Core plugin is extensible, allowing addons to r
    - Central registry for all API tools
    - Handles registration and routing
    - Prevents duplicate registrations
-   - Uses `DE_WP_BRIDGE_API_NAME_SPACE` constant for namespace
+   - Uses `DEF_CORE_API_NAME_SPACE` constant for namespace
 
 2. **Tool Base Class** (`DEF_Core_Tool_Base`)
    - Abstract base class for tool implementations
@@ -48,21 +48,21 @@ The Digital Employee Framework - Core plugin is extensible, allowing addons to r
 
 3. **Registration Hook** (`def_core_register_tools`)
    - Action hook fired during tool registration
-   - Addons can hook into this for manual registration (if not using base class)
+   - Modules can hook into this for manual registration (if not using base class)
 
-## Creating an Addon
+## Creating an Module
 
-### Step 1: Create Your Addon Plugin Structure
+### Step 1: Create Your Module Plugin Structure
 
 Create a new WordPress plugin with the following structure:
 
 ```
-def-addon-<integration>/
-├── def-addon-<integration>.php  # Main plugin file
+def-<integration>/
+├── def-<integration>.php  # Main plugin file
 ├── README.md                                  # Documentation
 └── includes/
-    ├── class-def-addon-<integration>-tools.php
-    └── class-def-addon-<integration>-cache.php (optional)
+    ├── class-def-<integration>-tool.php
+    └── class-def-<integration>-cache.php (optional)
 ```
 
 ### Step 2: Create the Main Plugin File
@@ -72,15 +72,15 @@ Create the main plugin file following the naming convention:
 ```php
 <?php
 /**
- * Plugin Name: Digital Employee Add-on: <Integration>
- * Description: <Integration> addon for Digital Employee Framework - Core. Provides <integration> API tools.
+ * Plugin Name: Digital Employees - <Integration>
+ * Description: <Integration> module for Digital Employee Framework - Core. Provides <integration> API tools.
  * Version: 0.1.0
  * Author: a3rev
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Requires Plugins: def-core
  *
- * @package def-addon-<integration>
+ * @package def-<integration>
  */
 
 declare(strict_types=1);
@@ -99,29 +99,29 @@ add_action(
 
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-addon-<integration>' ); ?></p>
+			<p><?php esc_html_e( 'Digital Employees - <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-<integration>' ); ?></p>
 		</div>
 		<?php
 	}
 );
 
-define( 'DEF_ADDON_<INTEGRATION>_VERSION', '0.1.0' );
-define( 'DEF_ADDON_<INTEGRATION>_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'DEF_ADDON_<INTEGRATION>_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'DEF_MODULE_<INTEGRATION>_VERSION', '0.1.0' );
+define( 'DEF_MODULE_<INTEGRATION>_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'DEF_MODULE_<INTEGRATION>_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-add_action( 'def_core_inited', 'def_addon_<integration>_load_addons', 10, 0 );
+add_action( 'def_core_inited', 'def_module_<integration>_load', 10, 0 );
 
 /**
- * Load addon files.
+ * Load module files.
  */
-function def_addon_<integration>_load_addons(): void {
+function def_module_<integration>_load(): void {
 	// Load includes.
-	require_once DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-tools.php';
+	require_once DEF_MODULE_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-<integration>-tool.php';
 	
 	// Load cache class if needed.
-	if ( file_exists( DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-cache.php' ) ) {
-		require_once DEF_ADDON_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-addon-<integration>-cache.php';
-		DEF_Addon_<Integration>_Cache::init();
+	if ( file_exists( DEF_MODULE_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-<integration>-cache.php' ) ) {
+		require_once DEF_MODULE_<INTEGRATION>_PLUGIN_DIR . 'includes/class-def-<integration>-cache.php';
+		DEF_<Integration>_Cache::init();
 	}
 }
 ```
@@ -133,11 +133,11 @@ Extend the base class to create your tool. The tool will **automatically registe
 ```php
 <?php
 /**
- * Class DEF_Addon_<Integration>_Tools
+ * Class DEF_<Integration>_Tool
  *
- * The <integration> addon tools for Digital Employee Framework - Core.
+ * The <integration> module tools for Digital Employee Framework - Core.
  *
- * @package def-addon-<integration>
+ * @package def-<integration>
  * @since 0.1.0
  * @version 0.1.0
  */
@@ -149,15 +149,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Class DEF_Addon_<Integration>_Tool
+ * Class DEF_<Integration>_Tool
  *
  * Extends the base tool class to provide <integration> functionality.
  *
- * @package def-addon-<integration>
+ * @package def-<integration>
  * @since 0.1.0
  * @version 0.1.0
  */
-class DEF_Addon_<Integration>_Tools extends DEF_Core_Tool_Base {
+class DEF_<Integration>_Tool extends DEF_Core_Tool_Base {
 
 	/**
 	 * Initialize the tool.
@@ -166,10 +166,10 @@ class DEF_Addon_<Integration>_Tools extends DEF_Core_Tool_Base {
 	 * @version 0.1.0
 	 */
 	protected function init(): void {
-		$this->name    = __( '<Integration> Tool Name', 'def-addon-<integration>' );
+		$this->name    = __( '<Integration> Tool Name', 'def-<integration>' );
 		$this->route   = '/tools/<integration>/endpoint';
 		$this->methods = array( 'GET' );
-		$this->addon   = '<integration>'; // Just the integration name
+		$this->module  = '<integration>'; // Just the integration name
 	}
 
 	/**
@@ -202,7 +202,7 @@ class DEF_Addon_<Integration>_Tools extends DEF_Core_Tool_Base {
 
 		// Your tool logic here
 		$data = array(
-			'message' => 'Hello from <integration> addon!',
+			'message' => 'Hello from <integration> module!',
 			'user_id' => $user->ID,
 		);
 
@@ -223,7 +223,7 @@ add_action(
 	'plugins_loaded',
 	function () {
 		// Instantiate the tool - it will auto-register via base class.
-		new DEF_Addon_<Integration>_Tools();
+		new DEF_<Integration>_Tool();
 	},
 	20 // Priority 20 to ensure main plugin is loaded first.
 );
@@ -233,58 +233,28 @@ add_action(
 - The base class **automatically registers** the tool when instantiated
 - No need to manually call `register()` or use `add_action( 'def_core_register_tools' )`
 - Override `should_register()` for conditional registration (e.g., only if a plugin is active)
-- The namespace is automatically set to `DE_WP_BRIDGE_API_NAME_SPACE` (you don't need to set it)
+- The namespace is automatically set to `DEF_CORE_API_NAME_SPACE` (you don't need to set it)
 
 ### Step 4: Load the Base Class (Required)
 
-The addon needs to load the base class from the main plugin. Add this to your main plugin file before loading your tool classes:
+The module needs to load the base class from the main plugin. Add this to your main plugin file before loading your tool classes:
 
 ```php
-// Load the base tool class from main plugin.
-if ( ! class_exists( 'DEF_Core_Tool_Base' ) ) {
-	// Try to find the main plugin directory.
-	$main_plugin_path = '';
-	
-	// Method 1: Check if DE_WP_BRIDGE_PLUGIN_DIR is defined.
-	if ( defined( 'DE_WP_BRIDGE_PLUGIN_DIR' ) ) {
-		$main_plugin_path = DE_WP_BRIDGE_PLUGIN_DIR;
-	} else {
-		// Method 2: Try to find it relative to this plugin.
-		$possible_paths = array(
-			plugin_dir_path( dirname( __FILE__ ) ) . 'def-core/',
-			WP_PLUGIN_DIR . '/def-core/',
-		);
-		
-		foreach ( $possible_paths as $path ) {
-			if ( file_exists( $path . 'def-core.php' ) ) {
-				$main_plugin_path = $path;
-				break;
-			}
+// Check if main plugin is active and load required files.
+add_action(
+	'admin_notices',
+	function () {
+		if ( class_exists( 'DEF_Core' ) ) {
+			return;
 		}
+
+		?>
+		<div class="notice notice-error">
+			<p><?php esc_html_e( 'Digital Employee - <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-<integration>' ); ?></p>
+		</div>
+		<?php
 	}
-	
-	if ( ! empty( $main_plugin_path ) ) {
-		$base_class_path = $main_plugin_path . 'includes/tools/class-def-core-tool-base.php';
-		if ( file_exists( $base_class_path ) ) {
-			require_once $base_class_path;
-		}
-	}
-	
-	// If still not loaded, show error.
-	if ( ! class_exists( 'DEF_Core_Tool_Base' ) ) {
-		add_action(
-			'admin_notices',
-			function () {
-				?>
-				<div class="notice notice-error">
-					<p><?php esc_html_e( 'Digital Employee Add-on: <Integration> could not load base tool class from main plugin. Please ensure Digital Employee Framework - Core is installed and activated.', 'def-addon-<integration>' ); ?></p>
-				</div>
-				<?php
-			}
-		);
-		return;
-	}
-}
+);
 ```
 
 ## Alternative: Direct Registry Registration
@@ -298,18 +268,18 @@ add_action(
 		$registry = DEF_Core_API_Registry::instance();
 		
 		$registry->register_tool(
-			'/tools/my-addon/my-tool',     // Route (namespace is automatic)
-			__( 'My Custom Tool', 'def-addon-<integration>' ), // Name
+			'/tools/my-module/my-tool',     // Route (namespace is automatic)
+			__( 'My Custom Tool', 'def-<integration>' ), // Name
 			array( 'GET', 'POST' ),        // HTTP methods
 			'my_callback_function',        // Callback function
 			null,                          // Permission callback (null = default JWT auth)
 			array(),                       // Route arguments
-			'<integration>'                // Addon identifier
+			'<integration>'                // Module identifier
 		);
 	}
 );
 
-function my_callback_function( \WP_REST_Request $request ): \WP_REST_Response {
+function my_callback_function(): \WP_REST_Response {
 	$user = wp_get_current_user();
 	if ( ! $user || 0 === $user->ID ) {
 		return new \WP_REST_Response(
@@ -326,7 +296,7 @@ function my_callback_function( \WP_REST_Request $request ): \WP_REST_Response {
 }
 ```
 
-**Note:** When using direct registry registration, the namespace is automatically set to `DE_WP_BRIDGE_API_NAME_SPACE`. You don't need to specify it.
+**Note:** When using direct registry registration, the namespace is automatically set to `DEF_CORE_API_NAME_SPACE`. You don't need to specify it.
 
 ## Helper Methods
 
@@ -436,16 +406,16 @@ protected function should_register(): bool {
 }
 ```
 
-## Example: Complete Addon
+## Example: Complete Module
 
-See `examples/addon-example.php` for a complete example addon, or check the `digital-employee-addon-bbpress` plugin for a real-world implementation.
+See `examples/module-example.php` for a complete example module, or check the `def-bbpress` plugin for a real-world implementation.
 
 ## API Reference
 
 ### `DEF_Core_API_Registry::instance()`
 Get the registry instance.
 
-### `register_tool( $route, $name, $methods, $callback, $permission_callback, $args, $addon )`
+### `register_tool( $route, $name, $methods, $callback, $permission_callback, $args, $module )`
 Register a new tool.
 
 **Parameters:**
@@ -455,14 +425,14 @@ Register a new tool.
 - `$callback` (callable) - Callback function
 - `$permission_callback` (callable|null) - Permission callback (null = default JWT auth)
 - `$args` (array) - Route arguments
-- `$addon` (string) - Addon identifier
+- `$module` (string) - Module identifier
 
 **Returns:** `bool` - True on success, false on failure
 
-**Note:** The namespace is automatically set to `DE_WP_BRIDGE_API_NAME_SPACE`. You don't need to specify it.
+**Note:** The namespace is automatically set to `DEF_CORE_API_NAME_SPACE`. You don't need to specify it.
 
-### `get_tools( $addon = '' )`
-Get all registered tools, optionally filtered by addon.
+### `get_tools( $module = '' )`
+Get all registered tools, optionally filtered by module.
 
 ### `is_registered( $route )`
 Check if a tool is registered (by route).
@@ -488,12 +458,12 @@ Check if a tool is enabled in admin settings.
 
 ### Route Conflicts
 
-If your route conflicts with an existing route, the registry will log a warning and skip registration. Use a unique route prefix for your addon.
+If your route conflicts with an existing route, the registry will log a warning and skip registration. Use a unique route prefix for your module.
 
 ### Base Class Not Found
 
 1. Ensure the main plugin is installed and activated
-2. Check that `DE_WP_BRIDGE_PLUGIN_DIR` constant is defined
+2. Check that `DEF_CORE_PLUGIN_DIR` constant is defined
 3. Verify the base class file exists in the main plugin
 
 ## Support

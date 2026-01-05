@@ -20,7 +20,7 @@ Digital Employee Framework - Core is a powerful authentication and API bridge pl
 * **JWKS Endpoint** - Exposes public keys for JWT verification via REST API
 * **Session Bridge** - Secure postMessage-based session bridging with configurable allowed origins
 * **Single Sign-On (SSO)** - Support for external JWT authentication from other WordPress sites
-* **Extensible API** - Clean architecture supporting addons to register additional API tools
+* **Extensible API** - Clean architecture supporting modules to register additional API tools
 * **Cart Synchronization** - WooCommerce cart sync between WordPress and external apps
 * **Security First** - Built with security best practices, strict typing, and comprehensive validation
 
@@ -30,19 +30,19 @@ Digital Employee Framework - Core is a powerful authentication and API bridge pl
 * Implement Single Sign-On across multiple WordPress installations
 * Bridge e-commerce sites with support forums using shared authentication
 * Synchronize WooCommerce cart data with external applications
-* Extend functionality with custom API tools via addons
+* Extend functionality with custom API tools via modules
 
 = API Endpoints =
 
 * `/wp-json/a3-ai/v1/jwks` - Public JWKS endpoint for key verification
 * `/wp-json/a3-ai/v1/context-token` - Generate signed context tokens (requires authentication)
-* Extensible API namespace supporting addon-registered endpoints
+* Extensible API namespace supporting module-registered endpoints
 
-= Available Addons =
+= Available Modules =
 
-* **bbPress Add-on** - bbPress forum and topic management API tools
-* **a3rev Licenses Add-on** - WooCommerce license management integration
-* **WooCommerce Subscriptions Add-on** - Subscription management API tools
+* **bbPress Module** - bbPress forum and topic management API tools
+* **a3rev Licenses Module** - WooCommerce license management integration
+* **WooCommerce Subscriptions Module** - Subscription management API tools
 
 = Security Features =
 
@@ -60,14 +60,14 @@ Digital Employee Framework - Core is a powerful authentication and API bridge pl
 * Strict typing throughout
 * Well-documented code
 * Extensible via WordPress hooks and filters
-* Addon development guide included
+* Module development guide included
 
 = Documentation =
 
-Full documentation and addon development guide available in the plugin directory:
+Full documentation a module development guide available in the plugin directory:
 * `/README.md` - Main documentation
-* `/ADDON_DEVELOPMENT.md` - Guide for creating custom addons
-* `/examples/` - Example addon implementation
+* `/MODULE_DEVELOPMENT.md` - Guide for creating custom modules
+* `/examples/` - Example module implementation
 
 == Installation ==
 
@@ -104,9 +104,9 @@ Full documentation and addon development guide available in the plugin directory
 
 A Digital Employee is an AI-powered application that can interact with your WordPress site data through secure APIs, providing intelligent automation and assistance.
 
-= Do I need all the addons? =
+= Do I need all the modules? =
 
-No. Install only the addons you need based on your plugins. For example, only install the bbPress addon if you're using bbPress.
+No. Install only the modules you need based on your plugins. For example, only install the bbPress module if you're using bbPress.
 
 = Is this plugin secure? =
 
@@ -118,11 +118,11 @@ Yes. Configure the External Authentication settings to accept JWT tokens from an
 
 = How do I create custom API tools? =
 
-See the `/ADDON_DEVELOPMENT.md` file in the plugin directory for a complete guide on creating custom addons.
+See the `/MODULE_DEVELOPMENT.md` file in the plugin directory for a complete guide on creating custom modules.
 
 = Does this work with WooCommerce? =
 
-Yes. The plugin includes WooCommerce cart synchronization, and there are addons available for Licenses and Subscriptions management.
+Yes. The plugin includes WooCommerce cart synchronization, and there are modules available for Licenses and Subscriptions management.
 
 = What is the JWKS endpoint? =
 
@@ -148,7 +148,7 @@ Yes. Use the `def_core_token_expiration` filter to customize token lifetime (def
 * Session bridge with postMessage support
 * External JWT authentication (SSO)
 * WooCommerce cart synchronization
-* Extensible API registry for addons
+* Extensible API registry for modules
 * Admin settings interface
 * Widget integration documentation
 
@@ -163,7 +163,7 @@ Initial release of Digital Employee Framework - Core.
 
 **Documentation**: Complete documentation available in plugin directory
 
-**Addons**: Additional functionality available through official addons
+**Modules**: Additional functionality available through official modules
 
 **Security**: Report security issues to security@a3rev.com
 

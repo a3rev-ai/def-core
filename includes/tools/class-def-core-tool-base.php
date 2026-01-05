@@ -2,7 +2,7 @@
 /**
  * Abstract Base Class for API Tools
  *
- * Provides a base class for tool implementations that addons can extend.
+ * Provides a base class for tool implementations that modules can extend.
  *
  * @package def-core
  * @since 0.2.0
@@ -70,11 +70,11 @@ abstract class DEF_Core_Tool_Base {
 	protected $args = array();
 
 	/**
-	 * Addon identifier.
+	 * Module identifier.
 	 *
 	 * @var string
 	 */
-	protected $addon = '';
+	protected $module = '';
 
 	/**
 	 * Whether this tool has been registered.
@@ -88,12 +88,12 @@ abstract class DEF_Core_Tool_Base {
 	/**
 	 * Constructor.
 	 *
-	 * @param string $addon Addon identifier.
+	 * @param string $module Module identifier.
 	 * @since 0.2.0
 	 * @version 0.2.0
 	 */
-	public function __construct( string $addon = '' ) {
-		$this->addon = $addon;
+	public function __construct( string $module = '' ) {
+		$this->module = $module;
 		$this->init();
 		$this->auto_register();
 	}
@@ -183,7 +183,7 @@ abstract class DEF_Core_Tool_Base {
 			array( $this, 'handle_request' ),
 			$this->permission_callback,
 			$this->args,
-			$this->addon
+			$this->module
 		);
 	}
 
