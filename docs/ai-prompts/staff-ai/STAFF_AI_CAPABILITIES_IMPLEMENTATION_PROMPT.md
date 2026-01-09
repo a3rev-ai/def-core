@@ -18,6 +18,33 @@ AUTHORITATIVE DOCUMENTS (priority order):
 6) LOGGING_RULES.md
 7) PRIVACY_POSTURE.md
 
+---
+
+## 🔒 Implementation Constraints (Mandatory)
+
+You MUST follow these constraints exactly when generating or modifying code.
+
+### Structural Constraints
+- Modify existing files unless explicitly instructed to create new ones.
+- Do NOT introduce new directories or restructure the project unless explicitly requested.
+- If a new file is required, place it in the most obvious existing location.
+
+### Diff Discipline
+- Produce the smallest possible diff that satisfies the authoritative contracts.
+- Do not refactor, rename, or reformat unrelated code.
+- Do not split files or extract helpers unless explicitly requested.
+
+### Behavioural Constraints
+- Assume the current project structure is correct.
+- Do not invent abstractions, services, or layers not described in the documents.
+- If unsure where code belongs or how it should integrate, STOP and ask for clarification.
+
+### Verification
+- All changes MUST align with the authoritative documents listed below.
+- If there is a conflict, the highest-priority document always wins.
+
+---
+
 TASK:
 Implement Staff AI channel behaviour that:
 - allows general LLM-powered work tasks
