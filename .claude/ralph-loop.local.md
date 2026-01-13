@@ -2,55 +2,87 @@
 active: true
 iteration: 1
 max_iterations: 10
-completion_promise: "STAFF_AI_F2_COMPLETE"
-started_at: "2026-01-13T08:27:24Z"
+completion_promise: "STAFF_AI_F3_COMPLETE"
+started_at: "2026-01-13T09:16:46Z"
 ---
 
 You are Claude Code running in the def-core WordPress plugin repo.
 
-Open and follow these two files as the only source of requirements:
+Open and follow these files as the only source of requirements:
 - docs/prd/PRD-STAFF-AI-FRONTEND-V1.md
 - docs/prd/RALPH-RUNBOOK-STAFF-AI-FRONTEND-V1.md
 
-Execute ONLY: LOOP 2 — Chat UI (ChatGPT-style).
+Execute ONLY: LOOP 3 — History + Tools Output Rendering + Escalation UI.
 
-Precondition:
-- LOOP 1 is complete and /staff-ai endpoint + gating already works.
+CRITICAL SCOPE BOUNDARY (do not overreach):
+- Loop 3 is UI + wiring only.
+- Do NOT implement transcript export logic beyond a UI button that calls the backend and receives a download URL.
+- Do NOT generate PDFs, MD, or TXT in WordPress.
+- Do NOT store chat transcripts or messages in WordPress.
+- Do NOT add new database tables or custom post types unless the def-core repo already contains an obvious existing pattern for conversation metadata AND it is strictly metadata only (conversation_id, title, timestamps, shared-with). If unsure, DO NOT persist anything in WordPress.
 
-Objective for this loop:
-- Implement the Staff AI Chat UI shell that resembles ChatGPT's layout and interaction model:
-  - Left sidebar with 'New chat' button and placeholder conversation list (no persistence yet; history is Loop 3)
-  - Main chat panel with message list and composer at bottom
-  - Composer supports multiline input:
-    - Enter = send
-    - Shift+Enter = newline
-  - Send button present
-  - Basic typing indicator OR non-streaming placeholder behaviour (match existing project patterns)
-  - Basic, calm error handling (no noisy alerts)
+Architecture rules (must obey):
+- Python app is the source of truth for conversations, messages, tools, and escalation.
+- Browser holds UI ste only (conversation_id, scroll, drafts).
+- WordPress is gateway/auth only.
 
-Assistant identity display:
-- Show a subtle label in the UI (top of chat) for the active assistant:
-  -Staff Knowledge Assistant' OR 'Management Knowledge Assistant'
-- Do NOT implement manual switching.
+DELIVERABLES FOR LOOP 3:
 
-Integration constraints for this loop:
-- Wire the composer 'send' action to the existing WordPress-side request pattern already used in def-core.
-- Do NOT invent new backend endpoints or payload fields.
-- Do NOT implement conversation persistence or history in this loop.
+A) Conversation History UI
+- Add a sidebar conversation list.
+- Load conversations from backend via existing adapter patterns (preferred).
+- Each item shows:
+  - title (from first message or timestamp)
+  - last updated time
+- Clicking a conversation loads that thread.
+- “New chat” creates a new conversation.
+- Conversations are private by default.
 
-UI rules:
-- Must render full-screen inside /staff-ai shell (no WordPress theme header/footer).
-- Minimal, uncluttered 'OpenAI-like' styling.
-- Responsive: sidebar collapses or stacks on smaller screens.
+B) Sharing UI (minimal, non-invasive)
+- Provide a “Share” action for a conversation.
+- Opens a small modal/drawer.
+- UI may accept email input if user picker is not available.
+- Submit calls backend share endpoint via existing adapter patterns.
+- Shared conversations are read-only by default:
+  - Disable composer
+  - Show subtle “Read-only (shared)” indicator
 
-Hard constraints (must obey):
+C) Tools output rendering
+- When backend response includes a tool output:
+  - Render a message card showing:
+    - file name
+    - file type label
+    - download link (URL from backend)
+- Do Ne contents in WordPress or browser storage.
+
+D) Escalation UI (non-terminal)
+- Add an “Escalate for review” action near the composer.
+- Escalation form fields:
+  - Email (read-only from WP profile)
+  - Optional note (“What do you want reviewed?”)
+- Submit sends escalation request to backend with:
+  - conversation_id
+  - optional note
+- After submit:
+  - Show confirmation banner:
+    “Escalated for review — you can continue working while this is reviewed.”
+- Conversation remains active and usable (non-terminal).
+
+HARD CONSTRAINTS (must obey):
 - Smallest possible diff
 - Modify existing files only unless absolutely necessary
 - Do NOT create new directories
 - Do NOT refactor unrelated code
-- Do NOT store chat history/transcripts in WordPress
-- Do NOT change backend API contracts
+- Do NOT invent backend endpoints or payload fields
+- Do NOT implement role logic using WordPress roles (capabilities only)
+- If any required behaviour is unclear, STOP and ask — do not invent.
 
-Stop when complete and output exactly this token on its own line:
-STAFF_AI_F2_COMPLETE
+VERIFICATION (include in your response):
+- How to verify conversation list loads and switching threads works
+- How tconversations are read-only
+- How to verify tool outputs render as download cards
+- How to verify escalation submits and shows confirmation without ending the chat
+
+STOP when complete and output exactly this token on its own line:
+STAFF_AI_F3_COMPLETE
 

@@ -227,6 +227,33 @@ final class DEF_Core_Staff_AI {
 			font-size: 13px;
 			text-align: center;
 		}
+		.conversation-item {
+			display: block;
+			width: 100%;
+			padding: 10px 12px;
+			background: transparent;
+			border: none;
+			border-radius: 6px;
+			color: rgba(255,255,255,0.8);
+			font-size: 13px;
+			text-align: left;
+			cursor: pointer;
+			margin-bottom: 2px;
+			transition: background 0.15s;
+		}
+		.conversation-item:hover { background: rgba(255,255,255,0.1); }
+		.conversation-item.active { background: rgba(255,255,255,0.15); }
+		.conversation-item-title {
+			display: block;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			margin-bottom: 2px;
+		}
+		.conversation-item-time {
+			font-size: 11px;
+			color: rgba(255,255,255,0.4);
+		}
 		.sidebar-footer {
 			padding: 12px;
 			border-top: 1px solid rgba(255,255,255,0.1);
@@ -259,10 +286,37 @@ final class DEF_Core_Staff_AI {
 		}
 		.menu-toggle svg { width: 20px; height: 20px; }
 		.assistant-label {
+			flex: 1;
 			font-size: 14px;
 			font-weight: 500;
 			color: rgba(255,255,255,0.9);
 		}
+		.header-actions {
+			display: flex;
+			gap: 8px;
+		}
+		.header-btn {
+			background: transparent;
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 6px;
+			color: rgba(255,255,255,0.7);
+			padding: 6px 12px;
+			font-size: 12px;
+			cursor: pointer;
+			transition: background 0.15s, color 0.15s;
+		}
+		.header-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+		.header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+		/* Read-only indicator */
+		.readonly-indicator {
+			display: none;
+			background: rgba(251,191,36,0.15);
+			color: #fbbf24;
+			padding: 4px 10px;
+			border-radius: 4px;
+			font-size: 11px;
+		}
+		.readonly-indicator.visible { display: inline-block; }
 		/* Messages area */
 		.messages-container {
 			flex: 1;
@@ -299,6 +353,53 @@ final class DEF_Core_Staff_AI {
 			white-space: pre-wrap;
 			word-break: break-word;
 		}
+		/* Tool output card */
+		.tool-output-card {
+			background: #40414f;
+			border: 1px solid rgba(255,255,255,0.1);
+			border-radius: 8px;
+			padding: 12px 16px;
+			margin-top: 8px;
+			display: flex;
+			align-items: center;
+			gap: 12px;
+		}
+		.tool-output-icon {
+			width: 36px;
+			height: 36px;
+			background: rgba(255,255,255,0.1);
+			border-radius: 6px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+		}
+		.tool-output-icon svg { width: 18px; height: 18px; color: rgba(255,255,255,0.7); }
+		.tool-output-info { flex: 1; min-width: 0; }
+		.tool-output-name {
+			font-size: 13px;
+			font-weight: 500;
+			color: #fff;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		.tool-output-type {
+			font-size: 11px;
+			color: rgba(255,255,255,0.5);
+			text-transform: uppercase;
+		}
+		.tool-output-download {
+			background: #19c37d;
+			color: #fff;
+			padding: 6px 12px;
+			border-radius: 4px;
+			font-size: 12px;
+			text-decoration: none;
+			flex-shrink: 0;
+			transition: background 0.15s;
+		}
+		.tool-output-download:hover { background: #1a9d6a; }
 		.welcome-message {
 			text-align: center;
 			padding: 60px 20px;
@@ -328,16 +429,46 @@ final class DEF_Core_Staff_AI {
 			0%, 60%, 100% { transform: translateY(0); }
 			30% { transform: translateY(-4px); }
 		}
+		/* Banners */
+		.info-banner {
+			background: rgba(34,197,94,0.1);
+			border: 1px solid rgba(34,197,94,0.3);
+			color: #86efac;
+			padding: 12px 16px;
+			margin: 0 20px 16px;
+			border-radius: 8px;
+			font-size: 13px;
+			display: none;
+		}
+		.info-banner.visible { display: block; }
+		.error-banner {
+			background: rgba(239,68,68,0.1);
+			border: 1px solid rgba(239,68,68,0.3);
+			color: #fca5a5;
+			padding: 12px 16px;
+			margin: 0 20px 16px;
+			border-radius: 8px;
+			font-size: 13px;
+			display: none;
+		}
+		.error-banner.visible { display: block; }
 		/* Composer */
 		.composer-container {
 			padding: 16px 20px 24px;
 			background: #343541;
 		}
+		.composer-container.disabled .composer { opacity: 0.6; pointer-events: none; }
 		.composer-wrapper {
 			max-width: 768px;
 			margin: 0 auto;
 		}
+		.composer-row {
+			display: flex;
+			align-items: flex-end;
+			gap: 8px;
+		}
 		.composer {
+			flex: 1;
 			display: flex;
 			align-items: flex-end;
 			background: #40414f;
@@ -378,24 +509,112 @@ final class DEF_Core_Staff_AI {
 		.send-btn:hover { background: #1a9d6a; }
 		.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 		.send-btn svg { width: 16px; height: 16px; }
+		.escalate-btn {
+			background: transparent;
+			border: 1px solid rgba(251,191,36,0.4);
+			border-radius: 8px;
+			color: #fbbf24;
+			padding: 8px 12px;
+			font-size: 12px;
+			cursor: pointer;
+			white-space: nowrap;
+			transition: background 0.15s;
+		}
+		.escalate-btn:hover { background: rgba(251,191,36,0.1); }
+		.escalate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 		.composer-hint {
 			text-align: center;
 			font-size: 11px;
 			color: rgba(255,255,255,0.4);
 			margin-top: 8px;
 		}
-		/* Error message */
-		.error-banner {
-			background: rgba(239,68,68,0.1);
-			border: 1px solid rgba(239,68,68,0.3);
-			color: #fca5a5;
-			padding: 12px 16px;
-			margin: 0 20px 16px;
-			border-radius: 8px;
-			font-size: 13px;
+		/* Modal overlay */
+		.modal-overlay {
 			display: none;
+			position: fixed;
+			inset: 0;
+			background: rgba(0,0,0,0.7);
+			z-index: 200;
+			align-items: center;
+			justify-content: center;
 		}
-		.error-banner.visible { display: block; }
+		.modal-overlay.visible { display: flex; }
+		.modal {
+			background: #2d2d3a;
+			border-radius: 12px;
+			width: 90%;
+			max-width: 400px;
+			padding: 24px;
+			box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+		}
+		.modal-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 16px;
+		}
+		.modal-title {
+			font-size: 16px;
+			font-weight: 600;
+			color: #fff;
+		}
+		.modal-close {
+			background: none;
+			border: none;
+			color: rgba(255,255,255,0.5);
+			cursor: pointer;
+			padding: 4px;
+			font-size: 20px;
+			line-height: 1;
+		}
+		.modal-close:hover { color: #fff; }
+		.modal-body { margin-bottom: 20px; }
+		.form-group { margin-bottom: 16px; }
+		.form-group:last-child { margin-bottom: 0; }
+		.form-label {
+			display: block;
+			font-size: 13px;
+			color: rgba(255,255,255,0.7);
+			margin-bottom: 6px;
+		}
+		.form-input {
+			width: 100%;
+			background: #40414f;
+			border: 1px solid rgba(255,255,255,0.1);
+			border-radius: 6px;
+			padding: 10px 12px;
+			color: #fff;
+			font-size: 14px;
+			font-family: inherit;
+		}
+		.form-input:focus { outline: none; border-color: rgba(255,255,255,0.3); }
+		.form-input:disabled { opacity: 0.7; cursor: not-allowed; }
+		.form-input::placeholder { color: rgba(255,255,255,0.4); }
+		.modal-footer {
+			display: flex;
+			gap: 12px;
+			justify-content: flex-end;
+		}
+		.modal-btn {
+			padding: 10px 20px;
+			border-radius: 6px;
+			font-size: 14px;
+			cursor: pointer;
+			transition: background 0.15s;
+		}
+		.modal-btn-secondary {
+			background: transparent;
+			border: 1px solid rgba(255,255,255,0.2);
+			color: #fff;
+		}
+		.modal-btn-secondary:hover { background: rgba(255,255,255,0.1); }
+		.modal-btn-primary {
+			background: #19c37d;
+			border: none;
+			color: #fff;
+		}
+		.modal-btn-primary:hover { background: #1a9d6a; }
+		.modal-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 		/* Responsive */
 		@media (max-width: 768px) {
 			.sidebar {
@@ -416,6 +635,7 @@ final class DEF_Core_Staff_AI {
 			}
 			.sidebar-overlay.visible { display: block; }
 			.menu-toggle { display: flex; }
+			.header-actions { display: none; }
 		}
 	</style>
 </head>
@@ -423,6 +643,7 @@ final class DEF_Core_Staff_AI {
 	<div id="staff-ai-app"
 		data-channel="<?php echo esc_attr( $channel ); ?>"
 		data-user-id="<?php echo esc_attr( (string) $user->ID ); ?>"
+		data-user-email="<?php echo esc_attr( $user->user_email ); ?>"
 		data-assistant-type="<?php echo esc_attr( $assistant_type ); ?>"
 		data-rest-url="<?php echo esc_url( $rest_url ); ?>"
 		data-nonce="<?php echo esc_attr( $nonce ); ?>">
@@ -442,7 +663,7 @@ final class DEF_Core_Staff_AI {
 				</button>
 			</div>
 			<nav class="conversation-list" id="conversationList">
-				<div class="conversation-list-placeholder">
+				<div class="conversation-list-placeholder" id="conversationPlaceholder">
 					<?php echo esc_html__( 'No conversations yet', 'def-core' ); ?>
 				</div>
 			</nav>
@@ -462,6 +683,10 @@ final class DEF_Core_Staff_AI {
 					</svg>
 				</button>
 				<span class="assistant-label"><?php echo esc_html( $assistant_label ); ?></span>
+				<span class="readonly-indicator" id="readonlyIndicator"><?php echo esc_html__( 'Read-only (shared)', 'def-core' ); ?></span>
+				<div class="header-actions">
+					<button type="button" class="header-btn" id="shareBtn" disabled><?php echo esc_html__( 'Share', 'def-core' ); ?></button>
+				</div>
 			</header>
 
 			<div class="messages-container" id="messagesContainer">
@@ -473,23 +698,27 @@ final class DEF_Core_Staff_AI {
 				</div>
 			</div>
 
+			<div class="info-banner" id="infoBanner"></div>
 			<div class="error-banner" id="errorBanner"></div>
 
-			<div class="composer-container">
+			<div class="composer-container" id="composerContainer">
 				<div class="composer-wrapper">
-					<div class="composer">
-						<textarea
-							class="composer-input"
-							id="composerInput"
-							placeholder="<?php echo esc_attr__( 'Send a message...', 'def-core' ); ?>"
-							rows="1"
-						></textarea>
-						<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'def-core' ); ?>">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<line x1="22" y1="2" x2="11" y2="13"></line>
-								<polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-							</svg>
-						</button>
+					<div class="composer-row">
+						<div class="composer">
+							<textarea
+								class="composer-input"
+								id="composerInput"
+								placeholder="<?php echo esc_attr__( 'Send a message...', 'def-core' ); ?>"
+								rows="1"
+							></textarea>
+							<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'def-core' ); ?>">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<line x1="22" y1="2" x2="11" y2="13"></line>
+									<polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+								</svg>
+							</button>
+						</div>
+						<button type="button" class="escalate-btn" id="escalateBtn" disabled><?php echo esc_html__( 'Escalate', 'def-core' ); ?></button>
 					</div>
 					<div class="composer-hint">
 						<?php echo esc_html__( 'Press Enter to send, Shift+Enter for new line', 'def-core' ); ?>
@@ -497,6 +726,53 @@ final class DEF_Core_Staff_AI {
 				</div>
 			</div>
 		</main>
+
+		<!-- Share Modal -->
+		<div class="modal-overlay" id="shareModal">
+			<div class="modal">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Share Conversation', 'def-core' ); ?></span>
+					<button type="button" class="modal-close" id="shareModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="form-label"><?php echo esc_html__( 'Share with (email)', 'def-core' ); ?></label>
+						<input type="email" class="form-input" id="shareEmail" placeholder="<?php echo esc_attr__( 'colleague@company.com', 'def-core' ); ?>">
+					</div>
+					<p style="font-size: 12px; color: rgba(255,255,255,0.5);">
+						<?php echo esc_html__( 'Shared conversations are read-only by default.', 'def-core' ); ?>
+					</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__( 'Cancel', 'def-core' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-primary" id="shareSubmit"><?php echo esc_html__( 'Share', 'def-core' ); ?></button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Escalate Modal -->
+		<div class="modal-overlay" id="escalateModal">
+			<div class="modal">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Escalate for Review', 'def-core' ); ?></span>
+					<button type="button" class="modal-close" id="escalateModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="form-label"><?php echo esc_html__( 'Your email', 'def-core' ); ?></label>
+						<input type="email" class="form-input" id="escalateEmail" disabled>
+					</div>
+					<div class="form-group">
+						<label class="form-label"><?php echo esc_html__( 'Note (optional)', 'def-core' ); ?></label>
+						<textarea class="form-input" id="escalateNote" rows="3" placeholder="<?php echo esc_attr__( 'What do you want reviewed?', 'def-core' ); ?>"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="escalateCancel"><?php echo esc_html__( 'Cancel', 'def-core' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-primary" id="escalateSubmit"><?php echo esc_html__( 'Submit Escalation', 'def-core' ); ?></button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -506,6 +782,7 @@ final class DEF_Core_Staff_AI {
 		const app = document.getElementById('staff-ai-app');
 		const channel = app.dataset.channel;
 		const userId = app.dataset.userId;
+		const userEmail = app.dataset.userEmail;
 		const assistantType = app.dataset.assistantType;
 		const restUrl = app.dataset.restUrl;
 		const nonce = app.dataset.nonce;
@@ -515,16 +792,45 @@ final class DEF_Core_Staff_AI {
 		const sidebarOverlay = document.getElementById('sidebarOverlay');
 		const menuToggle = document.getElementById('menuToggle');
 		const newChatBtn = document.getElementById('newChatBtn');
+		const conversationList = document.getElementById('conversationList');
+		const conversationPlaceholder = document.getElementById('conversationPlaceholder');
 		const messagesContainer = document.getElementById('messagesContainer');
 		const messagesList = document.getElementById('messagesList');
 		const welcomeMessage = document.getElementById('welcomeMessage');
+		const readonlyIndicator = document.getElementById('readonlyIndicator');
+		const shareBtn = document.getElementById('shareBtn');
+		const infoBanner = document.getElementById('infoBanner');
 		const errorBanner = document.getElementById('errorBanner');
+		const composerContainer = document.getElementById('composerContainer');
 		const composerInput = document.getElementById('composerInput');
 		const sendBtn = document.getElementById('sendBtn');
+		const escalateBtn = document.getElementById('escalateBtn');
+
+		// Share modal elements
+		const shareModal = document.getElementById('shareModal');
+		const shareModalClose = document.getElementById('shareModalClose');
+		const shareEmail = document.getElementById('shareEmail');
+		const shareCancel = document.getElementById('shareCancel');
+		const shareSubmit = document.getElementById('shareSubmit');
+
+		// Escalate modal elements
+		const escalateModal = document.getElementById('escalateModal');
+		const escalateModalClose = document.getElementById('escalateModalClose');
+		const escalateEmail = document.getElementById('escalateEmail');
+		const escalateNote = document.getElementById('escalateNote');
+		const escalateCancel = document.getElementById('escalateCancel');
+		const escalateSubmit = document.getElementById('escalateSubmit');
 
 		// State
+		let conversations = [];
+		let currentConversationId = null;
 		let messages = [];
 		let isLoading = false;
+		let isReadOnly = false;
+
+		// Initialize
+		escalateEmail.value = userEmail;
+		loadConversations();
 
 		// Sidebar toggle (mobile)
 		function toggleSidebar() {
@@ -535,13 +841,117 @@ final class DEF_Core_Staff_AI {
 		menuToggle.addEventListener('click', toggleSidebar);
 		sidebarOverlay.addEventListener('click', toggleSidebar);
 
+		// Load conversations from backend
+		async function loadConversations() {
+			try {
+				// Backend wiring is Loop 4 - simulate for now
+				conversations = [];
+				renderConversationList();
+			} catch (err) {
+				console.error('Failed to load conversations:', err);
+			}
+		}
+
+		// Render conversation list
+		function renderConversationList() {
+			// Remove existing items
+			const items = conversationList.querySelectorAll('.conversation-item');
+			items.forEach(el => el.remove());
+
+			if (conversations.length === 0) {
+				conversationPlaceholder.style.display = 'block';
+				return;
+			}
+
+			conversationPlaceholder.style.display = 'none';
+
+			conversations.forEach(function(conv) {
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'conversation-item';
+				if (conv.id === currentConversationId) {
+					btn.classList.add('active');
+				}
+				btn.dataset.id = conv.id;
+
+				const title = document.createElement('span');
+				title.className = 'conversation-item-title';
+				title.textContent = conv.title || '<?php echo esc_js( __( 'New conversation', 'def-core' ) ); ?>';
+
+				const time = document.createElement('span');
+				time.className = 'conversation-item-time';
+				time.textContent = formatTime(conv.updated_at);
+
+				btn.appendChild(title);
+				btn.appendChild(time);
+				btn.addEventListener('click', function() {
+					loadConversation(conv.id, conv.is_shared);
+				});
+
+				conversationList.insertBefore(btn, conversationPlaceholder);
+			});
+		}
+
+		// Format time for display
+		function formatTime(timestamp) {
+			if (!timestamp) return '';
+			const date = new Date(timestamp);
+			const now = new Date();
+			const diff = now - date;
+			if (diff < 86400000) {
+				return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			}
+			return date.toLocaleDateString();
+		}
+
+		// Load a specific conversation
+		async function loadConversation(id, shared) {
+			currentConversationId = id;
+			isReadOnly = !!shared;
+
+			// Update UI state
+			updateReadOnlyState();
+			renderConversationList();
+
+			try {
+				// Backend wiring is Loop 4 - simulate for now
+				messages = [];
+				renderMessages();
+			} catch (err) {
+				showError('<?php echo esc_js( __( 'Failed to load conversation.', 'def-core' ) ); ?>');
+			}
+
+			if (window.innerWidth <= 768) {
+				toggleSidebar();
+			}
+		}
+
+		// Update read-only state
+		function updateReadOnlyState() {
+			if (isReadOnly) {
+				readonlyIndicator.classList.add('visible');
+				composerContainer.classList.add('disabled');
+				escalateBtn.disabled = true;
+			} else {
+				readonlyIndicator.classList.remove('visible');
+				composerContainer.classList.remove('disabled');
+				escalateBtn.disabled = !currentConversationId;
+			}
+			shareBtn.disabled = !currentConversationId;
+		}
+
 		// New chat
 		newChatBtn.addEventListener('click', function() {
+			currentConversationId = null;
+			isReadOnly = false;
 			messages = [];
+			updateReadOnlyState();
+			renderConversationList();
 			renderMessages();
 			composerInput.value = '';
 			updateSendButton();
 			hideError();
+			hideInfo();
 			if (window.innerWidth <= 768) {
 				toggleSidebar();
 			}
@@ -560,7 +970,7 @@ final class DEF_Core_Staff_AI {
 
 		// Update send button state
 		function updateSendButton() {
-			sendBtn.disabled = !composerInput.value.trim() || isLoading;
+			sendBtn.disabled = !composerInput.value.trim() || isLoading || isReadOnly;
 		}
 
 		// Keyboard handler: Enter to send, Shift+Enter for newline
@@ -574,6 +984,17 @@ final class DEF_Core_Staff_AI {
 		});
 
 		sendBtn.addEventListener('click', sendMessage);
+
+		// Show info
+		function showInfo(msg) {
+			infoBanner.textContent = msg;
+			infoBanner.classList.add('visible');
+		}
+
+		// Hide info
+		function hideInfo() {
+			infoBanner.classList.remove('visible');
+		}
 
 		// Show error
 		function showError(msg) {
@@ -590,7 +1011,6 @@ final class DEF_Core_Staff_AI {
 		function renderMessages() {
 			if (messages.length === 0) {
 				welcomeMessage.style.display = 'block';
-				// Clear any message elements
 				const msgElements = messagesList.querySelectorAll('.message');
 				msgElements.forEach(el => el.remove());
 				return;
@@ -598,7 +1018,6 @@ final class DEF_Core_Staff_AI {
 
 			welcomeMessage.style.display = 'none';
 
-			// Clear and re-render
 			const msgElements = messagesList.querySelectorAll('.message');
 			msgElements.forEach(el => el.remove());
 
@@ -620,6 +1039,14 @@ final class DEF_Core_Staff_AI {
 					content.appendChild(indicator);
 				} else {
 					content.textContent = msg.content;
+
+					// Render tool outputs if present
+					if (msg.tool_outputs && msg.tool_outputs.length > 0) {
+						msg.tool_outputs.forEach(function(tool) {
+							const card = createToolOutputCard(tool);
+							content.appendChild(card);
+						});
+					}
 				}
 
 				div.appendChild(avatar);
@@ -627,27 +1054,61 @@ final class DEF_Core_Staff_AI {
 				messagesList.appendChild(div);
 			});
 
-			// Scroll to bottom
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		}
+
+		// Create tool output card
+		function createToolOutputCard(tool) {
+			const card = document.createElement('div');
+			card.className = 'tool-output-card';
+
+			const icon = document.createElement('div');
+			icon.className = 'tool-output-icon';
+			icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
+
+			const info = document.createElement('div');
+			info.className = 'tool-output-info';
+
+			const name = document.createElement('div');
+			name.className = 'tool-output-name';
+			name.textContent = tool.file_name || '<?php echo esc_js( __( 'Download', 'def-core' ) ); ?>';
+
+			const type = document.createElement('div');
+			type.className = 'tool-output-type';
+			type.textContent = tool.file_type || '<?php echo esc_js( __( 'File', 'def-core' ) ); ?>';
+
+			info.appendChild(name);
+			info.appendChild(type);
+
+			const download = document.createElement('a');
+			download.className = 'tool-output-download';
+			download.href = tool.download_url || '#';
+			download.target = '_blank';
+			download.rel = 'noopener';
+			download.textContent = '<?php echo esc_js( __( 'Download', 'def-core' ) ); ?>';
+
+			card.appendChild(icon);
+			card.appendChild(info);
+			card.appendChild(download);
+
+			return card;
 		}
 
 		// Send message
 		async function sendMessage() {
 			const text = composerInput.value.trim();
-			if (!text || isLoading) return;
+			if (!text || isLoading || isReadOnly) return;
 
 			hideError();
+			hideInfo();
 
-			// Add user message
 			messages.push({ role: 'user', content: text });
 			renderMessages();
 
-			// Clear input
 			composerInput.value = '';
 			autoResize();
 			updateSendButton();
 
-			// Add typing indicator
 			messages.push({ role: 'assistant', content: '', isTyping: true });
 			renderMessages();
 
@@ -655,19 +1116,22 @@ final class DEF_Core_Staff_AI {
 			updateSendButton();
 
 			try {
-				// Simulate send/receive (backend wiring is Loop 4)
-				// For now, acknowledge the message was sent
+				// Backend wiring is Loop 4 - simulate for now
 				await new Promise(resolve => setTimeout(resolve, 1500));
 
-				// Remove typing indicator and add response
 				messages.pop();
 				messages.push({
 					role: 'assistant',
 					content: '<?php echo esc_js( __( 'Thank you for your message. The backend integration will be connected in a future update.', 'def-core' ) ); ?>'
 				});
 				renderMessages();
+
+				// Enable share and escalate after first message
+				if (!currentConversationId) {
+					currentConversationId = 'temp-' + Date.now();
+				}
+				updateReadOnlyState();
 			} catch (err) {
-				// Remove typing indicator
 				messages.pop();
 				renderMessages();
 				showError('<?php echo esc_js( __( 'Failed to send message. Please try again.', 'def-core' ) ); ?>');
@@ -676,6 +1140,80 @@ final class DEF_Core_Staff_AI {
 				updateSendButton();
 			}
 		}
+
+		// Share modal handlers
+		shareBtn.addEventListener('click', function() {
+			shareEmail.value = '';
+			shareModal.classList.add('visible');
+		});
+
+		shareModalClose.addEventListener('click', function() {
+			shareModal.classList.remove('visible');
+		});
+
+		shareCancel.addEventListener('click', function() {
+			shareModal.classList.remove('visible');
+		});
+
+		shareSubmit.addEventListener('click', async function() {
+			const email = shareEmail.value.trim();
+			if (!email || !currentConversationId) return;
+
+			shareSubmit.disabled = true;
+
+			try {
+				// Backend wiring is Loop 4 - simulate for now
+				await new Promise(resolve => setTimeout(resolve, 500));
+				shareModal.classList.remove('visible');
+				showInfo('<?php echo esc_js( __( 'Conversation shared successfully.', 'def-core' ) ); ?>');
+			} catch (err) {
+				showError('<?php echo esc_js( __( 'Failed to share conversation.', 'def-core' ) ); ?>');
+			} finally {
+				shareSubmit.disabled = false;
+			}
+		});
+
+		// Escalate modal handlers
+		escalateBtn.addEventListener('click', function() {
+			escalateNote.value = '';
+			escalateModal.classList.add('visible');
+		});
+
+		escalateModalClose.addEventListener('click', function() {
+			escalateModal.classList.remove('visible');
+		});
+
+		escalateCancel.addEventListener('click', function() {
+			escalateModal.classList.remove('visible');
+		});
+
+		escalateSubmit.addEventListener('click', async function() {
+			if (!currentConversationId) return;
+
+			escalateSubmit.disabled = true;
+
+			try {
+				// Backend wiring is Loop 4 - simulate for now
+				const note = escalateNote.value.trim();
+				await new Promise(resolve => setTimeout(resolve, 500));
+				escalateModal.classList.remove('visible');
+				showInfo('<?php echo esc_js( __( 'Escalated for review — you can continue working while this is reviewed.', 'def-core' ) ); ?>');
+				// Conversation remains active (non-terminal)
+			} catch (err) {
+				showError('<?php echo esc_js( __( 'Failed to submit escalation.', 'def-core' ) ); ?>');
+			} finally {
+				escalateSubmit.disabled = false;
+			}
+		});
+
+		// Close modals on overlay click
+		shareModal.addEventListener('click', function(e) {
+			if (e.target === shareModal) shareModal.classList.remove('visible');
+		});
+
+		escalateModal.addEventListener('click', function(e) {
+			if (e.target === escalateModal) escalateModal.classList.remove('visible');
+		});
 
 		// Focus input on load
 		composerInput.focus();
