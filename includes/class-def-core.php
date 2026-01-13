@@ -55,6 +55,7 @@ final class DEF_Core {
 		DEF_Core_Admin::init();
 		DEF_Core_Routes::init();
 		DEF_Core_Cache::init();
+		DEF_Core_Staff_AI::init();
 
 		// Register activation hook.
 		register_activation_hook( DEF_CORE_PLUGIN_DIR . 'def-core.php', array( __CLASS__, 'on_activate' ) );
@@ -83,6 +84,9 @@ final class DEF_Core {
 		// Tool base class (for modules).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-base.php';
 
+		// Staff AI frontend.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-ai.php';
+
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
 
@@ -103,6 +107,8 @@ final class DEF_Core {
 		if ( get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS ) === false ) {
 			add_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array(), '', false );
 		}
+		// Flush rewrite rules for Staff AI endpoint.
+		DEF_Core_Staff_AI::on_activate();
 	}
 
 	/**
