@@ -1,11 +1,3 @@
----
-active: true
-iteration: 1
-max_iterations: 10
-completion_promise: "STAFF_AI_F2_COMPLETE"
-started_at: "2026-01-13T08:27:24Z"
----
-
 You are Claude Code running in the def-core WordPress plugin repo.
 
 Open and follow these two files as the only source of requirements:
@@ -30,7 +22,7 @@ Objective for this loop:
 
 Assistant identity display:
 - Show a subtle label in the UI (top of chat) for the active assistant:
-  -Staff Knowledge Assistant' OR 'Management Knowledge Assistant'
+  - 'Staff Knowledge Assistant' OR 'Management Knowledge Assistant'
 - Do NOT implement manual switching.
 
 Integration constraints for this loop:
@@ -53,4 +45,3 @@ Hard constraints (must obey):
 
 Stop when complete and output exactly this token on its own line:
 STAFF_AI_F2_COMPLETE
-
