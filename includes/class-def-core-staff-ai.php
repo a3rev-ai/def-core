@@ -270,34 +270,35 @@ final class DEF_Core_Staff_AI {
 
 		// Map backend errors to clean UI-safe errors.
 		if ( $status >= 400 ) {
-			$error_code   = 'staff_ai_backend_error';
 			$backend_detail = isset( $data['detail'] ) ? $data['detail'] : '';
 
-			// Handle different error status codes.
+			// Handle different error status codes - each branch MUST set both $error_code and $error_message.
 			if ( 401 === $status || 403 === $status ) {
+				$error_code    = 'staff_ai_auth_failed';
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code, 2: backend error detail */
 					__( 'Backend auth failed (HTTP %1$d). The backend may need JWKS configuration. Detail: %2$s', 'def-core' ),
 					$status,
 					$backend_detail ? $backend_detail : 'none'
 				);
-				$error_code = 'staff_ai_auth_failed';
 			} elseif ( 404 === $status ) {
+				$error_code    = 'staff_ai_not_found';
 				$error_message = sprintf(
 					/* translators: 1: API endpoint path, 2: full URL */
 					__( 'Backend endpoint not found (HTTP 404): %1$s. Full URL: %2$s - Please verify the backend API supports this endpoint.', 'def-core' ),
 					$endpoint,
 					$url
 				);
-				$error_code = 'staff_ai_not_found';
 			} elseif ( $status >= 500 ) {
+				$error_code    = 'staff_ai_service_error';
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code */
 					__( 'Backend service error (HTTP %1$d). The service may be temporarily unavailable.', 'def-core' ),
 					$status
 				);
-				$error_code = 'staff_ai_service_error';
 			} else {
+				// Any other 4xx error (400, 405, 422, etc.)
+				$error_code    = 'staff_ai_http_' . $status;
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code, 2: backend error detail, 3: full URL */
 					__( 'Backend error (HTTP %1$d) calling %3$s: %2$s', 'def-core' ),
@@ -305,7 +306,6 @@ final class DEF_Core_Staff_AI {
 					$backend_detail ? $backend_detail : __( 'Unknown error', 'def-core' ),
 					$url
 				);
-				$error_code = 'staff_ai_http_' . $status;
 			}
 
 			// Log detailed error in debug mode for troubleshooting.
