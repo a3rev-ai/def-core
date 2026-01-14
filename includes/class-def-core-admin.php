@@ -99,6 +99,16 @@ final class DEF_Core_Admin {
 				'show_in_rest'      => false,
 			)
 		);
+		register_setting(
+			'def_core_settings',
+			'def_core_staff_ai_api_url',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_staff_ai_api_url' ),
+				'default'           => '',
+				'show_in_rest'      => false,
+			)
+		);
 		add_settings_section(
 			'def_core_main',
 			__( 'Session Bridge Settings', 'def-core' ),
@@ -117,6 +127,12 @@ final class DEF_Core_Admin {
 			'def_core_api_tools',
 			__( 'API Tools', 'def-core' ),
 			array( __CLASS__, 'render_api_tools_section' ),
+			'def-core'
+		);
+		add_settings_section(
+			'def_core_staff_ai',
+			__( 'Staff AI Backend', 'def-core' ),
+			array( __CLASS__, 'render_staff_ai_section' ),
 			'def-core'
 		);
 		add_settings_field(
@@ -146,6 +162,13 @@ final class DEF_Core_Admin {
 			array( __CLASS__, 'render_external_issuer_field' ),
 			'def-core',
 			'def_core_external_auth'
+		);
+		add_settings_field(
+			'staff_ai_api_url',
+			__( 'Staff AI API URL', 'def-core' ),
+			array( __CLASS__, 'render_staff_ai_api_url_field' ),
+			'def-core',
+			'def_core_staff_ai'
 		);
 	}
 
@@ -271,6 +294,32 @@ final class DEF_Core_Admin {
 			}
 		}
 		return $sanitized;
+	}
+
+	/**
+	 * Sanitize Staff AI API URL.
+	 *
+	 * @param string $value The value to sanitize.
+	 * @return string The sanitized value.
+	 * @since 1.1.0
+	 */
+	public static function sanitize_staff_ai_api_url( $value ): string {
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return '';
+		}
+		// Must be a valid URL.
+		$url = esc_url_raw( $value, array( 'http', 'https' ) );
+		if ( '' === $url ) {
+			add_settings_error(
+				'def_core_staff_ai_api_url',
+				'invalid_url',
+				__( 'Staff AI API URL must be a valid HTTP/HTTPS URL.', 'def-core' )
+			);
+			return '';
+		}
+		// Remove trailing slash for consistency.
+		return rtrim( $url, '/' );
 	}
 
 	/**
@@ -441,6 +490,38 @@ final class DEF_Core_Admin {
 		?>
 		<p><?php esc_html_e( 'Enable or disable individual API tools. Core routes (context-token, jwks) are always enabled and cannot be disabled.', 'def-core' ); ?></p>
 		<p class="description"><?php esc_html_e( 'Disabled tools will not be registered with WordPress REST API and will not be accessible.', 'def-core' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the Staff AI section description.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_staff_ai_section(): void {
+		?>
+		<p><?php esc_html_e( 'Configure the Staff AI backend API connection. This enables the internal Staff AI chat interface at /staff-ai.', 'def-core' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the Staff AI API URL field.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_staff_ai_api_url_field(): void {
+		$url = get_option( 'def_core_staff_ai_api_url', '' );
+		?>
+		<input type="url"
+				name="def_core_staff_ai_api_url"
+				value="<?php echo esc_attr( $url ); ?>"
+				class="large-text code"
+				placeholder="https://your-def-api.example.com" />
+		<p class="description">
+			<?php esc_html_e( 'The base URL of the Digital Employee Framework Python API.', 'def-core' ); ?><br>
+			<strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong> <code>https://a3revai.azurewebsites.net</code><br>
+			<em><?php esc_html_e( 'Required for Staff AI functionality. Leave empty to disable.', 'def-core' ); ?></em>
+		</p>
 		<?php
 	}
 

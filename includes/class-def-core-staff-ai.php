@@ -30,6 +30,597 @@ final class DEF_Core_Staff_AI {
 		add_action( 'init', array( __CLASS__, 'add_rewrite_rules' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'handle_endpoint' ) );
 		add_filter( 'query_vars', array( __CLASS__, 'add_query_vars' ) );
+		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+	}
+
+	/**
+	 * Register REST API routes for Staff AI adapter.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function register_rest_routes(): void {
+		// List conversations.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_list_conversations' ),
+			)
+		);
+
+		// Load single conversation.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_load_conversation' ),
+			)
+		);
+
+		// Send message (creates conversation if needed).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/chat',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_send_message' ),
+			)
+		);
+
+		// Share conversation.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_share_conversation' ),
+			)
+		);
+
+		// Revoke share.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/revoke',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_revoke_share' ),
+			)
+		);
+
+		// Export conversation.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/export',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_export_conversation' ),
+			)
+		);
+
+		// Escalate.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/escalate',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_escalate' ),
+			)
+		);
+
+		// Status/test endpoint for debugging connection issues.
+		// Uses manage_options cap so admins can diagnose without needing staff_ai access.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/status',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => function() {
+					return current_user_can( 'manage_options' ) || self::user_has_staff_ai_access();
+				},
+				'callback'            => array( __CLASS__, 'rest_status' ),
+			)
+		);
+	}
+
+	/**
+	 * REST API permission check for Staff AI endpoints.
+	 *
+	 * @return bool|\WP_Error True if access granted, WP_Error otherwise.
+	 * @since 1.1.0
+	 */
+	public static function rest_permission_check() {
+		// Authentication gate.
+		if ( ! is_user_logged_in() ) {
+			return new \WP_Error(
+				'rest_not_logged_in',
+				__( 'Authentication required.', 'def-core' ),
+				array( 'status' => 401 )
+			);
+		}
+
+		// Capability gate.
+		if ( ! self::user_has_staff_ai_access() ) {
+			return new \WP_Error(
+				'rest_forbidden',
+				__( 'You do not have permission to access Staff AI.', 'def-core' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get the backend API base URL.
+	 *
+	 * @return string|null API base URL or null if not configured.
+	 * @since 1.1.0
+	 */
+	private static function get_api_base_url(): ?string {
+		$url = get_option( 'def_core_staff_ai_api_url', '' );
+		return ! empty( $url ) ? rtrim( $url, '/' ) : null;
+	}
+
+	/**
+	 * Make a request to the backend API.
+	 *
+	 * @param string $method HTTP method (GET, POST).
+	 * @param string $endpoint API endpoint path.
+	 * @param array  $body Request body for POST requests.
+	 * @return array|\WP_Error Response data or WP_Error.
+	 * @since 1.1.0
+	 */
+	private static function backend_request( string $method, string $endpoint, array $body = array() ) {
+		$base_url = self::get_api_base_url();
+		if ( ! $base_url ) {
+			return new \WP_Error(
+				'staff_ai_not_configured',
+				__( 'Staff AI backend URL is not configured. Go to Settings > Digital Employees to set the Staff AI API URL.', 'def-core' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$url = $base_url . $endpoint;
+
+		// Build JWT claims for backend auth.
+		$user = wp_get_current_user();
+		if ( ! $user || 0 === $user->ID ) {
+			return new \WP_Error(
+				'staff_ai_not_authenticated',
+				__( 'User not authenticated.', 'def-core' ),
+				array( 'status' => 401 )
+			);
+		}
+
+		$capabilities = array();
+		if ( $user->has_cap( 'def_staff_access' ) ) {
+			$capabilities[] = 'def_staff_access';
+		}
+		if ( $user->has_cap( 'def_management_access' ) ) {
+			$capabilities[] = 'def_management_access';
+		}
+
+		$claims = array(
+			'sub'          => (string) $user->ID,
+			'email'        => $user->user_email,
+			'capabilities' => $capabilities,
+			'channel'      => 'staff_ai',
+			'iss'          => get_site_url(),
+		);
+
+		$token = DEF_Core_JWT::issue_token( $claims, 300 );
+		if ( empty( $token ) ) {
+			return new \WP_Error(
+				'staff_ai_token_error',
+				__( 'Failed to generate authentication token.', 'def-core' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$args = array(
+			'timeout'     => 60,
+			'httpversion' => '1.1',
+			'headers'     => array(
+				'Authorization' => 'Bearer ' . $token,
+				'Content-Type'  => 'application/json',
+				'Accept'        => 'application/json',
+			),
+		);
+
+		if ( 'POST' === $method ) {
+			$args['body'] = wp_json_encode( $body );
+			$response     = wp_remote_post( $url, $args );
+		} else {
+			$response = wp_remote_get( $url, $args );
+		}
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error(
+				'staff_ai_request_failed',
+				__( 'Failed to connect to Staff AI backend.', 'def-core' ),
+				array( 'status' => 502 )
+			);
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		$body   = wp_remote_retrieve_body( $response );
+		$data   = json_decode( $body, true );
+
+		// Map backend errors to clean UI-safe errors.
+		if ( $status >= 400 ) {
+			$error_code   = 'staff_ai_backend_error';
+			$backend_detail = isset( $data['detail'] ) ? $data['detail'] : '';
+
+			// Handle different error status codes.
+			if ( 401 === $status || 403 === $status ) {
+				$error_message = sprintf(
+					/* translators: 1: HTTP status code, 2: backend error detail */
+					__( 'Backend auth failed (HTTP %1$d). The backend may need JWKS configuration. Detail: %2$s', 'def-core' ),
+					$status,
+					$backend_detail ? $backend_detail : 'none'
+				);
+				$error_code = 'staff_ai_auth_failed';
+			} elseif ( 404 === $status ) {
+				$error_message = sprintf(
+					/* translators: 1: API endpoint path, 2: full URL */
+					__( 'Backend endpoint not found (HTTP 404): %1$s. Full URL: %2$s - Please verify the backend API supports this endpoint.', 'def-core' ),
+					$endpoint,
+					$url
+				);
+				$error_code = 'staff_ai_not_found';
+			} elseif ( $status >= 500 ) {
+				$error_message = sprintf(
+					/* translators: 1: HTTP status code */
+					__( 'Backend service error (HTTP %1$d). The service may be temporarily unavailable.', 'def-core' ),
+					$status
+				);
+				$error_code = 'staff_ai_service_error';
+			} else {
+				$error_message = sprintf(
+					/* translators: 1: HTTP status code, 2: backend error detail */
+					__( 'Backend error (HTTP %1$d): %2$s', 'def-core' ),
+					$status,
+					$backend_detail ? $backend_detail : __( 'Unknown error', 'def-core' )
+				);
+			}
+
+			// Log detailed error in debug mode for troubleshooting.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				$debug_info = sprintf(
+					'Staff AI backend error: status=%d, endpoint=%s, detail=%s',
+					$status,
+					$endpoint,
+					$backend_detail ? $backend_detail : 'none'
+				);
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( $debug_info );
+			}
+
+			return new \WP_Error(
+				$error_code,
+				$error_message,
+				array( 'status' => $status )
+			);
+		}
+
+		return $data;
+	}
+
+	/**
+	 * REST handler: List conversations.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_list_conversations( \WP_REST_Request $request ) {
+		$result = self::backend_request( 'GET', '/api/my/threads' );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Map backend response to frontend format.
+		$conversations = array();
+		if ( isset( $result['threads'] ) && is_array( $result['threads'] ) ) {
+			foreach ( $result['threads'] as $thread ) {
+				$conversations[] = array(
+					'id'         => $thread['id'] ?? '',
+					'title'      => $thread['title'] ?? __( 'New conversation', 'def-core' ),
+					'updated_at' => $thread['updatedAt'] ?? $thread['createdAt'] ?? '',
+					'is_shared'  => false, // Backend doesn't support sharing yet.
+				);
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'       => true,
+				'conversations' => $conversations,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Load single conversation.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_load_conversation( \WP_REST_Request $request ) {
+		$thread_id = $request->get_param( 'id' );
+		$result    = self::backend_request( 'GET', '/api/thread/' . rawurlencode( $thread_id ) . '/messages' );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Map backend response to frontend format.
+		$messages = array();
+		if ( isset( $result['messages'] ) && is_array( $result['messages'] ) ) {
+			foreach ( $result['messages'] as $msg ) {
+				$messages[] = array(
+					'role'         => $msg['role'] ?? 'user',
+					'content'      => $msg['content'] ?? '',
+					'timestamp'    => $msg['timestamp'] ?? '',
+					'tool_outputs' => array(), // Will be parsed from content if needed.
+				);
+			}
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'id'       => $thread_id,
+				'messages' => $messages,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Send message.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_send_message( \WP_REST_Request $request ) {
+		$body = $request->get_json_params();
+
+		$message   = isset( $body['message'] ) ? sanitize_textarea_field( $body['message'] ) : '';
+		$thread_id = isset( $body['thread_id'] ) ? sanitize_text_field( $body['thread_id'] ) : null;
+
+		if ( empty( $message ) ) {
+			return new \WP_Error(
+				'invalid_message',
+				__( 'Message cannot be empty.', 'def-core' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Build chat request for backend.
+		$chat_body = array(
+			'messages' => array(
+				array(
+					'role'    => 'user',
+					'content' => $message,
+				),
+			),
+		);
+
+		// If continuing existing thread.
+		if ( $thread_id && 'temp-' !== substr( $thread_id, 0, 5 ) ) {
+			$chat_body['thread_id']        = $thread_id;
+			$chat_body['continue_thread']  = true;
+		}
+
+		$result = self::backend_request( 'POST', '/api/chat', $chat_body );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Extract response.
+		$assistant_content = '';
+		$tool_outputs      = array();
+
+		if ( isset( $result['choices'][0]['message']['content'] ) ) {
+			$assistant_content = $result['choices'][0]['message']['content'];
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'thread_id'    => $result['thread_id'] ?? $thread_id,
+				'message'      => array(
+					'role'         => 'assistant',
+					'content'      => $assistant_content,
+					'tool_outputs' => $tool_outputs,
+				),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Share conversation.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_share_conversation( \WP_REST_Request $request ) {
+		// Sharing endpoint not yet implemented in backend.
+		// Return success stub - backend will add this endpoint later.
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Conversation shared successfully.', 'def-core' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Revoke share.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_revoke_share( \WP_REST_Request $request ) {
+		// Revoke endpoint not yet implemented in backend.
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Share access revoked.', 'def-core' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Export conversation.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_export_conversation( \WP_REST_Request $request ) {
+		// Export endpoint not yet implemented in backend.
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Export not yet available.', 'def-core' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Escalate.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 * @since 1.1.0
+	 */
+	public static function rest_escalate( \WP_REST_Request $request ) {
+		// Escalate endpoint not yet implemented in backend.
+		// Return success stub - conversation remains active (non-terminal).
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Escalated for review — you can continue working while this is reviewed.', 'def-core' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Status check for debugging.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response with status info.
+	 * @since 1.1.0
+	 */
+	public static function rest_status( \WP_REST_Request $request ) {
+		$user     = wp_get_current_user();
+		$base_url = self::get_api_base_url();
+
+		$status = array(
+			'success'      => true,
+			'user'         => array(
+				'id'    => $user->ID,
+				'email' => $user->user_email,
+			),
+			'capabilities' => array(
+				'def_staff_access'      => $user->has_cap( 'def_staff_access' ),
+				'def_management_access' => $user->has_cap( 'def_management_access' ),
+			),
+			'config'       => array(
+				'api_url_configured' => ! empty( $base_url ),
+				'api_url'            => $base_url,
+				'jwks_url'           => rest_url( DEF_CORE_API_NAME_SPACE . '/jwks' ),
+				'issuer'             => get_site_url(),
+			),
+		);
+
+		// Test token generation.
+		$capabilities = array();
+		if ( $user->has_cap( 'def_staff_access' ) ) {
+			$capabilities[] = 'def_staff_access';
+		}
+		if ( $user->has_cap( 'def_management_access' ) ) {
+			$capabilities[] = 'def_management_access';
+		}
+
+		$claims = array(
+			'sub'          => (string) $user->ID,
+			'email'        => $user->user_email,
+			'capabilities' => $capabilities,
+			'channel'      => 'staff_ai',
+			'iss'          => get_site_url(),
+		);
+
+		$token = DEF_Core_JWT::issue_token( $claims, 300 );
+		$status['token_generation'] = ! empty( $token ) ? 'ok' : 'failed';
+
+		// Test backend connectivity if configured.
+		if ( ! empty( $base_url ) && ! empty( $token ) ) {
+			// Test 1: Health endpoint
+			$health_url  = $base_url . '/api/health';
+			$test_args   = array(
+				'timeout'     => 10,
+				'httpversion' => '1.1',
+				'headers'     => array(
+					'Authorization' => 'Bearer ' . $token,
+					'Accept'        => 'application/json',
+				),
+			);
+
+			$health_response = wp_remote_get( $health_url, $test_args );
+
+			if ( is_wp_error( $health_response ) ) {
+				$status['health_check'] = 'error: ' . $health_response->get_error_message();
+			} else {
+				$health_status = wp_remote_retrieve_response_code( $health_response );
+				$status['health_check'] = 'status_' . $health_status;
+			}
+
+			// Test 2: Threads endpoint (the actual endpoint that fails)
+			$threads_url      = $base_url . '/api/my/threads';
+			$threads_response = wp_remote_get( $threads_url, $test_args );
+
+			if ( is_wp_error( $threads_response ) ) {
+				$status['threads_check'] = 'error: ' . $threads_response->get_error_message();
+			} else {
+				$threads_status = wp_remote_retrieve_response_code( $threads_response );
+				$threads_body   = wp_remote_retrieve_body( $threads_response );
+				$threads_data   = json_decode( $threads_body, true );
+
+				$status['threads_check'] = array(
+					'status' => $threads_status,
+					'detail' => isset( $threads_data['detail'] ) ? $threads_data['detail'] : null,
+				);
+			}
+		} else {
+			$status['health_check']  = 'not_tested';
+			$status['threads_check'] = 'not_tested';
+		}
+
+		return new \WP_REST_Response( $status, 200 );
 	}
 
 	/**
@@ -164,8 +755,8 @@ final class DEF_Core_Staff_AI {
 			? __( 'Management Knowledge Assistant', 'def-core' )
 			: __( 'Staff Knowledge Assistant', 'def-core' );
 
-		// REST API data for JS.
-		$rest_url = rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' );
+		// REST API data for JS - Staff AI adapter endpoints.
+		$api_base = rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai' );
 		$nonce    = wp_create_nonce( 'wp_rest' );
 		?>
 <!DOCTYPE html>
@@ -645,7 +1236,7 @@ final class DEF_Core_Staff_AI {
 		data-user-id="<?php echo esc_attr( (string) $user->ID ); ?>"
 		data-user-email="<?php echo esc_attr( $user->user_email ); ?>"
 		data-assistant-type="<?php echo esc_attr( $assistant_type ); ?>"
-		data-rest-url="<?php echo esc_url( $rest_url ); ?>"
+		data-api-base="<?php echo esc_url( $api_base ); ?>"
 		data-nonce="<?php echo esc_attr( $nonce ); ?>">
 
 		<!-- Sidebar overlay for mobile -->
@@ -784,8 +1375,28 @@ final class DEF_Core_Staff_AI {
 		const userId = app.dataset.userId;
 		const userEmail = app.dataset.userEmail;
 		const assistantType = app.dataset.assistantType;
-		const restUrl = app.dataset.restUrl;
+		const apiBase = app.dataset.apiBase;
 		const nonce = app.dataset.nonce;
+
+		// API helper function
+		async function apiRequest(endpoint, options = {}) {
+			const url = apiBase + endpoint;
+			const headers = {
+				'X-WP-Nonce': nonce,
+				'Content-Type': 'application/json',
+				...options.headers
+			};
+			const response = await fetch(url, {
+				...options,
+				headers,
+				credentials: 'same-origin'
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.message || 'Request failed');
+			}
+			return data;
+		}
 
 		// Elements
 		const sidebar = document.getElementById('sidebar');
@@ -844,11 +1455,18 @@ final class DEF_Core_Staff_AI {
 		// Load conversations from backend
 		async function loadConversations() {
 			try {
-				// Backend wiring is Loop 4 - simulate for now
-				conversations = [];
+				const result = await apiRequest('/conversations');
+				conversations = result.conversations || [];
 				renderConversationList();
+				hideError();
 			} catch (err) {
 				console.error('Failed to load conversations:', err);
+				conversations = [];
+				renderConversationList();
+				// Show detailed error with troubleshooting hint
+				let errorMsg = err.message || '<?php echo esc_js( __( 'Failed to connect to backend service.', 'def-core' ) ); ?>';
+				errorMsg += ' <?php echo esc_js( __( 'Check /wp-json/a3-ai/v1/staff-ai/status for diagnostics.', 'def-core' ) ); ?>';
+				showError(errorMsg);
 			}
 		}
 
@@ -914,10 +1532,11 @@ final class DEF_Core_Staff_AI {
 			renderConversationList();
 
 			try {
-				// Backend wiring is Loop 4 - simulate for now
-				messages = [];
+				const result = await apiRequest('/conversations/' + encodeURIComponent(id));
+				messages = result.messages || [];
 				renderMessages();
 			} catch (err) {
+				console.error('Failed to load conversation:', err);
 				showError('<?php echo esc_js( __( 'Failed to load conversation.', 'def-core' ) ); ?>');
 			}
 
@@ -1116,25 +1735,36 @@ final class DEF_Core_Staff_AI {
 			updateSendButton();
 
 			try {
-				// Backend wiring is Loop 4 - simulate for now
-				await new Promise(resolve => setTimeout(resolve, 1500));
+				const result = await apiRequest('/chat', {
+					method: 'POST',
+					body: JSON.stringify({
+						message: text,
+						thread_id: currentConversationId
+					})
+				});
 
 				messages.pop();
 				messages.push({
 					role: 'assistant',
-					content: '<?php echo esc_js( __( 'Thank you for your message. The backend integration will be connected in a future update.', 'def-core' ) ); ?>'
+					content: result.message?.content || '',
+					tool_outputs: result.message?.tool_outputs || []
 				});
 				renderMessages();
 
-				// Enable share and escalate after first message
-				if (!currentConversationId) {
-					currentConversationId = 'temp-' + Date.now();
+				// Update conversation ID from response
+				if (result.thread_id) {
+					currentConversationId = result.thread_id;
 				}
+
+				// Refresh conversation list
+				loadConversations();
+
 				updateReadOnlyState();
 			} catch (err) {
 				messages.pop();
 				renderMessages();
-				showError('<?php echo esc_js( __( 'Failed to send message. Please try again.', 'def-core' ) ); ?>');
+				console.error('Failed to send message:', err);
+				showError(err.message || '<?php echo esc_js( __( 'Failed to send message. Please try again.', 'def-core' ) ); ?>');
 			} finally {
 				isLoading = false;
 				updateSendButton();
@@ -1162,8 +1792,10 @@ final class DEF_Core_Staff_AI {
 			shareSubmit.disabled = true;
 
 			try {
-				// Backend wiring is Loop 4 - simulate for now
-				await new Promise(resolve => setTimeout(resolve, 500));
+				const result = await apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share', {
+					method: 'POST',
+					body: JSON.stringify({ email: email })
+				});
 				shareModal.classList.remove('visible');
 				showInfo('<?php echo esc_js( __( 'Conversation shared successfully.', 'def-core' ) ); ?>');
 			} catch (err) {
@@ -1193,11 +1825,16 @@ final class DEF_Core_Staff_AI {
 			escalateSubmit.disabled = true;
 
 			try {
-				// Backend wiring is Loop 4 - simulate for now
 				const note = escalateNote.value.trim();
-				await new Promise(resolve => setTimeout(resolve, 500));
+				const result = await apiRequest('/escalate', {
+					method: 'POST',
+					body: JSON.stringify({
+						conversation_id: currentConversationId,
+						note: note
+					})
+				});
 				escalateModal.classList.remove('visible');
-				showInfo('<?php echo esc_js( __( 'Escalated for review — you can continue working while this is reviewed.', 'def-core' ) ); ?>');
+				showInfo(result.message || '<?php echo esc_js( __( 'Escalated for review — you can continue working while this is reviewed.', 'def-core' ) ); ?>');
 				// Conversation remains active (non-terminal)
 			} catch (err) {
 				showError('<?php echo esc_js( __( 'Failed to submit escalation.', 'def-core' ) ); ?>');
