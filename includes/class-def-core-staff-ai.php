@@ -1393,7 +1393,11 @@ final class DEF_Core_Staff_AI {
 			});
 			const data = await response.json();
 			if (!response.ok) {
-				throw new Error(data.message || 'Request failed');
+				// Include error code in message for debugging
+				const errorCode = data.code || 'unknown';
+				const errorMsg = data.message || 'Request failed';
+				console.error('Staff AI API error:', { code: errorCode, message: errorMsg, data: data });
+				throw new Error('[' + errorCode + '] ' + errorMsg);
 			}
 			return data;
 		}
