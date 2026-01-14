@@ -255,6 +255,19 @@ final class DEF_Core_Staff_AI {
 		$body   = wp_remote_retrieve_body( $response );
 		$data   = json_decode( $body, true );
 
+		// Handle unexpected status codes (0 = network error, empty = no response).
+		if ( empty( $status ) || 0 === $status ) {
+			return new \WP_Error(
+				'staff_ai_network_error',
+				sprintf(
+					/* translators: 1: URL being called */
+					__( 'Network error: Could not connect to backend at %1$s. Check if the URL is correct and the server is reachable.', 'def-core' ),
+					$url
+				),
+				array( 'status' => 502 )
+			);
+		}
+
 		// Map backend errors to clean UI-safe errors.
 		if ( $status >= 400 ) {
 			$error_code   = 'staff_ai_backend_error';
@@ -286,11 +299,13 @@ final class DEF_Core_Staff_AI {
 				$error_code = 'staff_ai_service_error';
 			} else {
 				$error_message = sprintf(
-					/* translators: 1: HTTP status code, 2: backend error detail */
-					__( 'Backend error (HTTP %1$d): %2$s', 'def-core' ),
+					/* translators: 1: HTTP status code, 2: backend error detail, 3: full URL */
+					__( 'Backend error (HTTP %1$d) calling %3$s: %2$s', 'def-core' ),
 					$status,
-					$backend_detail ? $backend_detail : __( 'Unknown error', 'def-core' )
+					$backend_detail ? $backend_detail : __( 'Unknown error', 'def-core' ),
+					$url
 				);
+				$error_code = 'staff_ai_http_' . $status;
 			}
 
 			// Log detailed error in debug mode for troubleshooting.
