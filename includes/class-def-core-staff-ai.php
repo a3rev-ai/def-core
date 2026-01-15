@@ -820,6 +820,19 @@ final class DEF_Core_Staff_AI
 		// REST API data for JS - Staff AI adapter endpoints.
 		$api_base = rest_url(DEF_CORE_API_NAME_SPACE . '/staff-ai');
 		$nonce    = wp_create_nonce('wp_rest');
+
+		// Header logo - use custom_logo or fall back to site name.
+		$custom_logo_id = get_theme_mod('custom_logo');
+		$logo_html      = '';
+		if ($custom_logo_id) {
+			$logo_html = wp_get_attachment_image($custom_logo_id, 'full', false, array(
+				'class' => 'header-logo-img',
+				'style' => 'max-height: 32px; width: auto;',
+			));
+		}
+		if (empty($logo_html)) {
+			$logo_html = '<span class="header-logo-text">' . esc_html(get_bloginfo('name')) . '</span>';
+		}
 	?>
 		<!DOCTYPE html>
 		<html <?php language_attributes(); ?>>
@@ -1545,9 +1558,12 @@ final class DEF_Core_Staff_AI
 								<line x1="3" y1="18" x2="21" y2="18"></line>
 							</svg>
 						</button>
+						<div class="header-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Logo is escaped in wp_get_attachment_image or esc_html 
+													?></div>
 						<span class="assistant-label"><?php echo esc_html($assistant_label); ?></span>
 						<span class="readonly-indicator" id="readonlyIndicator"><?php echo esc_html__('Read-only (shared)', 'def-core'); ?></span>
 						<div class="header-actions">
+							<button type="button" class="header-btn" id="exportBtn" disabled><?php echo esc_html__('Export', 'def-core'); ?></button>
 							<button type="button" class="header-btn" id="shareBtn" disabled><?php echo esc_html__('Share', 'def-core'); ?></button>
 						</div>
 					</header>
