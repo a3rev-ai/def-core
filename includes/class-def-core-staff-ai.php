@@ -133,6 +133,39 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_status'),
 			)
 		);
+
+		// List available tools.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/tools',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_tools'),
+			)
+		);
+
+		// Invoke a tool.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/tools/invoke',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_invoke_tool'),
+			)
+		);
+
+		// File download proxy.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_download_file'),
+			)
+		);
 	}
 
 	/**
@@ -669,6 +702,213 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * REST handler: List available tools.
+	 *
+	 * Proxies to Python backend /api/staff-ai/tools
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response with tools list.
+	 * @since 1.2.0
+	 */
+	public static function rest_list_tools(\WP_REST_Request $request)
+	{
+		$result = self::backend_request('GET', '/api/staff-ai/tools');
+
+		if (is_wp_error($result)) {
+			$code    = $result->get_error_code();
+			$message = $result->get_error_message();
+			$data    = $result->get_error_data();
+			$status  = isset($data['status']) ? (int) $data['status'] : 500;
+
+			return new \WP_REST_Response(
+				array(
+					'code'    => $code,
+					'message' => $message,
+					'data'    => array('status' => $status),
+				),
+				$status
+			);
+		}
+
+		return new \WP_REST_Response($result, 200);
+	}
+
+	/**
+	 * REST handler: Invoke a tool.
+	 *
+	 * Proxies to Python backend /api/staff-ai/tools/invoke
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response with tool result.
+	 * @since 1.2.0
+	 */
+	public static function rest_invoke_tool(\WP_REST_Request $request)
+	{
+		$params = $request->get_json_params();
+
+		// Validate required fields.
+		if (empty($params['tool_name'])) {
+			return new \WP_REST_Response(
+				array(
+					'code'    => 'missing_tool_name',
+					'message' => __('Tool name is required.', 'def-core'),
+				),
+				400
+			);
+		}
+
+		if (empty($params['parameters']) || ! is_array($params['parameters'])) {
+			return new \WP_REST_Response(
+				array(
+					'code'    => 'missing_parameters',
+					'message' => __('Tool parameters are required.', 'def-core'),
+				),
+				400
+			);
+		}
+
+		$result = self::backend_request('POST', '/api/staff-ai/tools/invoke', array(
+			'tool_name'  => sanitize_text_field($params['tool_name']),
+			'parameters' => $params['parameters'],
+		));
+
+		if (is_wp_error($result)) {
+			$code    = $result->get_error_code();
+			$message = $result->get_error_message();
+			$data    = $result->get_error_data();
+			$status  = isset($data['status']) ? (int) $data['status'] : 500;
+
+			return new \WP_REST_Response(
+				array(
+					'code'    => $code,
+					'message' => $message,
+					'data'    => array('status' => $status),
+				),
+				$status
+			);
+		}
+
+		return new \WP_REST_Response($result, 200);
+	}
+
+	/**
+	 * REST handler: Download a generated file.
+	 *
+	 * Proxies file download from Python backend /api/files/{tenant}/{filename}
+	 * Uses the same authentication pattern as backend_request().
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error File response or error.
+	 * @since 1.2.0
+	 */
+	public static function rest_download_file(\WP_REST_Request $request)
+	{
+		$tenant   = $request->get_param('tenant');
+		$filename = $request->get_param('filename');
+
+		if (empty($tenant) || empty($filename)) {
+			return new \WP_Error(
+				'invalid_params',
+				__('Invalid file path.', 'def-core'),
+				array('status' => 400)
+			);
+		}
+
+		// Get backend URL.
+		$base_url = self::get_api_base_url();
+		if (! $base_url) {
+			return new \WP_Error(
+				'staff_ai_not_configured',
+				__('Staff AI backend URL is not configured.', 'def-core'),
+				array('status' => 503)
+			);
+		}
+
+		$file_url = $base_url . '/api/files/' . urlencode($tenant) . '/' . rawurlencode($filename);
+
+		// Build JWT claims for backend auth (same as backend_request).
+		$user = wp_get_current_user();
+		if (! $user || 0 === $user->ID) {
+			return new \WP_Error(
+				'staff_ai_not_authenticated',
+				__('User not authenticated.', 'def-core'),
+				array('status' => 401)
+			);
+		}
+
+		$capabilities = array();
+		if ($user->has_cap('def_staff_access')) {
+			$capabilities[] = 'def_staff_access';
+		}
+		if ($user->has_cap('def_management_access')) {
+			$capabilities[] = 'def_management_access';
+		}
+
+		$claims = array(
+			'sub'          => (string) $user->ID,
+			'email'        => $user->user_email,
+			'capabilities' => $capabilities,
+			'channel'      => 'staff_ai',
+			'iss'          => get_site_url(),
+			'aud'          => 'digital-employee-framework',
+		);
+
+		$token = DEF_Core_JWT::issue_token($claims, 300);
+		if (empty($token)) {
+			return new \WP_Error(
+				'staff_ai_token_error',
+				__('Failed to generate authentication token.', 'def-core'),
+				array('status' => 500)
+			);
+		}
+
+		// Fetch file from backend.
+		$response = wp_remote_get(
+			$file_url,
+			array(
+				'timeout' => 30,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $token,
+				),
+			)
+		);
+
+		if (is_wp_error($response)) {
+			return new \WP_Error(
+				'download_failed',
+				__('Failed to download file from backend.', 'def-core'),
+				array('status' => 500)
+			);
+		}
+
+		$status_code = wp_remote_retrieve_response_code($response);
+		if ($status_code !== 200) {
+			return new \WP_Error(
+				'file_not_found',
+				__('File not found or access denied.', 'def-core'),
+				array('status' => $status_code)
+			);
+		}
+
+		$body         = wp_remote_retrieve_body($response);
+		$content_type = wp_remote_retrieve_header($response, 'content-type');
+
+		// Extract clean filename (remove timestamp prefix).
+		$clean_filename = $filename;
+		if (preg_match('/^\d{8}_\d{6}_[a-f0-9]+_(.+)$/', $filename, $matches)) {
+			$clean_filename = $matches[1];
+		}
+
+		// Send file response.
+		header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
+		header('Content-Disposition: attachment; filename="' . addslashes($clean_filename) . '"');
+		header('Content-Length: ' . strlen($body));
+		header('Cache-Control: no-cache, must-revalidate');
+		echo $body;
+		exit;
+	}
+
+	/**
 	 * Add rewrite rules for /staff-ai endpoint.
 	 */
 	public static function add_rewrite_rules(): void
@@ -676,6 +916,13 @@ final class DEF_Core_Staff_AI
 		add_rewrite_rule(
 			'^' . self::ENDPOINT_SLUG . '/?$',
 			'index.php?' . self::ENDPOINT_SLUG . '=1',
+			'top'
+		);
+
+		// File download endpoint (uses cookie auth, not REST nonce).
+		add_rewrite_rule(
+			'^staff-ai-download/([^/]+)/(.+)$',
+			'index.php?staff_ai_download=1&staff_ai_tenant=$matches[1]&staff_ai_filename=$matches[2]',
 			'top'
 		);
 	}
@@ -689,6 +936,9 @@ final class DEF_Core_Staff_AI
 	public static function add_query_vars(array $vars): array
 	{
 		$vars[] = self::ENDPOINT_SLUG;
+		$vars[] = 'staff_ai_download';
+		$vars[] = 'staff_ai_tenant';
+		$vars[] = 'staff_ai_filename';
 		return $vars;
 	}
 
@@ -697,6 +947,12 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function handle_endpoint(): void
 	{
+		// Handle file download endpoint.
+		if (get_query_var('staff_ai_download')) {
+			self::handle_file_download();
+			return;
+		}
+
 		if (! get_query_var(self::ENDPOINT_SLUG)) {
 			return;
 		}
@@ -716,6 +972,109 @@ final class DEF_Core_Staff_AI
 
 		// Render the Staff AI shell.
 		self::render_shell();
+		exit;
+	}
+
+	/**
+	 * Handle file download from Python backend.
+	 *
+	 * Uses WordPress cookie authentication (not REST nonce) so direct links work.
+	 *
+	 * @since 1.2.0
+	 */
+	private static function handle_file_download(): void
+	{
+		$tenant   = get_query_var('staff_ai_tenant');
+		$filename = get_query_var('staff_ai_filename');
+
+		if (empty($tenant) || empty($filename)) {
+			wp_die(__('Invalid file path.', 'def-core'), __('Error', 'def-core'), array('response' => 400));
+		}
+
+		// Authentication gate.
+		if (! is_user_logged_in()) {
+			wp_die(__('Authentication required.', 'def-core'), __('Unauthorized', 'def-core'), array('response' => 401));
+		}
+
+		// Capability gate.
+		if (! self::user_has_staff_ai_access()) {
+			wp_die(__('Access denied. You need Staff AI access.', 'def-core'), __('Forbidden', 'def-core'), array('response' => 403));
+		}
+
+		// Get backend URL.
+		$base_url = self::get_api_base_url();
+		if (! $base_url) {
+			wp_die(__('Staff AI backend not configured.', 'def-core'), __('Error', 'def-core'), array('response' => 503));
+		}
+
+		// Build the file URL - rawurlencode to handle spaces and special chars
+		$file_url = $base_url . '/api/files/' . rawurlencode($tenant) . '/' . rawurlencode($filename);
+
+		// Build JWT for backend auth.
+		$user         = wp_get_current_user();
+		$capabilities = array();
+		if ($user->has_cap('def_staff_access')) {
+			$capabilities[] = 'def_staff_access';
+		}
+		if ($user->has_cap('def_management_access')) {
+			$capabilities[] = 'def_management_access';
+		}
+
+		$claims = array(
+			'sub'          => (string) $user->ID,
+			'email'        => $user->user_email,
+			'capabilities' => $capabilities,
+			'channel'      => 'staff_ai',
+			'iss'          => get_site_url(),
+			'aud'          => 'digital-employee-framework',
+		);
+
+		$token = DEF_Core_JWT::issue_token($claims, 300);
+		if (empty($token)) {
+			wp_die(__('Failed to generate token.', 'def-core'), __('Error', 'def-core'), array('response' => 500));
+		}
+
+		// Fetch file from backend.
+		$response = wp_remote_get(
+			$file_url,
+			array(
+				'timeout' => 30,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $token,
+				),
+			)
+		);
+
+		if (is_wp_error($response)) {
+			wp_die(__('Failed to download file.', 'def-core'), __('Error', 'def-core'), array('response' => 500));
+		}
+
+		$status_code = wp_remote_retrieve_response_code($response);
+		if ($status_code !== 200) {
+			$error_body = wp_remote_retrieve_body($response);
+			$error_msg  = __('File not found or access denied.', 'def-core');
+			// Add debug info in development
+			if (defined('WP_DEBUG') && WP_DEBUG) {
+				$error_msg .= ' (HTTP ' . $status_code . ': ' . substr($error_body, 0, 200) . ')';
+			}
+			wp_die($error_msg, __('Error', 'def-core'), array('response' => $status_code));
+		}
+
+		$body         = wp_remote_retrieve_body($response);
+		$content_type = wp_remote_retrieve_header($response, 'content-type');
+
+		// Extract clean filename (remove timestamp prefix).
+		$clean_filename = $filename;
+		if (preg_match('/^\d{8}_\d{6}_[a-f0-9]+_(.+)$/', $filename, $matches)) {
+			$clean_filename = $matches[1];
+		}
+
+		// Send file response.
+		nocache_headers();
+		header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
+		header('Content-Disposition: attachment; filename="' . addslashes($clean_filename) . '"');
+		header('Content-Length: ' . strlen($body));
+		echo $body;
 		exit;
 	}
 
@@ -1336,6 +1695,35 @@ final class DEF_Core_Staff_AI
 					cursor: not-allowed;
 				}
 
+				.create-btn {
+					background: transparent;
+					border: 1px solid rgba(99, 102, 241, 0.4);
+					border-radius: 8px;
+					color: #818cf8;
+					padding: 8px 12px;
+					font-size: 12px;
+					cursor: pointer;
+					white-space: nowrap;
+					transition: background 0.15s;
+					display: flex;
+					align-items: center;
+					gap: 6px;
+				}
+
+				.create-btn:hover {
+					background: rgba(99, 102, 241, 0.1);
+				}
+
+				.create-btn:disabled {
+					opacity: 0.5;
+					cursor: not-allowed;
+				}
+
+				.create-btn svg {
+					width: 14px;
+					height: 14px;
+				}
+
 				.composer-hint {
 					text-align: center;
 					font-size: 11px;
@@ -1596,6 +1984,15 @@ final class DEF_Core_Staff_AI
 										</svg>
 									</button>
 								</div>
+								<button type="button" class="create-btn" id="createBtn">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+										<polyline points="14 2 14 8 20 8"></polyline>
+										<line x1="12" y1="11" x2="12" y2="17"></line>
+										<line x1="9" y1="14" x2="15" y2="14"></line>
+									</svg>
+									<?php echo esc_html__('Create', 'def-core'); ?>
+								</button>
 								<button type="button" class="escalate-btn" id="escalateBtn" disabled><?php echo esc_html__('Escalate', 'def-core'); ?></button>
 							</div>
 							<div class="composer-hint">
@@ -1648,6 +2045,47 @@ final class DEF_Core_Staff_AI
 						<div class="modal-footer">
 							<button type="button" class="modal-btn modal-btn-secondary" id="escalateCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
 							<button type="button" class="modal-btn modal-btn-primary" id="escalateSubmit"><?php echo esc_html__('Submit Escalation', 'def-core'); ?></button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Create Tool Modal -->
+				<div class="modal-overlay" id="createModal">
+					<div class="modal" style="max-width: 480px;">
+						<div class="modal-header">
+							<span class="modal-title"><?php echo esc_html__('Create', 'def-core'); ?></span>
+							<button type="button" class="modal-close" id="createModalClose">&times;</button>
+						</div>
+						<div class="modal-body">
+							<div class="form-group">
+								<label class="form-label"><?php echo esc_html__('Type', 'def-core'); ?></label>
+								<select class="form-input" id="createToolType">
+									<option value="document_creation"><?php echo esc_html__('Document', 'def-core'); ?></option>
+									<option value="spreadsheet_creation"><?php echo esc_html__('Spreadsheet', 'def-core'); ?></option>
+									<option value="image_generation"><?php echo esc_html__('Image', 'def-core'); ?></option>
+								</select>
+							</div>
+							<div class="form-group" id="createFormatGroup">
+								<label class="form-label"><?php echo esc_html__('Format', 'def-core'); ?></label>
+								<select class="form-input" id="createFormat">
+									<option value="docx">DOCX</option>
+									<option value="pdf">PDF</option>
+									<option value="md">Markdown</option>
+								</select>
+							</div>
+							<div class="form-group">
+								<label class="form-label"><?php echo esc_html__('Title (optional)', 'def-core'); ?></label>
+								<input type="text" class="form-input" id="createTitle" placeholder="<?php echo esc_attr__('My Document', 'def-core'); ?>">
+							</div>
+							<div class="form-group">
+								<label class="form-label"><?php echo esc_html__('Instructions', 'def-core'); ?> <span style="color: #f87171;">*</span></label>
+								<textarea class="form-input" id="createPrompt" rows="4" placeholder="<?php echo esc_attr__('Describe what you want to create...', 'def-core'); ?>"></textarea>
+							</div>
+							<div class="error-banner" id="createError" style="margin: 0;"></div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="modal-btn modal-btn-secondary" id="createCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
+							<button type="button" class="modal-btn modal-btn-primary" id="createSubmit"><?php echo esc_html__('Create', 'def-core'); ?></button>
 						</div>
 					</div>
 				</div>
@@ -1974,6 +2412,16 @@ final class DEF_Core_Staff_AI
 						messagesContainer.scrollTop = messagesContainer.scrollHeight;
 					}
 
+					// Helper function to rewrite download URLs to use WordPress endpoint
+					function rewriteDownloadUrl(url) {
+						if (!url || url === '#') return url;
+						// Convert /api/files/{tenant}/{filename} to /staff-ai-download/{tenant}/{filename}
+						if (url.startsWith('/api/files/')) {
+							return '<?php echo esc_js(home_url('/staff-ai-download/')); ?>' + url.replace('/api/files/', '');
+						}
+						return url;
+					}
+
 					// Create tool output card
 					function createToolOutputCard(tool) {
 						const card = document.createElement('div');
@@ -1999,7 +2447,7 @@ final class DEF_Core_Staff_AI
 
 						const download = document.createElement('a');
 						download.className = 'tool-output-download';
-						download.href = tool.download_url || '#';
+						download.href = rewriteDownloadUrl(tool.download_url) || '#';
 						download.target = '_blank';
 						download.rel = 'noopener';
 						download.textContent = '<?php echo esc_js(__('Download', 'def-core')); ?>';
@@ -2157,6 +2605,173 @@ final class DEF_Core_Staff_AI
 
 					escalateModal.addEventListener('click', function(e) {
 						if (e.target === escalateModal) escalateModal.classList.remove('visible');
+					});
+
+					// =============================================
+					// CREATE TOOL MODAL
+					// =============================================
+					const createBtn = document.getElementById('createBtn');
+					const createModal = document.getElementById('createModal');
+					const createModalClose = document.getElementById('createModalClose');
+					const createToolType = document.getElementById('createToolType');
+					const createFormatGroup = document.getElementById('createFormatGroup');
+					const createFormat = document.getElementById('createFormat');
+					const createTitle = document.getElementById('createTitle');
+					const createPrompt = document.getElementById('createPrompt');
+					const createError = document.getElementById('createError');
+					const createCancel = document.getElementById('createCancel');
+					const createSubmit = document.getElementById('createSubmit');
+
+					// Format options by tool type
+					const formatOptions = {
+						document_creation: [{
+								value: 'docx',
+								label: 'DOCX'
+							},
+							{
+								value: 'pdf',
+								label: 'PDF'
+							},
+							{
+								value: 'md',
+								label: 'Markdown'
+							}
+						],
+						spreadsheet_creation: [{
+								value: 'xlsx',
+								label: 'XLSX'
+							},
+							{
+								value: 'csv',
+								label: 'CSV'
+							}
+						],
+						image_generation: [{
+							value: 'png',
+							label: 'PNG'
+						}]
+					};
+
+					// Update format options when tool type changes
+					function updateFormatOptions() {
+						const toolType = createToolType.value;
+						const options = formatOptions[toolType] || [];
+						createFormat.innerHTML = '';
+						options.forEach(function(opt) {
+							const option = document.createElement('option');
+							option.value = opt.value;
+							option.textContent = opt.label;
+							createFormat.appendChild(option);
+						});
+						// Hide format group for image (only one option)
+						createFormatGroup.style.display = toolType === 'image_generation' ? 'none' : 'block';
+					}
+
+					createToolType.addEventListener('change', updateFormatOptions);
+
+					// Open create modal
+					createBtn.addEventListener('click', function() {
+						createToolType.value = 'document_creation';
+						updateFormatOptions();
+						createTitle.value = '';
+						createPrompt.value = '';
+						createError.classList.remove('visible');
+						createError.textContent = '';
+						createModal.classList.add('visible');
+						createPrompt.focus();
+					});
+
+					// Close create modal
+					createModalClose.addEventListener('click', function() {
+						createModal.classList.remove('visible');
+					});
+
+					createCancel.addEventListener('click', function() {
+						createModal.classList.remove('visible');
+					});
+
+					createModal.addEventListener('click', function(e) {
+						if (e.target === createModal) createModal.classList.remove('visible');
+					});
+
+					// Submit tool invocation
+					createSubmit.addEventListener('click', async function() {
+						const toolName = createToolType.value;
+						const format = createFormat.value;
+						const title = createTitle.value.trim();
+						const prompt = createPrompt.value.trim();
+
+						// Validate
+						if (!prompt) {
+							createError.textContent = '<?php echo esc_js(__('Instructions are required.', 'def-core')); ?>';
+							createError.classList.add('visible');
+							return;
+						}
+
+						createError.classList.remove('visible');
+						createSubmit.disabled = true;
+						createSubmit.textContent = '<?php echo esc_js(__('Creating...', 'def-core')); ?>';
+
+						try {
+							const result = await apiRequest('/tools/invoke', {
+								method: 'POST',
+								body: JSON.stringify({
+									tool_name: toolName,
+									parameters: {
+										format: format,
+										title: title || undefined,
+										prompt: prompt,
+										conversation_id: currentConversationId || undefined
+									}
+								})
+							});
+
+							createModal.classList.remove('visible');
+
+							// Add tool result as a message card
+							if (result.success && result.result) {
+								const toolResult = result.result;
+
+								// Check if the tool itself reported success
+								if (toolResult.success !== false && toolResult.download_url) {
+									// Success with file download
+									messages.push({
+										role: 'assistant',
+										content: toolResult.message || '<?php echo esc_js(__('File created successfully.', 'def-core')); ?>',
+										tool_outputs: [{
+											file_name: toolResult.file_name || toolResult.filename || '<?php echo esc_js(__('Download', 'def-core')); ?>',
+											file_type: toolResult.file_type || toolResult.format || format.toUpperCase(),
+											download_url: toolResult.download_url || toolResult.file_url || '#',
+											expires_at: toolResult.expires_at || null
+										}]
+									});
+								} else {
+									// Tool reported an error or no download available
+									messages.push({
+										role: 'assistant',
+										content: toolResult.message || toolResult.error || '<?php echo esc_js(__('Tool execution completed but no file was generated.', 'def-core')); ?>',
+										tool_outputs: []
+									});
+								}
+								renderMessages();
+							} else {
+								// API-level error
+								const errorMsg = (result.result && result.result.message) || result.error || result.message || '<?php echo esc_js(__('Tool execution failed.', 'def-core')); ?>';
+								messages.push({
+									role: 'assistant',
+									content: errorMsg,
+									tool_outputs: []
+								});
+								renderMessages();
+							}
+						} catch (err) {
+							console.error('Tool invocation failed:', err);
+							createError.textContent = err.message || '<?php echo esc_js(__('Failed to create. Please try again.', 'def-core')); ?>';
+							createError.classList.add('visible');
+						} finally {
+							createSubmit.disabled = false;
+							createSubmit.textContent = '<?php echo esc_js(__('Create', 'def-core')); ?>';
+						}
 					});
 
 					// Focus input on load
