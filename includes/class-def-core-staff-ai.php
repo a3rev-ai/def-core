@@ -34,6 +34,25 @@ final class DEF_Core_Staff_AI
 		add_action('template_redirect', array(__CLASS__, 'handle_endpoint'));
 		add_filter('query_vars', array(__CLASS__, 'add_query_vars'));
 		add_action('rest_api_init', array(__CLASS__, 'register_rest_routes'));
+
+		// Prevent trailing slash redirect for file downloads
+		add_filter('redirect_canonical', array(__CLASS__, 'prevent_download_redirect'), 10, 2);
+	}
+
+	/**
+	 * Prevent trailing slash redirects for file download URLs.
+	 *
+	 * @param string $redirect_url The redirect URL.
+	 * @param string $requested_url The requested URL.
+	 * @return string|false The redirect URL or false to prevent redirect.
+	 */
+	public static function prevent_download_redirect($redirect_url, $requested_url)
+	{
+		// Don't redirect if this is a file download request
+		if (get_query_var('staff_ai_download')) {
+			return false;
+		}
+		return $redirect_url;
 	}
 
 	/**
@@ -506,6 +525,32 @@ final class DEF_Core_Staff_AI
 			$assistant_content = $result['choices'][0]['message']['content'];
 		}
 
+		// Extract tool_outputs from Python response (for chat-invoked tools)
+		if (isset($result['choices'][0]['message']['tool_outputs']) && is_array($result['choices'][0]['message']['tool_outputs'])) {
+			foreach ($result['choices'][0]['message']['tool_outputs'] as $tool_output) {
+				// Rewrite download URL to use WordPress proxy endpoint
+				$download_url = $tool_output['download_url'] ?? '';
+				if (!empty($download_url) && strpos($download_url, '/api/files/') === 0) {
+					// Extract tenant and filename from /api/files/{tenant}/{filename}
+					$path_part = str_replace('/api/files/', '', $download_url);
+					$path_parts = explode('/', $path_part, 2);
+					if (count($path_parts) === 2) {
+						$tenant = $path_parts[0];
+						$filename = $path_parts[1];
+						// Properly URL-encode the filename for the URL
+						$download_url = home_url('/staff-ai-download/' . rawurlencode($tenant) . '/' . rawurlencode($filename));
+					}
+				}
+
+				$tool_outputs[] = array(
+					'file_name'    => $tool_output['file_name'] ?? '',
+					'file_type'    => $tool_output['file_type'] ?? '',
+					'download_url' => $download_url,
+					'expires_at'   => $tool_output['expires_at'] ?? null,
+				);
+			}
+		}
+
 		// Include channel and employee info from Staff AI response
 		$employee = isset($result['employee']) ? $result['employee'] : '';
 		$channel  = isset($result['channel']) ? $result['channel'] : 'staff_ai';
@@ -516,6 +561,7 @@ final class DEF_Core_Staff_AI
 				'thread_id'    => $result['thread_id'] ?? $thread_id,
 				'channel'      => $channel,
 				'employee'     => $employee,
+				'tool_invoked' => $result['tool_invoked'] ?? null,
 				'message'      => array(
 					'role'         => 'assistant',
 					'content'      => $assistant_content,
@@ -987,6 +1033,13 @@ final class DEF_Core_Staff_AI
 		$tenant   = get_query_var('staff_ai_tenant');
 		$filename = get_query_var('staff_ai_filename');
 
+		// Strip trailing slash that WordPress might add
+		$filename = rtrim($filename, '/');
+
+		// URL decode in case it's still encoded
+		$filename = urldecode($filename);
+		$tenant   = urldecode($tenant);
+
 		if (empty($tenant) || empty($filename)) {
 			wp_die(__('Invalid file path.', 'def-core'), __('Error', 'def-core'), array('response' => 400));
 		}
@@ -1009,6 +1062,13 @@ final class DEF_Core_Staff_AI
 
 		// Build the file URL - rawurlencode to handle spaces and special chars
 		$file_url = $base_url . '/api/files/' . rawurlencode($tenant) . '/' . rawurlencode($filename);
+
+		// Debug log for troubleshooting
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			error_log('[DEF Staff AI Download] Tenant: ' . $tenant);
+			error_log('[DEF Staff AI Download] Filename: ' . $filename);
+			error_log('[DEF Staff AI Download] Backend URL: ' . $file_url);
+		}
 
 		// Build JWT for backend auth.
 		$user         = wp_get_current_user();
