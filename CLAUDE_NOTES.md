@@ -1,6 +1,59 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-01-16
+## Latest Session: 2026-01-21
+
+### Completed Task: Escalation Email Bridge Implementation
+
+**Objective:** Implement def-core REST endpoints for escalation settings and email sending per ESCALATION_EMAIL_BRIDGE_API_CONTRACT.md
+
+**Reference Documents:**
+- `docs/platform/api/ESCALATION-EMAIL-BRIDGE-API-CONTRACT.md`
+- `docs/platform/ESCALATION_RULES.md`
+
+### Files Created:
+- `includes/class-def-core-escalation.php` - New escalation handler class
+
+### Files Modified:
+- `includes/class-def-core.php` - Added escalation class loading and initialization
+
+### Endpoints Implemented:
+
+#### A) GET /wp-json/a3-ai/v1/settings/escalation?channel=<channel_id>
+- Returns channel-scoped escalation settings
+- Validates channel (customer, staff_ai, setup_assistant)
+- Returns to/cc/bcc email arrays, sender_email, reply_to_mode, etc.
+- Defaults to WP admin_email for recipients
+- Customer channel reply_to_mode forced to "user_email"
+- Staff AI channel includes allowed_recipients array
+
+#### B) POST /wp-json/a3-ai/v1/escalation/send-email
+- Sends escalation email via wp_mail()
+- Validates required fields (channel, subject, body)
+- Populates recipients from settings if not provided
+- Respects reply_to header for customer channel
+- Sends user copy with "Copy:" prefix if requested
+- Returns {"status": "sent"} or {"status": "failed", "error": "..."}
+
+### Authentication:
+- Both endpoints use existing def-core JWT authentication (DEF_Core_Tools::permission_check())
+
+### Settings Storage:
+- Settings stored in WP options with key: `def_core_escalation_{channel}`
+- Includes helper method `save_channel_settings()` for future admin UI
+
+### Current Status:
+- ✅ Both endpoints implemented per API contract
+- ✅ Settings fetch with defaults
+- ✅ Email sending via wp_mail()
+- ✅ User copy support
+- ✅ Staff AI allowed_recipients constraint
+- ⚠️ Admin UI for settings not implemented (not in scope per prompt)
+
+### Branch: `staff-ai-frontend`
+
+---
+
+## Previous Session: 2026-01-16
 
 ### What was done:
 - User asked about Azure models used in Python app

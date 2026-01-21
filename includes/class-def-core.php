@@ -56,6 +56,7 @@ final class DEF_Core {
 		DEF_Core_Routes::init();
 		DEF_Core_Cache::init();
 		DEF_Core_Staff_AI::init();
+		DEF_Core_Escalation::init();
 
 		// Register activation hook.
 		register_activation_hook( DEF_CORE_PLUGIN_DIR . 'def-core.php', array( __CLASS__, 'on_activate' ) );
@@ -86,6 +87,9 @@ final class DEF_Core {
 
 		// Staff AI frontend.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-ai.php';
+
+		// Escalation email bridge.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-escalation.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
