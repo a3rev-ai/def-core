@@ -2,6 +2,22 @@
 
 ## Latest Session: 2026-01-21
 
+### Bug Fix: Escalation Email Formatting
+
+**Issue:** Escalation email content was hard to read - displayed as one paragraph.
+
+**Root Cause:**
+`send_escalation_email()` used `wp_kses_post()` to sanitize the email body, but this function is designed for HTML content and can mangle plain text newlines.
+
+**Fix Applied:**
+- `includes/class-def-core-escalation.php` line 225
+- Changed: `wp_kses_post( $body['body'] ?? '' )`
+- To: `sanitize_textarea_field( $body['body'] ?? '' )`
+
+`sanitize_textarea_field()` properly preserves newlines for plain text emails while still sanitizing input.
+
+---
+
 ### Completed Task: Escalation Email Bridge Implementation
 
 **Objective:** Implement def-core REST endpoints for escalation settings and email sending per ESCALATION_EMAIL_BRIDGE_API_CONTRACT.md

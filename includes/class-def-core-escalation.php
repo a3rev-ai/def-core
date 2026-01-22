@@ -220,7 +220,9 @@ final class DEF_Core_Escalation {
 		// Validate required fields.
 		$channel = sanitize_text_field( $body['channel'] ?? '' );
 		$subject = sanitize_text_field( $body['subject'] ?? '' );
-		$email_body = wp_kses_post( $body['body'] ?? '' );
+		// For plain text emails, sanitize without HTML processing to preserve newlines.
+		// wp_kses_post() is for HTML content and can mangle plain text formatting.
+		$email_body = sanitize_textarea_field( $body['body'] ?? '' );
 
 		if ( empty( $channel ) || ! in_array( $channel, self::VALID_CHANNELS, true ) ) {
 			return new \WP_REST_Response(

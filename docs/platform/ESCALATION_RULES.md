@@ -8,9 +8,22 @@ Path:
 **Applies to:** All Channels, All Digital Employees  
 **Status:** Required (v1)
 
-Version: v1.0
+Version: v1.2
 Status: Authoritative
-Last Updated: 2026-01-12
+Last Updated: 2026-01-22
+
+---
+
+## Changelog
+
+### v1.2 — 2026-01-22
+- Removed terminal escalation from all channels
+- Clarified escalation as non-terminal and user-confirmed
+- Added explicit escalation trigger policy (no hallucination, transparency-first)
+
+### v1.0 — 2026-01-12
+- Initial escalation rules formalised
+
 
 ---
 
@@ -80,25 +93,44 @@ Logging rules:
 
 ---
 
-## 7. Escalation Terminality by Channel (v1.1)
+## 7. Escalation Continuity (Authoritative)
 
-Escalation behaviour differs by channel. This is intentional.
+Escalation is **non-terminal in all channels**.
 
-### Customer Channel (Terminal)
-- Escalation is treated as a **handoff to support**.
-- Once escalated, the AI should stop actively progressing the same customer issue to avoid duplicated/conflicting responses.
-- The UI should indicate escalation has occurred and guide the user to the human workflow.
+After escalation:
+- The conversation remains active and usable
+- The user may continue chatting
+- The UI must show confirmation that escalation was sent
+- Escalation does not change routing, tool eligibility, or permissions
 
-### Setup Assistant Channel (Terminal)
-- Escalation is treated as a **handoff to a human implementer/partner**.
-- Once escalated, the Setup Assistant should stop and avoid continuing configuration guidance in the same thread.
-- The UI should indicate escalation has occurred and provide next steps.
+Rationale:
+- Escalation is a safety and support path, not a session termination mechanism.
 
-### Staff AI Channel (Non-Terminal)
-- Escalation is treated as a **review / approval request**, not a support handoff.
-- After escalation, the conversation **remains active and usable**.
-- The UI should show a confirmation state (e.g., “Escalated for review”) while allowing the user to continue working.
-- The escalation payload should preferably include a **share link** to the conversation and an AI summary.
+---
+
+## 8. Escalation Triggers (Authoritative)
+
+Escalation may be triggered in two ways:
+
+### 8.1 User-Initiated Escalation (Primary)
+Escalation MUST be available via UI action at all times.
+If the user requests a human, escalation must proceed immediately.
+
+### 8.2 Assistant-Suggested Escalation (Secondary)
+The assistant should suggest escalation when:
+- It cannot answer confidently without guessing
+- It lacks required information or permissions
+- A request is blocked by policy/guardrails
+- The user asks for something outside scope
+
+In these cases, the assistant MUST:
+- be transparent about why it cannot proceed
+- offer escalation as the next step
+- avoid hallucinating or guessing
+
+Important:
+- The assistant MUST NOT silently escalate without user confirmation.
+- Escalation is a user-visible action (button/confirm).
 
 ---
 
