@@ -612,9 +612,8 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
 		}
 
-		// Generate new secret.
-		$new_secret = wp_generate_password( 64, true, true );
-		update_option( 'def_service_auth_secret', $new_secret, false );
+		// Force regenerate new secret using the centralized method.
+		$new_secret = DEF_Core_Escalation::get_service_secret( true );
 
 		wp_send_json_success(
 			array(

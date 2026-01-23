@@ -60,10 +60,19 @@ Added a **shared secret** authentication mechanism that runs **alongside** (not 
 - Updates UI after successful regeneration
 - Shows reminder alert to update Python .env
 
+### Bug Fix: Secret Generation (2026-01-23)
+
+**Issue:** `wp_generate_password(64, true, true)` generates secrets with special characters that get altered by `sanitize_text_field()` and `wp_unslash()` during HTTP header validation, causing auth failures.
+
+**Fix:** Changed to `bin2hex(random_bytes(32))` which generates 64 hex characters (alphanumeric only, HTTP-header safe).
+
+**Also fixed:** AJAX handler now uses `get_service_secret(true)` instead of separate generation code.
+
 ### Security Notes:
 - Uses constant-time comparison (`hash_equals`) to prevent timing attacks
 - Secret is never logged or returned in responses
 - Existing JWT flow remains unchanged for logged-in users
+- Secret uses alphanumeric characters only (hex) to avoid HTTP header sanitization issues
 
 ### Current Status:
 - ✅ Service auth implemented in def-core

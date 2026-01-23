@@ -131,16 +131,23 @@ final class DEF_Core_Escalation {
 	/**
 	 * Get or generate the service auth secret.
 	 *
+	 * Uses alphanumeric-only characters (hex) to avoid issues with
+	 * HTTP header sanitization (sanitize_text_field, wp_unslash).
+	 *
+	 * @param bool $force_regenerate If true, generate a new secret even if one exists.
 	 * @return string The service auth secret.
 	 * @since 1.2.0
-	 * @version 1.2.0
+	 * @version 1.2.1
 	 */
-	public static function get_service_secret(): string {
+	public static function get_service_secret( bool $force_regenerate = false ): string {
 		$secret = get_option( self::SERVICE_SECRET_OPTION, '' );
 
-		if ( empty( $secret ) ) {
-			// Generate a strong random secret (64 characters).
-			$secret = wp_generate_password( 64, true, true );
+		if ( empty( $secret ) || $force_regenerate ) {
+			// Generate a strong random secret using hex characters only.
+			// 32 random bytes = 64 hex characters (alphanumeric, HTTP-header safe).
+			// This avoids issues with special characters being altered by
+			// sanitize_text_field() or wp_unslash() during validation.
+			$secret = bin2hex( random_bytes( 32 ) );
 			update_option( self::SERVICE_SECRET_OPTION, $secret, false );
 		}
 
