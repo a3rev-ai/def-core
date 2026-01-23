@@ -34,6 +34,7 @@ final class DEF_Core_Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'wp_ajax_def_core_regenerate_service_secret', array( __CLASS__, 'ajax_regenerate_service_secret' ) );
 	}
 
 	/**
@@ -169,6 +170,21 @@ final class DEF_Core_Admin {
 			array( __CLASS__, 'render_staff_ai_api_url_field' ),
 			'def-core',
 			'def_core_staff_ai'
+		);
+
+		// Service Authentication section.
+		add_settings_section(
+			'def_core_service_auth',
+			__( 'Service Authentication', 'def-core' ),
+			array( __CLASS__, 'render_service_auth_section' ),
+			'def-core'
+		);
+		add_settings_field(
+			'service_auth_secret',
+			__( 'Service Auth Secret', 'def-core' ),
+			array( __CLASS__, 'render_service_auth_secret_field' ),
+			'def-core',
+			'def_core_service_auth'
 		);
 	}
 
@@ -523,6 +539,89 @@ final class DEF_Core_Admin {
 			<em><?php esc_html_e( 'Required for Staff AI functionality. Leave empty to disable.', 'def-core' ); ?></em>
 		</p>
 		<?php
+	}
+
+	/**
+	 * Render the service auth section description.
+	 *
+	 * @since 1.2.0
+	 */
+	public static function render_service_auth_section(): void {
+		?>
+		<p><?php esc_html_e( 'Service-to-service authentication for the Python backend. This secret allows the DEF Python app to call WordPress REST endpoints without a user JWT token.', 'def-core' ); ?></p>
+		<p><strong><?php esc_html_e( 'Use Case:', 'def-core' ); ?></strong> <?php esc_html_e( 'Required for anonymous customer escalation, where there is no logged-in user but the Python app still needs to fetch settings and send emails.', 'def-core' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the service auth secret field.
+	 *
+	 * @since 1.2.0
+	 */
+	public static function render_service_auth_secret_field(): void {
+		// Get or generate the secret.
+		$secret = DEF_Core_Escalation::get_service_secret();
+		$nonce  = wp_create_nonce( 'def_core_regenerate_service_secret' );
+		?>
+		<div class="def-core-service-auth-field">
+			<input
+				type="text"
+				id="def_service_auth_secret"
+				value="<?php echo esc_attr( $secret ); ?>"
+				class="large-text code"
+				readonly
+				onclick="this.select();"
+			/>
+			<p class="description">
+				<button type="button" class="button button-small" onclick="navigator.clipboard.writeText('<?php echo esc_js( $secret ); ?>'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000);">
+					<?php esc_html_e( 'Copy', 'def-core' ); ?>
+				</button>
+				<button
+					type="button"
+					class="button button-small"
+					id="def-core-regenerate-secret-btn"
+					data-nonce="<?php echo esc_attr( $nonce ); ?>"
+				>
+					<?php esc_html_e( 'Generate New Secret', 'def-core' ); ?>
+				</button>
+			</p>
+			<p class="description">
+				<?php esc_html_e( 'Copy this value to your Python app\'s .env file:', 'def-core' ); ?><br>
+				<code>DEF_SERVICE_AUTH_SECRET=<?php echo esc_html( $secret ); ?></code>
+			</p>
+			<p class="description">
+				<em><?php esc_html_e( 'Warning: If you generate a new secret, you must also update the Python app\'s .env file immediately, or anonymous escalation will fail.', 'def-core' ); ?></em>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * AJAX handler for regenerating the service auth secret.
+	 *
+	 * @since 1.2.0
+	 */
+	public static function ajax_regenerate_service_secret(): void {
+		// Verify nonce.
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_regenerate_service_secret' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		// Verify user can manage options.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		// Generate new secret.
+		$new_secret = wp_generate_password( 64, true, true );
+		update_option( 'def_service_auth_secret', $new_secret, false );
+
+		wp_send_json_success(
+			array(
+				'secret'  => $new_secret,
+				'message' => __( 'New secret generated. Update your Python app\'s .env file immediately.', 'def-core' ),
+			)
+		);
 	}
 
 	/**

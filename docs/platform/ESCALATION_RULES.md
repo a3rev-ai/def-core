@@ -74,7 +74,27 @@ Escalation must not proceed without all fields.
 
 ---
 
-## 6. Payload Requirements
+## 6. Anonymous Customer Escalation — Recipient Fallback (Authoritative)
+
+Customer Channel escalation supports anonymous users, but anonymous callers cannot rely on fetching escalation recipients from authenticated def-core settings endpoints.
+
+Therefore, anonymous escalation MUST resolve recipients using the following priority:
+
+1) **def-core configured recipients** (if accessible and returned successfully)
+2) **Anonymous fallback recipient** (required)
+   - A site-level fallback support email must be configured for anonymous escalations
+   - This can be provided via environment variable or server config (e.g., `ESCALATION_FALLBACK_EMAIL`)
+3) If no recipients are available:
+   - Escalation MUST fail with `no_recipients`
+   - UI must show a clear error: “Support email not configured.”
+
+Rules:
+- The fallback recipient is used **only for anonymous customer escalation**
+- Authenticated escalation must continue to use def-core configured recipients
+- This policy does not weaken def-core settings endpoint authentication
+
+
+## 7. Payload Requirements
 
 Escalation payload MUST include:
 - Channel
@@ -93,7 +113,7 @@ Logging rules:
 
 ---
 
-## 7. Escalation Continuity (Authoritative)
+## 8. Escalation Continuity (Authoritative)
 
 Escalation is **non-terminal in all channels**.
 
@@ -108,15 +128,15 @@ Rationale:
 
 ---
 
-## 8. Escalation Triggers (Authoritative)
+## 9. Escalation Triggers (Authoritative)
 
 Escalation may be triggered in two ways:
 
-### 8.1 User-Initiated Escalation (Primary)
+### 9.1 User-Initiated Escalation (Primary)
 Escalation MUST be available via UI action at all times.
 If the user requests a human, escalation must proceed immediately.
 
-### 8.2 Assistant-Suggested Escalation (Secondary)
+### 9.2 Assistant-Suggested Escalation (Secondary)
 The assistant should suggest escalation when:
 - It cannot answer confidently without guessing
 - It lacks required information or permissions
@@ -143,7 +163,7 @@ Important:
 
 ---
 
-## 8. Logging
+## 10. Logging
 
 Escalation events must be logged (event-based):
 - escalation triggered

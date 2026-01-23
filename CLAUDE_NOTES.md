@@ -1,6 +1,80 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-01-21
+## Latest Session: 2026-01-23
+
+### Completed Task: Service Auth for Escalation Endpoints
+
+**Objective:** Add service-to-service authentication for escalation endpoints so Python can call them for anonymous users (without WP user JWT).
+
+**Reference Documents:**
+- `docs/ai-prompts/def-core/DEF_CORE_SERVICE_AUTH_PROMPT.md`
+- `docs/platform/api/ESCALATION-EMAIL-BRIDGE-API-CONTRACT.md`
+
+### Problem:
+Anonymous users don't have a JWT token, so escalation endpoints (which required JWT auth) would fail for anonymous customer escalation.
+
+### Solution:
+Added a **shared secret** authentication mechanism that runs **alongside** (not replacing) the existing JWT auth:
+- If `X-DEF-AUTH` header matches stored secret → allow access
+- Otherwise → fall back to JWT authentication (for logged-in users)
+
+### Implementation Details:
+
+**File Modified:** `includes/class-def-core-escalation.php`
+
+1. **New Constants:**
+   - `SERVICE_SECRET_OPTION = 'def_service_auth_secret'` - WP option key
+   - `SERVICE_AUTH_HEADER = 'X-DEF-AUTH'` - Header name for service auth
+
+2. **New Methods:**
+   - `get_service_secret()` - Gets or generates the shared secret (stored in wp_options)
+   - `validate_service_auth()` - Validates X-DEF-AUTH header against stored secret
+
+3. **Updated `permission_check()`:**
+   - Now accepts EITHER service auth (X-DEF-AUTH) OR JWT auth
+   - Service auth is checked first, then falls back to JWT
+
+### How to Configure:
+
+1. **WordPress Admin UI:**
+   - Go to Settings → Digital Employees
+   - Find "Service Authentication" section
+   - The secret is displayed in a read-only field (auto-generated on first access)
+   - Click "Copy" to copy to clipboard
+   - Click "Generate New Secret" to regenerate (shows confirmation dialog)
+
+2. **Python (.env):**
+   - Add to `.env`: `DEF_SERVICE_AUTH_SECRET=<secret_from_wordpress>`
+
+### Admin UI Implementation:
+
+**File Modified:** `includes/class-def-core-admin.php`
+- Added `wp_ajax_def_core_regenerate_service_secret` action
+- Added `render_service_auth_section()` - Section description
+- Added `render_service_auth_secret_field()` - Read-only input with Copy button
+- Added `ajax_regenerate_service_secret()` - AJAX handler for regeneration
+
+**File Modified:** `assets/js/def-core-admin.js`
+- Added click handler for regenerate button
+- Shows confirmation dialog before regenerating
+- Updates UI after successful regeneration
+- Shows reminder alert to update Python .env
+
+### Security Notes:
+- Uses constant-time comparison (`hash_equals`) to prevent timing attacks
+- Secret is never logged or returned in responses
+- Existing JWT flow remains unchanged for logged-in users
+
+### Current Status:
+- ✅ Service auth implemented in def-core
+- ✅ Python updated to use X-DEF-AUTH for anonymous users
+- ✅ Backward compatible (JWT auth still works for logged-in users)
+
+### Branch: `staff-ai-frontend`
+
+---
+
+## Previous Session: 2026-01-21
 
 ### Bug Fix: Escalation Email Formatting
 

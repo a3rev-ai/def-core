@@ -47,6 +47,20 @@ final class DEF_Core_Escalation {
 	private const OPTION_PREFIX = 'def_core_escalation_';
 
 	/**
+	 * Option key for service auth secret.
+	 *
+	 * @var string
+	 */
+	private const SERVICE_SECRET_OPTION = 'def_service_auth_secret';
+
+	/**
+	 * Header name for service auth.
+	 *
+	 * @var string
+	 */
+	private const SERVICE_AUTH_HEADER = 'X-DEF-AUTH';
+
+	/**
 	 * Initialize the escalation routes.
 	 *
 	 * @since 1.1.0
@@ -96,15 +110,75 @@ final class DEF_Core_Escalation {
 
 	/**
 	 * Permission callback for escalation routes.
-	 * Uses the same JWT authentication as other def-core routes.
+	 * Accepts EITHER:
+	 * - JWT authentication (logged-in user)
+	 * - Service auth header (X-DEF-AUTH) for service-to-service calls
 	 *
 	 * @return bool True if authenticated, false otherwise.
 	 * @since 1.1.0
-	 * @version 1.1.0
+	 * @version 1.2.0
 	 */
 	public static function permission_check(): bool {
-		// Reuse existing def-core JWT authentication.
+		// First, try service-to-service auth (for anonymous escalation support).
+		if ( self::validate_service_auth() ) {
+			return true;
+		}
+
+		// Fall back to existing JWT authentication for logged-in users.
 		return DEF_Core_Tools::permission_check();
+	}
+
+	/**
+	 * Get or generate the service auth secret.
+	 *
+	 * @return string The service auth secret.
+	 * @since 1.2.0
+	 * @version 1.2.0
+	 */
+	public static function get_service_secret(): string {
+		$secret = get_option( self::SERVICE_SECRET_OPTION, '' );
+
+		if ( empty( $secret ) ) {
+			// Generate a strong random secret (64 characters).
+			$secret = wp_generate_password( 64, true, true );
+			update_option( self::SERVICE_SECRET_OPTION, $secret, false );
+		}
+
+		return $secret;
+	}
+
+	/**
+	 * Validate service auth header.
+	 * Checks X-DEF-AUTH header against stored secret.
+	 *
+	 * @return bool True if valid service auth, false otherwise.
+	 * @since 1.2.0
+	 * @version 1.2.0
+	 */
+	private static function validate_service_auth(): bool {
+		// Get the header from various sources (Apache, nginx, etc.).
+		$auth_header = '';
+
+		// Try standard header.
+		if ( ! empty( $_SERVER['HTTP_X_DEF_AUTH'] ) ) {
+			$auth_header = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_AUTH'] ) );
+		}
+
+		// No header provided.
+		if ( empty( $auth_header ) ) {
+			return false;
+		}
+
+		// Get stored secret.
+		$stored_secret = get_option( self::SERVICE_SECRET_OPTION, '' );
+
+		// Secret not configured.
+		if ( empty( $stored_secret ) ) {
+			return false;
+		}
+
+		// Constant-time comparison to prevent timing attacks.
+		return hash_equals( $stored_secret, $auth_header );
 	}
 
 	/**
