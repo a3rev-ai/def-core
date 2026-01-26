@@ -58,6 +58,10 @@ final class DEF_Core {
 		DEF_Core_Staff_AI::init();
 		DEF_Core_Escalation::init();
 
+		// Register AJAX handlers for inline login (Loop 6).
+		add_action( 'wp_ajax_nopriv_def_core_inline_login', array( $this, 'ajax_inline_login' ) );
+		add_action( 'wp_ajax_def_core_inline_login', array( $this, 'ajax_inline_login' ) );
+
 		// Register activation hook.
 		register_activation_hook( DEF_CORE_PLUGIN_DIR . 'def-core.php', array( __CLASS__, 'on_activate' ) );
 
@@ -170,6 +174,8 @@ final class DEF_Core {
 		// Enqueue main bridge script.
 		$rest_data = array(
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
+			'loginUrl'       => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+			'siteUrl'        => esc_url_raw( home_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'allowedOrigins' => $this->get_allowed_origins(),
 		);
@@ -232,6 +238,77 @@ final class DEF_Core {
 		$url     = admin_url( 'options-general.php?page=def-core' );
 		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'def-core' ) . '</a>';
 		return $links;
+	}
+
+	/**
+	 * Handle inline login AJAX request (Loop 6).
+	 *
+	 * Uses standard WordPress authentication via wp_signon().
+	 * This respects any login plugins (2FA, reCAPTCHA, SSO).
+	 *
+	 * @since 0.3.0
+	 */
+	public function ajax_inline_login(): void {
+		// Verify nonce.
+		if ( ! check_ajax_referer( 'wp_rest', '_wpnonce', false ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ) );
+			return;
+		}
+
+		// Get credentials.
+		$username = isset( $_POST['log'] ) ? sanitize_user( wp_unslash( $_POST['log'] ) ) : '';
+		$password = isset( $_POST['pwd'] ) ? $_POST['pwd'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		if ( empty( $username ) || empty( $password ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter both username and password.', 'def-core' ) ) );
+			return;
+		}
+
+		// Attempt login using WordPress standard authentication.
+		$creds = array(
+			'user_login'    => $username,
+			'user_password' => $password,
+			'remember'      => true,
+		);
+
+		$user = wp_signon( $creds, is_ssl() );
+
+		if ( is_wp_error( $user ) ) {
+			// Login failed.
+			$error_message = $user->get_error_message();
+			// Sanitize error message - don't reveal too much.
+			if ( strpos( $error_message, 'username' ) !== false || strpos( $error_message, 'password' ) !== false ) {
+				$error_message = __( 'Login failed — please check your details and try again.', 'def-core' );
+			}
+			wp_send_json_error( array( 'message' => $error_message ) );
+			return;
+		}
+
+		// Login successful - set the auth cookie.
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true, is_ssl() );
+
+		// Generate a context token for the newly logged-in user.
+		// We do this here because the auth cookie won't be available for
+		// subsequent JS fetch calls until the browser processes this response.
+		$claims = array(
+			'sub'          => (string) $user->ID,
+			'username'     => $user->user_login,
+			'display_name' => $user->display_name,
+			'first_name'   => $user->user_firstname,
+			'email'        => $user->user_email,
+			'roles'        => array_values( (array) $user->roles ),
+			'iss'          => get_site_url(),
+			'aud'          => DEF_CORE_AUDIENCE,
+		);
+		$token = DEF_Core_JWT::issue_token( $claims, 300 ); // 5 minutes.
+
+		wp_send_json_success(
+			array(
+				'user_id' => $user->ID,
+				'token'   => $token,
+			)
+		);
 	}
 }
 

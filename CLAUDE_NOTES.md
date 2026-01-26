@@ -1,6 +1,101 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-01-23
+## Latest Session: 2026-01-26
+
+### Completed Task: Loop 6 Fix - Post-Login Token Issue
+
+**Issue:** After successful inline login, the widget couldn't fetch a fresh JWT token because `wp_set_auth_cookie()` sets cookies in HTTP response headers, but the JS `fetchToken()` call happened before the browser processed the response.
+
+**Fix:** Generate the JWT token directly in the AJAX login response.
+
+#### 1) PHP: Include Token in Login Response
+**File:** `includes/class-def-core.php`
+
+Modified `ajax_inline_login()` to generate the JWT token after successful login and include it in the response:
+```php
+$token = DEF_Core_JWT::issue_token( $claims, 300 );
+wp_send_json_success( array( 'user_id' => $user->ID, 'token' => $token ) );
+```
+
+#### 2) JS Bridge: Use Token from Response
+**File:** `assets/js/def-core.js`
+
+Modified `performLogin()` to use the token directly from the AJAX response instead of making another fetch call.
+
+### Branch: `staff-ai-frontend`
+
+---
+
+### Previous Task: Loop 6 - Inline Login Support
+
+**Objective:** Add WordPress-side support for inline login in the Customer Chat widget iframe.
+
+**Reference Documents:**
+- `digital-employee-framework/docs/channels/customer/RALPH-LOOP-6-CUSTOMER-CHAT-FRONTEND-INLINE-LOGIN-(NON-BLOCKING)-CONTINUE-THREAD.md`
+
+### Implementation Summary:
+
+#### 1) Bridge Script Updates
+**File:** `assets/js/def-core.js`
+
+- Added `performLogin()` function - calls AJAX endpoint for authentication
+- Added handler for `a3ai:login-request` message from iframe
+- Added `a3ai:site-config` message to send siteUrl to iframe on context request
+- Bridge now responds to both `a3ai:request-context` and `a3ai:login-request`
+
+#### 2) PHP Configuration Updates
+**File:** `includes/class-def-core.php`
+
+- Added `loginUrl` (admin-ajax.php) to DEFCore JS configuration
+- Added `siteUrl` (home_url) to DEFCore JS configuration
+- Registered AJAX handlers:
+  - `wp_ajax_nopriv_def_core_inline_login` (for logged-out users)
+  - `wp_ajax_def_core_inline_login` (for already logged-in users)
+
+#### 3) AJAX Login Handler
+**File:** `includes/class-def-core.php`
+
+Added `ajax_inline_login()` method:
+- Verifies wp_rest nonce
+- Gets username/password from POST
+- Uses `wp_signon()` for standard WordPress authentication
+- This respects any login plugins (2FA, reCAPTCHA, SSO, etc.)
+- On success: sets auth cookie via `wp_set_auth_cookie()`
+- On failure: returns sanitized error message
+- Returns JSON response for AJAX
+
+### PostMessage Protocol:
+
+**Login Request (iframe → parent):**
+```javascript
+{ type: "a3ai:login-request", username: "...", password: "..." }
+```
+
+**Login Result (parent → iframe):**
+```javascript
+// Success
+{ type: "a3ai:login-result", success: true, token: "..." }
+
+// Failure
+{ type: "a3ai:login-result", success: false, error: "..." }
+```
+
+**Site Config (parent → iframe):**
+```javascript
+{ type: "a3ai:site-config", siteUrl: "https://..." }
+```
+
+### Security Notes:
+- Uses standard `wp_signon()` - compatible with all login security plugins
+- Nonce verified via `check_ajax_referer()`
+- Error messages sanitized to avoid leaking sensitive info
+- Cookie set with SSL flag based on site configuration
+
+### Branch: `staff-ai-frontend`
+
+---
+
+## Previous Session: 2026-01-23
 
 ### Completed Task: Service Auth for Escalation Endpoints
 
