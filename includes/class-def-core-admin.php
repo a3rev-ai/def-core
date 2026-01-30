@@ -717,9 +717,9 @@ final class DEF_Core_Admin {
 			<p><?php esc_html_e( 'Add this to your theme\'s header.php or footer.php (before closing </body> tag):', 'def-core' ); ?></p>
 			<pre><code><?php
 			// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- This is example documentation code, not an actual script enqueue.
-			$script_example = '<script 
-    src="https://a3revai.azurewebsites.net/widget/popup.js" 
-    data-chat-url="https://a3revai.azurewebsites.net/"
+			$script_example = '<script
+    src="https://a3revai.azurewebsites.net/widget/popup.js"
+    data-chat-url="https://a3revai.azurewebsites.net/v2"
     data-position="right"
     data-open="false"
     async>
@@ -734,7 +734,7 @@ final class DEF_Core_Admin {
 			<div class="widget-attribute">
 				<strong>data-chat-url</strong><br>
 				<?php esc_html_e( 'The URL of the Digital Employee Framework interface to load in the iframe.', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Default:', 'def-core' ); ?> <code>https://a3revai.azurewebsites.net/</code></em>
+				<em><?php esc_html_e( 'Default:', 'def-core' ); ?> <code>https://a3revai.azurewebsites.net/v2</code></em>
 			</div>
 
 			<div class="widget-attribute">
