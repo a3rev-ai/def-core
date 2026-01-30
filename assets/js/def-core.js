@@ -96,9 +96,9 @@
         );
       }
 
-      // Handle page reload request (after inline login)
-      if (data?.type === "a3ai:reload-page") {
-        console.log("[DEF-BRIDGE] Page reload requested by chatbot");
+      // Handle silent reload request (token refresh before expiry)
+      if (data?.type === "a3ai:silent-reload") {
+        console.log("[DEF-BRIDGE] Silent page reload requested (token refresh)");
         window.location.reload();
       }
     } catch (e) {

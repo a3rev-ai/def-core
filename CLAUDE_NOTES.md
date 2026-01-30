@@ -2,39 +2,34 @@
 
 ## Latest Session: 2026-01-30
 
-### Fix: Page Reload After Inline Login (Cross-Origin Safe)
+### RALPH-REBUILD-LOOP-5B.1: Post-Login Auth Rehydration (NO RELOAD)
 
-**Issue:** After inline login, attempting to reload with `window.top.location.reload()` throws SecurityError due to cross-origin restrictions (iframe on localhost:8000, parent on WordPress domain).
+**Issue:** After inline login (without page reload), the `/context-token` endpoint was returning 403 "rest_cookie_invalid_nonce" due to browser cookie/nonce synchronization timing issues.
 
-**Solution:** Chatbot iframe sends postMessage requesting reload, WordPress bridge handles it.
+**Solution:** Frontend (Python repo) now uses token from login response directly and implements 5-second cooldown to prevent premature `/context-token` calls while cookies/nonces sync.
 
-**WordPress plugin changes:**
+**WordPress plugin changes for silent token refresh:**
 
 **File:** `assets/js/def-core.js`
 
-Added message handler to reload page when requested by chatbot iframe:
+Added handler for silent page reload (triggered when token refresh fails before expiry):
+
 ```javascript
-// Handle page reload request (after inline login)
-if (data?.type === "a3ai:reload-page") {
-  console.log("[DEF-BRIDGE] Page reload requested by chatbot");
+// Handle silent reload request (token refresh before expiry)
+if (data?.type === "a3ai:silent-reload") {
+  console.log("[DEF-BRIDGE] Silent page reload requested (token refresh)");
   window.location.reload();
 }
 ```
 
-**Why this is needed:**
-- Chatbot runs in iframe with different origin than WordPress parent
-- Cross-origin security prevents direct access to `window.top.location`
-- postMessage is the safe, standard way to communicate across origins
+**Why needed:**
+- JWT tokens expire after 5 minutes
+- Frontend attempts to refresh token at 4 minutes
+- If refresh fails (WordPress nonce not synced yet), trigger silent reload
+- Reload gets fresh cookies/nonces, user stays authenticated
+- Chatbot state preserved (user doesn't notice)
 
-**Flow:**
-1. User logs in via chatbot iframe
-2. Iframe sets sessionStorage flag for auto-reopen
-3. Iframe sends `a3ai:reload-page` message to parent
-4. Bridge receives message and reloads parent page
-5. Widget checks sessionStorage flag and auto-reopens chatbot
-6. User continues conversation with full authenticated state
-
-**Result:** Clean authenticated state on page reload, no timing/synchronization issues, no cross-origin errors.
+**Result:** After inline login, auth upgrade happens immediately without page reload. Conversation continues on same thread with authenticated capabilities. User stays continuously authenticated via proactive token refresh or silent reload fallback.
 
 ### Branch: `staff-ai-frontend`
 
