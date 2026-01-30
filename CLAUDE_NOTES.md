@@ -1,6 +1,46 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-01-26
+## Latest Session: 2026-01-30
+
+### Fix: Page Reload After Inline Login (Cross-Origin Safe)
+
+**Issue:** After inline login, attempting to reload with `window.top.location.reload()` throws SecurityError due to cross-origin restrictions (iframe on localhost:8000, parent on WordPress domain).
+
+**Solution:** Chatbot iframe sends postMessage requesting reload, WordPress bridge handles it.
+
+**WordPress plugin changes:**
+
+**File:** `assets/js/def-core.js`
+
+Added message handler to reload page when requested by chatbot iframe:
+```javascript
+// Handle page reload request (after inline login)
+if (data?.type === "a3ai:reload-page") {
+  console.log("[DEF-BRIDGE] Page reload requested by chatbot");
+  window.location.reload();
+}
+```
+
+**Why this is needed:**
+- Chatbot runs in iframe with different origin than WordPress parent
+- Cross-origin security prevents direct access to `window.top.location`
+- postMessage is the safe, standard way to communicate across origins
+
+**Flow:**
+1. User logs in via chatbot iframe
+2. Iframe sets sessionStorage flag for auto-reopen
+3. Iframe sends `a3ai:reload-page` message to parent
+4. Bridge receives message and reloads parent page
+5. Widget checks sessionStorage flag and auto-reopens chatbot
+6. User continues conversation with full authenticated state
+
+**Result:** Clean authenticated state on page reload, no timing/synchronization issues, no cross-origin errors.
+
+### Branch: `staff-ai-frontend`
+
+---
+
+## Previous Session: 2026-01-26
 
 ### Completed Task: Loop 6 Fix - Post-Login Token Issue
 

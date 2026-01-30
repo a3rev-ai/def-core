@@ -95,6 +95,12 @@
           origin
         );
       }
+
+      // Handle page reload request (after inline login)
+      if (data?.type === "a3ai:reload-page") {
+        console.log("[DEF-BRIDGE] Page reload requested by chatbot");
+        window.location.reload();
+      }
     } catch (e) {
       // silent
     }
