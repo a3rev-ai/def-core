@@ -1,6 +1,27 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-01-30
+## Latest Session: 2026-02-02
+
+### Python Backend: Governed Upload Tool Implemented
+
+**Note:** The Python backend (`digital-employee-framework`) now has a fully implemented governed upload tool with REST API endpoints:
+- `POST /api/{channel}/uploads/init` - Initialize upload, get presigned URL
+- `POST /api/{channel}/uploads/commit` - Finalize upload
+- `GET /api/{channel}/uploads/{file_id}/status` - Check status
+
+**Available for channels:** `customer` and `staff_ai`
+
+**WordPress Plugin Status:**
+- ✅ Backend REST API complete (Python)
+- ⚠️ Frontend UI integration pending (no changes to WordPress plugin yet)
+- 📋 Future: May need JavaScript changes in `def-core.js` for file picker UI
+- 📋 Future: May need PHP changes for upload-related admin settings
+
+**See Python repo `CLAUDE_NOTES.md` for full implementation details.**
+
+---
+
+## Previous Session: 2026-01-30
 
 ### RALPH-REBUILD-LOOP-5B.1: Post-Login Auth Rehydration (NO RELOAD)
 
