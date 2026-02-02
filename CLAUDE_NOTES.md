@@ -2,17 +2,25 @@
 
 ## Latest Session: 2026-02-02
 
-### Python Backend: Governed Upload Tool Implemented
+### Python Backend: Governed Upload Tool + Tool Search Implemented
 
-**Note:** The Python backend (`digital-employee-framework`) now has a fully implemented governed upload tool with REST API endpoints:
+**Upload Tool (v1.0):** The Python backend now has REST API endpoints for file uploads:
 - `POST /api/{channel}/uploads/init` - Initialize upload, get presigned URL
 - `POST /api/{channel}/uploads/commit` - Finalize upload
 - `GET /api/{channel}/uploads/{file_id}/status` - Check status
+
+**Tool Search Pipeline (v1.0):** Server-side tool discovery with 3-stage filtering:
+- Stage 1: Hard filtering (channel, auth, profile, capabilities)
+- Stage 2: Relevance scoring (keyword matching)
+- Stage 3: Selection cap (max 3 tools per turn)
+- Upload tool special rules (never proactive)
+- Token savings: ~70% reduction (500 → 150 tokens per turn)
 
 **Available for channels:** `customer` and `staff_ai`
 
 **WordPress Plugin Status:**
 - ✅ Backend REST API complete (Python)
+- ✅ Tool search integrated into LLM orchestration
 - ⚠️ Frontend UI integration pending (no changes to WordPress plugin yet)
 - 📋 Future: May need JavaScript changes in `def-core.js` for file picker UI
 - 📋 Future: May need PHP changes for upload-related admin settings
