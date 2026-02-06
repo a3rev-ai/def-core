@@ -1,6 +1,53 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-02-02
+## Latest Session: 2026-02-06
+
+### Enhanced File Selection & Upload UI Fixes
+
+**Status:** ✅ COMPLETE
+
+**Objective:** Fix missing parameters error when extract tool is called without explicit file references.
+
+**Status:** ✅ COMPLETE (Python backend changes only)
+
+**What Was Done:**
+
+**Python Backend Changes:**
+
+1. **Parameter Resolution:**
+   - Updated `extract_upload_content_tool` to resolve missing `file_id`/`conversation_id` from thread context
+   - Updated dispatcher to automatically pass `thread_state` to tools that need it
+   - Tool handles both explicit parameters (auto-extraction) and implicit references (LLM intent)
+   - Extraction payload caching retained as requested
+
+2. **Smart File Selection:**
+   - Enhanced filename matching to understand numeric selections ("1", "2", "3")
+   - Added keyword support ("latest", "newest", "first", "last")
+   - Improved partial filename matching (multi-word match)
+   - Users can now easily select files from clarification lists
+
+**Python Files Modified:**
+- `app/chatbot/tools/extract_upload.py` - Parameter resolution
+- `app/chatbot/core/tool_dispatcher.py` - Auto-pass thread_state
+- `app/chatbot/core/recent_uploads.py` - Enhanced filename matching
+
+**WordPress Frontend Changes:**
+
+3. **Fixed Upload Icon After Clear Conversation:**
+   - Added `checkUploadEligibility()` call in `clearConversation()` function
+   - Upload icon now properly hides when resetting to Sales Assistant (default)
+   - Icon visibility correctly reflects active employee's capabilities
+
+**WordPress Files Modified:**
+- `app/chatbot/v2/static/js/shell.js` - Added upload eligibility check after clear
+
+**Result:** Upload icon visibility now works correctly in all scenarios (employee switching, conversation clearing, file selection).
+
+**See Python repo CLAUDE_NOTES.md for full technical details.**
+
+---
+
+## Previous Session: 2026-02-02
 
 ### Python Backend: Governed Upload Tool + Tool Search Implemented
 
