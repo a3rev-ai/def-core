@@ -106,6 +106,87 @@
 				}
 			});
 		});
+
+		// Handle regenerate service auth secret button
+		const regenerateBtn = document.getElementById('def-core-regenerate-secret-btn');
+		if (regenerateBtn) {
+			regenerateBtn.addEventListener('click', function() {
+				// Show confirmation dialog
+				const confirmed = confirm(
+					'⚠️ WARNING: Generating a new secret will invalidate the current one!\n\n' +
+					'You MUST update your Python app\'s .env file immediately after generating a new secret, ' +
+					'or anonymous customer escalation will stop working.\n\n' +
+					'Are you sure you want to generate a new secret?'
+				);
+
+				if (!confirmed) {
+					return;
+				}
+
+				const btn = this;
+				const nonce = btn.dataset.nonce;
+				const secretInput = document.getElementById('def_service_auth_secret');
+				const originalText = btn.textContent;
+
+				// Disable button and show loading state
+				btn.disabled = true;
+				btn.textContent = 'Generating...';
+
+				// Make AJAX request
+				const formData = new FormData();
+				formData.append('action', 'def_core_regenerate_service_secret');
+				formData.append('nonce', nonce);
+
+				fetch(ajaxurl, {
+					method: 'POST',
+					body: formData,
+					credentials: 'same-origin'
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						// Update the secret field
+						secretInput.value = data.data.secret;
+
+						// Update the copy button's onclick
+						const copyBtn = btn.previousElementSibling;
+						if (copyBtn) {
+							copyBtn.onclick = function() {
+								navigator.clipboard.writeText(data.data.secret);
+								this.textContent = 'Copied!';
+								setTimeout(() => this.textContent = 'Copy', 2000);
+							};
+						}
+
+						// Update the code snippet
+						const codeSnippet = btn.closest('.def-core-service-auth-field').querySelector('code');
+						if (codeSnippet) {
+							codeSnippet.textContent = 'DEF_SERVICE_AUTH_SECRET=' + data.data.secret;
+						}
+
+						// Show success message
+						btn.textContent = 'Generated!';
+						setTimeout(() => {
+							btn.textContent = originalText;
+							btn.disabled = false;
+						}, 2000);
+
+						// Show alert with reminder
+						alert('✅ New secret generated!\n\nIMPORTANT: Copy the new secret and update your Python app\'s .env file NOW.');
+					} else {
+						alert('Error: ' + (data.data?.message || 'Failed to generate new secret'));
+						btn.textContent = originalText;
+						btn.disabled = false;
+					}
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Error: Failed to generate new secret. Check console for details.');
+					btn.textContent = originalText;
+					btn.disabled = false;
+				});
+			});
+		}
 	});
 })();
 

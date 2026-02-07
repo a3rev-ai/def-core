@@ -1,0 +1,70 @@
+You are Claude Code running in the def-core WordPress plugin repo.
+
+Open and follow these files as the only source of requirements:
+- docs/prd/PRD-STAFF-AI-FRONTEND-V1.md
+- docs/prd/RALPH-RUNBOOK-STAFF-AI-FRONTEND-V1.md
+
+Execute ONLY: LOOP 5 — Full UI ↔ API Integration + Hardening.
+
+Preconditions:
+- Loop 1–4 are complete.
+- Staff AI endpoint /staff-ai renders correctly.
+- Adapter/proxy layer exists and can successfully call the Python API locally.
+
+CRITICAL SCOPE BOUNDARY:
+- Loop 5 is wiring + hardening only.
+- Do NOT change backend API contracts, endpoints, or payload shapes.
+- Do NOT add new persistence in WordPress (no sessions/transients/tables/CPTs).
+- Do NOT create new directories.
+- Do NOT refactor unrelated code.
+
+Goal:
+Ensure the Staff AI frontend UI actions call the adapter and Python API end-to-end for v1.
+
+Required end-to-end UI actions (must work):
+1) Conversations
+- List conversations (sidebar list)
+- Create new conversation
+- Load existing conversation thread
+2) Messaging
+- Send message (Enter sends, Shift+Enter newline)
+- Render assistant response correctly
+- Show calm error state if request fails
+- Show typing indicator / non-streaming placeholder (match current implementation)
+3) Sharing
+- Share a conversation (read-only by default for shared viewer)
+- Revoke share (if supported in UI)
+- Shared conversation shows “Read-only (shared)” and disables composer
+4) Export
+- Export action triggers backend export endpoint and receives a download URL
+- UI presents download link
+- Do NOT generate export content in WordPress
+5) Escalation (non-terminal)
+- Escalate for review submits to backend with conversation_id + optional note
+- UI shows confirmation banner:
+  “Escalated for review — you can continue working while this is reviewed.”
+- Conversation remains usable after escalation
+6) Tool outputs
+- When backend returns tool outputs (doc/sheet/image):
+  - render a message card with file name, type label, download link
+  - do not store file contents in WordPress or browser storage
+
+UI/Branding requirements:
+- Full-screen endpoint with no WP theme header/footer
+- Header shows WP custom_logo (fallback: site name)
+- Footer shows “Powered by DEF”
+- Assistant identity label visible (“Staff Knowledge Assistant” or “Management Knowledge Assistant”)
+- Responsive layout: sidebar collapses on small screens
+
+Error handling requirements:
+- If backend returns an error, surface a calm message in UI
+- No raw stack traces or secrets
+- Maintain consistent response shape from adapter → UI
+
+Verification:
+- Provide a short checklist of how to manually test each of the required actions above.
+- Confirm no WP persistence was added.
+- Confirm no new directories were created.
+
+Stop when complete and output exactly this token on its own line:
+STAFF_AI_F5_COMPLETE
