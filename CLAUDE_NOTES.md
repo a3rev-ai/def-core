@@ -2,6 +2,63 @@
 
 ## Latest Session: 2026-02-06
 
+### Updated Python Backend README and Environment Examples
+
+**Status:** ✅ COMPLETE
+
+**Cross-repo work:** Python Backend documentation updates
+
+**What Was Done:**
+
+1. **Updated README.md** with current project structure:
+   - Complete directory tree with new folders (channels, employees, v2, config, extractors)
+   - New features section (Digital Employees, file uploads, extraction)
+   - Updated architecture section (employees, channels, shared utilities)
+   - New sections for Digital Employees and File Upload systems
+   - Updated installation steps with Azurite setup
+   - Reorganized documentation section by categories
+
+2. **Updated environment variable example files** (`.env.example` and `.env.dev.example`):
+   - Added upload/storage configuration
+   - Added AZURE_FOUNDRY_API_KEY
+   - Added DALL-E deployment configuration
+   - Comprehensive documentation for all variables
+
+**Impact on def-core:**
+No changes needed in WordPress plugin. These are Python backend documentation updates that help developers understand the full system architecture and configuration.
+
+---
+
+### Updated Python Backend Environment Variable Examples
+
+**Status:** ✅ COMPLETE
+
+**Cross-repo work:** Python Backend environment configuration documentation
+
+**What Was Done:**
+Updated `.env.example` and `.env.dev.example` in the Python backend to include recently added upload and storage configuration variables:
+
+**Added to `.env.example`:**
+- `AZURE_STORAGE_CONNECTION_STRING` - Required for file upload feature
+- `AZURE_STORAGE_CONTAINER` - Blob container name (default: def-uploads)
+- `UPLOAD_MAX_FILE_MB` - Max file size (default: 10)
+- `UPLOAD_MAX_FILES_PER_MESSAGE` - Max files per message (default: 3)
+- `UPLOAD_RETENTION_DAYS` - File retention period (default: 7)
+
+**Added to `.env.dev.example`:**
+- Same storage/upload variables for development testing
+- WordPress bridge configuration examples (for local testing)
+- Azurite Docker setup instructions for local blob storage emulation
+
+**Variables Introduced By:**
+- Upload tool implementation (commit `900286a`, Feb 2, 2026)
+- Local storage Docker setup (commit `5bbd0a4`, Feb 2, 2026)
+
+**Impact on def-core:**
+No changes needed in WordPress plugin. These are Python backend configuration variables that support the upload feature already integrated in the customer chat UI.
+
+---
+
 ### Enhanced File Selection & Upload UI Fixes
 
 **Status:** ✅ COMPLETE

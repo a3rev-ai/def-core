@@ -1,10 +1,12 @@
 name: Auto Release and Deploy to S3
 
+# on:
+#   push:
+#     branches:
+#       - main
+#       - master
 on:
-  push:
-    branches:
-      - main
-      - master
+  workflow_dispatch:
 
 jobs:
   release:
