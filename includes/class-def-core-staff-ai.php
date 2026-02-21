@@ -945,11 +945,18 @@ final class DEF_Core_Staff_AI
 			$clean_filename = $matches[1];
 		}
 
-		// Send file response.
-		header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
-		header('Content-Disposition: attachment; filename="' . addslashes($clean_filename) . '"');
-		header('Content-Length: ' . strlen($body));
-		header('Cache-Control: no-cache, must-revalidate');
+		// SECURITY: Sanitize Content-Type — only allow safe MIME types, block text/html.
+		$safe_content_type = self::sanitize_proxy_content_type( $content_type );
+
+		// SECURITY: Sanitize filename — strip anything that could inject headers.
+		$safe_filename = self::sanitize_proxy_filename( $clean_filename );
+
+		// Send file response with security headers.
+		header( 'Content-Type: ' . $safe_content_type );
+		header( 'Content-Disposition: attachment; filename="' . $safe_filename . '"' );
+		header( 'Content-Length: ' . strlen( $body ) );
+		header( 'X-Content-Type-Options: nosniff' );
+		header( 'Cache-Control: no-cache, must-revalidate' );
 		echo $body;
 		exit;
 	}
@@ -1115,7 +1122,7 @@ final class DEF_Core_Staff_AI
 			$error_msg  = __('File not found or access denied.', 'def-core');
 			// Add debug info in development
 			if (defined('WP_DEBUG') && WP_DEBUG) {
-				$error_msg .= ' (HTTP ' . $status_code . ': ' . substr($error_body, 0, 200) . ')';
+				$error_msg .= ' (HTTP ' . intval( $status_code ) . ': ' . esc_html( substr( $error_body, 0, 200 ) ) . ')';
 			}
 			wp_die($error_msg, __('Error', 'def-core'), array('response' => $status_code));
 		}
@@ -1129,13 +1136,93 @@ final class DEF_Core_Staff_AI
 			$clean_filename = $matches[1];
 		}
 
-		// Send file response.
+		// SECURITY: Sanitize Content-Type — only allow safe MIME types, block text/html.
+		$safe_content_type = self::sanitize_proxy_content_type( $content_type );
+
+		// SECURITY: Sanitize filename — strip anything that could inject headers.
+		$safe_filename = self::sanitize_proxy_filename( $clean_filename );
+
+		// Send file response with security headers.
 		nocache_headers();
-		header('Content-Type: ' . ($content_type ?: 'application/octet-stream'));
-		header('Content-Disposition: attachment; filename="' . addslashes($clean_filename) . '"');
-		header('Content-Length: ' . strlen($body));
+		header( 'Content-Type: ' . $safe_content_type );
+		header( 'Content-Disposition: attachment; filename="' . $safe_filename . '"' );
+		header( 'Content-Length: ' . strlen( $body ) );
+		header( 'X-Content-Type-Options: nosniff' );
 		echo $body;
 		exit;
+	}
+
+	/**
+	 * Sanitize Content-Type for proxied file downloads.
+	 *
+	 * Prevents Content-Type reflection XSS by rejecting types that could
+	 * execute scripts in the browser (text/html, application/xhtml+xml, etc.).
+	 * Forces application/octet-stream for any unrecognized or dangerous type.
+	 *
+	 * @param string $content_type The Content-Type from the backend response.
+	 * @return string A safe Content-Type string.
+	 * @since 1.2.0
+	 */
+	private static function sanitize_proxy_content_type( string $content_type ): string {
+		if ( empty( $content_type ) ) {
+			return 'application/octet-stream';
+		}
+
+		// Extract the base MIME type (strip charset, boundary, etc.).
+		$base = strtolower( trim( explode( ';', $content_type )[0] ) );
+
+		// Blocklist: types that can execute scripts in the browser.
+		$dangerous_types = array(
+			'text/html',
+			'application/xhtml+xml',
+			'application/xml',
+			'text/xml',
+			'image/svg+xml',
+			'application/javascript',
+			'text/javascript',
+			'application/x-javascript',
+		);
+
+		if ( in_array( $base, $dangerous_types, true ) ) {
+			return 'application/octet-stream';
+		}
+
+		// Reject anything that does not look like a valid MIME type.
+		if ( ! preg_match( '~^[a-z0-9][a-z0-9!#$&\-^_.+]*/[a-z0-9][a-z0-9!#$&\-^_.+]*$~', $base ) ) {
+			return 'application/octet-stream';
+		}
+
+		return $base;
+	}
+
+	/**
+	 * Sanitize filename for Content-Disposition header.
+	 *
+	 * Prevents HTTP header injection by stripping control characters,
+	 * newlines, quotes, and any non-printable characters from the filename.
+	 * Falls back to 'download' if nothing remains.
+	 *
+	 * @param string $filename The raw filename.
+	 * @return string A safe filename for use in Content-Disposition.
+	 * @since 1.2.0
+	 */
+	private static function sanitize_proxy_filename( string $filename ): string {
+		// Strip any characters that could inject headers or break the Content-Disposition value.
+		// Remove: control chars (0x00-0x1F, 0x7F), double quotes, backslashes, newlines.
+		$safe = preg_replace( '/[\x00-\x1F\x7F"\\\\]/', '', $filename );
+
+		// Also strip path separators to prevent path traversal in save dialogs.
+		$safe = str_replace( array( '/', '\\' ), '', $safe );
+
+		// Trim whitespace and dots (Windows disallows trailing dots).
+		$safe = trim( $safe, " \t\n\r\0\x0B." );
+
+		// Fallback if nothing remains.
+		if ( empty( $safe ) ) {
+			$safe = 'download';
+		}
+
+		return $safe;
 	}
 
 	/**
