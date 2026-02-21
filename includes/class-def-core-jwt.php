@@ -397,11 +397,30 @@ final class DEF_Core_JWT {
 			}
 		}
 
-		// Verify expiration.
+		// Verify standard claims.
 		$now = time();
+
+		// Verify expiration (exp).
 		$exp = isset( $payload['exp'] ) ? intval( $payload['exp'] ) : 0;
 		if ( $exp && $exp < $now ) {
 			return null;
+		}
+
+		// Verify not-before (nbf).
+		$nbf = isset( $payload['nbf'] ) ? intval( $payload['nbf'] ) : 0;
+		if ( $nbf && $nbf > $now ) {
+			return null;
+		}
+
+		// Verify audience (aud) — must match this plugin's expected audience.
+		if ( isset( $payload['aud'] ) ) {
+			$aud = $payload['aud'];
+			if ( is_string( $aud ) && $aud !== DEF_CORE_AUDIENCE ) {
+				return null;
+			}
+			if ( is_array( $aud ) && ! in_array( DEF_CORE_AUDIENCE, $aud, true ) ) {
+				return null;
+			}
 		}
 
 		return $payload;
@@ -456,11 +475,30 @@ final class DEF_Core_JWT {
 			return null;
 		}
 
-		// Verify expiration.
+		// Verify standard claims.
 		$now = time();
+
+		// Verify expiration (exp).
 		$exp = isset( $payload['exp'] ) ? intval( $payload['exp'] ) : 0;
 		if ( $exp && $exp < $now ) {
 			return null;
+		}
+
+		// Verify not-before (nbf).
+		$nbf = isset( $payload['nbf'] ) ? intval( $payload['nbf'] ) : 0;
+		if ( $nbf && $nbf > $now ) {
+			return null;
+		}
+
+		// Verify audience (aud) — must match this plugin's expected audience.
+		if ( isset( $payload['aud'] ) ) {
+			$aud = $payload['aud'];
+			if ( is_string( $aud ) && $aud !== DEF_CORE_AUDIENCE ) {
+				return null;
+			}
+			if ( is_array( $aud ) && ! in_array( DEF_CORE_AUDIENCE, $aud, true ) ) {
+				return null;
+			}
 		}
 
 		return $payload;
