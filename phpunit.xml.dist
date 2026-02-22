@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<phpunit
+	bootstrap="tests/wpunit/bootstrap.php"
+	backupGlobals="false"
+	colors="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+>
+	<testsuites>
+		<testsuite name="def-core-wpunit">
+			<directory suffix=".php">tests/wpunit</directory>
+		</testsuite>
+	</testsuites>
+	<groups>
+		<exclude>
+			<group>woocommerce</group>
+		</exclude>
+	</groups>
+	<php>
+		<const name="WP_TESTS_MULTISITE" value="0" />
+	</php>
+</phpunit>

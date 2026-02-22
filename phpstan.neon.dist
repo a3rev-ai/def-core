@@ -1,0 +1,14 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 3
+    paths:
+        - includes
+        - def-core.php
+    excludePaths:
+        - vendor
+        - node_modules
+        - tests
+    scanDirectories:
+        - includes

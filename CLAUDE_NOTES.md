@@ -1,6 +1,42 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-02-06
+## Latest Session: 2026-02-22
+
+### Testing Ramp-Up — Implementation Complete
+
+**Branch:** `testing-ramp-up` (from main)
+
+**What was built (A-F):**
+
+A. **Foundation:** `package.json` (wp-env + npm scripts), `.wp-env.json` (WP test env), `composer.json` (PHPUnit 9.6, PHPCS, PHPStan), `.gitignore` updated (vendor/, composer.lock, .phpunit.result.cache)
+
+B. **Smoke Harness:** `tests/smoke/smoke-test.sh` — 7 checks: WP boots, plugin activates, REST routes registered, JWKS responds, auth enforced (401), no PHP errors, WC routes absent
+
+C. **PHPUnit Infrastructure:** `phpunit.xml.dist` (scans `tests/wpunit/` only, excludes `@group woocommerce`), `tests/wpunit/bootstrap.php` (loads from `/wordpress-phpunit/`), `tests/wp-tests-config-template.php` (DB config for container)
+
+D. **PHPUnit Integration Tests (28 tests, 170 assertions):**
+- D1: `test-route-registration.php` (6 tests) — core/staff-ai/escalation routes, WC routes absent, permission callbacks, HTTP methods
+- D2: `test-permission-callbacks.php` (10 tests) — JWKS public, context-token auth, staff-ai capability gates, admin status, escalation auth
+- D3: `test-bridge-security.php` (5 tests) — no JWT leaks, no stack traces, JWKS structure, filename sanitization, MIME type policy
+- D4: `test-woocommerce-optionality.php` (3 tests) — plugin loads, core routes work, WC routes absent
+- D5: `test-jwt-integration.php` (4 tests) — keypair generation, issue/verify roundtrip, JWKS endpoint, context token for auth user
+
+E. **Static Checks (report-only):** `phpcs.xml.dist` (WPCS + PHPCompatibility 8.0+), `phpstan.neon.dist` (level 3 with WordPress extension)
+
+**All tests pass:**
+- `npm run smoke` — 8/8 passed
+- `npm run test:phpunit` — 28/28 passed (170 assertions)
+- `php tests/run.php` — 174/174 passed (existing tests unchanged)
+- `npm run lint:phpcs` — report produced
+- `npm run lint:phpstan` — report produced (32 errors, all expected plugin-constant-not-found)
+
+**Container notes:** wp-env used container names `tests-cli`, `tests-wordpress`, `cli`, `wordpress`. WP test library installed from WP 6.7.2 develop (newer than the cached WP 6.4.1 core, but forward-compatible with PHPUnit 9.6 polyfills). DNS issue on this machine requires seeding `~/.wp-env/<hash>/wp-env-cache.json` with `latestWordPressVersion`.
+
+**Status:** Code complete, all tests pass. Ready for commit + PR.
+
+---
+
+## Previous Session: 2026-02-06
 
 ### Updated Python Backend README and Environment Examples
 

@@ -1,0 +1,23 @@
+{
+  "name": "a3rev/def-core",
+  "description": "Digital Employee Framework - Core WordPress Plugin (dev tooling)",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "require-dev": {
+    "phpunit/phpunit": "^9.6",
+    "yoast/phpunit-polyfills": "^2.0",
+    "wp-coding-standards/wpcs": "^3.0",
+    "phpstan/phpstan": "^1.10",
+    "szepeviktor/phpstan-wordpress": "^1.3",
+    "phpcompatibility/phpcompatibility-wp": "^2.1"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "scripts": {
+    "phpcs": "phpcs",
+    "phpstan": "phpstan analyse --no-progress"
+  }
+}
