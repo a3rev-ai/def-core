@@ -551,16 +551,13 @@ final class DEF_Core_Staff_AI
 			}
 		}
 
-		// Include channel and employee info from Staff AI response
-		$employee = isset($result['employee']) ? $result['employee'] : '';
-		$channel  = isset($result['channel']) ? $result['channel'] : 'staff_ai';
+		$channel = isset($result['channel']) ? $result['channel'] : 'staff_ai';
 
 		return new \WP_REST_Response(
 			array(
 				'success'      => true,
 				'thread_id'    => $result['thread_id'] ?? $thread_id,
 				'channel'      => $channel,
-				'employee'     => $employee,
 				'tool_invoked' => $result['tool_invoked'] ?? null,
 				'message'      => array(
 					'role'         => 'assistant',
@@ -1314,15 +1311,6 @@ final class DEF_Core_Staff_AI
 		$user    = wp_get_current_user();
 		$channel = 'staff_ai';
 
-		// Determine assistant type based on capability.
-		$assistant_type = $user->has_cap('def_management_access')
-			? 'management'
-			: 'staff';
-
-		$assistant_label = ('management' === $assistant_type)
-			? __('Management Knowledge Assistant', 'def-core')
-			: __('Staff Knowledge Assistant', 'def-core');
-
 		// REST API data for JS - Staff AI adapter endpoints.
 		$api_base = rest_url(DEF_CORE_API_NAME_SPACE . '/staff-ai');
 		$nonce    = wp_create_nonce('wp_rest');
@@ -1346,7 +1334,7 @@ final class DEF_Core_Staff_AI
 		<head>
 			<meta charset="<?php bloginfo('charset'); ?>">
 			<meta name="viewport" content="width=device-width, initial-scale=1">
-			<title><?php echo esc_html($assistant_label); ?> - <?php bloginfo('name'); ?></title>
+			<title><?php echo esc_html__('Staff AI', 'def-core'); ?> - <?php bloginfo('name'); ?></title>
 			<style>
 				* {
 					margin: 0;
@@ -1493,13 +1481,6 @@ final class DEF_Core_Staff_AI
 				.menu-toggle svg {
 					width: 20px;
 					height: 20px;
-				}
-
-				.assistant-label {
-					flex: 1;
-					font-size: 14px;
-					font-weight: 500;
-					color: rgba(255, 255, 255, 0.9);
 				}
 
 				.header-actions {
@@ -2055,7 +2036,6 @@ final class DEF_Core_Staff_AI
 				data-channel="<?php echo esc_attr($channel); ?>"
 				data-user-id="<?php echo esc_attr((string) $user->ID); ?>"
 				data-user-email="<?php echo esc_attr($user->user_email); ?>"
-				data-assistant-type="<?php echo esc_attr($assistant_type); ?>"
 				data-api-base="<?php echo esc_url($api_base); ?>"
 				data-nonce="<?php echo esc_attr($nonce); ?>">
 
@@ -2095,7 +2075,6 @@ final class DEF_Core_Staff_AI
 						</button>
 						<div class="header-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Logo is escaped in wp_get_attachment_image or esc_html 
 													?></div>
-						<span class="assistant-label"><?php echo esc_html($assistant_label); ?></span>
 						<span class="readonly-indicator" id="readonlyIndicator"><?php echo esc_html__('Read-only (shared)', 'def-core'); ?></span>
 						<div class="header-actions">
 							<button type="button" class="header-btn" id="exportBtn" disabled><?php echo esc_html__('Export', 'def-core'); ?></button>
@@ -2106,7 +2085,6 @@ final class DEF_Core_Staff_AI
 					<div class="messages-container" id="messagesContainer">
 						<div class="messages-list" id="messagesList">
 							<div class="welcome-message" id="welcomeMessage">
-								<h2><?php echo esc_html($assistant_label); ?></h2>
 								<p><?php echo esc_html__('How can I help you today?', 'def-core'); ?></p>
 							</div>
 						</div>
@@ -2246,7 +2224,6 @@ final class DEF_Core_Staff_AI
 					const channel = app.dataset.channel;
 					const userId = app.dataset.userId;
 					const userEmail = app.dataset.userEmail;
-					const assistantType = app.dataset.assistantType;
 					const apiBase = app.dataset.apiBase;
 					const nonce = app.dataset.nonce;
 
