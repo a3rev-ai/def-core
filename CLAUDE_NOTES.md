@@ -2,9 +2,11 @@
 
 ## Latest Session: 2026-02-22
 
-### Testing Ramp-Up — Implementation Complete
+### Testing Ramp-Up — MERGED ✓
 
-**Branch:** `testing-ramp-up` (from main)
+**Branch:** `testing-ramp-up` → merged to `main`
+**PR:** https://github.com/a3rev-ai/def-core/pull/10
+**Commit:** `e67a73b`
 
 **What was built (A-F):**
 
@@ -32,7 +34,7 @@ E. **Static Checks (report-only):** `phpcs.xml.dist` (WPCS + PHPCompatibility 8.
 
 **Container notes:** wp-env used container names `tests-cli`, `tests-wordpress`, `cli`, `wordpress`. WP test library installed from WP 6.7.2 develop (newer than the cached WP 6.4.1 core, but forward-compatible with PHPUnit 9.6 polyfills). DNS issue on this machine requires seeding `~/.wp-env/<hash>/wp-env-cache.json` with `latestWordPressVersion`.
 
-**Status:** Code complete, all tests pass. Ready for commit + PR.
+**Status:** Merged via PR #10. Follow-up PR #11 added README updates and docs/TESTING.md.
 
 ---
 
