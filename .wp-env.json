@@ -1,0 +1,22 @@
+{
+  "core": "WordPress/WordPress#6.9.1",
+  "phpVersion": "8.0",
+  "plugins": [ "." ],
+  "config": {
+    "WP_DEBUG": true,
+    "WP_DEBUG_LOG": true,
+    "SCRIPT_DEBUG": true
+  },
+  "env": {
+    "tests": {
+      "core": "WordPress/WordPress#6.9.1",
+      "phpVersion": "8.0",
+      "plugins": [ "." ],
+      "config": {
+        "WP_DEBUG": true,
+        "WP_DEBUG_LOG": true,
+        "SCRIPT_DEBUG": true
+      }
+    }
+  }
+}
