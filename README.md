@@ -1,63 +1,54 @@
 # Digital Employee Framework - Core
 
-## Purpose
+## Overview
 
-This repository contains the WordPress bridge plugin for the Digital Employee Framework.
+WordPress bridge plugin for the **Digital Employee Framework (DEF)**. Connects WordPress sites to AI digital employees running in the DEF backend. The plugin handles authentication, UI rendering, and request routing — all business logic, tool execution, and governance live in the framework.
 
-The bridge provides:
-- Authentication between WordPress and the Digital Employee Framework
-- UI integration for chat and internal tools
-- Request routing from WordPress to the framework API
+Optional native integrations (WooCommerce, bbPress, etc.) are loaded only when the respective plugin is active. WooCommerce is not a dependency.
 
-**This plugin does not implement business logic, autonomy rules, or execution authority. All decision-making and actions are governed exclusively by the Digital Employee Framework.**
+## Architecture
 
-## What This Plugin Is
+```
+WordPress (UI + Auth Context)
+        ↓
+def-core (Bridge Plugin)
+        ↓
+Digital Employee Framework (Authority, Tools, Execution)
+```
 
-- A delivery and integration layer for WordPress
-- A secure client for the Digital Employee Framework API
-- A UI surface for customer-facing and staff-facing experiences
+The bridge is intentionally thin.
 
-## What This Plugin Is Not (Non-Negotiable)
+## What This Plugin Does
 
-This plugin must not:
+- JWT handling and session context
+- Secure API communication with the framework
+- Chat and assistant UI components (customer-facing and staff-facing)
+- User identity, role, and tenant context passthrough
+- Optional integration endpoints (WooCommerce tools, etc.) when plugins are present
+
+## What This Plugin Does Not Do
+
 - Contain business rules or workflows
 - Implement autonomy tiers or execution logic
 - Decide whether actions are allowed
 - Call third-party systems directly
 - Bypass the framework's tool contracts
-- Persist operational state outside WordPress UI needs
 
 **If logic is required, it belongs in the Digital Employee Framework, not here.**
 
-## Architecture Overview
+## Development & Testing
 
+Quick start:
+
+```bash
+php tests/run.php          # Unit tests (no Docker needed)
+npm run env:start          # Start WordPress Docker environment
+npm run smoke              # Smoke test on latest WP
+npm run env:stop           # Stop containers
+gitleaks detect            # Secret scanning
 ```
-WordPress (UI + Auth Context)
-        ↓
-WordPress Bridge Plugin
-        ↓
-Digital Employee Framework (Authority, Tools, Execution)
-```
 
-**The bridge is intentionally thin.**
-
-## Responsibilities
-
-The bridge plugin is responsible for:
-- JWT handling and session context
-- Secure API communication with the framework
-- Rendering chat or assistant UI components
-- Passing user identity, role, and tenant context
-- Displaying results returned by the framework
-
-## Explicit Non-Responsibilities
-
-The bridge plugin does not:
-- Make decisions
-- Execute actions
-- Modify business data
-- Enforce autonomy rules
-- Log or audit execution (handled by the framework)
+See [docs/TESTING.md](docs/TESTING.md) for the full testing policy, all npm scripts, and the PR Gate / compatibility / static-check tiers.
 
 ## Security Model
 
@@ -68,7 +59,7 @@ The bridge plugin does not:
 
 ## Repository Boundaries
 
-- This repository is part of the a3rev-ai organization.
+- This repository is part of the a3rev-ai organization
 - Framework code lives in: `digital-employee-framework`
 - Client-specific plugins and modules live in private repositories
 - This repo must remain reusable across clients
