@@ -26,6 +26,12 @@ The bridge is intentionally thin.
 - User identity, role, and tenant context passthrough
 - Optional integration endpoints (WooCommerce tools, etc.) when plugins are present
 
+## WooCommerce Integration (Optional)
+
+When WooCommerce is active, def-core registers additional tool endpoints (product search, cart operations, order lookup, etc.) that digital employees can invoke through the framework. When WooCommerce is absent, these routes are not registered and the plugin operates normally without them.
+
+Future optional integrations (bbPress, CRMs, etc.) follow the same pattern — loaded only when the respective plugin is detected.
+
 ## What This Plugin Does Not Do
 
 - Contain business rules or workflows
