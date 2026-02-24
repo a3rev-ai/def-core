@@ -164,16 +164,8 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Invoke a tool.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/tools/invoke',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_invoke_tool'),
-			)
-		);
+		// Tool invocation now goes through /staff-ai/chat (Orchestrator).
+		// The /staff-ai/tools/invoke endpoint was removed in PR #19.
 
 		// File download proxy.
 		register_rest_route(
@@ -767,64 +759,6 @@ final class DEF_Core_Staff_AI
 	public static function rest_list_tools(\WP_REST_Request $request)
 	{
 		$result = self::backend_request('GET', '/api/staff-ai/tools');
-
-		if (is_wp_error($result)) {
-			$code    = $result->get_error_code();
-			$message = $result->get_error_message();
-			$data    = $result->get_error_data();
-			$status  = isset($data['status']) ? (int) $data['status'] : 500;
-
-			return new \WP_REST_Response(
-				array(
-					'code'    => $code,
-					'message' => $message,
-					'data'    => array('status' => $status),
-				),
-				$status
-			);
-		}
-
-		return new \WP_REST_Response($result, 200);
-	}
-
-	/**
-	 * REST handler: Invoke a tool.
-	 *
-	 * Proxies to Python backend /api/staff-ai/tools/invoke
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response with tool result.
-	 * @since 1.2.0
-	 */
-	public static function rest_invoke_tool(\WP_REST_Request $request)
-	{
-		$params = $request->get_json_params();
-
-		// Validate required fields.
-		if (empty($params['tool_name'])) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'missing_tool_name',
-					'message' => __('Tool name is required.', 'def-core'),
-				),
-				400
-			);
-		}
-
-		if (empty($params['parameters']) || ! is_array($params['parameters'])) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'missing_parameters',
-					'message' => __('Tool parameters are required.', 'def-core'),
-				),
-				400
-			);
-		}
-
-		$result = self::backend_request('POST', '/api/staff-ai/tools/invoke', array(
-			'tool_name'  => sanitize_text_field($params['tool_name']),
-			'parameters' => $params['parameters'],
-		));
 
 		if (is_wp_error($result)) {
 			$code    = $result->get_error_code();
@@ -2790,8 +2724,8 @@ final class DEF_Core_Staff_AI
 						if (e.target === createModal) createModal.classList.remove('visible');
 					});
 
-					// Submit tool invocation
-					createSubmit.addEventListener('click', async function() {
+					// Submit tool creation via chat
+					createSubmit.addEventListener('click', function() {
 						const toolName = createToolType.value;
 						const format = createFormat.value;
 						const title = createTitle.value.trim();
@@ -2805,69 +2739,28 @@ final class DEF_Core_Staff_AI
 						}
 
 						createError.classList.remove('visible');
-						createSubmit.disabled = true;
-						createSubmit.textContent = '<?php echo esc_js(__('Creating...', 'def-core')); ?>';
 
-						try {
-							const result = await apiRequest('/tools/invoke', {
-								method: 'POST',
-								body: JSON.stringify({
-									tool_name: toolName,
-									parameters: {
-										format: format,
-										title: title || undefined,
-										prompt: prompt,
-										conversation_id: currentConversationId || undefined
-									}
-								})
-							});
-
-							createModal.classList.remove('visible');
-
-							// Add tool result as a message card
-							if (result.success && result.result) {
-								const toolResult = result.result;
-
-								// Check if the tool itself reported success
-								if (toolResult.success !== false && toolResult.download_url) {
-									// Success with file download
-									messages.push({
-										role: 'assistant',
-										content: toolResult.message || '<?php echo esc_js(__('File created successfully.', 'def-core')); ?>',
-										tool_outputs: [{
-											file_name: toolResult.file_name || toolResult.filename || '<?php echo esc_js(__('Download', 'def-core')); ?>',
-											file_type: toolResult.file_type || toolResult.format || format.toUpperCase(),
-											download_url: toolResult.download_url || toolResult.file_url || '#',
-											expires_at: toolResult.expires_at || null
-										}]
-									});
-								} else {
-									// Tool reported an error or no download available
-									messages.push({
-										role: 'assistant',
-										content: toolResult.message || toolResult.error || '<?php echo esc_js(__('Tool execution completed but no file was generated.', 'def-core')); ?>',
-										tool_outputs: []
-									});
-								}
-								renderMessages();
-							} else {
-								// API-level error
-								const errorMsg = (result.result && result.result.message) || result.error || result.message || '<?php echo esc_js(__('Tool execution failed.', 'def-core')); ?>';
-								messages.push({
-									role: 'assistant',
-									content: errorMsg,
-									tool_outputs: []
-								});
-								renderMessages();
-							}
-						} catch (err) {
-							console.error('Tool invocation failed:', err);
-							createError.textContent = err.message || '<?php echo esc_js(__('Failed to create. Please try again.', 'def-core')); ?>';
-							createError.classList.add('visible');
-						} finally {
-							createSubmit.disabled = false;
-							createSubmit.textContent = '<?php echo esc_js(__('Create', 'def-core')); ?>';
+						// Build a chat message from the form fields
+						const toolLabel = toolName === 'create_document' ? 'document' : toolName === 'create_spreadsheet' ? 'spreadsheet' : 'image';
+						let chatMessage = 'Create a ' + format.toUpperCase() + ' ' + toolLabel;
+						if (title) {
+							chatMessage += ' titled "' + title + '"';
 						}
+						chatMessage += ' with these instructions:\n\n' + prompt;
+
+						// Close modal and send through normal chat flow
+						createModal.classList.remove('visible');
+						createToolType.value = 'create_document';
+						createFormat.value = 'pdf';
+						createTitle.value = '';
+						createPrompt.value = '';
+						createError.classList.remove('visible');
+						createFormatGroup.style.display = '';
+
+						// Inject into composer and send
+						composerInput.value = chatMessage;
+						autoResize();
+						sendMessage();
 					});
 
 					// Focus input on load
