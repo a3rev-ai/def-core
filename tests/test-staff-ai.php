@@ -246,7 +246,6 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/escalate',
 	'a3-ai/v1/staff-ai/status',
 	'a3-ai/v1/staff-ai/tools',
-	'a3-ai/v1/staff-ai/tools/invoke',
 	'a3-ai/v1/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)',
 );
 
@@ -272,7 +271,6 @@ foreach ( $_wp_test_rest_routes as $route => $args ) {
 echo "\n[3] HTTP methods\n";
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/conversations']['methods'], 'conversations = GET' );
 assert_equals( 'POST', $_wp_test_rest_routes['a3-ai/v1/staff-ai/chat']['methods'], 'chat = POST' );
-assert_equals( 'POST', $_wp_test_rest_routes['a3-ai/v1/staff-ai/tools/invoke']['methods'], 'tools/invoke = POST' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/tools']['methods'], 'tools = GET' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/status']['methods'], 'status = GET' );
 
