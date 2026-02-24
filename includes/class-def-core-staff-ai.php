@@ -164,16 +164,8 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Invoke a tool.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/tools/invoke',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_invoke_tool'),
-			)
-		);
+		// Tool invocation now goes through /staff-ai/chat (Orchestrator).
+		// The /staff-ai/tools/invoke endpoint was removed in PR #19.
 
 		// File download proxy.
 		register_rest_route(
@@ -528,26 +520,37 @@ final class DEF_Core_Staff_AI
 		// Extract tool_outputs from Python response (for chat-invoked tools)
 		if (isset($result['choices'][0]['message']['tool_outputs']) && is_array($result['choices'][0]['message']['tool_outputs'])) {
 			foreach ($result['choices'][0]['message']['tool_outputs'] as $tool_output) {
-				// Rewrite download URL to use WordPress proxy endpoint
-				$download_url = $tool_output['download_url'] ?? '';
-				if (!empty($download_url) && strpos($download_url, '/api/files/') === 0) {
-					// Extract tenant and filename from /api/files/{tenant}/{filename}
-					$path_part = str_replace('/api/files/', '', $download_url);
-					$path_parts = explode('/', $path_part, 2);
-					if (count($path_parts) === 2) {
-						$tenant = $path_parts[0];
-						$filename = $path_parts[1];
-						// Properly URL-encode the filename for the URL
-						$download_url = home_url('/staff-ai-download/' . rawurlencode($tenant) . '/' . rawurlencode($filename));
-					}
-				}
+				$output_type = $tool_output['type'] ?? 'file';
 
-				$tool_outputs[] = array(
-					'file_name'    => $tool_output['file_name'] ?? '',
-					'file_type'    => $tool_output['file_type'] ?? '',
-					'download_url' => $download_url,
-					'expires_at'   => $tool_output['expires_at'] ?? null,
-				);
+				if ($output_type === 'escalation_offer') {
+					// Escalation offer — pass through type, reason, reason_code
+					$tool_outputs[] = array(
+						'type'        => 'escalation_offer',
+						'reason'      => $tool_output['reason'] ?? '',
+						'reason_code' => $tool_output['reason_code'] ?? 'general',
+					);
+				} else {
+					// File output — rewrite download URL to use WordPress proxy endpoint
+					$download_url = $tool_output['download_url'] ?? '';
+					if (!empty($download_url) && strpos($download_url, '/api/files/') === 0) {
+						// Extract tenant and filename from /api/files/{tenant}/{filename}
+						$path_part = str_replace('/api/files/', '', $download_url);
+						$path_parts = explode('/', $path_part, 2);
+						if (count($path_parts) === 2) {
+							$tenant = $path_parts[0];
+							$filename = $path_parts[1];
+							// Properly URL-encode the filename for the URL
+							$download_url = home_url('/staff-ai-download/' . rawurlencode($tenant) . '/' . rawurlencode($filename));
+						}
+					}
+
+					$tool_outputs[] = array(
+						'file_name'    => $tool_output['file_name'] ?? '',
+						'file_type'    => $tool_output['file_type'] ?? '',
+						'download_url' => $download_url,
+						'expires_at'   => $tool_output['expires_at'] ?? null,
+					);
+				}
 			}
 		}
 
@@ -756,64 +759,6 @@ final class DEF_Core_Staff_AI
 	public static function rest_list_tools(\WP_REST_Request $request)
 	{
 		$result = self::backend_request('GET', '/api/staff-ai/tools');
-
-		if (is_wp_error($result)) {
-			$code    = $result->get_error_code();
-			$message = $result->get_error_message();
-			$data    = $result->get_error_data();
-			$status  = isset($data['status']) ? (int) $data['status'] : 500;
-
-			return new \WP_REST_Response(
-				array(
-					'code'    => $code,
-					'message' => $message,
-					'data'    => array('status' => $status),
-				),
-				$status
-			);
-		}
-
-		return new \WP_REST_Response($result, 200);
-	}
-
-	/**
-	 * REST handler: Invoke a tool.
-	 *
-	 * Proxies to Python backend /api/staff-ai/tools/invoke
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response with tool result.
-	 * @since 1.2.0
-	 */
-	public static function rest_invoke_tool(\WP_REST_Request $request)
-	{
-		$params = $request->get_json_params();
-
-		// Validate required fields.
-		if (empty($params['tool_name'])) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'missing_tool_name',
-					'message' => __('Tool name is required.', 'def-core'),
-				),
-				400
-			);
-		}
-
-		if (empty($params['parameters']) || ! is_array($params['parameters'])) {
-			return new \WP_REST_Response(
-				array(
-					'code'    => 'missing_parameters',
-					'message' => __('Tool parameters are required.', 'def-core'),
-				),
-				400
-			);
-		}
-
-		$result = self::backend_request('POST', '/api/staff-ai/tools/invoke', array(
-			'tool_name'  => sanitize_text_field($params['tool_name']),
-			'parameters' => $params['parameters'],
-		));
 
 		if (is_wp_error($result)) {
 			$code    = $result->get_error_code();
@@ -1802,25 +1747,41 @@ final class DEF_Core_Staff_AI
 					height: 16px;
 				}
 
-				.escalate-btn {
-					background: transparent;
-					border: 1px solid rgba(251, 191, 36, 0.4);
-					border-radius: 8px;
+				.escalation-suggestion {
+					background: rgba(251, 191, 36, 0.08);
+					border: 1px solid rgba(251, 191, 36, 0.3);
+					border-radius: 10px;
+					padding: 12px 16px;
+					margin-top: 8px;
+				}
+
+				.escalation-suggestion-header {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					margin-bottom: 8px;
 					color: #fbbf24;
-					padding: 8px 12px;
+					font-size: 13px;
+					font-weight: 600;
+				}
+
+				.escalation-suggestion-header svg {
+					width: 16px;
+					height: 16px;
+					flex-shrink: 0;
+				}
+
+				.escalation-suggestion-reason {
+					font-size: 13px;
+					color: rgba(255, 255, 255, 0.7);
+					line-height: 1.5;
+					margin-bottom: 8px;
+				}
+
+				.escalation-suggestion-hint {
 					font-size: 12px;
-					cursor: pointer;
-					white-space: nowrap;
-					transition: background 0.15s;
-				}
-
-				.escalate-btn:hover {
-					background: rgba(251, 191, 36, 0.1);
-				}
-
-				.escalate-btn:disabled {
-					opacity: 0.5;
-					cursor: not-allowed;
+					color: rgba(255, 255, 255, 0.4);
+					font-style: italic;
 				}
 
 				.create-btn {
@@ -2118,8 +2079,7 @@ final class DEF_Core_Staff_AI
 									</svg>
 									<?php echo esc_html__('Create', 'def-core'); ?>
 								</button>
-								<button type="button" class="escalate-btn" id="escalateBtn" disabled><?php echo esc_html__('Escalate', 'def-core'); ?></button>
-							</div>
+								</div>
 							<div class="composer-hint">
 								<?php echo esc_html__('Press Enter to send, Shift+Enter for new line', 'def-core'); ?>
 							</div>
@@ -2146,30 +2106,6 @@ final class DEF_Core_Staff_AI
 						<div class="modal-footer">
 							<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
 							<button type="button" class="modal-btn modal-btn-primary" id="shareSubmit"><?php echo esc_html__('Share', 'def-core'); ?></button>
-						</div>
-					</div>
-				</div>
-
-				<!-- Escalate Modal -->
-				<div class="modal-overlay" id="escalateModal">
-					<div class="modal">
-						<div class="modal-header">
-							<span class="modal-title"><?php echo esc_html__('Escalate for Review', 'def-core'); ?></span>
-							<button type="button" class="modal-close" id="escalateModalClose">&times;</button>
-						</div>
-						<div class="modal-body">
-							<div class="form-group">
-								<label class="form-label"><?php echo esc_html__('Your email', 'def-core'); ?></label>
-								<input type="email" class="form-input" id="escalateEmail" disabled>
-							</div>
-							<div class="form-group">
-								<label class="form-label"><?php echo esc_html__('Note (optional)', 'def-core'); ?></label>
-								<textarea class="form-input" id="escalateNote" rows="3" placeholder="<?php echo esc_attr__('What do you want reviewed?', 'def-core'); ?>"></textarea>
-							</div>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="modal-btn modal-btn-secondary" id="escalateCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
-							<button type="button" class="modal-btn modal-btn-primary" id="escalateSubmit"><?php echo esc_html__('Submit Escalation', 'def-core'); ?></button>
 						</div>
 					</div>
 				</div>
@@ -2272,22 +2208,12 @@ final class DEF_Core_Staff_AI
 					const composerContainer = document.getElementById('composerContainer');
 					const composerInput = document.getElementById('composerInput');
 					const sendBtn = document.getElementById('sendBtn');
-					const escalateBtn = document.getElementById('escalateBtn');
-
 					// Share modal elements
 					const shareModal = document.getElementById('shareModal');
 					const shareModalClose = document.getElementById('shareModalClose');
 					const shareEmail = document.getElementById('shareEmail');
 					const shareCancel = document.getElementById('shareCancel');
 					const shareSubmit = document.getElementById('shareSubmit');
-
-					// Escalate modal elements
-					const escalateModal = document.getElementById('escalateModal');
-					const escalateModalClose = document.getElementById('escalateModalClose');
-					const escalateEmail = document.getElementById('escalateEmail');
-					const escalateNote = document.getElementById('escalateNote');
-					const escalateCancel = document.getElementById('escalateCancel');
-					const escalateSubmit = document.getElementById('escalateSubmit');
 
 					// State
 					let conversations = [];
@@ -2297,7 +2223,6 @@ final class DEF_Core_Staff_AI
 					let isReadOnly = false;
 
 					// Initialize
-					escalateEmail.value = userEmail;
 					loadConversations();
 
 					// Sidebar toggle (mobile)
@@ -2410,11 +2335,9 @@ final class DEF_Core_Staff_AI
 						if (isReadOnly) {
 							readonlyIndicator.classList.add('visible');
 							composerContainer.classList.add('disabled');
-							escalateBtn.disabled = true;
 						} else {
 							readonlyIndicator.classList.remove('visible');
 							composerContainer.classList.remove('disabled');
-							escalateBtn.disabled = !currentConversationId;
 						}
 						shareBtn.disabled = !currentConversationId;
 					}
@@ -2548,6 +2471,31 @@ final class DEF_Core_Staff_AI
 
 					// Create tool output card
 					function createToolOutputCard(tool) {
+						// Escalation offer — inline suggestion card
+						if (tool.type === 'escalation_offer') {
+							const card = document.createElement('div');
+							card.className = 'escalation-suggestion';
+
+							const header = document.createElement('div');
+							header.className = 'escalation-suggestion-header';
+							header.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> <?php echo esc_js(__('Internal Handoff Suggested', 'def-core')); ?>';
+
+							const reason = document.createElement('div');
+							reason.className = 'escalation-suggestion-reason';
+							reason.textContent = tool.reason || '';
+
+							const hint = document.createElement('div');
+							hint.className = 'escalation-suggestion-hint';
+							hint.textContent = '<?php echo esc_js(__('Use the Share button to hand off this conversation to another team member.', 'def-core')); ?>';
+
+							card.appendChild(header);
+							card.appendChild(reason);
+							card.appendChild(hint);
+
+							return card;
+						}
+
+						// File output — download card
 						const card = document.createElement('div');
 						card.className = 'tool-output-card';
 
@@ -2684,51 +2632,9 @@ final class DEF_Core_Staff_AI
 						}
 					});
 
-					// Escalate modal handlers
-					escalateBtn.addEventListener('click', function() {
-						escalateNote.value = '';
-						escalateModal.classList.add('visible');
-					});
-
-					escalateModalClose.addEventListener('click', function() {
-						escalateModal.classList.remove('visible');
-					});
-
-					escalateCancel.addEventListener('click', function() {
-						escalateModal.classList.remove('visible');
-					});
-
-					escalateSubmit.addEventListener('click', async function() {
-						if (!currentConversationId) return;
-
-						escalateSubmit.disabled = true;
-
-						try {
-							const note = escalateNote.value.trim();
-							const result = await apiRequest('/escalate', {
-								method: 'POST',
-								body: JSON.stringify({
-									conversation_id: currentConversationId,
-									note: note
-								})
-							});
-							escalateModal.classList.remove('visible');
-							showInfo(result.message || '<?php echo esc_js(__('Escalated for review — you can continue working while this is reviewed.', 'def-core')); ?>');
-							// Conversation remains active (non-terminal)
-						} catch (err) {
-							showError('<?php echo esc_js(__('Failed to submit escalation.', 'def-core')); ?>');
-						} finally {
-							escalateSubmit.disabled = false;
-						}
-					});
-
 					// Close modals on overlay click
 					shareModal.addEventListener('click', function(e) {
 						if (e.target === shareModal) shareModal.classList.remove('visible');
-					});
-
-					escalateModal.addEventListener('click', function(e) {
-						if (e.target === escalateModal) escalateModal.classList.remove('visible');
 					});
 
 					// =============================================
@@ -2818,8 +2724,8 @@ final class DEF_Core_Staff_AI
 						if (e.target === createModal) createModal.classList.remove('visible');
 					});
 
-					// Submit tool invocation
-					createSubmit.addEventListener('click', async function() {
+					// Submit tool creation via chat
+					createSubmit.addEventListener('click', function() {
 						const toolName = createToolType.value;
 						const format = createFormat.value;
 						const title = createTitle.value.trim();
@@ -2833,69 +2739,28 @@ final class DEF_Core_Staff_AI
 						}
 
 						createError.classList.remove('visible');
-						createSubmit.disabled = true;
-						createSubmit.textContent = '<?php echo esc_js(__('Creating...', 'def-core')); ?>';
 
-						try {
-							const result = await apiRequest('/tools/invoke', {
-								method: 'POST',
-								body: JSON.stringify({
-									tool_name: toolName,
-									parameters: {
-										format: format,
-										title: title || undefined,
-										prompt: prompt,
-										conversation_id: currentConversationId || undefined
-									}
-								})
-							});
-
-							createModal.classList.remove('visible');
-
-							// Add tool result as a message card
-							if (result.success && result.result) {
-								const toolResult = result.result;
-
-								// Check if the tool itself reported success
-								if (toolResult.success !== false && toolResult.download_url) {
-									// Success with file download
-									messages.push({
-										role: 'assistant',
-										content: toolResult.message || '<?php echo esc_js(__('File created successfully.', 'def-core')); ?>',
-										tool_outputs: [{
-											file_name: toolResult.file_name || toolResult.filename || '<?php echo esc_js(__('Download', 'def-core')); ?>',
-											file_type: toolResult.file_type || toolResult.format || format.toUpperCase(),
-											download_url: toolResult.download_url || toolResult.file_url || '#',
-											expires_at: toolResult.expires_at || null
-										}]
-									});
-								} else {
-									// Tool reported an error or no download available
-									messages.push({
-										role: 'assistant',
-										content: toolResult.message || toolResult.error || '<?php echo esc_js(__('Tool execution completed but no file was generated.', 'def-core')); ?>',
-										tool_outputs: []
-									});
-								}
-								renderMessages();
-							} else {
-								// API-level error
-								const errorMsg = (result.result && result.result.message) || result.error || result.message || '<?php echo esc_js(__('Tool execution failed.', 'def-core')); ?>';
-								messages.push({
-									role: 'assistant',
-									content: errorMsg,
-									tool_outputs: []
-								});
-								renderMessages();
-							}
-						} catch (err) {
-							console.error('Tool invocation failed:', err);
-							createError.textContent = err.message || '<?php echo esc_js(__('Failed to create. Please try again.', 'def-core')); ?>';
-							createError.classList.add('visible');
-						} finally {
-							createSubmit.disabled = false;
-							createSubmit.textContent = '<?php echo esc_js(__('Create', 'def-core')); ?>';
+						// Build a chat message from the form fields
+						const toolLabel = toolName === 'create_document' ? 'document' : toolName === 'create_spreadsheet' ? 'spreadsheet' : 'image';
+						let chatMessage = 'Create a ' + format.toUpperCase() + ' ' + toolLabel;
+						if (title) {
+							chatMessage += ' titled "' + title + '"';
 						}
+						chatMessage += ' with these instructions:\n\n' + prompt;
+
+						// Close modal and send through normal chat flow
+						createModal.classList.remove('visible');
+						createToolType.value = 'create_document';
+						createFormat.value = 'pdf';
+						createTitle.value = '';
+						createPrompt.value = '';
+						createError.classList.remove('visible');
+						createFormatGroup.style.display = '';
+
+						// Inject into composer and send
+						composerInput.value = chatMessage;
+						autoResize();
+						sendMessage();
 					});
 
 					// Focus input on load
