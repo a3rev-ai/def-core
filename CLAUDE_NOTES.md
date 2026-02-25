@@ -1,6 +1,43 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-02-22
+## Latest Session: 2026-02-25
+
+### Staff AI Share Form Overhaul — MERGED
+**PR:** https://github.com/a3rev-ai/def-core/pull/14 (branch: `staff-ai-share-form-overhaul`)
+
+**What was built (1 file: class-def-core-staff-ai.php, 5 commits):**
+- Share modal overhauled: 3 states (loading/error/form), AI-generated summary + editable subject/message
+- Token/chip multi-select recipient selector (WooCommerce Chosen-style vanilla JS)
+- Proxy routes (`/share-settings`, `/share-send`) bridging cookie/nonce auth → JWT escalation endpoints
+- Persistent share/error event banners in thread (stored in WP options `def_core_share_events_{thread_id}`)
+- Events merged into message list sorted by timestamp, rendered as green (share) / red (error) banners
+- `POST /staff-ai/conversations/{id}/share-event` endpoint for persisting events
+- `POST /staff-ai/conversations/{id}/summarize` route proxying to Python backend
+- Security: 100-event cap per thread, field whitelist on share-send proxy, sanitized thread_id inputs
+
+### Staff AI Light/Dark Mode Toggle — MERGED
+**PR:** https://github.com/a3rev-ai/def-core/pull/15 (branch: `staff-ai-light-dark-mode`)
+
+**What was built (1 file: class-def-core-staff-ai.php):**
+- Refactored all ~110 hardcoded CSS colors to ~45 CSS custom properties
+- `:root` = light theme (ChatGPT-style white, default), `.dark-theme` = dark theme overrides
+- Theme toggle button in header (sun/moon SVG icons), stays visible on mobile
+- Early inline `<script>` reads `localStorage` / `prefers-color-scheme` before paint (no flash)
+- Preference persisted via `localStorage.setItem('staff-ai-theme', 'dark'|'light')`
+- Smooth 0.2s CSS transitions on major layout elements (sidebar, header, composer, modal, inputs)
+- Responsive fix: only Export/Share buttons hide on mobile, theme toggle stays visible
+
+**CSS custom property groups:**
+- Backgrounds: `--bg-main`, `--bg-sidebar`, `--bg-input`, `--bg-modal`
+- Text: `--text-primary`, `--text-heading`, `--text-secondary`, `--text-tertiary`, `--text-placeholder`, `--text-faint`
+- Borders: `--border-light`, `--border-medium`, `--border-hover`, `--border-focus`
+- Interactive: `--hover-bg`, `--active-bg`
+- Accents (theme-stable): `--accent-green`, `--accent-green-hover`, `--accent-indigo`, `--avatar-user`
+- Banners, warning, chips, modal/overlay, spinner, tool output, typing dots — all tokenized
+
+---
+
+## Previous Session: 2026-02-22
 
 ### Testing Ramp-Up — MERGED ✓
 
