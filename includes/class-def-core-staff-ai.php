@@ -117,6 +117,17 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Store share event (persists share confirmation in conversation).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share-event',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_store_share_event'),
+			)
+		);
+
 		// Summarize conversation (AI-generated subject + summary for Share form).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -463,6 +474,33 @@ final class DEF_Core_Staff_AI
 			}
 		}
 
+		// Merge persisted thread events (share confirmations, errors) into the message list.
+		$option_key = 'def_core_share_events_' . sanitize_text_field($thread_id);
+		$thread_events = get_option($option_key, array());
+		if (!empty($thread_events) && is_array($thread_events)) {
+			foreach ($thread_events as $event) {
+				$type = $event['type'] ?? 'share';
+				if ('error' === $type) {
+					$messages[] = array(
+						'role'      => 'error_event',
+						'content'   => $event['message'] ?? 'Unknown error',
+						'timestamp' => $event['timestamp'] ?? '',
+					);
+				} else {
+					$messages[] = array(
+						'role'      => 'share_event',
+						'content'   => implode(', ', $event['recipients'] ?? array()),
+						'timestamp' => $event['timestamp'] ?? '',
+					);
+				}
+			}
+
+			// Re-sort by timestamp so events appear in correct position.
+			usort($messages, function ($a, $b) {
+				return strcmp($a['timestamp'] ?? '', $b['timestamp'] ?? '');
+			});
+		}
+
 		return new \WP_REST_Response(
 			array(
 				'success'  => true,
@@ -669,6 +707,56 @@ final class DEF_Core_Staff_AI
 		}
 
 		return \DEF_Core_Escalation::send_escalation_email($inner_request);
+	}
+
+	/**
+	 * REST handler: Store a thread event (share confirmation or error).
+	 *
+	 * Persists events as banners in the conversation thread across page loads.
+	 * Supported types: "share" (green) and "error" (red).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
+	 */
+	public static function rest_store_share_event(\WP_REST_Request $request)
+	{
+		$thread_id = sanitize_text_field($request->get_param('id'));
+		$body = $request->get_json_params();
+
+		$type = sanitize_text_field($body['type'] ?? 'share');
+		$timestamp = isset($body['timestamp']) ? sanitize_text_field($body['timestamp']) : gmdate('c');
+
+		if ('error' === $type) {
+			$message = sanitize_text_field($body['message'] ?? 'Unknown error');
+			$event = array(
+				'type'      => 'error',
+				'message'   => $message,
+				'timestamp' => $timestamp,
+				'user_id'   => get_current_user_id(),
+			);
+		} else {
+			$recipients = isset($body['recipients']) ? array_map('sanitize_email', (array) $body['recipients']) : array();
+			if (empty($recipients)) {
+				return new \WP_REST_Response(
+					array('success' => false, 'message' => 'No recipients provided.'),
+					400
+				);
+			}
+			$event = array(
+				'type'       => 'share',
+				'recipients' => $recipients,
+				'timestamp'  => $timestamp,
+				'user_id'    => get_current_user_id(),
+			);
+		}
+
+		$option_key = 'def_core_share_events_' . $thread_id;
+		$events = get_option($option_key, array());
+		$events[] = $event;
+		update_option($option_key, $events, false); // no autoload
+
+		return new \WP_REST_Response(array('success' => true), 200);
 	}
 
 	/**
@@ -2087,18 +2175,34 @@ final class DEF_Core_Staff_AI
 					text-align: center;
 				}
 
-				/* System message (ephemeral share confirmation) */
-				.message-system {
+				/* Thread event banners (persisted share/error) */
+				.message-share-event,
+				.message-error-event {
 					display: flex;
 					justify-content: center;
-					padding: 8px 16px;
-					margin: 4px 0;
+					padding: 20px 0;
 				}
 
-				.message-system-content {
-					font-size: 12px;
-					color: rgba(255,255,255,0.4);
-					font-style: italic;
+				.message-share-event-content {
+					background: rgba(34, 197, 94, 0.1);
+					border: 1px solid rgba(34, 197, 94, 0.3);
+					color: #86efac;
+					padding: 8px 16px;
+					border-radius: 8px;
+					font-size: 13px;
+					text-align: center;
+					max-width: 100%;
+				}
+
+				.message-error-event-content {
+					background: rgba(239, 68, 68, 0.1);
+					border: 1px solid rgba(239, 68, 68, 0.3);
+					color: #fca5a5;
+					padding: 8px 16px;
+					border-radius: 8px;
+					font-size: 13px;
+					text-align: center;
+					max-width: 100%;
 				}
 
 				/* Responsive */
@@ -2610,6 +2714,36 @@ final class DEF_Core_Staff_AI
 						msgElements.forEach(el => el.remove());
 
 						messages.forEach(function(msg) {
+							// Share event banner (green)
+							if (msg.role === 'share_event') {
+								const el = document.createElement('div');
+								el.className = 'message message-share-event';
+								const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
+								const dateStr = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+								const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+								el.innerHTML = '<span class="message-share-event-content">' +
+									'<?php echo esc_js(__('Shared with', 'def-core')); ?> ' +
+									escapeHtml(msg.content) + ' · ' + escapeHtml(dateStr) + ' ' + escapeHtml(timeStr) +
+									'</span>';
+								messagesList.appendChild(el);
+								return;
+							}
+
+							// Error event banner (red)
+							if (msg.role === 'error_event') {
+								const el = document.createElement('div');
+								el.className = 'message message-error-event';
+								const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
+								const dateStr = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+								const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+								el.innerHTML = '<span class="message-error-event-content">' +
+									'<?php echo esc_js(__('Share failed', 'def-core')); ?>: ' +
+									escapeHtml(msg.content) + ' · ' + escapeHtml(dateStr) + ' ' + escapeHtml(timeStr) +
+									'</span>';
+								messagesList.appendChild(el);
+								return;
+							}
+
 							const div = document.createElement('div');
 							div.className = 'message message-' + msg.role;
 
@@ -2871,6 +3005,7 @@ final class DEF_Core_Staff_AI
 							if (shareTranscript.checked && messages.length > 0) {
 								bodyText += '\n\n---\nConversation Transcript:\n\n';
 								messages.forEach(function(msg) {
+									if (msg.role !== 'user' && msg.role !== 'assistant') return;
 									const role = msg.role === 'user' ? 'User' : 'Assistant';
 									bodyText += role + ': ' + msg.content + '\n\n';
 								});
@@ -2887,26 +3022,68 @@ final class DEF_Core_Staff_AI
 							});
 
 							shareModal.classList.remove('visible');
-							addSystemMessage(selectedRecipients.join(', '));
+							addShareEvent(selectedRecipients);
 						} catch (err) {
-							showShareError(err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>');
+							const errorMsg = err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>';
+							shareModal.classList.remove('visible');
+							addErrorEvent(errorMsg);
 						} finally {
 							shareSend.disabled = false;
 							updateShareSendButton();
 						}
 					});
 
-					// Add ephemeral system message to thread (DN-2: not persisted)
-					function addSystemMessage(email) {
-						const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-						const el = document.createElement('div');
-						el.className = 'message-system';
-						el.innerHTML = '<span class="message-system-content">' +
-							'<?php echo esc_js(__('Shared with', 'def-core')); ?> ' +
-							escapeHtml(email) + ' · ' + escapeHtml(time) +
-							'</span>';
-						messagesList.appendChild(el);
-						messagesList.scrollTop = messagesList.scrollHeight;
+					// Persist share event and add to message thread
+					function addShareEvent(recipients) {
+						const now = new Date().toISOString();
+						const recipientList = Array.isArray(recipients) ? recipients : [recipients];
+
+						// Add to local messages array for immediate display
+						messages.push({
+							role: 'share_event',
+							content: recipientList.join(', '),
+							timestamp: now,
+						});
+						renderMessages();
+
+						// Persist to backend (fire-and-forget)
+						apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share-event', {
+							method: 'POST',
+							body: JSON.stringify({
+								type: 'share',
+								recipients: recipientList,
+								timestamp: now,
+							})
+						}).catch(function(err) {
+							console.warn('Failed to persist share event:', err);
+						});
+					}
+
+					// Persist error event and add to message thread
+					function addErrorEvent(errorMsg) {
+						const now = new Date().toISOString();
+
+						// Add to local messages array for immediate display
+						messages.push({
+							role: 'error_event',
+							content: errorMsg,
+							timestamp: now,
+						});
+						renderMessages();
+
+						// Persist to backend (fire-and-forget)
+						if (currentConversationId) {
+							apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share-event', {
+								method: 'POST',
+								body: JSON.stringify({
+									type: 'error',
+									message: errorMsg,
+									timestamp: now,
+								})
+							}).catch(function(err) {
+								console.warn('Failed to persist error event:', err);
+							});
+						}
 					}
 
 					// Close share modal handlers
