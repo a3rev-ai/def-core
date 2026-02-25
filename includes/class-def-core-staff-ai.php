@@ -95,25 +95,47 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Share conversation.
+		// Share settings (proxy to escalation settings for Staff AI auth context).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share',
+			'/staff-ai/share-settings',
 			array(
-				'methods'             => 'POST',
+				'methods'             => 'GET',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_share_conversation'),
+				'callback'            => array(__CLASS__, 'rest_share_settings'),
 			)
 		);
 
-		// Revoke share.
+		// Share send (proxy to escalation send-email for Staff AI auth context).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/revoke',
+			'/staff-ai/share-send',
 			array(
 				'methods'             => 'POST',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_revoke_share'),
+				'callback'            => array(__CLASS__, 'rest_share_send'),
+			)
+		);
+
+		// Store share event (persists share confirmation in conversation).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share-event',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_store_share_event'),
+			)
+		);
+
+		// Summarize conversation (AI-generated subject + summary for Share form).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_summarize_conversation'),
 			)
 		);
 
@@ -431,7 +453,7 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function rest_load_conversation(\WP_REST_Request $request)
 	{
-		$thread_id = $request->get_param('id');
+		$thread_id = sanitize_text_field($request->get_param('id'));
 		// Staff AI uses dedicated endpoints - NOT the customer chatbot
 		$result    = self::backend_request('GET', '/api/staff-ai/threads/' . rawurlencode($thread_id) . '/messages');
 
@@ -450,6 +472,33 @@ final class DEF_Core_Staff_AI
 					'tool_outputs' => array(), // Will be parsed from content if needed.
 				);
 			}
+		}
+
+		// Merge persisted thread events (share confirmations, errors) into the message list.
+		$option_key = 'def_core_share_events_' . $thread_id;
+		$thread_events = get_option($option_key, array());
+		if (!empty($thread_events) && is_array($thread_events)) {
+			foreach ($thread_events as $event) {
+				$type = $event['type'] ?? 'share';
+				if ('error' === $type) {
+					$messages[] = array(
+						'role'      => 'error_event',
+						'content'   => $event['message'] ?? 'Unknown error',
+						'timestamp' => $event['timestamp'] ?? '',
+					);
+				} else {
+					$messages[] = array(
+						'role'      => 'share_event',
+						'content'   => implode(', ', $event['recipients'] ?? array()),
+						'timestamp' => $event['timestamp'] ?? '',
+					);
+				}
+			}
+
+			// Re-sort by timestamp so events appear in correct position.
+			usort($messages, function ($a, $b) {
+				return strcmp($a['timestamp'] ?? '', $b['timestamp'] ?? '');
+			});
 		}
 
 		return new \WP_REST_Response(
@@ -573,42 +622,156 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * REST handler: Share conversation.
+	 * REST handler: Summarize conversation for Share form.
+	 *
+	 * Proxies to Python backend /api/staff-ai/threads/{id}/summarize
+	 * to get an AI-generated subject + summary.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
+	 * @since 1.2.0
 	 */
-	public static function rest_share_conversation(\WP_REST_Request $request)
+	public static function rest_summarize_conversation(\WP_REST_Request $request)
 	{
-		// Sharing endpoint not yet implemented in backend.
-		// Return success stub - backend will add this endpoint later.
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Conversation shared successfully.', 'def-core'),
-			),
-			200
+		$id = $request->get_param('id');
+		$response = self::backend_request(
+			'POST',
+			'/api/staff-ai/threads/' . rawurlencode($id) . '/summarize',
+			array()
 		);
+
+		if (is_wp_error($response)) {
+			return new \WP_REST_Response(
+				array(
+					'success'          => true,
+					'suggested_subject' => __('Staff AI Conversation', 'def-core'),
+					'summary'          => '',
+					'summary_fallback' => true,
+				),
+				200
+			);
+		}
+
+		return new \WP_REST_Response($response, 200);
 	}
 
 	/**
-	 * REST handler: Revoke share.
+	 * REST handler: Share settings (proxy to escalation settings).
+	 *
+	 * Returns escalation settings for the staff_ai channel, using the
+	 * Staff AI permission check (cookie/nonce auth) instead of the
+	 * escalation endpoint's JWT Bearer auth.
 	 *
 	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
 	 */
-	public static function rest_revoke_share(\WP_REST_Request $request)
+	public static function rest_share_settings(\WP_REST_Request $request)
 	{
-		// Revoke endpoint not yet implemented in backend.
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Share access revoked.', 'def-core'),
-			),
-			200
-		);
+		// Delegate to the escalation settings handler with channel=staff_ai
+		$inner_request = new \WP_REST_Request('GET', '/' . DEF_CORE_API_NAME_SPACE . '/settings/escalation');
+		$inner_request->set_param('channel', 'staff_ai');
+		$response = \DEF_Core_Escalation::get_escalation_settings($inner_request);
+
+		if ($response instanceof \WP_Error) {
+			return new \WP_REST_Response(
+				array('allowed_recipients' => array()),
+				200
+			);
+		}
+
+		return $response;
+	}
+
+	/**
+	 * REST handler: Share send (proxy to escalation send-email).
+	 *
+	 * Forwards the share email request to the escalation email bridge,
+	 * using the Staff AI permission check (cookie/nonce auth).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
+	 */
+	public static function rest_share_send(\WP_REST_Request $request)
+	{
+		$body = $request->get_json_params();
+
+		// Whitelist allowed fields — prevent staff users from injecting
+		// bcc, sender_email, user_copy_email, or other escalation fields.
+		$allowed_keys = array('channel', 'to', 'subject', 'body');
+		$safe_body = array();
+		foreach ($allowed_keys as $key) {
+			if (isset($body[$key])) {
+				$safe_body[$key] = $body[$key];
+			}
+		}
+
+		// Delegate to the escalation send-email handler
+		$inner_request = new \WP_REST_Request('POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email');
+		$inner_request->set_header('Content-Type', 'application/json');
+		$inner_request->set_body(wp_json_encode($safe_body));
+		foreach ($safe_body as $key => $value) {
+			$inner_request->set_param($key, $value);
+		}
+
+		return \DEF_Core_Escalation::send_escalation_email($inner_request);
+	}
+
+	/**
+	 * REST handler: Store a thread event (share confirmation or error).
+	 *
+	 * Persists events as banners in the conversation thread across page loads.
+	 * Supported types: "share" (green) and "error" (red).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
+	 */
+	public static function rest_store_share_event(\WP_REST_Request $request)
+	{
+		$thread_id = sanitize_text_field($request->get_param('id'));
+		$body = $request->get_json_params();
+
+		$type = sanitize_text_field($body['type'] ?? 'share');
+		$timestamp = isset($body['timestamp']) ? sanitize_text_field($body['timestamp']) : gmdate('c');
+
+		if ('error' === $type) {
+			$message = sanitize_text_field($body['message'] ?? 'Unknown error');
+			$event = array(
+				'type'      => 'error',
+				'message'   => $message,
+				'timestamp' => $timestamp,
+				'user_id'   => get_current_user_id(),
+			);
+		} else {
+			$recipients = isset($body['recipients']) ? array_map('sanitize_email', (array) $body['recipients']) : array();
+			if (empty($recipients)) {
+				return new \WP_REST_Response(
+					array('success' => false, 'message' => 'No recipients provided.'),
+					400
+				);
+			}
+			$event = array(
+				'type'       => 'share',
+				'recipients' => $recipients,
+				'timestamp'  => $timestamp,
+				'user_id'    => get_current_user_id(),
+			);
+		}
+
+		$option_key = 'def_core_share_events_' . $thread_id;
+		$events = get_option($option_key, array());
+
+		// Cap at 100 events per thread to prevent unbounded storage growth.
+		if (count($events) >= 100) {
+			$events = array_slice($events, -99);
+		}
+
+		$events[] = $event;
+		update_option($option_key, $events, false); // no autoload
+
+		return new \WP_REST_Response(array('success' => true), 200);
 	}
 
 	/**
@@ -1638,7 +1801,8 @@ final class DEF_Core_Staff_AI
 					border: 1px solid rgba(34, 197, 94, 0.3);
 					color: #86efac;
 					padding: 12px 16px;
-					margin: 0 20px 16px;
+					max-width: 768px;
+					margin: 0 auto 16px;
 					border-radius: 8px;
 					font-size: 13px;
 					display: none;
@@ -1653,7 +1817,8 @@ final class DEF_Core_Staff_AI
 					border: 1px solid rgba(239, 68, 68, 0.3);
 					color: #fca5a5;
 					padding: 12px 16px;
-					margin: 0 20px 16px;
+					max-width: 768px;
+					margin: 0 auto 16px;
 					border-radius: 8px;
 					font-size: 13px;
 					display: none;
@@ -1954,6 +2119,189 @@ final class DEF_Core_Staff_AI
 					cursor: not-allowed;
 				}
 
+				/* Share modal states */
+				.share-loading {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					padding: 40px 20px;
+					gap: 12px;
+					color: rgba(255,255,255,0.6);
+				}
+
+				.share-loading-spinner {
+					width: 32px;
+					height: 32px;
+					border: 3px solid rgba(255,255,255,0.15);
+					border-top-color: #19c37d;
+					border-radius: 50%;
+					animation: share-spin 0.8s linear infinite;
+				}
+
+				@keyframes share-spin {
+					to { transform: rotate(360deg); }
+				}
+
+				/* Token select (multi-select chips) */
+				.token-select {
+					position: relative;
+				}
+
+				.token-select-tokens {
+					background: #40414f;
+					border: 1px solid rgba(255,255,255,0.15);
+					border-radius: 6px;
+					padding: 6px 8px;
+					min-height: 42px;
+					display: flex;
+					flex-wrap: wrap;
+					gap: 6px;
+					align-items: center;
+					cursor: pointer;
+				}
+
+				.token-select-tokens:hover {
+					border-color: rgba(255,255,255,0.3);
+				}
+
+				.token-select-tokens.active {
+					border-color: #6366f1;
+				}
+
+				.token-select-placeholder {
+					color: rgba(255,255,255,0.35);
+					font-size: 13px;
+					pointer-events: none;
+				}
+
+				.token-select-chip {
+					background: rgba(99, 102, 241, 0.25);
+					border: 1px solid rgba(99, 102, 241, 0.4);
+					color: #c7d2fe;
+					padding: 3px 8px;
+					border-radius: 4px;
+					font-size: 12px;
+					display: flex;
+					align-items: center;
+					gap: 6px;
+					white-space: nowrap;
+				}
+
+				.token-select-chip-remove {
+					cursor: pointer;
+					opacity: 0.6;
+					font-size: 14px;
+					line-height: 1;
+				}
+
+				.token-select-chip-remove:hover {
+					opacity: 1;
+				}
+
+				.token-select-dropdown {
+					display: none;
+					position: absolute;
+					top: 100%;
+					left: 0;
+					right: 0;
+					background: #40414f;
+					border: 1px solid rgba(255,255,255,0.2);
+					border-radius: 6px;
+					margin-top: 4px;
+					max-height: 180px;
+					overflow-y: auto;
+					z-index: 10;
+					box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+				}
+
+				.token-select-dropdown.open {
+					display: block;
+				}
+
+				.token-select-option {
+					padding: 8px 12px;
+					font-size: 13px;
+					color: #e5e7eb;
+					cursor: pointer;
+				}
+
+				.token-select-option:hover {
+					background: rgba(99, 102, 241, 0.2);
+				}
+
+				.token-select-empty {
+					padding: 8px 12px;
+					font-size: 13px;
+					color: rgba(255,255,255,0.35);
+					font-style: italic;
+				}
+
+				.share-message-input {
+					min-height: 80px;
+					resize: vertical;
+				}
+
+				.share-transcript-toggle {
+					padding: 0 20px 12px;
+				}
+
+				.share-toggle-label {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					font-size: 13px;
+					color: rgba(255,255,255,0.6);
+					cursor: pointer;
+				}
+
+				.share-paperclip-icon {
+					width: 16px;
+					height: 16px;
+					color: rgba(255,255,255,0.4);
+					flex-shrink: 0;
+				}
+
+				.share-error {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					padding: 40px 20px;
+					gap: 16px;
+					color: #f87171;
+					text-align: center;
+				}
+
+				/* Thread event banners (persisted share/error) */
+				.message-share-event,
+				.message-error-event {
+					display: flex;
+					justify-content: center;
+					padding: 20px 0;
+				}
+
+				.message-share-event-content {
+					background: rgba(34, 197, 94, 0.1);
+					border: 1px solid rgba(34, 197, 94, 0.3);
+					color: #86efac;
+					padding: 8px 16px;
+					border-radius: 8px;
+					font-size: 13px;
+					text-align: center;
+					max-width: 100%;
+				}
+
+				.message-error-event-content {
+					background: rgba(239, 68, 68, 0.1);
+					border: 1px solid rgba(239, 68, 68, 0.3);
+					color: #fca5a5;
+					padding: 8px 16px;
+					border-radius: 8px;
+					font-size: 13px;
+					text-align: center;
+					max-width: 100%;
+				}
+
 				/* Responsive */
 				@media (max-width: 768px) {
 					.sidebar {
@@ -2089,23 +2437,53 @@ final class DEF_Core_Staff_AI
 
 				<!-- Share Modal -->
 				<div class="modal-overlay" id="shareModal">
-					<div class="modal">
+					<div class="modal" style="max-width: 520px;">
 						<div class="modal-header">
 							<span class="modal-title"><?php echo esc_html__('Share Conversation', 'def-core'); ?></span>
 							<button type="button" class="modal-close" id="shareModalClose">&times;</button>
 						</div>
-						<div class="modal-body">
-							<div class="form-group">
-								<label class="form-label"><?php echo esc_html__('Share with (email)', 'def-core'); ?></label>
-								<input type="email" class="form-input" id="shareEmail" placeholder="<?php echo esc_attr__('colleague@company.com', 'def-core'); ?>">
-							</div>
-							<p style="font-size: 12px; color: rgba(255,255,255,0.5);">
-								<?php echo esc_html__('Shared conversations are read-only by default.', 'def-core'); ?>
-							</p>
+						<!-- Loading state -->
+						<div class="share-loading" id="shareLoading">
+							<div class="share-loading-spinner"></div>
+							<p><?php echo esc_html__('Preparing share form...', 'def-core'); ?></p>
 						</div>
-						<div class="modal-footer">
-							<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
-							<button type="button" class="modal-btn modal-btn-primary" id="shareSubmit"><?php echo esc_html__('Share', 'def-core'); ?></button>
+						<!-- Error state -->
+						<div class="share-error" id="shareError" style="display:none;">
+							<p id="shareErrorText"></p>
+							<button type="button" class="modal-btn modal-btn-secondary" id="shareErrorClose"><?php echo esc_html__('Close', 'def-core'); ?></button>
+						</div>
+						<!-- Form state -->
+						<div id="shareFormContent" style="display:none;">
+							<div class="modal-body">
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Share with', 'def-core'); ?></label>
+									<div class="token-select" id="shareRecipientTokenSelect">
+										<div class="token-select-tokens" id="shareRecipientTokens">
+											<span class="token-select-placeholder" id="shareRecipientPlaceholder"><?php echo esc_html__('Click to select recipients...', 'def-core'); ?></span>
+										</div>
+										<div class="token-select-dropdown" id="shareRecipientDropdown"></div>
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Subject', 'def-core'); ?></label>
+									<input type="text" class="form-input" id="shareSubject" placeholder="<?php echo esc_attr__('Brief summary...', 'def-core'); ?>">
+								</div>
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Message', 'def-core'); ?></label>
+									<textarea class="form-input share-message-input" id="shareMessage" rows="4" placeholder="<?php echo esc_attr__('Summary and context for the recipient...', 'def-core'); ?>"></textarea>
+								</div>
+								<div class="share-transcript-toggle">
+									<label class="share-toggle-label">
+										<input type="checkbox" id="shareTranscript" checked>
+										<svg class="share-paperclip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+										<?php echo esc_html__('Include conversation transcript', 'def-core'); ?>
+									</label>
+								</div>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
+								<button type="button" class="modal-btn modal-btn-primary" id="shareSend" disabled><?php echo esc_html__('Send', 'def-core'); ?></button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -2163,6 +2541,13 @@ final class DEF_Core_Staff_AI
 					const apiBase = app.dataset.apiBase;
 					const nonce = app.dataset.nonce;
 
+					// HTML escape helper
+					function escapeHtml(str) {
+						const div = document.createElement('div');
+						div.appendChild(document.createTextNode(str));
+						return div.innerHTML;
+					}
+
 					// API helper function
 					async function apiRequest(endpoint, options = {}) {
 						const url = apiBase + endpoint;
@@ -2178,15 +2563,14 @@ final class DEF_Core_Staff_AI
 						});
 						const data = await response.json();
 						if (!response.ok) {
-							// Include error code in message for debugging
-							const errorCode = data.code || 'unknown';
-							const errorMsg = data.message || 'Request failed';
+							const errorCode = data.code || data.error || '';
+							const errorMsg = data.message || data.error || 'Request failed';
 							console.error('Staff AI API error:', {
 								code: errorCode,
 								message: errorMsg,
 								data: data
 							});
-							throw new Error('[' + errorCode + '] ' + errorMsg);
+							throw new Error(errorCode ? '[' + errorCode + '] ' + errorMsg : errorMsg);
 						}
 						return data;
 					}
@@ -2211,9 +2595,22 @@ final class DEF_Core_Staff_AI
 					// Share modal elements
 					const shareModal = document.getElementById('shareModal');
 					const shareModalClose = document.getElementById('shareModalClose');
-					const shareEmail = document.getElementById('shareEmail');
+					const shareLoading = document.getElementById('shareLoading');
+					const shareError = document.getElementById('shareError');
+					const shareErrorText = document.getElementById('shareErrorText');
+					const shareErrorClose = document.getElementById('shareErrorClose');
+					const shareFormContent = document.getElementById('shareFormContent');
+					const shareTokenSelect = document.getElementById('shareRecipientTokenSelect');
+					const shareTokensContainer = document.getElementById('shareRecipientTokens');
+					const shareTokenPlaceholder = document.getElementById('shareRecipientPlaceholder');
+					const shareDropdown = document.getElementById('shareRecipientDropdown');
+					let shareSelectedRecipients = [];
+					let shareAvailableRecipients = [];
+					const shareSubject = document.getElementById('shareSubject');
+					const shareMessage = document.getElementById('shareMessage');
+					const shareTranscript = document.getElementById('shareTranscript');
 					const shareCancel = document.getElementById('shareCancel');
-					const shareSubmit = document.getElementById('shareSubmit');
+					const shareSend = document.getElementById('shareSend');
 
 					// State
 					let conversations = [];
@@ -2424,6 +2821,36 @@ final class DEF_Core_Staff_AI
 						msgElements.forEach(el => el.remove());
 
 						messages.forEach(function(msg) {
+							// Share event banner (green)
+							if (msg.role === 'share_event') {
+								const el = document.createElement('div');
+								el.className = 'message message-share-event';
+								const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
+								const dateStr = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+								const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+								el.innerHTML = '<span class="message-share-event-content">' +
+									'<?php echo esc_js(__('Shared with', 'def-core')); ?> ' +
+									escapeHtml(msg.content) + ' · ' + escapeHtml(dateStr) + ' ' + escapeHtml(timeStr) +
+									'</span>';
+								messagesList.appendChild(el);
+								return;
+							}
+
+							// Error event banner (red)
+							if (msg.role === 'error_event') {
+								const el = document.createElement('div');
+								el.className = 'message message-error-event';
+								const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
+								const dateStr = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+								const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+								el.innerHTML = '<span class="message-error-event-content">' +
+									'<?php echo esc_js(__('Share failed', 'def-core')); ?>: ' +
+									escapeHtml(msg.content) + ' · ' + escapeHtml(dateStr) + ' ' + escapeHtml(timeStr) +
+									'</span>';
+								messagesList.appendChild(el);
+								return;
+							}
+
 							const div = document.createElement('div');
 							div.className = 'message message-' + msg.role;
 
@@ -2596,12 +3023,256 @@ final class DEF_Core_Staff_AI
 						}
 					}
 
-					// Share modal handlers
-					shareBtn.addEventListener('click', function() {
-						shareEmail.value = '';
-						shareModal.classList.add('visible');
+					// =============================================
+					// SHARE MODAL — AI-generated subject + summary
+					// =============================================
+
+					function showShareLoading() {
+						shareLoading.style.display = '';
+						shareError.style.display = 'none';
+						shareFormContent.style.display = 'none';
+					}
+
+					function showShareError(msg) {
+						shareLoading.style.display = 'none';
+						shareError.style.display = '';
+						shareFormContent.style.display = 'none';
+						shareErrorText.textContent = msg;
+					}
+
+					function showShareForm() {
+						shareLoading.style.display = 'none';
+						shareError.style.display = 'none';
+						shareFormContent.style.display = '';
+					}
+
+					function updateShareSendButton() {
+						const hasRecipient = shareSelectedRecipients.length > 0;
+						const hasSubject = shareSubject.value.trim() !== '';
+						const hasMessage = shareMessage.value.trim() !== '';
+						shareSend.disabled = !(hasRecipient && hasSubject && hasMessage);
+					}
+
+					// Enable/disable Send when fields change
+					shareSubject.addEventListener('input', updateShareSendButton);
+					shareMessage.addEventListener('input', updateShareSendButton);
+
+					// ---- Token select component ----
+
+					function renderTokenSelect() {
+						// Clear tokens (keep placeholder)
+						var chips = shareTokensContainer.querySelectorAll('.token-select-chip');
+						chips.forEach(function(c) { c.remove(); });
+
+						// Show/hide placeholder
+						shareTokenPlaceholder.style.display = shareSelectedRecipients.length > 0 ? 'none' : '';
+
+						// Add chips for selected recipients
+						shareSelectedRecipients.forEach(function(email) {
+							var chip = document.createElement('span');
+							chip.className = 'token-select-chip';
+							chip.innerHTML = escapeHtml(email) + '<span class="token-select-chip-remove" data-email="' + escapeHtml(email) + '">&times;</span>';
+							shareTokensContainer.insertBefore(chip, shareTokenPlaceholder);
+						});
+
+						// Render dropdown options (only unselected)
+						shareDropdown.innerHTML = '';
+						var unselected = shareAvailableRecipients.filter(function(e) {
+							return shareSelectedRecipients.indexOf(e) === -1;
+						});
+						if (unselected.length === 0) {
+							var empty = document.createElement('div');
+							empty.className = 'token-select-empty';
+							empty.textContent = '<?php echo esc_js(__('All recipients selected', 'def-core')); ?>';
+							shareDropdown.appendChild(empty);
+						} else {
+							unselected.forEach(function(email) {
+								var opt = document.createElement('div');
+								opt.className = 'token-select-option';
+								opt.textContent = email;
+								opt.dataset.email = email;
+								shareDropdown.appendChild(opt);
+							});
+						}
+
+						updateShareSendButton();
+					}
+
+					// Open/close dropdown
+					shareTokensContainer.addEventListener('click', function(e) {
+						if (e.target.classList.contains('token-select-chip-remove')) {
+							// Remove chip
+							var email = e.target.dataset.email;
+							shareSelectedRecipients = shareSelectedRecipients.filter(function(r) { return r !== email; });
+							renderTokenSelect();
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+							return;
+						}
+						// Toggle dropdown
+						var isOpen = shareDropdown.classList.contains('open');
+						if (isOpen) {
+							shareDropdown.classList.remove('open');
+							shareTokensContainer.classList.remove('active');
+						} else {
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+						}
 					});
 
+					// Select option from dropdown
+					shareDropdown.addEventListener('click', function(e) {
+						var opt = e.target.closest('.token-select-option');
+						if (!opt) return;
+						var email = opt.dataset.email;
+						if (email && shareSelectedRecipients.indexOf(email) === -1) {
+							shareSelectedRecipients.push(email);
+							renderTokenSelect();
+							// Keep dropdown open for more selections
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+						}
+					});
+
+					// Close dropdown on outside click
+					document.addEventListener('click', function(e) {
+						if (!shareTokenSelect.contains(e.target)) {
+							shareDropdown.classList.remove('open');
+							shareTokensContainer.classList.remove('active');
+						}
+					});
+
+					// Open share modal
+					shareBtn.addEventListener('click', async function() {
+						if (!currentConversationId) return;
+						shareModal.classList.add('visible');
+						showShareLoading();
+
+						try {
+							// Fetch recipients + AI summary in parallel
+							const [settingsResp, summaryResp] = await Promise.all([
+								apiRequest('/share-settings', {
+									method: 'GET'
+								}).catch(function() { throw new Error('Failed to load recipients'); }),
+								apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/summarize', {
+									method: 'POST'
+								})
+							]);
+
+							// Populate token select with recipients
+							shareAvailableRecipients = (settingsResp && settingsResp.allowed_recipients) || [];
+							shareSelectedRecipients = [];
+							renderTokenSelect();
+
+							// Populate subject + message from AI summary
+							shareSubject.value = (summaryResp && summaryResp.suggested_subject) || '';
+							shareMessage.value = (summaryResp && summaryResp.summary) || '';
+							shareTranscript.checked = true;
+
+							updateShareSendButton();
+							showShareForm();
+						} catch (err) {
+							showShareError(err.message || '<?php echo esc_js(__('Failed to prepare share form.', 'def-core')); ?>');
+						}
+					});
+
+					// Send share email
+					shareSend.addEventListener('click', async function() {
+						if (shareSend.disabled || !currentConversationId) return;
+						shareSend.disabled = true;
+
+						try {
+							if (shareSelectedRecipients.length === 0) return;
+							const selectedRecipients = shareSelectedRecipients.slice();
+
+							// Build body — message + optional transcript
+							let bodyText = shareMessage.value;
+
+							if (shareTranscript.checked && messages.length > 0) {
+								bodyText += '\n\n---\nConversation Transcript:\n\n';
+								messages.forEach(function(msg) {
+									if (msg.role !== 'user' && msg.role !== 'assistant') return;
+									const role = msg.role === 'user' ? 'User' : 'Assistant';
+									bodyText += role + ': ' + msg.content + '\n\n';
+								});
+							}
+
+							await apiRequest('/share-send', {
+								method: 'POST',
+								body: JSON.stringify({
+									channel: 'staff_ai',
+									to: selectedRecipients,
+									subject: shareSubject.value,
+									body: bodyText
+								})
+							});
+
+							shareModal.classList.remove('visible');
+							addShareEvent(selectedRecipients);
+						} catch (err) {
+							const errorMsg = err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>';
+							shareModal.classList.remove('visible');
+							addErrorEvent(errorMsg);
+						} finally {
+							shareSend.disabled = false;
+							updateShareSendButton();
+						}
+					});
+
+					// Persist share event and add to message thread
+					function addShareEvent(recipients) {
+						const now = new Date().toISOString();
+						const recipientList = Array.isArray(recipients) ? recipients : [recipients];
+
+						// Add to local messages array for immediate display
+						messages.push({
+							role: 'share_event',
+							content: recipientList.join(', '),
+							timestamp: now,
+						});
+						renderMessages();
+
+						// Persist to backend (fire-and-forget)
+						apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share-event', {
+							method: 'POST',
+							body: JSON.stringify({
+								type: 'share',
+								recipients: recipientList,
+								timestamp: now,
+							})
+						}).catch(function(err) {
+							console.warn('Failed to persist share event:', err);
+						});
+					}
+
+					// Persist error event and add to message thread
+					function addErrorEvent(errorMsg) {
+						const now = new Date().toISOString();
+
+						// Add to local messages array for immediate display
+						messages.push({
+							role: 'error_event',
+							content: errorMsg,
+							timestamp: now,
+						});
+						renderMessages();
+
+						// Persist to backend (fire-and-forget)
+						if (currentConversationId) {
+							apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share-event', {
+								method: 'POST',
+								body: JSON.stringify({
+									type: 'error',
+									message: errorMsg,
+									timestamp: now,
+								})
+							}).catch(function(err) {
+								console.warn('Failed to persist error event:', err);
+							});
+						}
+					}
+
+					// Close share modal handlers
 					shareModalClose.addEventListener('click', function() {
 						shareModal.classList.remove('visible');
 					});
@@ -2610,29 +3281,10 @@ final class DEF_Core_Staff_AI
 						shareModal.classList.remove('visible');
 					});
 
-					shareSubmit.addEventListener('click', async function() {
-						const email = shareEmail.value.trim();
-						if (!email || !currentConversationId) return;
-
-						shareSubmit.disabled = true;
-
-						try {
-							const result = await apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share', {
-								method: 'POST',
-								body: JSON.stringify({
-									email: email
-								})
-							});
-							shareModal.classList.remove('visible');
-							showInfo('<?php echo esc_js(__('Conversation shared successfully.', 'def-core')); ?>');
-						} catch (err) {
-							showError('<?php echo esc_js(__('Failed to share conversation.', 'def-core')); ?>');
-						} finally {
-							shareSubmit.disabled = false;
-						}
+					shareErrorClose.addEventListener('click', function() {
+						shareModal.classList.remove('visible');
 					});
 
-					// Close modals on overlay click
 					shareModal.addEventListener('click', function(e) {
 						if (e.target === shareModal) shareModal.classList.remove('visible');
 					});
