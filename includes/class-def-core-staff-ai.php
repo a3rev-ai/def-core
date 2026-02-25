@@ -95,25 +95,14 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Share conversation.
+		// Summarize conversation (AI-generated subject + summary for Share form).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share',
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
 			array(
 				'methods'             => 'POST',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_share_conversation'),
-			)
-		);
-
-		// Revoke share.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/revoke',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_revoke_share'),
+				'callback'            => array(__CLASS__, 'rest_summarize_conversation'),
 			)
 		);
 
@@ -573,42 +562,37 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * REST handler: Share conversation.
+	 * REST handler: Summarize conversation for Share form.
+	 *
+	 * Proxies to Python backend /api/staff-ai/threads/{id}/summarize
+	 * to get an AI-generated subject + summary.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
+	 * @since 1.2.0
 	 */
-	public static function rest_share_conversation(\WP_REST_Request $request)
+	public static function rest_summarize_conversation(\WP_REST_Request $request)
 	{
-		// Sharing endpoint not yet implemented in backend.
-		// Return success stub - backend will add this endpoint later.
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Conversation shared successfully.', 'def-core'),
-			),
-			200
+		$id = $request->get_param('id');
+		$response = self::backend_request(
+			'POST',
+			'/api/staff-ai/threads/' . rawurlencode($id) . '/summarize',
+			array()
 		);
-	}
 
-	/**
-	 * REST handler: Revoke share.
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
-	 */
-	public static function rest_revoke_share(\WP_REST_Request $request)
-	{
-		// Revoke endpoint not yet implemented in backend.
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Share access revoked.', 'def-core'),
-			),
-			200
-		);
+		if (is_wp_error($response)) {
+			return new \WP_REST_Response(
+				array(
+					'success'          => true,
+					'suggested_subject' => __('Staff AI Conversation', 'def-core'),
+					'summary'          => '',
+					'summary_fallback' => true,
+				),
+				200
+			);
+		}
+
+		return new \WP_REST_Response($response, 200);
 	}
 
 	/**
@@ -1954,6 +1938,79 @@ final class DEF_Core_Staff_AI
 					cursor: not-allowed;
 				}
 
+				/* Share modal states */
+				.share-loading {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					padding: 40px 20px;
+					gap: 12px;
+					color: rgba(255,255,255,0.6);
+				}
+
+				.share-loading-spinner {
+					width: 32px;
+					height: 32px;
+					border: 3px solid rgba(255,255,255,0.15);
+					border-top-color: #19c37d;
+					border-radius: 50%;
+					animation: share-spin 0.8s linear infinite;
+				}
+
+				@keyframes share-spin {
+					to { transform: rotate(360deg); }
+				}
+
+				.share-message-input {
+					min-height: 80px;
+					resize: vertical;
+				}
+
+				.share-transcript-toggle {
+					padding: 0 20px 12px;
+				}
+
+				.share-toggle-label {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					font-size: 13px;
+					color: rgba(255,255,255,0.6);
+					cursor: pointer;
+				}
+
+				.share-paperclip-icon {
+					width: 16px;
+					height: 16px;
+					color: rgba(255,255,255,0.4);
+					flex-shrink: 0;
+				}
+
+				.share-error {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					padding: 40px 20px;
+					gap: 16px;
+					color: #f87171;
+					text-align: center;
+				}
+
+				/* System message (ephemeral share confirmation) */
+				.message-system {
+					display: flex;
+					justify-content: center;
+					padding: 8px 16px;
+					margin: 4px 0;
+				}
+
+				.message-system-content {
+					font-size: 12px;
+					color: rgba(255,255,255,0.4);
+					font-style: italic;
+				}
+
 				/* Responsive */
 				@media (max-width: 768px) {
 					.sidebar {
@@ -2089,23 +2146,50 @@ final class DEF_Core_Staff_AI
 
 				<!-- Share Modal -->
 				<div class="modal-overlay" id="shareModal">
-					<div class="modal">
+					<div class="modal" style="max-width: 520px;">
 						<div class="modal-header">
 							<span class="modal-title"><?php echo esc_html__('Share Conversation', 'def-core'); ?></span>
 							<button type="button" class="modal-close" id="shareModalClose">&times;</button>
 						</div>
-						<div class="modal-body">
-							<div class="form-group">
-								<label class="form-label"><?php echo esc_html__('Share with (email)', 'def-core'); ?></label>
-								<input type="email" class="form-input" id="shareEmail" placeholder="<?php echo esc_attr__('colleague@company.com', 'def-core'); ?>">
-							</div>
-							<p style="font-size: 12px; color: rgba(255,255,255,0.5);">
-								<?php echo esc_html__('Shared conversations are read-only by default.', 'def-core'); ?>
-							</p>
+						<!-- Loading state -->
+						<div class="share-loading" id="shareLoading">
+							<div class="share-loading-spinner"></div>
+							<p><?php echo esc_html__('Preparing share form...', 'def-core'); ?></p>
 						</div>
-						<div class="modal-footer">
-							<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
-							<button type="button" class="modal-btn modal-btn-primary" id="shareSubmit"><?php echo esc_html__('Share', 'def-core'); ?></button>
+						<!-- Error state -->
+						<div class="share-error" id="shareError" style="display:none;">
+							<p id="shareErrorText"></p>
+							<button type="button" class="modal-btn modal-btn-secondary" id="shareErrorClose"><?php echo esc_html__('Close', 'def-core'); ?></button>
+						</div>
+						<!-- Form state -->
+						<div id="shareFormContent" style="display:none;">
+							<div class="modal-body">
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Share with', 'def-core'); ?></label>
+									<select class="form-input" id="shareRecipient">
+										<option value=""><?php echo esc_html__('Select recipient...', 'def-core'); ?></option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Subject', 'def-core'); ?></label>
+									<input type="text" class="form-input" id="shareSubject" placeholder="<?php echo esc_attr__('Brief summary...', 'def-core'); ?>">
+								</div>
+								<div class="form-group">
+									<label class="form-label"><?php echo esc_html__('Message', 'def-core'); ?></label>
+									<textarea class="form-input share-message-input" id="shareMessage" rows="4" placeholder="<?php echo esc_attr__('Summary and context for the recipient...', 'def-core'); ?>"></textarea>
+								</div>
+								<div class="share-transcript-toggle">
+									<label class="share-toggle-label">
+										<input type="checkbox" id="shareTranscript" checked>
+										<svg class="share-paperclip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+										<?php echo esc_html__('Include conversation transcript', 'def-core'); ?>
+									</label>
+								</div>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__('Cancel', 'def-core'); ?></button>
+								<button type="button" class="modal-btn modal-btn-primary" id="shareSend" disabled><?php echo esc_html__('Send', 'def-core'); ?></button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -2161,7 +2245,15 @@ final class DEF_Core_Staff_AI
 					const userId = app.dataset.userId;
 					const userEmail = app.dataset.userEmail;
 					const apiBase = app.dataset.apiBase;
+					const apiRootBase = apiBase.replace(/\/staff-ai\/?$/, '');
 					const nonce = app.dataset.nonce;
+
+					// HTML escape helper
+					function escapeHtml(str) {
+						const div = document.createElement('div');
+						div.appendChild(document.createTextNode(str));
+						return div.innerHTML;
+					}
 
 					// API helper function
 					async function apiRequest(endpoint, options = {}) {
@@ -2211,9 +2303,17 @@ final class DEF_Core_Staff_AI
 					// Share modal elements
 					const shareModal = document.getElementById('shareModal');
 					const shareModalClose = document.getElementById('shareModalClose');
-					const shareEmail = document.getElementById('shareEmail');
+					const shareLoading = document.getElementById('shareLoading');
+					const shareError = document.getElementById('shareError');
+					const shareErrorText = document.getElementById('shareErrorText');
+					const shareErrorClose = document.getElementById('shareErrorClose');
+					const shareFormContent = document.getElementById('shareFormContent');
+					const shareRecipient = document.getElementById('shareRecipient');
+					const shareSubject = document.getElementById('shareSubject');
+					const shareMessage = document.getElementById('shareMessage');
+					const shareTranscript = document.getElementById('shareTranscript');
 					const shareCancel = document.getElementById('shareCancel');
-					const shareSubmit = document.getElementById('shareSubmit');
+					const shareSend = document.getElementById('shareSend');
 
 					// State
 					let conversations = [];
@@ -2596,12 +2696,138 @@ final class DEF_Core_Staff_AI
 						}
 					}
 
-					// Share modal handlers
-					shareBtn.addEventListener('click', function() {
-						shareEmail.value = '';
+					// =============================================
+					// SHARE MODAL — AI-generated subject + summary
+					// =============================================
+
+					function showShareLoading() {
+						shareLoading.style.display = '';
+						shareError.style.display = 'none';
+						shareFormContent.style.display = 'none';
+					}
+
+					function showShareError(msg) {
+						shareLoading.style.display = 'none';
+						shareError.style.display = '';
+						shareFormContent.style.display = 'none';
+						shareErrorText.textContent = msg;
+					}
+
+					function showShareForm() {
+						shareLoading.style.display = 'none';
+						shareError.style.display = 'none';
+						shareFormContent.style.display = '';
+					}
+
+					function updateShareSendButton() {
+						const hasRecipient = shareRecipient.value !== '';
+						const hasSubject = shareSubject.value.trim() !== '';
+						const hasMessage = shareMessage.value.trim() !== '';
+						shareSend.disabled = !(hasRecipient && hasSubject && hasMessage);
+					}
+
+					// Enable/disable Send when fields change
+					shareRecipient.addEventListener('change', updateShareSendButton);
+					shareSubject.addEventListener('input', updateShareSendButton);
+					shareMessage.addEventListener('input', updateShareSendButton);
+
+					// Open share modal
+					shareBtn.addEventListener('click', async function() {
+						if (!currentConversationId) return;
 						shareModal.classList.add('visible');
+						showShareLoading();
+
+						try {
+							// Fetch recipients + AI summary in parallel
+							const [settingsResp, summaryResp] = await Promise.all([
+								fetch(apiRootBase + '/settings/escalation?channel=staff_ai', {
+									headers: { 'X-WP-Nonce': nonce }
+								}).then(r => { if (!r.ok) throw new Error('Failed to load recipients'); return r.json(); }),
+								apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/summarize', {
+									method: 'POST'
+								})
+							]);
+
+							// Populate recipients dropdown
+							const recipients = (settingsResp && settingsResp.allowed_recipients) || [];
+							shareRecipient.innerHTML = '<option value=""><?php echo esc_js(__('Select recipient...', 'def-core')); ?></option>';
+							recipients.forEach(function(email) {
+								const opt = document.createElement('option');
+								opt.value = email;
+								opt.textContent = email;
+								shareRecipient.appendChild(opt);
+							});
+
+							// Populate subject + message from AI summary
+							shareSubject.value = (summaryResp && summaryResp.suggested_subject) || '';
+							shareMessage.value = (summaryResp && summaryResp.summary) || '';
+							shareTranscript.checked = true;
+
+							updateShareSendButton();
+							showShareForm();
+						} catch (err) {
+							showShareError(err.message || '<?php echo esc_js(__('Failed to prepare share form.', 'def-core')); ?>');
+						}
 					});
 
+					// Send share email
+					shareSend.addEventListener('click', async function() {
+						if (shareSend.disabled || !currentConversationId) return;
+						shareSend.disabled = true;
+
+						try {
+							// Build body — message + optional transcript
+							let bodyText = shareMessage.value;
+
+							if (shareTranscript.checked && messages.length > 0) {
+								bodyText += '\n\n---\nConversation Transcript:\n\n';
+								messages.forEach(function(msg) {
+									const role = msg.role === 'user' ? 'User' : 'Assistant';
+									bodyText += role + ': ' + msg.content + '\n\n';
+								});
+							}
+
+							await fetch(apiRootBase + '/escalation/send-email', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json',
+									'X-WP-Nonce': nonce
+								},
+								body: JSON.stringify({
+									channel: 'staff_ai',
+									to: [shareRecipient.value],
+									subject: shareSubject.value,
+									body: bodyText
+								})
+							}).then(function(r) {
+								if (!r.ok) throw new Error('Failed to send email');
+								return r.json();
+							});
+
+							shareModal.classList.remove('visible');
+							addSystemMessage(shareRecipient.value);
+						} catch (err) {
+							showError(err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>');
+						} finally {
+							shareSend.disabled = false;
+							updateShareSendButton();
+						}
+					});
+
+					// Add ephemeral system message to thread (DN-2: not persisted)
+					function addSystemMessage(email) {
+						const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+						const el = document.createElement('div');
+						el.className = 'message-system';
+						el.innerHTML = '<span class="message-system-content">' +
+							'<?php echo esc_js(__('Shared with', 'def-core')); ?> ' +
+							escapeHtml(email) + ' · ' + escapeHtml(time) +
+							'</span>';
+						messagesList.appendChild(el);
+						messagesList.scrollTop = messagesList.scrollHeight;
+					}
+
+					// Close share modal handlers
 					shareModalClose.addEventListener('click', function() {
 						shareModal.classList.remove('visible');
 					});
@@ -2610,29 +2836,10 @@ final class DEF_Core_Staff_AI
 						shareModal.classList.remove('visible');
 					});
 
-					shareSubmit.addEventListener('click', async function() {
-						const email = shareEmail.value.trim();
-						if (!email || !currentConversationId) return;
-
-						shareSubmit.disabled = true;
-
-						try {
-							const result = await apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/share', {
-								method: 'POST',
-								body: JSON.stringify({
-									email: email
-								})
-							});
-							shareModal.classList.remove('visible');
-							showInfo('<?php echo esc_js(__('Conversation shared successfully.', 'def-core')); ?>');
-						} catch (err) {
-							showError('<?php echo esc_js(__('Failed to share conversation.', 'def-core')); ?>');
-						} finally {
-							shareSubmit.disabled = false;
-						}
+					shareErrorClose.addEventListener('click', function() {
+						shareModal.classList.remove('visible');
 					});
 
-					// Close modals on overlay click
 					shareModal.addEventListener('click', function(e) {
 						if (e.target === shareModal) shareModal.classList.remove('visible');
 					});
