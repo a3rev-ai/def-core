@@ -2128,16 +2128,98 @@ final class DEF_Core_Staff_AI
 					to { transform: rotate(360deg); }
 				}
 
-				.share-recipient-select {
-					min-height: 80px;
+				/* Token select (multi-select chips) */
+				.token-select {
+					position: relative;
 				}
 
-				.share-recipient-select option {
+				.token-select-tokens {
+					background: #40414f;
+					border: 1px solid rgba(255,255,255,0.15);
+					border-radius: 6px;
 					padding: 6px 8px;
+					min-height: 42px;
+					display: flex;
+					flex-wrap: wrap;
+					gap: 6px;
+					align-items: center;
+					cursor: pointer;
 				}
 
-				.share-recipient-select option:checked {
-					background: rgba(99, 102, 241, 0.3);
+				.token-select-tokens:hover {
+					border-color: rgba(255,255,255,0.3);
+				}
+
+				.token-select-tokens.active {
+					border-color: #6366f1;
+				}
+
+				.token-select-placeholder {
+					color: rgba(255,255,255,0.35);
+					font-size: 13px;
+					pointer-events: none;
+				}
+
+				.token-select-chip {
+					background: rgba(99, 102, 241, 0.25);
+					border: 1px solid rgba(99, 102, 241, 0.4);
+					color: #c7d2fe;
+					padding: 3px 8px;
+					border-radius: 4px;
+					font-size: 12px;
+					display: flex;
+					align-items: center;
+					gap: 6px;
+					white-space: nowrap;
+				}
+
+				.token-select-chip-remove {
+					cursor: pointer;
+					opacity: 0.6;
+					font-size: 14px;
+					line-height: 1;
+				}
+
+				.token-select-chip-remove:hover {
+					opacity: 1;
+				}
+
+				.token-select-dropdown {
+					display: none;
+					position: absolute;
+					top: 100%;
+					left: 0;
+					right: 0;
+					background: #40414f;
+					border: 1px solid rgba(255,255,255,0.2);
+					border-radius: 6px;
+					margin-top: 4px;
+					max-height: 180px;
+					overflow-y: auto;
+					z-index: 10;
+					box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+				}
+
+				.token-select-dropdown.open {
+					display: block;
+				}
+
+				.token-select-option {
+					padding: 8px 12px;
+					font-size: 13px;
+					color: #e5e7eb;
+					cursor: pointer;
+				}
+
+				.token-select-option:hover {
+					background: rgba(99, 102, 241, 0.2);
+				}
+
+				.token-select-empty {
+					padding: 8px 12px;
+					font-size: 13px;
+					color: rgba(255,255,255,0.35);
+					font-style: italic;
 				}
 
 				.share-message-input {
@@ -2360,7 +2442,12 @@ final class DEF_Core_Staff_AI
 							<div class="modal-body">
 								<div class="form-group">
 									<label class="form-label"><?php echo esc_html__('Share with', 'def-core'); ?></label>
-									<select class="form-input share-recipient-select" id="shareRecipient" multiple></select>
+									<div class="token-select" id="shareRecipientTokenSelect">
+										<div class="token-select-tokens" id="shareRecipientTokens">
+											<span class="token-select-placeholder" id="shareRecipientPlaceholder"><?php echo esc_html__('Click to select recipients...', 'def-core'); ?></span>
+										</div>
+										<div class="token-select-dropdown" id="shareRecipientDropdown"></div>
+									</div>
 								</div>
 								<div class="form-group">
 									<label class="form-label"><?php echo esc_html__('Subject', 'def-core'); ?></label>
@@ -2498,7 +2585,12 @@ final class DEF_Core_Staff_AI
 					const shareErrorText = document.getElementById('shareErrorText');
 					const shareErrorClose = document.getElementById('shareErrorClose');
 					const shareFormContent = document.getElementById('shareFormContent');
-					const shareRecipient = document.getElementById('shareRecipient');
+					const shareTokenSelect = document.getElementById('shareRecipientTokenSelect');
+					const shareTokensContainer = document.getElementById('shareRecipientTokens');
+					const shareTokenPlaceholder = document.getElementById('shareRecipientPlaceholder');
+					const shareDropdown = document.getElementById('shareRecipientDropdown');
+					let shareSelectedRecipients = [];
+					let shareAvailableRecipients = [];
 					const shareSubject = document.getElementById('shareSubject');
 					const shareMessage = document.getElementById('shareMessage');
 					const shareTranscript = document.getElementById('shareTranscript');
@@ -2940,16 +3032,100 @@ final class DEF_Core_Staff_AI
 					}
 
 					function updateShareSendButton() {
-						const hasRecipient = shareRecipient.selectedOptions.length > 0;
+						const hasRecipient = shareSelectedRecipients.length > 0;
 						const hasSubject = shareSubject.value.trim() !== '';
 						const hasMessage = shareMessage.value.trim() !== '';
 						shareSend.disabled = !(hasRecipient && hasSubject && hasMessage);
 					}
 
 					// Enable/disable Send when fields change
-					shareRecipient.addEventListener('change', updateShareSendButton);
 					shareSubject.addEventListener('input', updateShareSendButton);
 					shareMessage.addEventListener('input', updateShareSendButton);
+
+					// ---- Token select component ----
+
+					function renderTokenSelect() {
+						// Clear tokens (keep placeholder)
+						var chips = shareTokensContainer.querySelectorAll('.token-select-chip');
+						chips.forEach(function(c) { c.remove(); });
+
+						// Show/hide placeholder
+						shareTokenPlaceholder.style.display = shareSelectedRecipients.length > 0 ? 'none' : '';
+
+						// Add chips for selected recipients
+						shareSelectedRecipients.forEach(function(email) {
+							var chip = document.createElement('span');
+							chip.className = 'token-select-chip';
+							chip.innerHTML = escapeHtml(email) + '<span class="token-select-chip-remove" data-email="' + escapeHtml(email) + '">&times;</span>';
+							shareTokensContainer.insertBefore(chip, shareTokenPlaceholder);
+						});
+
+						// Render dropdown options (only unselected)
+						shareDropdown.innerHTML = '';
+						var unselected = shareAvailableRecipients.filter(function(e) {
+							return shareSelectedRecipients.indexOf(e) === -1;
+						});
+						if (unselected.length === 0) {
+							var empty = document.createElement('div');
+							empty.className = 'token-select-empty';
+							empty.textContent = '<?php echo esc_js(__('All recipients selected', 'def-core')); ?>';
+							shareDropdown.appendChild(empty);
+						} else {
+							unselected.forEach(function(email) {
+								var opt = document.createElement('div');
+								opt.className = 'token-select-option';
+								opt.textContent = email;
+								opt.dataset.email = email;
+								shareDropdown.appendChild(opt);
+							});
+						}
+
+						updateShareSendButton();
+					}
+
+					// Open/close dropdown
+					shareTokensContainer.addEventListener('click', function(e) {
+						if (e.target.classList.contains('token-select-chip-remove')) {
+							// Remove chip
+							var email = e.target.dataset.email;
+							shareSelectedRecipients = shareSelectedRecipients.filter(function(r) { return r !== email; });
+							renderTokenSelect();
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+							return;
+						}
+						// Toggle dropdown
+						var isOpen = shareDropdown.classList.contains('open');
+						if (isOpen) {
+							shareDropdown.classList.remove('open');
+							shareTokensContainer.classList.remove('active');
+						} else {
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+						}
+					});
+
+					// Select option from dropdown
+					shareDropdown.addEventListener('click', function(e) {
+						var opt = e.target.closest('.token-select-option');
+						if (!opt) return;
+						var email = opt.dataset.email;
+						if (email && shareSelectedRecipients.indexOf(email) === -1) {
+							shareSelectedRecipients.push(email);
+							renderTokenSelect();
+							// Keep dropdown open for more selections
+							shareDropdown.classList.add('open');
+							shareTokensContainer.classList.add('active');
+						}
+					});
+
+					// Close dropdown on outside click
+					document.addEventListener('click', function(e) {
+						if (!shareTokenSelect.contains(e.target)) {
+							shareDropdown.classList.remove('open');
+							shareTokensContainer.classList.remove('active');
+						}
+					});
 
 					// Open share modal
 					shareBtn.addEventListener('click', async function() {
@@ -2968,15 +3144,10 @@ final class DEF_Core_Staff_AI
 								})
 							]);
 
-							// Populate recipients (multi-select)
-							const recipients = (settingsResp && settingsResp.allowed_recipients) || [];
-							shareRecipient.innerHTML = '';
-							recipients.forEach(function(email) {
-								const opt = document.createElement('option');
-								opt.value = email;
-								opt.textContent = email;
-								shareRecipient.appendChild(opt);
-							});
+							// Populate token select with recipients
+							shareAvailableRecipients = (settingsResp && settingsResp.allowed_recipients) || [];
+							shareSelectedRecipients = [];
+							renderTokenSelect();
 
 							// Populate subject + message from AI summary
 							shareSubject.value = (summaryResp && summaryResp.suggested_subject) || '';
@@ -2996,8 +3167,8 @@ final class DEF_Core_Staff_AI
 						shareSend.disabled = true;
 
 						try {
-							const selectedRecipients = Array.from(shareRecipient.selectedOptions).map(function(o) { return o.value; });
-							if (selectedRecipients.length === 0) return;
+							if (shareSelectedRecipients.length === 0) return;
+							const selectedRecipients = shareSelectedRecipients.slice();
 
 							// Build body — message + optional transcript
 							let bodyText = shareMessage.value;
