@@ -95,6 +95,28 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Share settings (proxy to escalation settings for Staff AI auth context).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/share-settings',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_share_settings'),
+			)
+		);
+
+		// Share send (proxy to escalation send-email for Staff AI auth context).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/share-send',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_share_send'),
+			)
+		);
+
 		// Summarize conversation (AI-generated subject + summary for Share form).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -593,6 +615,60 @@ final class DEF_Core_Staff_AI
 		}
 
 		return new \WP_REST_Response($response, 200);
+	}
+
+	/**
+	 * REST handler: Share settings (proxy to escalation settings).
+	 *
+	 * Returns escalation settings for the staff_ai channel, using the
+	 * Staff AI permission check (cookie/nonce auth) instead of the
+	 * escalation endpoint's JWT Bearer auth.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
+	 */
+	public static function rest_share_settings(\WP_REST_Request $request)
+	{
+		// Delegate to the escalation settings handler with channel=staff_ai
+		$inner_request = new \WP_REST_Request('GET', '/' . DEF_CORE_API_NAME_SPACE . '/settings/escalation');
+		$inner_request->set_param('channel', 'staff_ai');
+		$response = \DEF_Core_Escalation::get_escalation_settings($inner_request);
+
+		if ($response instanceof \WP_Error) {
+			return new \WP_REST_Response(
+				array('allowed_recipients' => array()),
+				200
+			);
+		}
+
+		return $response;
+	}
+
+	/**
+	 * REST handler: Share send (proxy to escalation send-email).
+	 *
+	 * Forwards the share email request to the escalation email bridge,
+	 * using the Staff AI permission check (cookie/nonce auth).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response Response.
+	 * @since 1.2.0
+	 */
+	public static function rest_share_send(\WP_REST_Request $request)
+	{
+		$body = $request->get_json_params();
+
+		// Delegate to the escalation send-email handler
+		$inner_request = new \WP_REST_Request('POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email');
+		$inner_request->set_header('Content-Type', 'application/json');
+		$inner_request->set_body(wp_json_encode($body));
+		// Also set JSON params directly so get_json_params() works reliably
+		foreach ($body as $key => $value) {
+			$inner_request->set_param($key, $value);
+		}
+
+		return \DEF_Core_Escalation::send_escalation_email($inner_request);
 	}
 
 	/**
@@ -1622,7 +1698,8 @@ final class DEF_Core_Staff_AI
 					border: 1px solid rgba(34, 197, 94, 0.3);
 					color: #86efac;
 					padding: 12px 16px;
-					margin: 0 20px 16px;
+					max-width: 768px;
+					margin: 0 auto 16px;
 					border-radius: 8px;
 					font-size: 13px;
 					display: none;
@@ -1637,7 +1714,8 @@ final class DEF_Core_Staff_AI
 					border: 1px solid rgba(239, 68, 68, 0.3);
 					color: #fca5a5;
 					padding: 12px 16px;
-					margin: 0 20px 16px;
+					max-width: 768px;
+					margin: 0 auto 16px;
 					border-radius: 8px;
 					font-size: 13px;
 					display: none;
@@ -1962,6 +2040,18 @@ final class DEF_Core_Staff_AI
 					to { transform: rotate(360deg); }
 				}
 
+				.share-recipient-select {
+					min-height: 80px;
+				}
+
+				.share-recipient-select option {
+					padding: 6px 8px;
+				}
+
+				.share-recipient-select option:checked {
+					background: rgba(99, 102, 241, 0.3);
+				}
+
 				.share-message-input {
 					min-height: 80px;
 					resize: vertical;
@@ -2166,9 +2256,7 @@ final class DEF_Core_Staff_AI
 							<div class="modal-body">
 								<div class="form-group">
 									<label class="form-label"><?php echo esc_html__('Share with', 'def-core'); ?></label>
-									<select class="form-input" id="shareRecipient">
-										<option value=""><?php echo esc_html__('Select recipient...', 'def-core'); ?></option>
-									</select>
+									<select class="form-input share-recipient-select" id="shareRecipient" multiple></select>
 								</div>
 								<div class="form-group">
 									<label class="form-label"><?php echo esc_html__('Subject', 'def-core'); ?></label>
@@ -2245,7 +2333,6 @@ final class DEF_Core_Staff_AI
 					const userId = app.dataset.userId;
 					const userEmail = app.dataset.userEmail;
 					const apiBase = app.dataset.apiBase;
-					const apiRootBase = apiBase.replace(/\/staff-ai\/?$/, '');
 					const nonce = app.dataset.nonce;
 
 					// HTML escape helper
@@ -2270,15 +2357,14 @@ final class DEF_Core_Staff_AI
 						});
 						const data = await response.json();
 						if (!response.ok) {
-							// Include error code in message for debugging
-							const errorCode = data.code || 'unknown';
-							const errorMsg = data.message || 'Request failed';
+							const errorCode = data.code || data.error || '';
+							const errorMsg = data.message || data.error || 'Request failed';
 							console.error('Staff AI API error:', {
 								code: errorCode,
 								message: errorMsg,
 								data: data
 							});
-							throw new Error('[' + errorCode + '] ' + errorMsg);
+							throw new Error(errorCode ? '[' + errorCode + '] ' + errorMsg : errorMsg);
 						}
 						return data;
 					}
@@ -2720,7 +2806,7 @@ final class DEF_Core_Staff_AI
 					}
 
 					function updateShareSendButton() {
-						const hasRecipient = shareRecipient.value !== '';
+						const hasRecipient = shareRecipient.selectedOptions.length > 0;
 						const hasSubject = shareSubject.value.trim() !== '';
 						const hasMessage = shareMessage.value.trim() !== '';
 						shareSend.disabled = !(hasRecipient && hasSubject && hasMessage);
@@ -2740,17 +2826,17 @@ final class DEF_Core_Staff_AI
 						try {
 							// Fetch recipients + AI summary in parallel
 							const [settingsResp, summaryResp] = await Promise.all([
-								fetch(apiRootBase + '/settings/escalation?channel=staff_ai', {
-									headers: { 'X-WP-Nonce': nonce }
-								}).then(r => { if (!r.ok) throw new Error('Failed to load recipients'); return r.json(); }),
+								apiRequest('/share-settings', {
+									method: 'GET'
+								}).catch(function() { throw new Error('Failed to load recipients'); }),
 								apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/summarize', {
 									method: 'POST'
 								})
 							]);
 
-							// Populate recipients dropdown
+							// Populate recipients (multi-select)
 							const recipients = (settingsResp && settingsResp.allowed_recipients) || [];
-							shareRecipient.innerHTML = '<option value=""><?php echo esc_js(__('Select recipient...', 'def-core')); ?></option>';
+							shareRecipient.innerHTML = '';
 							recipients.forEach(function(email) {
 								const opt = document.createElement('option');
 								opt.value = email;
@@ -2776,6 +2862,9 @@ final class DEF_Core_Staff_AI
 						shareSend.disabled = true;
 
 						try {
+							const selectedRecipients = Array.from(shareRecipient.selectedOptions).map(function(o) { return o.value; });
+							if (selectedRecipients.length === 0) return;
+
 							// Build body — message + optional transcript
 							let bodyText = shareMessage.value;
 
@@ -2787,27 +2876,20 @@ final class DEF_Core_Staff_AI
 								});
 							}
 
-							await fetch(apiRootBase + '/escalation/send-email', {
+							await apiRequest('/share-send', {
 								method: 'POST',
-								headers: {
-									'Content-Type': 'application/json',
-									'X-WP-Nonce': nonce
-								},
 								body: JSON.stringify({
 									channel: 'staff_ai',
-									to: [shareRecipient.value],
+									to: selectedRecipients,
 									subject: shareSubject.value,
 									body: bodyText
 								})
-							}).then(function(r) {
-								if (!r.ok) throw new Error('Failed to send email');
-								return r.json();
 							});
 
 							shareModal.classList.remove('visible');
-							addSystemMessage(shareRecipient.value);
+							addSystemMessage(selectedRecipients.join(', '));
 						} catch (err) {
-							showError(err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>');
+							showShareError(err.message || '<?php echo esc_js(__('Failed to send share email.', 'def-core')); ?>');
 						} finally {
 							shareSend.disabled = false;
 							updateShareSendButton();
