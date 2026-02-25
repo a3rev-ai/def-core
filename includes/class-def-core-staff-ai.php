@@ -453,7 +453,7 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function rest_load_conversation(\WP_REST_Request $request)
 	{
-		$thread_id = $request->get_param('id');
+		$thread_id = sanitize_text_field($request->get_param('id'));
 		// Staff AI uses dedicated endpoints - NOT the customer chatbot
 		$result    = self::backend_request('GET', '/api/staff-ai/threads/' . rawurlencode($thread_id) . '/messages');
 
@@ -475,7 +475,7 @@ final class DEF_Core_Staff_AI
 		}
 
 		// Merge persisted thread events (share confirmations, errors) into the message list.
-		$option_key = 'def_core_share_events_' . sanitize_text_field($thread_id);
+		$option_key = 'def_core_share_events_' . $thread_id;
 		$thread_events = get_option($option_key, array());
 		if (!empty($thread_events) && is_array($thread_events)) {
 			foreach ($thread_events as $event) {
@@ -697,12 +697,21 @@ final class DEF_Core_Staff_AI
 	{
 		$body = $request->get_json_params();
 
+		// Whitelist allowed fields — prevent staff users from injecting
+		// bcc, sender_email, user_copy_email, or other escalation fields.
+		$allowed_keys = array('channel', 'to', 'subject', 'body');
+		$safe_body = array();
+		foreach ($allowed_keys as $key) {
+			if (isset($body[$key])) {
+				$safe_body[$key] = $body[$key];
+			}
+		}
+
 		// Delegate to the escalation send-email handler
 		$inner_request = new \WP_REST_Request('POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email');
 		$inner_request->set_header('Content-Type', 'application/json');
-		$inner_request->set_body(wp_json_encode($body));
-		// Also set JSON params directly so get_json_params() works reliably
-		foreach ($body as $key => $value) {
+		$inner_request->set_body(wp_json_encode($safe_body));
+		foreach ($safe_body as $key => $value) {
 			$inner_request->set_param($key, $value);
 		}
 
@@ -753,6 +762,12 @@ final class DEF_Core_Staff_AI
 
 		$option_key = 'def_core_share_events_' . $thread_id;
 		$events = get_option($option_key, array());
+
+		// Cap at 100 events per thread to prevent unbounded storage growth.
+		if (count($events) >= 100) {
+			$events = array_slice($events, -99);
+		}
+
 		$events[] = $event;
 		update_option($option_key, $events, false); // no autoload
 
