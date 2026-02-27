@@ -139,28 +139,6 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Export conversation.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/export',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_export_conversation'),
-			)
-		);
-
-		// Escalate.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/escalate',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_escalate'),
-			)
-		);
-
 		// Status/test endpoint for debugging connection issues.
 		// Uses manage_options cap so admins can diagnose without needing staff_ai access.
 		register_rest_route(
@@ -772,45 +750,6 @@ final class DEF_Core_Staff_AI
 		update_option($option_key, $events, false); // no autoload
 
 		return new \WP_REST_Response(array('success' => true), 200);
-	}
-
-	/**
-	 * REST handler: Export conversation.
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
-	 */
-	public static function rest_export_conversation(\WP_REST_Request $request)
-	{
-		// Export endpoint not yet implemented in backend.
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Export not yet available.', 'def-core'),
-			),
-			200
-		);
-	}
-
-	/**
-	 * REST handler: Escalate.
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response.
-	 * @since 1.1.0
-	 */
-	public static function rest_escalate(\WP_REST_Request $request)
-	{
-		// Escalate endpoint not yet implemented in backend.
-		// Return success stub - conversation remains active (non-terminal).
-		return new \WP_REST_Response(
-			array(
-				'success' => true,
-				'message' => __('Escalated for review — you can continue working while this is reviewed.', 'def-core'),
-			),
-			200
-		);
 	}
 
 	/**
