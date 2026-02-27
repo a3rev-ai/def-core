@@ -149,8 +149,15 @@ final class DEF_Core_Cache {
 	 * @since 0.1.0
 	 * @version 0.1.0
 	 */
-	public static function invalidate_user( int $user_id ): void {
+	public static function invalidate_user( int $user_id, string $prefix = '' ): void {
 		global $wpdb;
+
+		if ( ! empty( $prefix ) ) {
+			// Prefix-based invalidation: delete only matching transients.
+			self::invalidate( $user_id, $prefix );
+			return;
+		}
+
 		// Delete all transients matching the pattern.
 		$pattern = $wpdb->esc_like( '_transient_' . self::CACHE_PREFIX . $user_id . '_' ) . '%';
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -291,7 +298,7 @@ final class DEF_Core_Cache {
 	 * @version 0.1.0
 	 */
 	public static function on_product_changed(): void {
-		// Delete the products list cache (not user-specific).
-		delete_transient( 'de_products_list' );
+		// Delete the products list cache (not user-specific, uses user_id=0).
+		delete_transient( self::build_key( 0, 'products_list' ) );
 	}
 }
