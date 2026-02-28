@@ -26,6 +26,28 @@ final class DEF_Core_Staff_AI
 	const ENDPOINT_SLUG = 'staff-ai';
 
 	/**
+	 * Allowed MIME types for file uploads.
+	 * UX-layer filtering only — DEF backend performs authoritative content validation.
+	 */
+	const UPLOAD_ALLOWED_MIME_TYPES = array(
+		'image/png',
+		'image/jpeg',
+		'image/gif',
+		'image/webp',
+		'application/pdf',
+		'text/plain',
+		'text/markdown',
+		'text/csv',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	);
+
+	/**
+	 * Maximum file size in bytes (10MB).
+	 */
+	const UPLOAD_MAX_SIZE_BYTES = 10485760;
+
+	/**
 	 * Initialize the Staff AI endpoint.
 	 */
 	public static function init(): void
@@ -125,6 +147,28 @@ final class DEF_Core_Staff_AI
 				'methods'             => 'POST',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
 				'callback'            => array(__CLASS__, 'rest_store_share_event'),
+			)
+		);
+
+		// Upload init — proxy to DEF backend presigned URL generation.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/uploads/init',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_upload_init'),
+			)
+		);
+
+		// Upload commit — proxy to DEF backend upload finalization.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/uploads/commit',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_upload_commit'),
 			)
 		);
 
@@ -496,14 +540,101 @@ final class DEF_Core_Staff_AI
 	 * @return \WP_REST_Response|\WP_Error Response.
 	 * @since 1.1.0
 	 */
+	/**
+	 * REST handler: Upload init — proxy to DEF backend presigned URL generation.
+	 *
+	 * PHP validation is UX-layer filtering only (extension-based, not content inspection).
+	 * The DEF backend performs authoritative content-type validation.
+	 *
+	 * @since 1.2.0
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_upload_init(\WP_REST_Request $request)
+	{
+		$body = $request->get_json_params();
+
+		$filename  = isset($body['filename']) ? sanitize_file_name($body['filename']) : '';
+		$mime_type = isset($body['mime_type']) ? sanitize_text_field($body['mime_type']) : '';
+		$size      = isset($body['size_bytes']) ? absint($body['size_bytes']) : 0;
+		$conv_id   = isset($body['conversation_id']) ? sanitize_text_field($body['conversation_id']) : '';
+
+		// Validate filename.
+		if (empty($filename)) {
+			error_log('[DEF Upload] Rejected: empty filename from user ' . get_current_user_id());
+			return new \WP_Error('invalid_filename', __('Filename is required.', 'def-core'), array('status' => 400));
+		}
+
+		// Validate MIME type against allowlist (UX filtering — backend validates authoritatively).
+		if (! in_array($mime_type, self::UPLOAD_ALLOWED_MIME_TYPES, true)) {
+			error_log('[DEF Upload] Rejected MIME type: ' . $mime_type . ' for file: ' . $filename . ' from user ' . get_current_user_id());
+			return new \WP_Error(
+				'unsupported_media_type',
+				__('File type not supported.', 'def-core'),
+				array('status' => 415)
+			);
+		}
+
+		// Validate file size.
+		if ($size <= 0 || $size > self::UPLOAD_MAX_SIZE_BYTES) {
+			error_log('[DEF Upload] Rejected file size: ' . $size . ' bytes for file: ' . $filename . ' from user ' . get_current_user_id());
+			return new \WP_Error(
+				'payload_too_large',
+				__('File exceeds maximum size of 10MB.', 'def-core'),
+				array('status' => 413)
+			);
+		}
+
+		// Proxy to backend.
+		return self::backend_request('POST', '/api/staff_ai/uploads/init', array(
+			'filename'        => $filename,
+			'mime_type'       => $mime_type,
+			'size_bytes'      => $size,
+			'conversation_id' => $conv_id,
+		));
+	}
+
+	/**
+	 * REST handler: Upload commit — proxy to DEF backend upload finalization.
+	 *
+	 * @since 1.2.0
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_upload_commit(\WP_REST_Request $request)
+	{
+		$body    = $request->get_json_params();
+		$file_id = isset($body['file_id']) ? sanitize_text_field($body['file_id']) : '';
+
+		if (empty($file_id) || ! preg_match('/^upload_[a-f0-9]+$/', $file_id)) {
+			error_log('[DEF Upload] Rejected invalid file_id: ' . $file_id . ' from user ' . get_current_user_id());
+			return new \WP_Error('invalid_file_id', __('Invalid file ID.', 'def-core'), array('status' => 400));
+		}
+
+		return self::backend_request('POST', '/api/staff_ai/uploads/commit', array(
+			'file_id' => $file_id,
+		));
+	}
+
 	public static function rest_send_message(\WP_REST_Request $request)
 	{
 		$body = $request->get_json_params();
 
 		$message   = isset($body['message']) ? sanitize_textarea_field($body['message']) : '';
 		$thread_id = isset($body['thread_id']) ? sanitize_text_field($body['thread_id']) : null;
+		$file_ids  = isset($body['file_ids']) && is_array($body['file_ids']) ? $body['file_ids'] : array();
 
-		if (empty($message)) {
+		// Validate file_ids format.
+		$validated_file_ids = array();
+		foreach ($file_ids as $fid) {
+			$fid = sanitize_text_field($fid);
+			if (preg_match('/^upload_[a-f0-9]+$/', $fid)) {
+				$validated_file_ids[] = $fid;
+			}
+		}
+
+		// Message or files required.
+		if (empty($message) && empty($validated_file_ids)) {
 			return new \WP_Error(
 				'invalid_message',
 				__('Message cannot be empty.', 'def-core'),
@@ -511,14 +642,25 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
+		// Build message object.
+		$message_obj = array(
+			'role'    => 'user',
+			'content' => ! empty($message) ? $message : 'Please analyze the attached file(s).',
+		);
+
+		// Attach file references if present.
+		if (! empty($validated_file_ids)) {
+			$message_obj['attachments'] = array_map(
+				function ($fid) {
+					return array('file_id' => $fid);
+				},
+				$validated_file_ids
+			);
+		}
+
 		// Build chat request for backend.
 		$chat_body = array(
-			'messages' => array(
-				array(
-					'role'    => 'user',
-					'content' => $message,
-				),
-			),
+			'messages' => array($message_obj),
 		);
 
 		// If continuing existing thread.

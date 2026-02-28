@@ -243,6 +243,8 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/share-settings',
 	'a3-ai/v1/staff-ai/share-send',
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share-event',
+	'a3-ai/v1/staff-ai/uploads/init',
+	'a3-ai/v1/staff-ai/uploads/commit',
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
 	'a3-ai/v1/staff-ai/status',
 	'a3-ai/v1/staff-ai/tools',
