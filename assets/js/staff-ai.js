@@ -92,12 +92,41 @@ function t(key, fallback) {
 	const shareCancel = document.getElementById('shareCancel');
 	const shareSend = document.getElementById('shareSend');
 
+	// Upload DOM references
+	const uploadBtn     = document.getElementById('uploadBtn');
+	const fileInput     = document.getElementById('uploadFileInput');
+	const stagedArea    = document.getElementById('uploadStagedArea');
+	const dropOverlay   = document.getElementById('uploadDropOverlay');
+
 	// State
 	let conversations = [];
 	let currentConversationId = null;
 	let messages = [];
 	let isLoading = false;
 	let isReadOnly = false;
+
+	// Upload state
+	const UPLOAD_MAX_FILES = StaffAIConfig.upload.maxFiles;
+	const UPLOAD_MAX_SIZE = StaffAIConfig.upload.maxSizeBytes;
+	const UPLOAD_ALLOWED_EXT = StaffAIConfig.upload.allowedExtensions;
+
+	const UPLOAD_EXT_TO_MIME = {
+		'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+		'.gif': 'image/gif', '.webp': 'image/webp',
+		'.pdf': 'application/pdf', '.txt': 'text/plain',
+		'.md': 'text/markdown', '.csv': 'text/csv',
+		'.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		'.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	};
+
+	// Retry config for blob uploads (V1.1: G2)
+	var UPLOAD_BLOB_MAX_RETRIES = 2;
+	var UPLOAD_BLOB_BACKOFF_MS = [1000, 2000];
+
+	// stagedFiles: [{localId, file, status, fileId, error, thumbnailUrl}]
+	// status: 'staged' | 'uploading' | 'uploaded' | 'failed'
+	var stagedFiles = [];
+	var uploadIdCounter = 0;
 
 	// Initialize
 	loadConversations();
@@ -256,7 +285,7 @@ function t(key, fallback) {
 
 	// Update send button state
 	function updateSendButton() {
-		sendBtn.disabled = !composerInput.value.trim() || isLoading || isReadOnly;
+		sendBtn.disabled = (!composerInput.value.trim() && !hasActiveFiles()) || isLoading || isReadOnly;
 	}
 
 	// Keyboard handler: Enter to send, Shift+Enter for newline
@@ -363,6 +392,11 @@ function t(key, fallback) {
 						content.appendChild(card);
 					});
 				}
+
+				// File indicators for uploaded files.
+				if (msg.fileNames && msg.fileNames.length > 0) {
+					appendFileIndicators(content, msg.fileNames);
+				}
 			}
 
 			div.appendChild(avatar);
@@ -445,17 +479,267 @@ function t(key, fallback) {
 		return card;
 	}
 
+	// =============================================
+	// UPLOAD MODULE — file staging, validation, upload
+	// =============================================
+
+	function getFileExtension(filename) {
+		var dot = filename.lastIndexOf('.');
+		return dot >= 0 ? filename.substring(dot).toLowerCase() : '';
+	}
+
+	function getMimeFromExtension(filename) {
+		return UPLOAD_EXT_TO_MIME[getFileExtension(filename)] || '';
+	}
+
+	function validateFile(file) {
+		var ext = getFileExtension(file.name);
+		if (UPLOAD_ALLOWED_EXT.indexOf(ext) === -1) {
+			return t('unsupportedType', 'Unsupported file type: ' + ext);
+		}
+		if (file.size > UPLOAD_MAX_SIZE) {
+			return t('fileTooLarge', 'File exceeds 10MB limit');
+		}
+		if (stagedFiles.filter(function(f) { return f.status !== 'failed'; }).length >= UPLOAD_MAX_FILES) {
+			return t('tooManyFiles', 'Maximum ' + UPLOAD_MAX_FILES + ' files per message');
+		}
+		return null;
+	}
+
+	function stageFile(file) {
+		var error = validateFile(file);
+		var localId = ++uploadIdCounter;
+		var entry = {
+			localId: localId,
+			file: file,
+			status: error ? 'failed' : 'staged',
+			fileId: null,
+			error: error,
+			thumbnailUrl: null,
+		};
+
+		// Show validation error as banner immediately.
+		if (error) {
+			showError(error);
+		}
+
+		// Generate thumbnail for images.
+		if (!error && file.type && file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
+			var reader = new FileReader();
+			reader.onload = function(e) {
+				entry.thumbnailUrl = e.target.result;
+				renderStagedFiles();
+			};
+			reader.readAsDataURL(file);
+		}
+
+		stagedFiles.push(entry);
+		renderStagedFiles();
+		updateSendButton();
+	}
+
+	function removeStagedFile(localId) {
+		stagedFiles = stagedFiles.filter(function(f) { return f.localId !== localId; });
+		hideError();
+
+		// Re-validate any failed files — they may now pass (e.g. count dropped below max).
+		stagedFiles.forEach(function(f) {
+			if (f.status === 'failed') {
+				var err = validateFile(f.file);
+				if (!err) {
+					f.status = 'staged';
+					f.error = null;
+				}
+			}
+		});
+
+		renderStagedFiles();
+		updateSendButton();
+	}
+
+	function clearStagedFiles() {
+		stagedFiles = [];
+		renderStagedFiles();
+		updateSendButton();
+	}
+
+	function hasActiveFiles() {
+		return stagedFiles.some(function(f) {
+			return f.status === 'staged' || f.status === 'uploaded';
+		});
+	}
+
+	function renderStagedFiles() {
+		if (!stagedArea) return;
+		if (stagedFiles.length === 0) {
+			stagedArea.style.display = 'none';
+			stagedArea.innerHTML = '';
+			return;
+		}
+		stagedArea.style.display = 'flex';
+		stagedArea.innerHTML = stagedFiles.map(function(f) {
+			var statusClass = 'upload-chip--' + f.status;
+			var icon = f.thumbnailUrl
+				? '<img class="upload-chip-thumb" src="' + f.thumbnailUrl + '" alt="" />'
+				: '<svg class="upload-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+				  + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+				  + '<polyline points="14 2 14 8 20 8"/></svg>';
+			var errorTip = f.error
+				? '<span class="upload-chip-error">' + escapeHtml(f.error) + '</span>'
+				: '';
+			var size = (f.file.size / 1024).toFixed(0) + 'KB';
+			return '<div class="upload-chip ' + statusClass + '" data-id="' + f.localId + '">'
+				+ icon
+				+ '<span class="upload-chip-name" title="' + escapeHtml(f.file.name) + '">' + escapeHtml(f.file.name) + '</span>'
+				+ '<span class="upload-chip-size">' + size + '</span>'
+				+ '<button type="button" class="upload-chip-remove" aria-label="Remove">&times;</button>'
+				+ errorTip
+				+ '</div>';
+		}).join('');
+
+		// Attach remove handlers.
+		stagedArea.querySelectorAll('.upload-chip-remove').forEach(function(btn) {
+			btn.addEventListener('click', function() {
+				var chip = btn.closest('.upload-chip');
+				var id = parseInt(chip.dataset.id, 10);
+				removeStagedFile(id);
+			});
+		});
+	}
+
+	async function uploadSingleFile(entry) {
+		entry.status = 'uploading';
+		renderStagedFiles();
+
+		try {
+			// Step 1: Init — get presigned URL via WordPress proxy.
+			var initResult = await apiRequest('/uploads/init', {
+				method: 'POST',
+				body: JSON.stringify({
+					filename: entry.file.name,
+					mime_type: getMimeFromExtension(entry.file.name),
+					size_bytes: entry.file.size,
+					conversation_id: currentConversationId || '_pending',
+				}),
+			});
+
+			if (!initResult || !initResult.upload_url) {
+				throw new Error('Failed to initialize upload');
+			}
+
+			entry.fileId = initResult.file_id;
+
+			// Step 2: Upload binary directly to Azure presigned URL (with retry — V1.1: G2).
+			var blobResponse = null;
+			var lastError = null;
+
+			for (var attempt = 0; attempt <= UPLOAD_BLOB_MAX_RETRIES; attempt++) {
+				try {
+					blobResponse = await fetch(initResult.upload_url, {
+						method: 'PUT',
+						headers: {
+							'Content-Type': getMimeFromExtension(entry.file.name),
+							'x-ms-blob-type': 'BlockBlob',
+						},
+						body: entry.file,
+					});
+
+					if (blobResponse.ok) break;
+					lastError = new Error('Blob upload failed: ' + blobResponse.status);
+				} catch (err) {
+					lastError = err;
+				}
+
+				// Retry with backoff if not the last attempt.
+				if (attempt < UPLOAD_BLOB_MAX_RETRIES) {
+					await new Promise(function(resolve) { setTimeout(resolve, UPLOAD_BLOB_BACKOFF_MS[attempt]); });
+				}
+			}
+
+			if (!blobResponse || !blobResponse.ok) {
+				throw lastError || new Error('Blob upload failed after retries');
+			}
+
+			// Step 3: Commit via WordPress proxy.
+			var commitResult = await apiRequest('/uploads/commit', {
+				method: 'POST',
+				body: JSON.stringify({ file_id: entry.fileId }),
+			});
+
+			if (!commitResult || commitResult.status === 'error') {
+				throw new Error('Commit failed');
+			}
+
+			entry.status = 'uploaded';
+		} catch (err) {
+			entry.status = 'failed';
+			entry.error = err.message || t('uploadFailed', 'Upload failed');
+		}
+
+		renderStagedFiles();
+	}
+
+	async function uploadAllStagedFiles() {
+		var toUpload = stagedFiles.filter(function(f) { return f.status === 'staged'; });
+		if (toUpload.length === 0) return { success: true, fileIds: [] };
+
+		// Upload all in parallel.
+		// Note: maxFiles is capped at 5. If this ever increases beyond 5,
+		// add a concurrency cap (e.g., 2-3 parallel uploads) to avoid
+		// Azure throttling. (V1.1: C5)
+		await Promise.all(toUpload.map(function(f) { return uploadSingleFile(f); }));
+
+		var uploaded = stagedFiles.filter(function(f) { return f.status === 'uploaded'; });
+		var failed   = stagedFiles.filter(function(f) { return f.status === 'failed'; });
+
+		return {
+			success: failed.length === 0,
+			fileIds: uploaded.map(function(f) { return f.fileId; }),
+		};
+	}
+
+	function appendFileIndicators(container, fileNames) {
+		fileNames.forEach(function(name) {
+			var indicator = document.createElement('div');
+			indicator.className = 'message-file-indicator';
+			indicator.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+				+ '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+				+ '<polyline points="14 2 14 8 20 8"/></svg> '
+				+ escapeHtml(name);
+			container.appendChild(indicator);
+		});
+	}
+
 	// Send message
 	async function sendMessage() {
 		const text = composerInput.value.trim();
-		if (!text || isLoading || isReadOnly) return;
+		var hasFiles = hasActiveFiles();
+
+		if (!text && !hasFiles) return;
+		if (isLoading || isReadOnly) return;
 
 		hideError();
 		hideInfo();
 
+		// Upload staged files first.
+		var fileIds = [];
+		if (hasFiles) {
+			var uploadResult = await uploadAllStagedFiles();
+			if (!uploadResult.success) {
+				var failedFile = stagedFiles.filter(function(f) { return f.status === 'failed'; })[0];
+				var failMsg = (failedFile && failedFile.error) || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.');
+				showError(failMsg);
+				return;
+			}
+			fileIds = uploadResult.fileIds;
+		}
+
+		// Build user message display content.
+		var displayText = text || (fileIds.length > 0 ? t('analyzeFiles', 'Please analyze the attached file(s).') : '');
 		messages.push({
 			role: 'user',
-			content: text
+			content: displayText,
+			fileNames: fileIds.length > 0 ? stagedFiles.filter(function(f) { return f.status === 'uploaded'; }).map(function(f) { return f.file.name; }) : null
 		});
 		renderMessages();
 
@@ -474,13 +758,21 @@ function t(key, fallback) {
 		updateSendButton();
 
 		try {
+			var requestBody = { message: text };
+			if (currentConversationId) {
+				requestBody.thread_id = currentConversationId;
+			}
+			if (fileIds.length > 0) {
+				requestBody.file_ids = fileIds;
+			}
+
 			const result = await apiRequest('/chat', {
 				method: 'POST',
-				body: JSON.stringify({
-					message: text,
-					thread_id: currentConversationId
-				})
+				body: JSON.stringify(requestBody)
 			});
+
+			// Clear staged files ONLY on success (V1.1: C6).
+			clearStagedFiles();
 
 			messages.pop();
 			messages.push({
@@ -500,6 +792,7 @@ function t(key, fallback) {
 
 			updateReadOnlyState();
 		} catch (err) {
+			// Do NOT clear staged files on error — user can retry.
 			messages.pop();
 			renderMessages();
 			console.error('Failed to send message:', err);
@@ -901,6 +1194,69 @@ function t(key, fallback) {
 		autoResize();
 		sendMessage();
 	});
+
+	// =============================================
+	// UPLOAD EVENT HANDLERS
+	// =============================================
+
+	// File picker.
+	if (uploadBtn && fileInput) {
+		uploadBtn.addEventListener('click', function() {
+			if (!isLoading && !isReadOnly) fileInput.click();
+		});
+		fileInput.addEventListener('change', function(e) {
+			Array.from(e.target.files).forEach(function(f) { stageFile(f); });
+			e.target.value = '';
+		});
+	}
+
+	// Drag and drop — scoped to composer-container (V1.1: C7).
+	var composerDropTarget = document.querySelector('.composer-container');
+	if (composerDropTarget && dropOverlay) {
+		var dragCounter = 0;
+
+		composerDropTarget.addEventListener('dragenter', function(e) {
+			e.preventDefault();
+			dragCounter++;
+			dropOverlay.classList.add('visible');
+		});
+
+		composerDropTarget.addEventListener('dragover', function(e) {
+			e.preventDefault();
+		});
+
+		composerDropTarget.addEventListener('dragleave', function(e) {
+			e.preventDefault();
+			dragCounter--;
+			if (dragCounter <= 0) {
+				dragCounter = 0;
+				dropOverlay.classList.remove('visible');
+			}
+		});
+
+		composerDropTarget.addEventListener('drop', function(e) {
+			e.preventDefault();
+			dragCounter = 0;
+			dropOverlay.classList.remove('visible');
+			if (!isLoading && !isReadOnly) {
+				Array.from(e.dataTransfer.files).forEach(function(f) { stageFile(f); });
+			}
+		});
+	}
+
+	// Clipboard paste on composer.
+	if (composerInput) {
+		composerInput.addEventListener('paste', function(e) {
+			var items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+			var fileItems = items.filter(function(item) { return item.kind === 'file'; });
+			if (fileItems.length === 0) return; // Let normal text paste through.
+			e.preventDefault();
+			fileItems.forEach(function(item) {
+				var file = item.getAsFile();
+				if (file) stageFile(file);
+			});
+		});
+	}
 
 	// Focus input on load
 	composerInput.focus();

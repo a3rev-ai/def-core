@@ -243,6 +243,8 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/share-settings',
 	'a3-ai/v1/staff-ai/share-send',
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/share-event',
+	'a3-ai/v1/staff-ai/uploads/init',
+	'a3-ai/v1/staff-ai/uploads/commit',
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
 	'a3-ai/v1/staff-ai/status',
 	'a3-ai/v1/staff-ai/tools',
@@ -359,6 +361,240 @@ echo "\n[12] File download route pattern\n";
 $file_route = 'a3-ai/v1/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)';
 assert_true( isset( $_wp_test_rest_routes[ $file_route ] ), 'file download route registered' );
 assert_equals( 'GET', $_wp_test_rest_routes[ $file_route ]['methods'], 'file download is GET' );
+
+// ── 13. Upload init — valid input ─────────────────────────────────────
+echo "\n[13] Upload init — valid input\n";
+$_wp_test_current_user     = new WP_User( 1 );
+$_wp_test_current_user->ID = 1;
+$_wp_test_user_caps        = array( 'def_staff_access' );
+update_option( 'def_core_staff_ai_api_url', 'http://localhost:8000' );
+
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'        => 'test.pdf',
+	'mime_type'       => 'application/pdf',
+	'size_bytes'      => 1024,
+	'conversation_id' => 'thread_abc-123',
+) );
+// This will try to reach the backend and fail, but we verify pre-validation passes.
+// The error should come from backend_request(), not from validation.
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+// If backend is down, it returns WP_Error but NOT from our validation.
+if ( is_wp_error( $result ) ) {
+	assert_true(
+		$result->get_error_code() !== 'invalid_filename'
+		&& $result->get_error_code() !== 'unsupported_media_type'
+		&& $result->get_error_code() !== 'payload_too_large',
+		'valid input does not fail validation'
+	);
+}
+
+// ── 14. Upload init — empty filename → 400 ───────────────────────────
+echo "\n[14] Upload init — empty filename\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => '',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 1024,
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'empty filename returns WP_Error' );
+assert_equals( 'invalid_filename', $result->get_error_code(), 'error code is invalid_filename' );
+$data = $result->get_error_data();
+assert_equals( 400, $data['status'], 'HTTP status is 400' );
+
+// ── 15. Upload init — unsupported MIME → 415 ─────────────────────────
+echo "\n[15] Upload init — unsupported MIME type\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'malware.exe',
+	'mime_type'  => 'application/x-msdownload',
+	'size_bytes' => 1024,
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'unsupported MIME returns WP_Error' );
+assert_equals( 'unsupported_media_type', $result->get_error_code(), 'error code is unsupported_media_type' );
+$data = $result->get_error_data();
+assert_equals( 415, $data['status'], 'HTTP status is 415' );
+
+// ── 16. Upload init — file too large → 413 ───────────────────────────
+echo "\n[16] Upload init — file too large\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'big.pdf',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 20000000, // 20MB, over 10MB limit.
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'too-large file returns WP_Error' );
+assert_equals( 'payload_too_large', $result->get_error_code(), 'error code is payload_too_large' );
+$data = $result->get_error_data();
+assert_equals( 413, $data['status'], 'HTTP status is 413' );
+
+// ── 17. Upload init — zero size → 413 ────────────────────────────────
+echo "\n[17] Upload init — zero size\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'empty.pdf',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 0,
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'zero size returns WP_Error' );
+assert_equals( 'payload_too_large', $result->get_error_code(), 'zero size triggers payload_too_large' );
+
+// ── 18. Upload commit — valid file_id ─────────────────────────────────
+echo "\n[18] Upload commit — valid file_id\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/commit' );
+$request->set_body_params( array( 'file_id' => 'upload_abc123def456' ) );
+$result = DEF_Core_Staff_AI::rest_upload_commit( $request );
+// Valid file_id passes validation — error comes from backend_request, not validation.
+if ( is_wp_error( $result ) ) {
+	assert_true(
+		$result->get_error_code() !== 'invalid_file_id',
+		'valid file_id does not fail validation'
+	);
+}
+
+// ── 19. Upload commit — empty file_id → 400 ──────────────────────────
+echo "\n[19] Upload commit — empty file_id\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/commit' );
+$request->set_body_params( array( 'file_id' => '' ) );
+$result = DEF_Core_Staff_AI::rest_upload_commit( $request );
+assert_true( is_wp_error( $result ), 'empty file_id returns WP_Error' );
+assert_equals( 'invalid_file_id', $result->get_error_code(), 'error code is invalid_file_id' );
+$data = $result->get_error_data();
+assert_equals( 400, $data['status'], 'HTTP status is 400' );
+
+// ── 20. Upload commit — malformed file_id → 400 ──────────────────────
+echo "\n[20] Upload commit — malformed file_id\n";
+$malformed_ids = array(
+	'not_a_file_id',          // wrong prefix
+	'upload_',                // no hex part
+	'upload_ABCDEF',          // uppercase hex (we require lowercase)
+	'upload_abc123; rm -rf /', // injection attempt
+	'../etc/passwd',          // path traversal
+	'upload_<script>alert(1)</script>', // XSS attempt
+);
+foreach ( $malformed_ids as $bad_id ) {
+	$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/commit' );
+	$request->set_body_params( array( 'file_id' => $bad_id ) );
+	$result = DEF_Core_Staff_AI::rest_upload_commit( $request );
+	assert_true( is_wp_error( $result ), "malformed file_id '$bad_id' returns WP_Error" );
+	assert_equals( 'invalid_file_id', $result->get_error_code(), "malformed file_id '$bad_id' code is invalid_file_id" );
+}
+
+// ── 21. Upload routes are POST ────────────────────────────────────────
+echo "\n[21] Upload route methods\n";
+assert_equals( 'POST', $_wp_test_rest_routes['a3-ai/v1/staff-ai/uploads/init']['methods'], 'uploads/init = POST' );
+assert_equals( 'POST', $_wp_test_rest_routes['a3-ai/v1/staff-ai/uploads/commit']['methods'], 'uploads/commit = POST' );
+
+// ── 22. Chat with file_ids — empty message allowed ────────────────────
+echo "\n[22] Chat with file_ids — empty message allowed\n";
+update_option( 'def_core_staff_ai_api_url', 'http://localhost:8000' );
+$request = new WP_REST_Request( 'POST', '/staff-ai/chat' );
+$request->set_body_params( array(
+	'message'  => '',
+	'file_ids' => array( 'upload_abc123' ),
+) );
+$result = DEF_Core_Staff_AI::rest_send_message( $request );
+// Should NOT be invalid_message since files are present.
+if ( is_wp_error( $result ) ) {
+	assert_true(
+		$result->get_error_code() !== 'invalid_message',
+		'empty message with file_ids does not trigger invalid_message'
+	);
+}
+
+// ── 23. Chat with invalid file_ids silently dropped ───────────────────
+echo "\n[23] Chat with invalid file_ids — silently dropped\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/chat' );
+$request->set_body_params( array(
+	'message'  => '',
+	'file_ids' => array( 'bad_id', '../etc/passwd' ),
+) );
+$result = DEF_Core_Staff_AI::rest_send_message( $request );
+// All file_ids are invalid → no valid files → empty message → invalid_message.
+assert_true( is_wp_error( $result ), 'all-invalid file_ids with empty message returns WP_Error' );
+assert_equals( 'invalid_message', $result->get_error_code(), 'invalid file_ids dropped, falls back to empty-message check' );
+
+// ── 24. Upload init — spoofed MIME type (security) ────────────────────
+echo "\n[24] Upload init — spoofed MIME type (security: V1.1 G4)\n";
+// Attacker renames .exe to .pdf but claims application/x-msdownload.
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'report.pdf',
+	'mime_type'  => 'application/x-msdownload',
+	'size_bytes' => 2048,
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'spoofed MIME rejected' );
+assert_equals( 'unsupported_media_type', $result->get_error_code(), 'spoofed MIME returns unsupported_media_type' );
+
+// Also: valid filename extension but unsupported MIME (e.g., application/octet-stream).
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'photo.png',
+	'mime_type'  => 'application/octet-stream',
+	'size_bytes' => 5000,
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'octet-stream MIME rejected' );
+assert_equals( 'unsupported_media_type', $result->get_error_code(), 'octet-stream MIME returns unsupported_media_type' );
+
+// ── 25. Upload init — boundary size values ────────────────────────────
+echo "\n[25] Upload init — boundary size values\n";
+// Exactly at the 10MB limit — should pass validation.
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'exact.pdf',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 10485760, // Exactly 10MB.
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+if ( is_wp_error( $result ) ) {
+	assert_true(
+		$result->get_error_code() !== 'payload_too_large',
+		'exactly 10MB passes size validation'
+	);
+}
+
+// 1 byte over the limit — should fail.
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'over.pdf',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 10485761, // 10MB + 1 byte.
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), '10MB+1 returns WP_Error' );
+assert_equals( 'payload_too_large', $result->get_error_code(), '10MB+1 triggers payload_too_large' );
+
+// ── 26. All allowed MIME types accepted ───────────────────────────────
+echo "\n[26] All allowed MIME types accepted\n";
+$allowed = array(
+	'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+	'application/pdf', 'text/plain', 'text/markdown', 'text/csv',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+);
+foreach ( $allowed as $mime ) {
+	$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+	$request->set_body_params( array(
+		'filename'   => 'test-file.dat',
+		'mime_type'  => $mime,
+		'size_bytes' => 1024,
+	) );
+	$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+	if ( is_wp_error( $result ) ) {
+		assert_true(
+			$result->get_error_code() !== 'unsupported_media_type',
+			"MIME '$mime' accepted by validation"
+		);
+	} else {
+		assert_true( true, "MIME '$mime' accepted by validation" );
+	}
+}
 
 // Cleanup.
 $_wp_test_current_user = null;

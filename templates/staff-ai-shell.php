@@ -117,9 +117,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<div class="error-banner" id="errorBanner"></div>
 
 			<div class="composer-container" id="composerContainer">
+				<!-- Drop overlay -->
+				<div class="upload-drop-overlay" id="uploadDropOverlay">
+					<div class="upload-drop-overlay-content">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="17 8 12 3 7 8"></polyline>
+							<line x1="12" y1="3" x2="12" y2="15"></line>
+						</svg>
+						<span><?php echo esc_html__( 'Drop files here', 'def-core' ); ?></span>
+					</div>
+				</div>
+				<!-- Hidden file input -->
+				<input type="file" id="uploadFileInput" class="sr-only" multiple
+					accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.md,.csv,.docx,.xlsx" />
 				<div class="composer-wrapper">
+					<!-- Staged files area -->
+					<div class="upload-staged-area" id="uploadStagedArea" style="display: none;"
+						aria-live="polite" aria-relevant="additions removals"></div>
 					<div class="composer-row">
 						<div class="composer">
+							<button type="button" class="upload-btn" id="uploadBtn"
+								aria-label="<?php echo esc_attr__( 'Attach file', 'def-core' ); ?>"
+								title="<?php echo esc_attr__( 'Attach file', 'def-core' ); ?>">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+									stroke-linecap="round" stroke-linejoin="round">
+									<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+								</svg>
+							</button>
 							<textarea
 								class="composer-input"
 								id="composerInput"
@@ -252,6 +277,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 		apiBase: <?php echo wp_json_encode( $api_base ); ?>,
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
+		upload: {
+			maxFiles: 5,
+			maxSizeBytes: <?php echo DEF_Core_Staff_AI::UPLOAD_MAX_SIZE_BYTES; ?>,
+			allowedExtensions: <?php echo wp_json_encode( array(
+				'.png', '.jpg', '.jpeg', '.gif', '.webp',
+				'.pdf', '.txt', '.md', '.csv', '.docx', '.xlsx',
+			) ); ?>
+		},
 		i18n: {
 			failedToConnect: <?php echo wp_json_encode( __( 'Failed to connect to backend service.', 'def-core' ) ); ?>,
 			checkStatus: <?php echo wp_json_encode( __( 'Check /wp-json/a3-ai/v1/staff-ai/status for diagnostics.', 'def-core' ) ); ?>,
@@ -267,7 +300,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 			allRecipientsSelected: <?php echo wp_json_encode( __( 'All recipients selected', 'def-core' ) ); ?>,
 			failedToPrepareShare: <?php echo wp_json_encode( __( 'Failed to prepare share form.', 'def-core' ) ); ?>,
 			failedToSendShare: <?php echo wp_json_encode( __( 'Failed to send share email.', 'def-core' ) ); ?>,
-			instructionsRequired: <?php echo wp_json_encode( __( 'Instructions are required.', 'def-core' ) ); ?>
+			instructionsRequired: <?php echo wp_json_encode( __( 'Instructions are required.', 'def-core' ) ); ?>,
+			dropFilesHere: <?php echo wp_json_encode( __( 'Drop files here', 'def-core' ) ); ?>,
+			attachFile: <?php echo wp_json_encode( __( 'Attach file', 'def-core' ) ); ?>,
+			fileTooLarge: <?php echo wp_json_encode( __( 'File exceeds 10MB limit', 'def-core' ) ); ?>,
+			unsupportedType: <?php echo wp_json_encode( __( 'Unsupported file type', 'def-core' ) ); ?>,
+			tooManyFiles: <?php echo wp_json_encode( __( 'Maximum 5 files per message', 'def-core' ) ); ?>,
+			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'def-core' ) ); ?>,
+			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'def-core' ) ); ?>,
+			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'def-core' ) ); ?>
 		}
 	};
 	</script>

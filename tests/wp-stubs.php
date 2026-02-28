@@ -185,6 +185,19 @@ if ( ! function_exists( 'absint' ) ) {
 	}
 }
 
+if ( ! function_exists( 'sanitize_file_name' ) ) {
+	function sanitize_file_name( string $filename ): string {
+		return preg_replace( '/[^a-zA-Z0-9._-]/', '', $filename );
+	}
+}
+
+if ( ! function_exists( 'get_current_user_id' ) ) {
+	function get_current_user_id(): int {
+		global $_wp_test_current_user;
+		return $_wp_test_current_user ? $_wp_test_current_user->ID : 0;
+	}
+}
+
 if ( ! function_exists( 'home_url' ) ) {
 	function home_url( string $path = '' ): string {
 		return 'https://test.example.com' . $path;
