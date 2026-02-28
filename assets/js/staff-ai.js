@@ -518,6 +518,11 @@ function t(key, fallback) {
 			thumbnailUrl: null,
 		};
 
+		// Show validation error as banner immediately.
+		if (error) {
+			showError(error);
+		}
+
 		// Generate thumbnail for images.
 		if (!error && file.type && file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
 			var reader = new FileReader();
@@ -535,6 +540,19 @@ function t(key, fallback) {
 
 	function removeStagedFile(localId) {
 		stagedFiles = stagedFiles.filter(function(f) { return f.localId !== localId; });
+		hideError();
+
+		// Re-validate any failed files — they may now pass (e.g. count dropped below max).
+		stagedFiles.forEach(function(f) {
+			if (f.status === 'failed') {
+				var err = validateFile(f.file);
+				if (!err) {
+					f.status = 'staged';
+					f.error = null;
+				}
+			}
+		});
+
 		renderStagedFiles();
 		updateSendButton();
 	}
@@ -708,14 +726,16 @@ function t(key, fallback) {
 		if (hasFiles) {
 			var uploadResult = await uploadAllStagedFiles();
 			if (!uploadResult.success) {
-				showError(t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
+				var failedFile = stagedFiles.filter(function(f) { return f.status === 'failed'; })[0];
+				var failMsg = (failedFile && failedFile.error) || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.');
+				showError(failMsg);
 				return;
 			}
 			fileIds = uploadResult.fileIds;
 		}
 
 		// Build user message display content.
-		var displayText = text || '';
+		var displayText = text || (fileIds.length > 0 ? t('analyzeFiles', 'Please analyze the attached file(s).') : '');
 		messages.push({
 			role: 'user',
 			content: displayText,
