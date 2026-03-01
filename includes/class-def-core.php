@@ -59,6 +59,10 @@ final class DEF_Core {
 		DEF_Core_Escalation::init();
 		DEF_Core_Setup_Assistant::init();
 
+		// Register [def_chat_button] shortcode and action hook.
+		add_shortcode( 'def_chat_button', array( $this, 'shortcode_chat_button' ) );
+		add_action( 'def_core_chat_button', array( $this, 'action_chat_button' ) );
+
 		// Register AJAX handlers for inline login (Loop 6).
 		add_action( 'wp_ajax_nopriv_def_core_inline_login', array( $this, 'ajax_inline_login' ) );
 		add_action( 'wp_ajax_def_core_inline_login', array( $this, 'ajax_inline_login' ) );
@@ -226,6 +230,32 @@ final class DEF_Core {
 			array( 'in_footer' => true )
 		);
 
+		// Native Customer Chat loader (enqueued on frontend).
+		wp_register_script(
+			'def-core-customer-chat-loader',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat-loader.js',
+			array(),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
+		// Full chat module (lazy-loaded by loader, NOT enqueued directly).
+		wp_register_script(
+			'def-core-customer-chat',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
+			array(),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
+		// Chat styles (injected into Shadow DOM by loader, NOT enqueued directly).
+		wp_register_style(
+			'def-core-customer-chat',
+			DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
+			array(),
+			DEF_CORE_VERSION
+		);
+
 		// Setup Assistant drawer assets.
 		wp_register_style(
 			'def-core-setup-assistant',
@@ -249,23 +279,45 @@ final class DEF_Core {
 	 * @version 0.2.0
 	 */
 	public function enqueue_frontend_assets(): void {
-		// Only enqueue on frontend (not in admin).
 		if ( is_admin() ) {
 			return;
 		}
 
-		// Enqueue main bridge script.
 		$rest_data = array(
+			// Existing keys.
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
 			'loginUrl'       => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 			'siteUrl'        => esc_url_raw( home_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'allowedOrigins' => $this->get_allowed_origins(),
+			// Branding.
+			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
+			'logoUrl'        => $this->get_logo_url_for_frontend(),
+			'logoShow'       => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
+			'logoMaxHeight'  => (int) get_option( 'def_core_logo_max_height', 40 ),
+			// Chat settings.
+			'chatDisplayMode' => get_option( 'def_core_chat_display_mode', 'modal' ),
+			// Button appearance.
+			'buttonPosition'  => get_option( 'def_core_chat_button_position', 'right' ),
+			'buttonColor'     => get_option( 'def_core_chat_button_color', '#111827' ),
+			'buttonHoverColor' => get_option( 'def_core_chat_button_hover_color', '' ),
+			'buttonIcon'      => get_option( 'def_core_chat_button_icon', 'chat' ),
+			'buttonIconUrl'   => $this->get_button_icon_url(),
+			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
+			// API URL for direct fetch.
+			'apiBaseUrl'      => $this->get_customer_chat_api_url(),
+			// Asset URLs for lazy loading.
+			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
+			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
+			// i18n strings.
+			'strings'         => $this->get_chat_strings(),
 		);
-		wp_localize_script( 'def-core', 'DEFCore', $rest_data );
-		wp_enqueue_script( 'def-core' );
 
-		// Enqueue cart sync script only if WooCommerce is installed and Add to Cart API is enabled.
+		// Enqueue native loader (replaces old bridge script).
+		wp_localize_script( 'def-core-customer-chat-loader', 'DEFCore', $rest_data );
+		wp_enqueue_script( 'def-core-customer-chat-loader' );
+
+		// Cart sync (unchanged).
 		if ( $this->should_enqueue_cart_sync() ) {
 			wp_enqueue_script( 'def-core-cart-sync' );
 		}
@@ -392,6 +444,134 @@ final class DEF_Core {
 				'token'   => $token,
 			)
 		);
+	}
+
+	// ─── Customer Chat: Shortcode + Action Hook ──────────────────
+
+	/**
+	 * Shortcode: [def_chat_button label="Chat with us" class="my-class" icon="chat"]
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string Button HTML.
+	 */
+	public function shortcode_chat_button( $atts ): string {
+		$atts = shortcode_atts( array(
+			'label' => __( 'Chat', 'def-core' ),
+			'class' => '',
+			'icon'  => 'none',
+		), $atts, 'def_chat_button' );
+
+		$classes = 'def-chat-trigger-btn';
+		if ( ! empty( $atts['class'] ) ) {
+			$classes .= ' ' . esc_attr( $atts['class'] );
+		}
+
+		return sprintf(
+			'<button type="button" class="%s" data-def-chat-trigger data-icon="%s">%s</button>',
+			esc_attr( $classes ),
+			esc_attr( $atts['icon'] ),
+			esc_html( $atts['label'] )
+		);
+	}
+
+	/**
+	 * Action hook: <?php do_action('def_core_chat_button', ['label' => 'Chat']); ?>
+	 *
+	 * @param array $args Button arguments.
+	 */
+	public function action_chat_button( $args = array() ): void {
+		$args = wp_parse_args( $args, array(
+			'label' => __( 'Chat', 'def-core' ),
+			'class' => '',
+			'icon'  => 'none',
+		) );
+		echo $this->shortcode_chat_button( $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
+	// ─── Customer Chat: Private Helpers ──────────────────────────
+
+	/**
+	 * Get logo URL for frontend (image URL, not HTML).
+	 * Chain: def_core_logo_id → custom_logo → null.
+	 *
+	 * @return string|null Logo URL or null.
+	 */
+	private function get_logo_url_for_frontend(): ?string {
+		$logo_id = (int) get_option( 'def_core_logo_id', 0 );
+		if ( $logo_id ) {
+			$url = wp_get_attachment_image_url( $logo_id, 'medium' );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		$custom_logo_id = get_theme_mod( 'custom_logo' );
+		if ( $custom_logo_id ) {
+			$url = wp_get_attachment_image_url( (int) $custom_logo_id, 'medium' );
+			if ( $url ) {
+				return $url;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get Python backend API URL for customer chat.
+	 *
+	 * @return string API base URL or empty string.
+	 */
+	private function get_customer_chat_api_url(): string {
+		$url = get_option( 'def_core_staff_ai_api_url', '' );
+		return ! empty( $url ) ? rtrim( $url, '/' ) : '';
+	}
+
+	/**
+	 * Get custom button icon URL from media library.
+	 *
+	 * @return string|null Icon URL or null.
+	 */
+	private function get_button_icon_url(): ?string {
+		$icon = get_option( 'def_core_chat_button_icon', 'chat' );
+		if ( 'custom' !== $icon ) {
+			return null;
+		}
+		$id = (int) get_option( 'def_core_chat_button_icon_id', 0 );
+		if ( $id <= 0 ) {
+			return null;
+		}
+		$url = wp_get_attachment_image_url( $id, 'thumbnail' );
+		return $url ?: null;
+	}
+
+	/**
+	 * Get i18n strings for chat widget.
+	 *
+	 * @return array Translatable strings.
+	 */
+	private function get_chat_strings(): array {
+		$strings = array(
+			'clearChat'            => __( 'Clear conversation & start fresh', 'def-core' ),
+			'clearConfirmTitle'    => __( 'Clear conversation?', 'def-core' ),
+			'clearConfirmDesc'     => __( 'This will clear your current conversation. This action cannot be undone.', 'def-core' ),
+			'clearConfirmYes'      => __( 'Clear & start fresh', 'def-core' ),
+			'cancel'               => __( 'Cancel', 'def-core' ),
+			'typePlaceholder'      => __( 'Type your message...', 'def-core' ),
+			'greeting'             => __( 'Hello! How can I help you today?', 'def-core' ),
+			'sending'              => __( 'Sending...', 'def-core' ),
+			'login'                => __( 'Log in', 'def-core' ),
+			'loginTitle'           => __( 'Log in to continue', 'def-core' ),
+			'loginSubmit'          => __( 'Log in', 'def-core' ),
+			'sessionExpired'       => __( 'Session expired — please log in again', 'def-core' ),
+			'escalate'             => __( 'Request Human Support', 'def-core' ),
+			'escalateSubmit'       => __( 'Send', 'def-core' ),
+			'escalateSuccess'      => __( 'Your email has been sent.', 'def-core' ),
+			'uploadFailed'         => __( 'Upload failed. Please try again.', 'def-core' ),
+			'fileTooLarge'         => __( 'File too large — maximum 10MB', 'def-core' ),
+			'fileTypeNotSupported' => __( 'File type not supported', 'def-core' ),
+			'connectionError'      => __( 'Unable to connect. Please try again.', 'def-core' ),
+			'connectionLost'       => __( 'Connection lost. Retrying...', 'def-core' ),
+			'rateLimited'          => __( 'Please wait a moment before sending another message', 'def-core' ),
+		);
+		return apply_filters( 'def_core_chat_strings', $strings );
 	}
 }
 

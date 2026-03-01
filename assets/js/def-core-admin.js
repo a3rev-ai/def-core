@@ -34,6 +34,7 @@
 		initUserRoles();
 		initTestEmail();
 		initChatMode();
+		initButtonAppearance();
 	}
 
 	// ─── Tab Switching ────────────────────────────────────────────
@@ -952,6 +953,130 @@
 			radio.addEventListener('change', function () {
 				drawerOptions.style.display =
 					radio.value === 'drawer' ? 'block' : 'none';
+			});
+		});
+	}
+
+	// ─── Button Appearance ────────────────────────────────────────
+
+	function initButtonAppearance() {
+		initIconUploader();
+		initFloatingToggle();
+		initColorPreview();
+	}
+
+	function initIconUploader() {
+		var iconRadios = document.querySelectorAll(
+			'input[data-setting="def_core_chat_button_icon"]'
+		);
+		var uploadWrap = document.getElementById('def-core-custom-icon-upload');
+
+		if (!iconRadios.length || !uploadWrap) {
+			return;
+		}
+
+		// Show/hide custom icon upload when radio changes.
+		iconRadios.forEach(function (radio) {
+			radio.addEventListener('change', function () {
+				uploadWrap.style.display =
+					radio.value === 'custom' ? '' : 'none';
+			});
+		});
+
+		// Media uploader requires wp.media (loaded by wp_enqueue_media).
+		if (typeof wp === 'undefined' || typeof wp.media === 'undefined') {
+			return;
+		}
+
+		var selectBtn = document.getElementById('def-core-select-icon');
+		var removeBtn = document.getElementById('def-core-remove-icon');
+		var preview = document.getElementById('def-core-icon-preview');
+		var iconInput = document.getElementById('def_core_chat_button_icon_id');
+
+		if (!selectBtn || !iconInput) {
+			return;
+		}
+
+		var frame;
+
+		selectBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+
+			if (frame) {
+				frame.open();
+				return;
+			}
+
+			frame = wp.media({
+				title: 'Select Button Icon',
+				button: { text: 'Use as Icon' },
+				multiple: false,
+				library: { type: 'image' },
+			});
+
+			frame.on('select', function () {
+				var attachment = frame
+					.state()
+					.get('selection')
+					.first()
+					.toJSON();
+				iconInput.value = attachment.id;
+
+				if (preview) {
+					var size =
+						attachment.sizes && attachment.sizes.thumbnail
+							? attachment.sizes.thumbnail
+							: attachment;
+					preview.innerHTML =
+						'<img src="' +
+						escapeHtml(size.url) +
+						'" style="max-height: 48px; width: auto;" />';
+				}
+
+				if (removeBtn) {
+					removeBtn.style.display = 'inline-block';
+				}
+			});
+
+			frame.open();
+		});
+
+		if (removeBtn) {
+			removeBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				iconInput.value = '0';
+				if (preview) {
+					preview.innerHTML =
+						'<span class="def-core-no-logo">No icon selected</span>';
+				}
+				removeBtn.style.display = 'none';
+			});
+		}
+	}
+
+	function initFloatingToggle() {
+		var checkbox = document.getElementById('def_core_chat_show_floating');
+		var warning = document.getElementById('def-core-floating-warning');
+
+		if (!checkbox || !warning) {
+			return;
+		}
+
+		checkbox.addEventListener('change', function () {
+			warning.style.display = checkbox.checked ? 'none' : '';
+		});
+	}
+
+	function initColorPreview() {
+		var colorInputs = document.querySelectorAll('.def-core-color-field input[type="color"]');
+		colorInputs.forEach(function (colorInput) {
+			var valueSpan = colorInput.parentElement.querySelector(
+				'.def-core-color-value'
+			);
+			colorInput.addEventListener('input', function () {
+				if (valueSpan) {
+					valueSpan.textContent = colorInput.value;
+				}
 			});
 		});
 	}

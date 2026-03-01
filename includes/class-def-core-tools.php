@@ -48,14 +48,16 @@ final class DEF_Core_Tools {
 			'iss'          => get_site_url(),
 			'aud'          => DEF_CORE_AUDIENCE,
 		);
-		$jwt    = DEF_Core_JWT::issue_token( $claims, 300 ); // 5 minutes.
-		return new \WP_REST_Response(
+		$jwt      = DEF_Core_JWT::issue_token( $claims, 300 ); // 5 minutes.
+		$response = new \WP_REST_Response(
 			array(
 				'token' => $jwt,
 				'exp'   => time() + 300,
 			),
 			200
 		);
+		$response->set_headers( array( 'Cache-Control' => 'no-store' ) );
+		return $response;
 	}
 
 	/**

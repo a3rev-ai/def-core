@@ -78,6 +78,30 @@ final class DEF_Core_Admin {
 				'type'     => 'int',
 				'sanitize' => 'sanitize_drawer_width',
 			),
+			'def_core_chat_button_position' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_button_position',
+			),
+			'def_core_chat_button_color' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_hex_color',
+			),
+			'def_core_chat_button_hover_color' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_hex_color',
+			),
+			'def_core_chat_button_icon' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_button_icon',
+			),
+			'def_core_chat_button_icon_id' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
+			'def_core_chat_show_floating' => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
 		),
 		'employees-tools'  => array(
 			'def_core_tools_status' => array(
@@ -275,6 +299,22 @@ final class DEF_Core_Admin {
 			'display_mode' => get_option( 'def_core_chat_display_mode', 'modal' ),
 			'drawer_width' => (int) get_option( 'def_core_chat_drawer_width', 400 ),
 		);
+
+		// Button appearance settings.
+		$button_settings = array(
+			'position'      => get_option( 'def_core_chat_button_position', 'right' ),
+			'color'         => get_option( 'def_core_chat_button_color', '#111827' ),
+			'hover_color'   => get_option( 'def_core_chat_button_hover_color', '' ),
+			'icon'          => get_option( 'def_core_chat_button_icon', 'chat' ),
+			'icon_id'       => (int) get_option( 'def_core_chat_button_icon_id', 0 ),
+			'show_floating' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
+		);
+
+		// Icon preview URL for admin.
+		$button_icon_url = '';
+		if ( $button_settings['icon_id'] ) {
+			$button_icon_url = wp_get_attachment_image_url( $button_settings['icon_id'], 'thumbnail' );
+		}
 
 		// Setup Assistant drawer assets.
 		wp_enqueue_style( 'def-core-setup-assistant' );
@@ -689,6 +729,42 @@ final class DEF_Core_Admin {
 	public static function sanitize_drawer_width( $value ): int {
 		$value = (int) $value;
 		return max( 300, min( 600, $value ) );
+	}
+
+	/**
+	 * Sanitize button position ('right' or 'left').
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string 'right' or 'left'.
+	 */
+	public static function sanitize_button_position( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return in_array( $value, array( 'right', 'left' ), true ) ? $value : 'right';
+	}
+
+	/**
+	 * Sanitize hex color string.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Valid 6-digit hex color or default.
+	 */
+	public static function sanitize_hex_color( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		if ( preg_match( '/^#[0-9a-fA-F]{6}$/', $value ) ) {
+			return $value;
+		}
+		return '#111827';
+	}
+
+	/**
+	 * Sanitize button icon type.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string 'chat', 'headset', or 'custom'.
+	 */
+	public static function sanitize_button_icon( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return in_array( $value, array( 'chat', 'headset', 'custom' ), true ) ? $value : 'chat';
 	}
 
 	// ─── D-II: Escalation Tab Save ──────────────────────────────────

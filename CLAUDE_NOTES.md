@@ -1,5 +1,41 @@
 # Session Notes - def-core (WordPress Plugin)
 
+## Latest Session: 2026-03-01
+
+### Phase 8 Sub-PR A: Foundation — Floating Button + Panel Shell + Branding — BUILT
+
+**Branch:** `phase8-subpr-a-native-chat-foundation`
+
+**Files created:**
+- `assets/css/def-core-customer-chat.css` (1,428 lines) — Full Shadow DOM scoped CSS adapted from shell.css + popup.css
+- `assets/js/def-core-customer-chat-loader.js` (503 lines) — Lightweight IIFE loader: Shadow DOM host, floating trigger button, panel shell, lazy-load infrastructure
+- `assets/js/def-core-customer-chat.js` (20 lines) — Placeholder chat module (Sub-PR B fills this in)
+
+**Files modified:**
+- `includes/class-def-core-admin.php` — 5 new `$tab_allowlists` entries (button position/color/icon/icon_id/show_floating) + 3 sanitizer methods + button settings data in render_settings_page()
+- `templates/admin-settings.php` — New "Chat Button Appearance" card in Chat Settings tab (position radio, color picker, icon radio with SVG previews, custom icon upload, floating toggle with warning)
+- `assets/js/def-core-admin.js` — initButtonAppearance() with icon uploader toggle, floating warning toggle, color preview
+- `assets/css/def-core-admin.css` — Color field + icon preview styles
+- `includes/class-def-core.php` — 3 new asset registrations, expanded enqueue_frontend_assets() with branding/chat/button/API/i18n data in window.DEFCore, shortcode [def_chat_button] + action hook, 4 private helpers (get_logo_url_for_frontend, get_customer_chat_api_url, get_button_icon_url, get_chat_strings)
+- `includes/class-def-core-tools.php` — Cache-Control: no-store on context-token response
+
+**What was built:**
+- Shadow DOM host with CSS-only floating trigger button (zero chat JS on page load)
+- Trigger button reads config from window.DEFCore: position, color, icon (chat/headset/custom)
+- Panel shell (modal or drawer mode) created on first click
+- Lazy-load infrastructure: hover preload, script/CSS injection on first open
+- 24-hour hide via localStorage (same key as popup.js for continuity)
+- Header trigger buttons via [data-def-chat-trigger] attribute (shortcode/action hook)
+- Escape key closes, click-outside closes (modal mode)
+- Admin bar offset for drawer mode
+- iOS scroll lock, prefers-reduced-motion, mobile responsive
+- destroy() for SPA/PJAX cleanup
+- Full CSS: trigger, panel, header, messages, composer, attachments, overlays, dialogs
+
+**Status:** Code complete, PHP syntax verified, awaiting commit + PR + Docker testing.
+
+---
+
 ## MUST DO — Post Phase 7: Native Customer Chat Widget
 
 **Priority:** Immediately after Phase 7 completion
