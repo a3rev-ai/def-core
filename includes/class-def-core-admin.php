@@ -2,11 +2,11 @@
 /**
  * Class DEF_Core_Admin
  *
- * Admin functionality for the Digital Employee Framework - Core plugin.
+ * Admin settings page for the Digital Employee Framework - Core plugin.
+ * Phase 7 D-I: Tabbed layout with 7 tabs, AJAX save, connection test.
  *
  * @package def-core
- * @since 0.1.0
- * @version 0.1.0
+ * @since 2.0.0
  */
 
 declare(strict_types=1);
@@ -15,33 +15,59 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class DEF_Core_Admin
- *
- * Admin functionality for the Digital Employee Framework - Core plugin.
- *
- * @package def-core
- * @since 0.1.0
- * @version 0.1.0
- */
 final class DEF_Core_Admin {
+
+	/**
+	 * Per-tab field allowlists with sanitizers.
+	 * Keys accepted per tab — unknown keys are rejected. (V1.1)
+	 *
+	 * @var array<string, array<string, array>>
+	 */
+	private static $tab_allowlists = array(
+		'connection'       => array(
+			'def_core_staff_ai_api_url' => array(
+				'type'     => 'url',
+				'sanitize' => 'sanitize_staff_ai_api_url',
+			),
+			'def_core_api_key'          => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_api_key',
+				'autoload' => false,
+			),
+			'def_core_allowed_origins'  => array(
+				'type'     => 'origins',
+				'sanitize' => 'sanitize_allowed_origins',
+			),
+			'def_core_external_jwks_url' => array(
+				'type'     => 'url',
+				'sanitize' => 'sanitize_external_jwks_url',
+			),
+			'def_core_external_issuer'  => array(
+				'type'     => 'url',
+				'sanitize' => 'sanitize_external_issuer',
+			),
+		),
+		'employees-tools'  => array(
+			'def_core_tools_status' => array(
+				'type'     => 'tools_array',
+				'sanitize' => 'sanitize_tools_status',
+			),
+		),
+	);
+
 	/**
 	 * Initialize the admin functionality.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
 	 */
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'wp_ajax_def_core_save_settings', array( __CLASS__, 'ajax_save_settings' ) );
+		add_action( 'wp_ajax_def_core_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_def_core_regenerate_service_secret', array( __CLASS__, 'ajax_regenerate_service_secret' ) );
 	}
 
 	/**
-	 * Add the settings page.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * Add the settings page under Settings menu.
 	 */
 	public static function add_settings_page(): void {
 		add_options_page(
@@ -54,147 +80,291 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Register the settings.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * Register settings with WordPress.
+	 * Kept for option whitelisting and sanitize callbacks.
 	 */
 	public static function register_settings(): void {
-		register_setting(
-			'def_core_settings',
-			DEF_CORE_OPTION_ALLOWED_ORIGINS,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_allowed_origins' ),
-				'default'           => array(),
-				'show_in_rest'      => false,
-			)
-		);
-		register_setting(
-			'def_core_settings',
-			'def_core_external_jwks_url',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_external_jwks_url' ),
-				'default'           => '',
-				'show_in_rest'      => false,
-			)
-		);
-		register_setting(
-			'def_core_settings',
-			'def_core_external_issuer',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_external_issuer' ),
-				'default'           => '',
-				'show_in_rest'      => false,
-			)
-		);
-		register_setting(
-			'def_core_settings',
-			'def_core_tools_status',
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_tools_status' ),
-				'default'           => array(),
-				'show_in_rest'      => false,
-			)
-		);
-		register_setting(
-			'def_core_settings',
-			'def_core_staff_ai_api_url',
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_staff_ai_api_url' ),
-				'default'           => '',
-				'show_in_rest'      => false,
-			)
-		);
-		add_settings_section(
-			'def_core_main',
-			__( 'Session Bridge Settings', 'def-core' ),
-			function (): void {
-				echo '<p>' . esc_html__( 'Manage which origins (hosts) are allowed to request Signed Context Tokens via postMessage. One origin per line, e.g. https://app.example.com', 'def-core' ) . '</p>';
-			},
-			'def-core'
-		);
-		add_settings_section(
-			'def_core_external_auth',
-			__( 'External Authentication (Single Sign-On)', 'def-core' ),
-			array( __CLASS__, 'render_external_auth_section' ),
-			'def-core'
-		);
-		add_settings_section(
-			'def_core_api_tools',
-			__( 'API Tools', 'def-core' ),
-			array( __CLASS__, 'render_api_tools_section' ),
-			'def-core'
-		);
-		add_settings_section(
-			'def_core_staff_ai',
-			__( 'Staff AI Backend', 'def-core' ),
-			array( __CLASS__, 'render_staff_ai_section' ),
-			'def-core'
-		);
-		add_settings_field(
-			'api_tools',
-			__( 'Enable/Disable Tools', 'def-core' ),
-			array( __CLASS__, 'render_api_tools_field' ),
-			'def-core',
-			'def_core_api_tools'
-		);
-		add_settings_field(
-			'allowed_origins',
-			__( 'Allowed Origins', 'def-core' ),
-			array( __CLASS__, 'render_allowed_origins_field' ),
-			'def-core',
-			'def_core_main'
-		);
-		add_settings_field(
-			'external_jwks_url',
-			__( 'External JWKS URL', 'def-core' ),
-			array( __CLASS__, 'render_external_jwks_field' ),
-			'def-core',
-			'def_core_external_auth'
-		);
-		add_settings_field(
-			'external_issuer',
-			__( 'External Issuer URL', 'def-core' ),
-			array( __CLASS__, 'render_external_issuer_field' ),
-			'def-core',
-			'def_core_external_auth'
-		);
-		add_settings_field(
-			'staff_ai_api_url',
-			__( 'Staff AI API URL', 'def-core' ),
-			array( __CLASS__, 'render_staff_ai_api_url_field' ),
-			'def-core',
-			'def_core_staff_ai'
-		);
-
-		// Service Authentication section.
-		add_settings_section(
-			'def_core_service_auth',
-			__( 'Service Authentication', 'def-core' ),
-			array( __CLASS__, 'render_service_auth_section' ),
-			'def-core'
-		);
-		add_settings_field(
-			'service_auth_secret',
-			__( 'Service Auth Secret', 'def-core' ),
-			array( __CLASS__, 'render_service_auth_secret_field' ),
-			'def-core',
-			'def_core_service_auth'
-		);
+		register_setting( 'def_core_settings', DEF_CORE_OPTION_ALLOWED_ORIGINS, array(
+			'type'              => 'array',
+			'sanitize_callback' => array( __CLASS__, 'sanitize_allowed_origins' ),
+			'default'           => array(),
+			'show_in_rest'      => false,
+		) );
+		register_setting( 'def_core_settings', 'def_core_external_jwks_url', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( __CLASS__, 'sanitize_external_jwks_url' ),
+			'default'           => '',
+			'show_in_rest'      => false,
+		) );
+		register_setting( 'def_core_settings', 'def_core_external_issuer', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( __CLASS__, 'sanitize_external_issuer' ),
+			'default'           => '',
+			'show_in_rest'      => false,
+		) );
+		register_setting( 'def_core_settings', 'def_core_tools_status', array(
+			'type'              => 'array',
+			'sanitize_callback' => array( __CLASS__, 'sanitize_tools_status' ),
+			'default'           => array(),
+			'show_in_rest'      => false,
+		) );
+		register_setting( 'def_core_settings', 'def_core_staff_ai_api_url', array(
+			'type'              => 'string',
+			'sanitize_callback' => array( __CLASS__, 'sanitize_staff_ai_api_url' ),
+			'default'           => '',
+			'show_in_rest'      => false,
+		) );
 	}
 
+	// ─── Page Rendering ──────────────────────────────────────────────
+
 	/**
-	 * Sanitize the allowed origins.
+	 * Render the settings page.
+	 */
+	public static function render_settings_page(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// Enqueue admin assets.
+		wp_enqueue_style( 'def-core-admin' );
+		wp_enqueue_script( 'def-core-admin' );
+
+		// Localize script data for JS.
+		$cached_connection = get_transient( 'def_core_connection_test' );
+		wp_localize_script( 'def-core-admin', 'defCoreAdmin', array(
+			'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+			'saveNonce'        => wp_create_nonce( 'def_core_save_settings' ),
+			'testNonce'        => wp_create_nonce( 'def_core_test_connection' ),
+			'secretNonce'      => wp_create_nonce( 'def_core_regenerate_service_secret' ),
+			'cachedConnection' => $cached_connection ? $cached_connection : null,
+		) );
+
+		// Prepare template data.
+		$settings = array(
+			'api_url'          => get_option( 'def_core_staff_ai_api_url', '' ),
+			'api_key'          => get_option( 'def_core_api_key', '' ),
+			'allowed_origins'  => get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array() ),
+			'external_jwks'    => get_option( 'def_core_external_jwks_url', '' ),
+			'external_issuer'  => get_option( 'def_core_external_issuer', '' ),
+			'service_secret'   => DEF_Core_Escalation::get_service_secret(),
+		);
+
+		// Tool registry data.
+		$registry     = DEF_Core_API_Registry::instance();
+		$tools        = $registry->get_tools_with_status();
+		$tools_status = get_option( 'def_core_tools_status', array() );
+		if ( ! is_array( $tools_status ) ) {
+			$tools_status = array();
+		}
+
+		// Endpoint URLs for reference section.
+		$urls = array(
+			'jwks'    => rest_url( DEF_CORE_API_NAME_SPACE . '/jwks' ),
+			'issuer'  => rtrim( home_url(), '/' ),
+			'token'   => rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ),
+		);
+
+		// SSO configuration status.
+		$sso_configured = ! empty( $settings['external_jwks'] ) && ! empty( $settings['external_issuer'] );
+
+		// Load template.
+		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';
+	}
+
+	// ─── AJAX: Save Settings ─────────────────────────────────────────
+
+	/**
+	 * AJAX handler for saving settings per-tab.
+	 * Validates against per-tab allowlists — unknown keys rejected. (V1.1)
+	 */
+	public static function ajax_save_settings(): void {
+		// Verify nonce.
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_settings' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		// Verify capability.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$tab = isset( $_POST['tab'] ) ? sanitize_text_field( wp_unslash( $_POST['tab'] ) ) : '';
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$data = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
+
+		if ( ! is_array( $data ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid settings data.', 'def-core' ) ) );
+		}
+
+		// Get allowlist for this tab.
+		if ( ! isset( self::$tab_allowlists[ $tab ] ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unknown tab.', 'def-core' ) ) );
+		}
+
+		$allowlist = self::$tab_allowlists[ $tab ];
+		$errors    = array();
+		$saved     = array();
+
+		// Reject unknown keys.
+		foreach ( $data as $key => $value ) {
+			$key = sanitize_text_field( $key );
+			if ( ! isset( $allowlist[ $key ] ) ) {
+				$errors[] = sprintf( __( 'Unknown setting: %s', 'def-core' ), $key );
+				continue;
+			}
+
+			$field_def = $allowlist[ $key ];
+			$sanitize  = $field_def['sanitize'];
+			$autoload  = isset( $field_def['autoload'] ) ? $field_def['autoload'] : true;
+
+			// Call the sanitize method.
+			$sanitized = call_user_func( array( __CLASS__, $sanitize ), $value );
+
+			// Check for WP settings errors added by sanitize callbacks.
+			$wp_errors = get_settings_errors();
+			if ( ! empty( $wp_errors ) ) {
+				foreach ( $wp_errors as $err ) {
+					if ( 'error' === $err['type'] ) {
+						$errors[] = $err['message'];
+					}
+				}
+				// Clear settings errors so they don't persist.
+				global $wp_settings_errors;
+				$wp_settings_errors = array();
+				continue;
+			}
+
+			update_option( $key, $sanitized, $autoload );
+			$saved[] = $key;
+		}
+
+		if ( ! empty( $errors ) ) {
+			wp_send_json_error( array(
+				'message' => implode( ' ', $errors ),
+				'errors'  => $errors,
+				'saved'   => $saved,
+			) );
+		}
+
+		wp_send_json_success( array(
+			'message' => __( 'Settings saved.', 'def-core' ),
+			'saved'   => $saved,
+		) );
+	}
+
+	// ─── AJAX: Connection Test ───────────────────────────────────────
+
+	/**
+	 * AJAX handler for testing the DEF API connection.
+	 * Stores sanitized result in transient (V1.1: no keys, no raw headers/bodies).
+	 */
+	public static function ajax_test_connection(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_test_connection' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
+		$api_key = get_option( 'def_core_api_key', '' );
+
+		if ( empty( $api_url ) ) {
+			$result = array(
+				'status'    => 'error',
+				'message'   => __( 'API URL is not configured.', 'def-core' ),
+				'http_code' => 0,
+				'timestamp' => gmdate( 'c' ),
+			);
+			set_transient( 'def_core_connection_test', $result, 300 );
+			wp_send_json_error( $result );
+		}
+
+		$headers = array( 'Accept' => 'application/json' );
+		if ( ! empty( $api_key ) ) {
+			$headers['Authorization'] = 'Bearer ' . $api_key;
+		}
+
+		$start    = microtime( true );
+		$response = wp_remote_get( rtrim( $api_url, '/' ) . '/health', array(
+			'headers' => $headers,
+			'timeout' => 10,
+		) );
+		$elapsed  = round( ( microtime( true ) - $start ) * 1000 );
+
+		if ( is_wp_error( $response ) ) {
+			$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );
+			$result    = array(
+				'status'        => 'error',
+				'message'       => $error_msg,
+				'http_code'     => 0,
+				'response_time' => $elapsed,
+				'timestamp'     => gmdate( 'c' ),
+			);
+			set_transient( 'def_core_connection_test', $result, 300 );
+			wp_send_json_error( $result );
+		}
+
+		$http_code = wp_remote_retrieve_response_code( $response );
+		if ( $http_code >= 200 && $http_code < 300 ) {
+			$result = array(
+				'status'        => 'ok',
+				'message'       => __( 'Connected', 'def-core' ),
+				'http_code'     => $http_code,
+				'response_time' => $elapsed,
+				'timestamp'     => gmdate( 'c' ),
+			);
+		} else {
+			$result = array(
+				'status'        => 'error',
+				'message'       => sprintf( __( 'HTTP %d response', 'def-core' ), $http_code ),
+				'http_code'     => $http_code,
+				'response_time' => $elapsed,
+				'timestamp'     => gmdate( 'c' ),
+			);
+		}
+
+		// Store sanitized result in transient (V1.1: never store keys or raw bodies).
+		set_transient( 'def_core_connection_test', $result, 300 );
+
+		if ( 'ok' === $result['status'] ) {
+			wp_send_json_success( $result );
+		} else {
+			wp_send_json_error( $result );
+		}
+	}
+
+	// ─── AJAX: Service Secret Regeneration ───────────────────────────
+
+	/**
+	 * AJAX handler for regenerating the service auth secret.
+	 */
+	public static function ajax_regenerate_service_secret(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_regenerate_service_secret' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$new_secret = DEF_Core_Escalation::get_service_secret( true );
+
+		wp_send_json_success( array(
+			'secret'  => $new_secret,
+			'message' => __( 'New secret generated. Update your Python app\'s .env file immediately.', 'def-core' ),
+		) );
+	}
+
+	// ─── Sanitize Callbacks ──────────────────────────────────────────
+
+	/**
+	 * Sanitize allowed origins.
 	 *
 	 * @param string|array $value The value to sanitize.
-	 * @return array The sanitized value.
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * @return array The sanitized origins.
 	 */
 	public static function sanitize_allowed_origins( $value ) {
 		if ( is_string( $value ) ) {
@@ -210,54 +380,32 @@ final class DEF_Core_Admin {
 			if ( '' === $line ) {
 				continue;
 			}
-			// Accept only http/https origins; strip trailing slash.
 			if ( 0 === strpos( $line, 'http://' ) || 0 === strpos( $line, 'https://' ) ) {
 				$line  = rtrim( $line, '/' );
 				$out[] = $line;
 			}
 		}
-		$out = array_values( array_unique( $out ) );
-		return $out;
-	}
-
-	/**
-	 * Render the external auth section description.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function render_external_auth_section(): void {
-		?>
-		<p><?php esc_html_e( 'Configure this site to accept JWT tokens from another WordPress site (Single Sign-On). Leave these fields empty if this site issues its own tokens.', 'def-core' ); ?></p>
-		<p><strong><?php esc_html_e( 'Use Case:', 'def-core' ); ?></strong> <?php esc_html_e( 'If you have a main e-commerce site and a separate support forum site, configure the support site to accept tokens from the main site so users only need to log in once.', 'def-core' ); ?></p>
-		<p><em><?php esc_html_e( 'Security Note: Only configure external authentication if you trust the external site and its users.', 'def-core' ); ?></em></p>
-		<?php
+		return array_values( array_unique( $out ) );
 	}
 
 	/**
 	 * Sanitize external JWKS URL.
 	 *
 	 * @param string $value The value to sanitize.
-	 * @return string The sanitized value.
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * @return string The sanitized URL.
 	 */
 	public static function sanitize_external_jwks_url( $value ): string {
 		$value = trim( (string) $value );
 		if ( '' === $value ) {
 			return '';
 		}
-		// Must be a valid URL.
 		$url = esc_url_raw( $value, array( 'http', 'https' ) );
 		if ( '' === $url ) {
-			add_settings_error(
-				'def_core_external_jwks_url',
-				'invalid_url',
+			add_settings_error( 'def_core_external_jwks_url', 'invalid_url',
 				__( 'External JWKS URL must be a valid HTTP/HTTPS URL.', 'def-core' )
 			);
 			return '';
 		}
-		// Clear the JWKS cache when URL changes.
 		delete_transient( 'def_core_external_jwks_' . md5( $url ) );
 		return $url;
 	}
@@ -266,26 +414,20 @@ final class DEF_Core_Admin {
 	 * Sanitize external issuer URL.
 	 *
 	 * @param string $value The value to sanitize.
-	 * @return string The sanitized value.
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * @return string The sanitized URL.
 	 */
 	public static function sanitize_external_issuer( $value ): string {
 		$value = trim( (string) $value );
 		if ( '' === $value ) {
 			return '';
 		}
-		// Must be a valid URL.
 		$url = esc_url_raw( $value, array( 'http', 'https' ) );
 		if ( '' === $url ) {
-			add_settings_error(
-				'def_core_external_issuer',
-				'invalid_url',
+			add_settings_error( 'def_core_external_issuer', 'invalid_url',
 				__( 'External Issuer URL must be a valid HTTP/HTTPS URL.', 'def-core' )
 			);
 			return '';
 		}
-		// Remove trailing slash for consistency.
 		return rtrim( $url, '/' );
 	}
 
@@ -293,9 +435,7 @@ final class DEF_Core_Admin {
 	 * Sanitize tools status array.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return array<string, int> The sanitized value (1=enabled, 0=disabled).
-	 * @since 0.2.0
-	 * @version 0.2.0
+	 * @return array<string, int> Sanitized tool status map.
 	 */
 	public static function sanitize_tools_status( $value ): array {
 		if ( ! is_array( $value ) ) {
@@ -305,7 +445,6 @@ final class DEF_Core_Admin {
 		foreach ( $value as $key => $status ) {
 			$key = sanitize_text_field( (string) $key );
 			if ( ! empty( $key ) ) {
-				// Convert to int: 1 for enabled, 0 for disabled.
 				$sanitized[ $key ] = (int) $status;
 			}
 		}
@@ -316,506 +455,43 @@ final class DEF_Core_Admin {
 	 * Sanitize Staff AI API URL.
 	 *
 	 * @param string $value The value to sanitize.
-	 * @return string The sanitized value.
-	 * @since 1.1.0
+	 * @return string The sanitized URL.
 	 */
 	public static function sanitize_staff_ai_api_url( $value ): string {
 		$value = trim( (string) $value );
 		if ( '' === $value ) {
 			return '';
 		}
-		// Must be a valid URL.
 		$url = esc_url_raw( $value, array( 'http', 'https' ) );
 		if ( '' === $url ) {
-			add_settings_error(
-				'def_core_staff_ai_api_url',
-				'invalid_url',
+			add_settings_error( 'def_core_staff_ai_api_url', 'invalid_url',
 				__( 'Staff AI API URL must be a valid HTTP/HTTPS URL.', 'def-core' )
 			);
 			return '';
 		}
-		// Remove trailing slash for consistency.
 		return rtrim( $url, '/' );
 	}
 
 	/**
-	 * Render the allowed origins field.
+	 * Sanitize API key.
 	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
+	 * @param string $value The value to sanitize.
+	 * @return string The sanitized key.
 	 */
-	public static function render_allowed_origins_field(): void {
-		$origins = get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array() );
-		if ( ! is_array( $origins ) ) {
-			$origins = array();
+	public static function sanitize_api_key( $value ): string {
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return '';
 		}
-		$text = implode( "\n", array_map( 'esc_url_raw', $origins ) );
-		echo '<textarea name="' . esc_attr( DEF_CORE_OPTION_ALLOWED_ORIGINS ) . '" rows="6" cols="60" class="large-text code">' . esc_textarea( $text ) . '</textarea>';
-		echo '<p class="description">' . esc_html__( 'Example: https://your-azure-app.azurewebsites.net', 'def-core' ) . '</p>';
-	}
-
-	/**
-	 * Render the external JWKS URL field.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function render_external_jwks_field(): void {
-		$url = get_option( 'def_core_external_jwks_url', '' );
-		?>
-		<input type="url" 
-				name="def_core_external_jwks_url" 
-				value="<?php echo esc_attr( $url ); ?>" 
-				class="large-text code" 
-				placeholder="<?php echo esc_attr( 'https://your-main-site.com/wp-json/' . DEF_CORE_API_NAME_SPACE . '/jwks' ); ?>" />
-		<p class="description">
-			<?php esc_html_e( 'The JWKS (JSON Web Key Set) URL from your main WordPress site.', 'def-core' ); ?><br>
-			<strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong> <code><?php echo esc_html( 'https://your-main-site.com/wp-json/' . DEF_CORE_API_NAME_SPACE . '/jwks' ); ?></code><br>
-			<em><?php esc_html_e( 'This site will verify tokens using the public keys from this URL.', 'def-core' ); ?></em>
-		</p>
-		<?php
-	}
-
-	/**
-	 * Render the external issuer URL field.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function render_external_issuer_field(): void {
-		$url = get_option( 'def_core_external_issuer', '' );
-		?>
-		<input type="url" 
-				name="def_core_external_issuer" 
-				value="<?php echo esc_attr( $url ); ?>" 
-				class="large-text code" 
-				placeholder="https://your-main-site.com" />
-		<p class="description">
-			<?php esc_html_e( 'The base URL of your main WordPress site (must match the JWT issuer claim).', 'def-core' ); ?><br>
-			<strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong> <code>https://your-main-site.com</code><br>
-			<em><?php esc_html_e( 'Tokens with a different issuer will be rejected for security.', 'def-core' ); ?></em>
-		</p>
-		<?php
-	}
-
-	/**
-	 * Render the settings page.
-	 *
-	 * @since 0.1.0
-	 * @version 0.1.0
-	 */
-	public static function render_settings_page(): void {
-		// Enqueue admin assets.
-		wp_enqueue_style( 'def-core-admin' );
-		wp_enqueue_script( 'def-core-admin' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
+		// Strip any whitespace/control characters.
+		$value = preg_replace( '/\s+/', '', $value );
+		// Length validation: 10–256 chars.
+		if ( strlen( $value ) < 10 || strlen( $value ) > 256 ) {
+			add_settings_error( 'def_core_api_key', 'invalid_length',
+				__( 'API key must be between 10 and 256 characters.', 'def-core' )
+			);
+			return '';
 		}
-		$jwks_url  = esc_url( rest_url( DEF_CORE_API_NAME_SPACE . '/jwks' ) );
-		$token_url = esc_url( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) );
-
-		// Check external auth configuration status.
-		$external_jwks_url   = get_option( 'def_core_external_jwks_url', '' );
-		$external_issuer     = get_option( 'def_core_external_issuer', '' );
-		$external_configured = ! empty( $external_jwks_url ) && ! empty( $external_issuer );
-		?>
-		<div class="wrap">
-			<h1><?php echo esc_html( __( 'Digital Employee Bridge', 'def-core' ) ); ?></h1>
-			
-			<?php if ( $external_configured ) : ?>
-				<div class="notice notice-success">
-					<p>
-						<strong><?php esc_html_e( '✓ Single Sign-On Enabled', 'def-core' ); ?></strong><br>
-						<?php
-						printf(
-							/* translators: %s: external site URL */
-							esc_html__( 'This site is accepting JWT tokens from: %s', 'def-core' ),
-							'<code>' . esc_html( $external_issuer ) . '</code>'
-						);
-						?>
-					</p>
-				</div>
-			<?php else : ?>
-				<div class="notice notice-info">
-					<p>
-						<strong><?php esc_html_e( 'Local Authentication Mode', 'def-core' ); ?></strong><br>
-						<?php esc_html_e( 'This site issues its own JWT tokens. Configure "External Authentication" below to enable Single Sign-On with another WordPress site.', 'def-core' ); ?>
-					</p>
-				</div>
-			<?php endif; ?>
-			
-			<form method="post" action="options.php">
-				<?php
-				settings_fields( 'def_core_settings' );
-				do_settings_sections( 'def-core' );
-				submit_button();
-				?>
-			</form>
-			
-			<hr>
-			
-			<h2><?php echo esc_html( __( 'This Site\'s Endpoints', 'def-core' ) ); ?></h2>
-			<p><?php esc_html_e( 'Use these URLs when configuring other sites to accept tokens from this site:', 'def-core' ); ?></p>
-			<table class="form-table">
-				<tr>
-					<th scope="row"><?php esc_html_e( 'JWKS URL:', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( $jwks_url ); ?></code>
-						<button type="button" class="button button-small" onclick="navigator.clipboard.writeText('<?php echo esc_js( $jwks_url ); ?>')">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Issuer URL:', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( rtrim( home_url(), '/' ) ); ?></code>
-						<button type="button" class="button button-small" onclick="navigator.clipboard.writeText('<?php echo esc_js( rtrim( home_url(), '/' ) ); ?>')">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Context Token URL:', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( $token_url ); ?></code>
-						<button type="button" class="button button-small" onclick="navigator.clipboard.writeText('<?php echo esc_js( $token_url ); ?>')">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-						<br><em><?php esc_html_e( '(Requires authentication)', 'def-core' ); ?></em>
-					</td>
-				</tr>
-			</table>
-			
-			<hr>
-			
-			<h2><?php echo esc_html( __( 'Chatbot Widget Integration Guide', 'def-core' ) ); ?></h2>
-			<?php self::render_widget_guide_section(); ?>
-			<?php self::render_widget_guide_field(); ?>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Render the API tools section description.
-	 *
-	 * @since 0.2.0
-	 * @version 0.2.0
-	 */
-	public static function render_api_tools_section(): void {
-		?>
-		<p><?php esc_html_e( 'Enable or disable individual API tools. Core routes (context-token, jwks) are always enabled and cannot be disabled.', 'def-core' ); ?></p>
-		<p class="description"><?php esc_html_e( 'Disabled tools will not be registered with WordPress REST API and will not be accessible.', 'def-core' ); ?></p>
-		<?php
-	}
-
-	/**
-	 * Render the Staff AI section description.
-	 *
-	 * @since 1.1.0
-	 */
-	public static function render_staff_ai_section(): void {
-		?>
-		<p><?php esc_html_e( 'Configure the Staff AI backend API connection. This enables the internal Staff AI chat interface at /staff-ai.', 'def-core' ); ?></p>
-		<?php
-	}
-
-	/**
-	 * Render the Staff AI API URL field.
-	 *
-	 * @since 1.1.0
-	 */
-	public static function render_staff_ai_api_url_field(): void {
-		$url = get_option( 'def_core_staff_ai_api_url', '' );
-		?>
-		<input type="url"
-				name="def_core_staff_ai_api_url"
-				value="<?php echo esc_attr( $url ); ?>"
-				class="large-text code"
-				placeholder="https://your-def-api.example.com" />
-		<p class="description">
-			<?php esc_html_e( 'The base URL of the Digital Employee Framework Python API.', 'def-core' ); ?><br>
-			<strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong> <code>https://a3revai.azurewebsites.net</code><br>
-			<em><?php esc_html_e( 'Required for Staff AI functionality. Leave empty to disable.', 'def-core' ); ?></em>
-		</p>
-		<?php
-	}
-
-	/**
-	 * Render the service auth section description.
-	 *
-	 * @since 1.2.0
-	 */
-	public static function render_service_auth_section(): void {
-		?>
-		<p><?php esc_html_e( 'Service-to-service authentication for the Python backend. This secret allows the DEF Python app to call WordPress REST endpoints without a user JWT token.', 'def-core' ); ?></p>
-		<p><strong><?php esc_html_e( 'Use Case:', 'def-core' ); ?></strong> <?php esc_html_e( 'Required for anonymous customer escalation, where there is no logged-in user but the Python app still needs to fetch settings and send emails.', 'def-core' ); ?></p>
-		<?php
-	}
-
-	/**
-	 * Render the service auth secret field.
-	 *
-	 * @since 1.2.0
-	 */
-	public static function render_service_auth_secret_field(): void {
-		// Get or generate the secret.
-		$secret = DEF_Core_Escalation::get_service_secret();
-		$nonce  = wp_create_nonce( 'def_core_regenerate_service_secret' );
-		?>
-		<div class="def-core-service-auth-field">
-			<input
-				type="text"
-				id="def_service_auth_secret"
-				value="<?php echo esc_attr( $secret ); ?>"
-				class="large-text code"
-				readonly
-				onclick="this.select();"
-			/>
-			<p class="description">
-				<button type="button" class="button button-small" onclick="navigator.clipboard.writeText('<?php echo esc_js( $secret ); ?>'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000);">
-					<?php esc_html_e( 'Copy', 'def-core' ); ?>
-				</button>
-				<button
-					type="button"
-					class="button button-small"
-					id="def-core-regenerate-secret-btn"
-					data-nonce="<?php echo esc_attr( $nonce ); ?>"
-				>
-					<?php esc_html_e( 'Generate New Secret', 'def-core' ); ?>
-				</button>
-			</p>
-			<p class="description">
-				<?php esc_html_e( 'Copy this value to your Python app\'s .env file:', 'def-core' ); ?><br>
-				<code>DEF_SERVICE_AUTH_SECRET=<?php echo esc_html( $secret ); ?></code>
-			</p>
-			<p class="description">
-				<em><?php esc_html_e( 'Warning: If you generate a new secret, you must also update the Python app\'s .env file immediately, or anonymous escalation will fail.', 'def-core' ); ?></em>
-			</p>
-		</div>
-		<?php
-	}
-
-	/**
-	 * AJAX handler for regenerating the service auth secret.
-	 *
-	 * @since 1.2.0
-	 */
-	public static function ajax_regenerate_service_secret(): void {
-		// Verify nonce.
-		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_regenerate_service_secret' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
-		}
-
-		// Verify user can manage options.
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
-		}
-
-		// Force regenerate new secret using the centralized method.
-		$new_secret = DEF_Core_Escalation::get_service_secret( true );
-
-		wp_send_json_success(
-			array(
-				'secret'  => $new_secret,
-				'message' => __( 'New secret generated. Update your Python app\'s .env file immediately.', 'def-core' ),
-			)
-		);
-	}
-
-	/**
-	 * Render the API tools field.
-	 *
-	 * @since 0.2.0
-	 * @version 0.2.0
-	 */
-	public static function render_api_tools_field(): void {
-		$registry     = DEF_Core_API_Registry::instance();
-		$tools        = $registry->get_tools_with_status();
-		$tools_status = get_option( 'def_core_tools_status', array() );
-		if ( ! is_array( $tools_status ) ) {
-			$tools_status = array();
-		}
-		?>
-		<div class="def-core-api-tools">
-			<?php if ( ! empty( $tools ) ) : ?>
-				<table class="form-table def-core-tools-table">
-					<tbody>
-						<?php foreach ( $tools as $route => $tool ) : ?>
-							<?php
-							$tool_id = 'tool_' . md5( $route );
-							// If tool is not in status list, default to enabled (1).
-							$status     = isset( $tools_status[ $route ] ) ? (int) $tools_status[ $route ] : 1;
-							$is_enabled = 1 === $status;
-							?>
-							<tr>
-								<th scope="row">
-									<label for="<?php echo esc_attr( $tool_id ); ?>">
-										<?php echo esc_html( $tool['name'] ); ?>
-									</label>
-								</th>
-								<td>
-									<span class="def-core-toggle-switch <?php echo $tool['is_core'] ? 'def-core-toggle-disabled' : ''; ?>">
-										<?php if ( ! $is_enabled ) : ?>
-											<input 
-												type="hidden" 
-												name="def_core_tools_status[<?php echo esc_attr( $route ); ?>]"
-												value="0"
-											>
-										<?php endif; ?>
-										<input 
-											type="checkbox" 
-											id="<?php echo esc_attr( $tool_id ); ?>" 
-											name="def_core_tools_status[<?php echo esc_attr( $route ); ?>]"
-											value="1"
-											<?php checked( $is_enabled, true ); ?>
-										>
-										<span class="def-core-slider"></span>
-									</span>
-									<code class="def-core-route"><?php echo esc_html( $tool['route'] ); ?></code>
-									<span class="def-core-methods"><?php echo esc_html( implode( ', ', $tool['methods'] ) ); ?></span>
-									<?php if ( ! empty( $tool['module'] ) ) : ?>
-										<span class="def-core-module-badge"><?php echo esc_html( $tool['module'] ); ?></span>
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-			<?php else : ?>
-				<p><?php esc_html_e( 'No API tools registered yet.', 'def-core' ); ?></p>
-			<?php endif; ?>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Render the widget guide section description.
-	 *
-	 * @since 0.2.0
-	 * @version 0.2.0
-	 */
-	public static function render_widget_guide_section(): void {
-		?>
-		<p><?php esc_html_e( 'Learn how to integrate the Digital Employee chatbot popup widget into your WordPress site.', 'def-core' ); ?></p>
-		<?php
-	}
-
-	/**
-	 * Render the widget guide field.
-	 *
-	 * @since 0.2.0
-	 * @version 0.2.0
-	 */
-	public static function render_widget_guide_field(): void {
-		?>
-		<div class="def-core-widget-guide">
-			<h3><?php esc_html_e( 'Quick Start', 'def-core' ); ?></h3>
-			<p><?php esc_html_e( 'The chatbot widget is an embeddable JavaScript file that creates a floating chat popup on your website. Add it to your theme.', 'def-core' ); ?></p>
-
-			<h4><?php esc_html_e( 'Direct Script Tag in Theme', 'def-core' ); ?></h4>
-			<p><?php esc_html_e( 'Add this to your theme\'s header.php or footer.php (before closing </body> tag):', 'def-core' ); ?></p>
-			<pre><code><?php
-			// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- This is example documentation code, not an actual script enqueue.
-			$script_example = '<script
-    src="https://a3revai.azurewebsites.net/widget/popup.js"
-    data-chat-url="https://a3revai.azurewebsites.net/v2"
-    data-position="right"
-    data-open="false"
-    async>
-</script>';
-			echo esc_html( $script_example );
-			?>
-			</code></pre>
-
-			<h3><?php esc_html_e( 'Configuration Options', 'def-core' ); ?></h3>
-			<p><?php esc_html_e( 'The widget supports the following data attributes:', 'def-core' ); ?></p>
-
-			<div class="widget-attribute">
-				<strong>data-chat-url</strong><br>
-				<?php esc_html_e( 'The URL of the Digital Employee Framework interface to load in the iframe.', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Default:', 'def-core' ); ?> <code>https://a3revai.azurewebsites.net/v2</code></em>
-			</div>
-
-			<div class="widget-attribute">
-				<strong>data-position</strong><br>
-				<?php esc_html_e( 'Controls where the chat button appears on the screen.', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Options:', 'def-core' ); ?> <code>"right"</code> <?php esc_html_e( '(default) or', 'def-core' ); ?> <code>"left"</code></em>
-			</div>
-
-			<div class="widget-attribute">
-				<strong>data-open</strong><br>
-				<?php esc_html_e( '"true" to start opened (only applies on first load, default: false)', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Note: Once a user closes the popup, it stays hidden for 24 hours.', 'def-core' ); ?></em>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">▶</span>
-					<?php esc_html_e( 'Integration with WordPress Bridge Plugin', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<p><?php esc_html_e( 'If you\'re using this bridge plugin, you can leverage the JWT context token for authenticated access:', 'def-core' ); ?></p>
-					<div class="example-box">
-						<p><strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong></p>
-						<p><?php esc_html_e( 'The widget will automatically use the WordPress authentication context when loaded on pages where users are logged in. The Digital Employee Framework will receive the user\'s WordPress identity through the bridge plugin\'s context token endpoint.', 'def-core' ); ?></p>
-					</div>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">▶</span>
-					<?php esc_html_e( 'Widget Behavior', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<ul>
-						<li><?php esc_html_e( 'The widget uses localStorage to remember user preferences', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'When a user closes the popup, it stays hidden for 24 hours', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'The data-open="true" attribute only applies if there\'s no saved user preference', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Includes ARIA attributes for accessibility and keyboard support (ESC key closes popup)', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'The widget automatically loads its CSS file - no additional CSS enqueuing required', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">▶</span>
-					<?php esc_html_e( 'Troubleshooting', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<p><strong><?php esc_html_e( 'Widget not appearing?', 'def-core' ); ?></strong></p>
-					<ul>
-						<li><?php esc_html_e( 'Check browser console for JavaScript errors', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Verify script URL is accessible and correct', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check for conflicts with other scripts or themes', 'def-core' ); ?></li>
-					</ul>
-
-					<p><strong><?php esc_html_e( 'Widget appears but chat doesn\'t load?', 'def-core' ); ?></strong></p>
-					<ul>
-						<li><?php esc_html_e( 'Verify data-chat-url points to a valid Digital Employee Framework instance', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check iframe permissions - ensure the chat URL allows embedding', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check CORS settings on the chat URL server', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">▶</span>
-					<?php esc_html_e( 'Security Considerations', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<ul>
-						<li><?php esc_html_e( 'Always escape URLs when outputting them in HTML', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Validate user permissions before loading the widget', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Use HTTPS for both widget and chat URLs', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Consider CORS policies if loading from different domains', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
-		</div>
-		<?php
+		return $value;
 	}
 }

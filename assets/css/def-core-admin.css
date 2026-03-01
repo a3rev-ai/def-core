@@ -1,32 +1,339 @@
-/* Digital Employee Framework - Core - Admin Styles */
+/**
+ * Digital Employee Framework - Core - Admin Styles
+ * Phase 7 D-I: Modern tabbed layout with card-based panels.
+ */
 
-.def-core-api-tools {
-	margin-top: 20px;
+/* ─── Base / Layout ────────────────────────────────────────── */
+
+.def-core-wrap {
+	max-width: 900px;
 }
 
-.def-core-api-tools h3 {
-	margin-top: 30px;
-	margin-bottom: 15px;
+.def-core-wrap h1 {
+	margin-bottom: 20px;
+}
+
+/* ─── Tab Navigation ───────────────────────────────────────── */
+
+.def-core-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0;
+	border-bottom: 1px solid #c3c4c7;
+	margin-bottom: 20px;
+}
+
+.def-core-tab {
+	padding: 10px 16px;
+	border: none;
+	border-bottom: 3px solid transparent;
+	background: none;
+	color: #50575e;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	line-height: 1.4;
+	transition: color 0.15s, border-color 0.15s;
+	white-space: nowrap;
+}
+
+.def-core-tab:hover {
+	color: #2271b1;
+}
+
+.def-core-tab[aria-selected="true"] {
+	color: #1d2327;
+	border-bottom-color: #2271b1;
+	font-weight: 600;
+}
+
+.def-core-tab:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: -2px;
+	border-radius: 2px;
+}
+
+/* ─── Tab Panels ───────────────────────────────────────────── */
+
+.def-core-panel {
+	display: none;
+}
+
+.def-core-panel:not([hidden]) {
+	display: block;
+}
+
+/* ─── Card ─────────────────────────────────────────────────── */
+
+.def-core-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 24px;
+	margin-bottom: 16px;
+}
+
+.def-core-card h2 {
+	margin: 0 0 16px;
+	padding: 0 0 12px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 15px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.def-core-card h3 {
+	margin: 20px 0 10px;
 	font-size: 14px;
 	font-weight: 600;
+	color: #1d2327;
 }
 
-.def-core-tools-table {
-	margin-top: 10px;
-}
-
-.def-core-tools-table th {
-	padding: 15px 10px 15px 0;
+.def-core-card h4 {
+	margin: 16px 0 8px;
+	font-size: 13px;
 	font-weight: 600;
+	color: #23282d;
+}
+
+/* ─── Form Fields ──────────────────────────────────────────── */
+
+.def-core-field {
+	margin-bottom: 20px;
+}
+
+.def-core-field:last-child {
+	margin-bottom: 0;
+}
+
+.def-core-field label {
+	display: block;
+	margin-bottom: 6px;
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+}
+
+.def-core-field input[type="text"],
+.def-core-field input[type="url"],
+.def-core-field input[type="password"],
+.def-core-field input[type="email"],
+.def-core-field textarea {
+	width: 100%;
+	max-width: 100%;
+}
+
+.def-core-field .description {
+	margin-top: 6px;
+	color: #646970;
+	font-size: 12px;
+}
+
+/* ─── Password Toggle ─────────────────────────────────────── */
+
+.def-core-password-wrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.def-core-password-wrap input {
+	flex: 1;
+}
+
+.def-core-password-toggle {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+}
+
+.def-core-password-toggle .dashicons {
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+	line-height: 20px;
+}
+
+/* ─── Connection Test ──────────────────────────────────────── */
+
+.def-core-connection-test {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.def-core-connection-result {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	min-height: 30px;
+}
+
+.def-core-connection-result.ok {
+	color: #00a32a;
+}
+
+.def-core-connection-result.error {
+	color: #d63638;
+}
+
+.def-core-connection-result .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 18px;
+}
+
+/* ─── Notices ──────────────────────────────────────────────── */
+
+.def-core-notice {
+	padding: 12px 16px;
+	border-radius: 4px;
+	margin-bottom: 16px;
+	border-left: 4px solid;
+}
+
+.def-core-notice p {
+	margin: 0;
+}
+
+.def-core-notice-success {
+	background: #edfaef;
+	border-color: #00a32a;
+}
+
+.def-core-notice-info {
+	background: #f0f6fc;
+	border-color: #72aee6;
+}
+
+/* ─── Endpoints Table ──────────────────────────────────────── */
+
+.def-core-endpoints-table {
+	margin-top: 10px;
+	border-collapse: collapse;
+}
+
+.def-core-endpoints-table th {
+	padding: 8px 16px 8px 0;
+	text-align: left;
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.def-core-endpoints-table td {
+	padding: 8px 0;
 	vertical-align: middle;
 }
 
-.def-core-tools-table td {
-	padding: 15px 10px;
+.def-core-endpoints-table code {
+	margin-right: 8px;
+}
+
+.def-core-endpoints-table em {
+	margin-left: 8px;
+	font-size: 12px;
+}
+
+/* ─── Copy Buttons ─────────────────────────────────────────── */
+
+.def-core-copy-btn {
 	vertical-align: middle;
 }
 
-/* Toggle Switch */
+/* ─── Service Auth ─────────────────────────────────────────── */
+
+.def-core-service-auth-actions {
+	margin-top: 8px;
+	display: flex;
+	gap: 8px;
+}
+
+/* ─── Save Area ────────────────────────────────────────────── */
+
+.def-core-save-area {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+	padding: 16px 0;
+}
+
+.def-core-save-area .spinner {
+	float: none;
+	margin: 0;
+}
+
+/* ─── Toast Notifications ──────────────────────────────────── */
+
+.def-core-toast-container {
+	position: fixed;
+	top: 36px;
+	right: 16px;
+	z-index: 100001;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	pointer-events: none;
+}
+
+.def-core-toast {
+	padding: 12px 20px;
+	border-radius: 4px;
+	font-size: 13px;
+	color: #fff;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	transform: translateX(120%);
+	transition: transform 0.3s ease;
+	pointer-events: auto;
+	max-width: 360px;
+}
+
+.def-core-toast.show {
+	transform: translateX(0);
+}
+
+.def-core-toast.success {
+	background: #00a32a;
+}
+
+.def-core-toast.error {
+	background: #d63638;
+}
+
+/* ─── Placeholder Tabs ─────────────────────────────────────── */
+
+.def-core-placeholder {
+	text-align: center;
+	padding: 40px 20px;
+	color: #646970;
+}
+
+.def-core-placeholder .dashicons {
+	font-size: 48px;
+	width: 48px;
+	height: 48px;
+	line-height: 48px;
+	color: #c3c4c7;
+	display: block;
+	margin: 0 auto 12px;
+}
+
+.def-core-placeholder p {
+	margin: 0;
+	font-size: 14px;
+}
+
+/* ─── Toggle Switch ────────────────────────────────────────── */
+
 .def-core-toggle-switch {
 	position: relative;
 	display: inline-block;
@@ -75,8 +382,8 @@
 	background-color: #2271b1;
 }
 
-.def-core-toggle-switch input:focus + .def-core-slider {
-	box-shadow: 0 0 1px #2271b1;
+.def-core-toggle-switch input:focus-visible + .def-core-slider {
+	box-shadow: 0 0 0 2px #2271b1;
 }
 
 .def-core-toggle-switch input:checked + .def-core-slider:before {
@@ -93,10 +400,37 @@
 	background-color: #2271b1;
 }
 
+/* ─── Tools Table ──────────────────────────────────────────── */
+
+.def-core-tools-table {
+	width: 100%;
+	margin-top: 10px;
+}
+
+.def-core-tools-table th {
+	padding: 12px 10px 12px 0;
+	font-weight: 600;
+	vertical-align: middle;
+	text-align: left;
+}
+
+.def-core-tools-table td {
+	padding: 12px 10px;
+	vertical-align: middle;
+}
+
+.def-core-tools-table tr + tr {
+	border-top: 1px solid #f0f0f1;
+}
+
+.def-core-tools-table tr.def-core-disabled {
+	opacity: 0.6;
+}
+
 .def-core-route {
 	display: inline-block;
 	margin-left: 8px;
-	padding: 4px 8px;
+	padding: 3px 8px;
 	background-color: #f0f0f1;
 	border-radius: 3px;
 	font-size: 12px;
@@ -107,7 +441,7 @@
 .def-core-methods {
 	display: inline-block;
 	margin-left: 8px;
-	padding: 4px 8px;
+	padding: 3px 8px;
 	background-color: #e5f5fa;
 	border-radius: 3px;
 	font-size: 11px;
@@ -118,7 +452,7 @@
 .def-core-module-badge {
 	display: inline-block;
 	margin-left: 8px;
-	padding: 3px 8px;
+	padding: 2px 8px;
 	background-color: #f0f6fc;
 	border: 1px solid #c3c4c7;
 	border-radius: 3px;
@@ -126,25 +460,10 @@
 	color: #50575e;
 }
 
-/* Widget Guide Styles */
-.def-core-widget-guide {
-	background: #fff;
-	border: 1px solid #ccd0d4;
-	border-radius: 4px;
-	padding: 20px;
-	margin-top: 10px;
-}
+/* ─── Widget Guide ─────────────────────────────────────────── */
 
 .def-core-widget-guide h3 {
 	margin-top: 0;
-	padding-bottom: 10px;
-	border-bottom: 1px solid #eee;
-}
-
-.def-core-widget-guide h4 {
-	margin-top: 20px;
-	margin-bottom: 10px;
-	color: #23282d;
 }
 
 .def-core-widget-guide code {
@@ -231,18 +550,42 @@
 	padding-left: 20px;
 }
 
-/* Responsive adjustments */
+/* ─── Responsive ───────────────────────────────────────────── */
+
 @media screen and (max-width: 782px) {
+	.def-core-tabs {
+		flex-direction: column;
+		border-bottom: none;
+		border-left: 1px solid #c3c4c7;
+		margin-bottom: 16px;
+	}
+
+	.def-core-tab {
+		border-bottom: none;
+		border-left: 3px solid transparent;
+		text-align: left;
+		padding: 8px 12px;
+	}
+
+	.def-core-tab[aria-selected="true"] {
+		border-bottom-color: transparent;
+		border-left-color: #2271b1;
+	}
+
+	.def-core-card {
+		padding: 16px;
+	}
+
 	.def-core-tools-table th,
 	.def-core-tools-table td {
 		display: block;
 		width: 100%;
-		padding: 10px 0;
+		padding: 8px 0;
 	}
 
 	.def-core-tools-table th {
 		border-bottom: none;
-		padding-bottom: 5px;
+		padding-bottom: 4px;
 	}
 
 	.def-core-route,
@@ -250,7 +593,31 @@
 	.def-core-module-badge {
 		display: block;
 		margin-left: 62px;
-		margin-top: 5px;
+		margin-top: 4px;
+	}
+
+	.def-core-password-wrap {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.def-core-password-toggle {
+		align-self: flex-end;
+	}
+
+	.def-core-endpoints-table th,
+	.def-core-endpoints-table td {
+		display: block;
+		padding: 4px 0;
+	}
+
+	.def-core-toast-container {
+		top: 46px;
+		right: 8px;
+		left: 8px;
+	}
+
+	.def-core-toast {
+		max-width: none;
 	}
 }
-
