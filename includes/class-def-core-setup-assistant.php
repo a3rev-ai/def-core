@@ -390,6 +390,8 @@ final class DEF_Core_Setup_Assistant {
 		}
 
 		// Body hash verification.
+		// DEF sends canonical JSON (sorted keys) as raw body bytes.
+		// We hash php://input (the raw bytes) and compare to X-DEF-Body-Hash.
 		$raw_body = file_get_contents( 'php://input' );
 		if ( $raw_body === false ) {
 			$raw_body = '';
