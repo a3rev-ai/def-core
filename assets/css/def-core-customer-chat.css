@@ -1326,6 +1326,20 @@
 	text-decoration: underline;
 }
 
+.def-cc-login-form {
+	/* Wrapper for login form fields — display toggled by JS */
+}
+
+/* ─── Escalation Form Wrappers ─────────────────────────────────── */
+
+.def-cc-escalation-form-wrap {
+	/* Wrapper for form content — display toggled by JS */
+}
+
+.def-cc-escalation-anon-fields {
+	/* Anonymous-only fields — display toggled by JS */
+}
+
 /* ─── File Indicators in Messages ───────────────────────────────── */
 
 .def-cc-message-files {

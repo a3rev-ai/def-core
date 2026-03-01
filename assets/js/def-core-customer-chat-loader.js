@@ -447,27 +447,47 @@
 			shadowRoot.insertBefore(link, shadowRoot.firstChild);
 		}
 
-		// Load the chat module script (runs in document scope).
+		// Sequential script loading: marked.js → purify.js → chat module.
+		// Each onload triggers the next since chat module needs window.marked
+		// and window.DOMPurify available at init time.
+		loadScript(config.markedUrl, function () {
+			loadScript(config.purifyUrl, function () {
+				loadScript(config.chatModuleUrl, function () {
+					moduleLoading = false;
+					moduleLoaded = true;
+
+					if (
+						window.DEFCustomerChat &&
+						typeof window.DEFCustomerChat.init === 'function'
+					) {
+						window.DEFCustomerChat.init(shadowRoot, config);
+					}
+				});
+			});
+		});
+	}
+
+	/**
+	 * Load a script tag sequentially.
+	 *
+	 * @param {string|null} url Script URL to load.
+	 * @param {Function} onSuccess Callback on successful load.
+	 */
+	function loadScript(url, onSuccess) {
+		if (!url) {
+			// Skip missing vendor URLs — degrade gracefully.
+			onSuccess();
+			return;
+		}
+
 		var script = document.createElement('script');
-		script.src = config.chatModuleUrl;
+		script.src = url;
 
-		script.onload = function () {
-			moduleLoading = false;
-			moduleLoaded = true;
-
-			// Sub-PR B will expose window.DEFCustomerChat.init().
-			if (
-				window.DEFCustomerChat &&
-				typeof window.DEFCustomerChat.init === 'function'
-			) {
-				window.DEFCustomerChat.init(shadowRoot, config);
-			}
-		};
+		script.onload = onSuccess;
 
 		script.onerror = function () {
 			moduleLoading = false;
-			// Show error in panel.
-			var loading = panel.querySelector('.def-cc-loading');
+			var loading = panel && panel.querySelector('.def-cc-loading');
 			if (loading) {
 				loading.innerHTML =
 					'<span style="color:#ef4444;">Failed to load chat. Please refresh the page.</span>';

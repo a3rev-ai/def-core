@@ -256,6 +256,22 @@ final class DEF_Core {
 			DEF_CORE_VERSION
 		);
 
+		// Vendor libraries for customer chat (lazy-loaded by loader, NOT enqueued directly).
+		wp_register_script(
+			'def-core-marked',
+			DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js',
+			array(),
+			'15.0.12',
+			array( 'in_footer' => true )
+		);
+		wp_register_script(
+			'def-core-purify',
+			DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js',
+			array(),
+			'3.1.6',
+			array( 'in_footer' => true )
+		);
+
 		// Setup Assistant drawer assets.
 		wp_register_style(
 			'def-core-setup-assistant',
@@ -309,6 +325,8 @@ final class DEF_Core {
 			// Asset URLs for lazy loading.
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
+			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js',
+			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js',
 			// i18n strings.
 			'strings'         => $this->get_chat_strings(),
 		);
