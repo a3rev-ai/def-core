@@ -917,19 +917,35 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Invalid channel.', 'def-core' ) ) );
 		}
 
-		// Get the configured email for this channel.
+		// Rate limit: 30-second cooldown per channel per user.
+		$user_id       = get_current_user_id();
+		$transient_key = 'def_test_email_' . $user_id . '_' . $channel;
+		if ( get_transient( $transient_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please wait 30 seconds before sending another test email.', 'def-core' ) ) );
+			return;
+		}
+
+		// Get the configured email for this channel, re-validate on retrieval.
 		$stored    = get_option( 'def_core_escalation_' . $channel, array() );
-		$to_emails = ! empty( $stored['to'] ) ? (array) $stored['to'] : array( get_option( 'admin_email' ) );
-		$to        = implode( ', ', $to_emails );
+		$raw_emails = ! empty( $stored['to'] ) ? (array) $stored['to'] : array( get_option( 'admin_email' ) );
+		$to_emails  = array();
+		foreach ( $raw_emails as $email ) {
+			$clean = sanitize_email( $email );
+			if ( is_email( $clean ) ) {
+				$to_emails[] = $clean;
+			}
+		}
+		$to = implode( ', ', $to_emails );
 
 		if ( empty( $to ) ) {
-			wp_send_json_error( array( 'message' => __( 'No email address configured for this channel.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No valid email address configured for this channel.', 'def-core' ) ) );
 		}
 
 		$channel_label = ucwords( str_replace( '_', ' ', $channel ) );
 		$subject       = sprintf( '[DEF Test] Escalation test — %s', $channel_label );
 		$body          = __( 'This is a test escalation email from Digital Employee Framework. If you received this, escalation is working correctly.', 'def-core' );
 
+		set_transient( $transient_key, 1, 30 );
 		$sent = wp_mail( $to, $subject, $body );
 
 		if ( $sent ) {
