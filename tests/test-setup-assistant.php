@@ -3,7 +3,7 @@
  * Setup Assistant endpoint tests.
  *
  * Verifies:
- * - Route registration (all 10 endpoints)
+ * - Route registration (all 12 endpoints)
  * - Dual authentication (Mode A nonce, Mode B HMAC)
  * - Mixed-mode auth rejection
  * - HMAC validation (valid, expired, wrong sig, body hash mismatch, missing headers, invalid user)
@@ -15,6 +15,7 @@
  * - Thread CRUD
  * - Rate limiting
  * - Audit log (entry creation, FIFO rotation, redaction)
+ * - Seen flag (GET/POST, first-visit detection)
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -152,8 +153,16 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 		global $_wp_test_rest_routes;
 		$key = $namespace . $route;
 		// Support multiple methods on same route.
-		$method = $args['methods'] ?? 'GET';
-		$_wp_test_rest_routes[ $key . '::' . $method ] = $args;
+		// Handle nested array format (array of arrays for multi-method registration).
+		if ( isset( $args[0] ) && is_array( $args[0] ) ) {
+			foreach ( $args as $sub_args ) {
+				$method = $sub_args['methods'] ?? 'GET';
+				$_wp_test_rest_routes[ $key . '::' . $method ] = $sub_args;
+			}
+		} else {
+			$method = $args['methods'] ?? 'GET';
+			$_wp_test_rest_routes[ $key . '::' . $method ] = $args;
+		}
 	}
 }
 
@@ -474,6 +483,8 @@ $expected_routes = array(
 	'def-core/v1/setup/thread::GET',
 	'def-core/v1/setup/thread::POST',
 	'def-core/v1/setup/thread::DELETE',
+	'def-core/v1/setup/seen::GET',
+	'def-core/v1/setup/seen::POST',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -1334,6 +1345,52 @@ $_SERVER['HTTP_X_DEF_BODY_HASH'] = $body_hash;
 $request = new WP_REST_Request( $method, $path );
 $result  = $sa->permission_check( $request );
 assert_true( $result === true, 'HMAC with canonical route param accepted' );
+
+// ── 46. GET /setup/seen — not yet seen ──────────────────────────────────
+echo "\n[46] GET /setup/seen — not yet seen\n";
+reset_test_state();
+setup_admin_user();
+
+$request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/seen' );
+$response = $sa->rest_get_seen( $request );
+$data     = $response->get_data();
+assert_equals( 200, $response->get_status(), 'returns 200' );
+assert_true( $data['success'], 'success is true' );
+assert_false( $data['data']['seen'], 'seen is false when no user meta' );
+
+// ── 47. POST /setup/seen — mark seen ────────────────────────────────────
+echo "\n[47] POST /setup/seen — mark seen\n";
+reset_test_state();
+setup_admin_user();
+
+$request  = new WP_REST_Request( 'POST', '/def-core/v1/setup/seen' );
+$response = $sa->rest_set_seen( $request );
+$data     = $response->get_data();
+assert_equals( 200, $response->get_status(), 'returns 200' );
+assert_true( $data['success'], 'success is true' );
+assert_true( $data['data']['seen'], 'seen is true after marking' );
+
+// Verify user meta was set.
+$meta = get_user_meta( 1, 'def_sa_drawer_seen', true );
+assert_equals( '1', $meta, 'user meta def_sa_drawer_seen is "1"' );
+
+// ── 48. GET /setup/seen — already seen ──────────────────────────────────
+echo "\n[48] GET /setup/seen — already seen\n";
+// User meta still set from test 47 (same user, not reset).
+$request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/seen' );
+$response = $sa->rest_get_seen( $request );
+$data     = $response->get_data();
+assert_equals( 200, $response->get_status(), 'returns 200' );
+assert_true( $data['data']['seen'], 'seen is true when meta exists' );
+
+// ── 49. Seen endpoint requires auth ─────────────────────────────────────
+echo "\n[49] Seen endpoint requires auth\n";
+reset_test_state();
+// No user setup — no nonce, no HMAC.
+$request = new WP_REST_Request( 'GET', '/def-core/v1/setup/seen' );
+$result  = $sa->permission_check( $request );
+assert_true( is_wp_error( $result ), 'returns WP_Error without auth' );
+assert_equals( 'UNAUTHORIZED', $result->get_error_code(), 'error code is UNAUTHORIZED' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";

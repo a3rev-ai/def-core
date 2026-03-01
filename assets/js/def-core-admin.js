@@ -993,4 +993,10 @@
 		div.appendChild(document.createTextNode(str));
 		return div.innerHTML;
 	}
+
+	// Bridge for Setup Assistant drawer.
+	window.DEFAdmin = {
+		switchTab: switchTab,
+		showToast: showToast
+	};
 })();

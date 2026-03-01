@@ -225,6 +225,21 @@ final class DEF_Core {
 			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
+
+		// Setup Assistant drawer assets.
+		wp_register_style(
+			'def-core-setup-assistant',
+			DEF_CORE_PLUGIN_URL . 'assets/css/setup-assistant-drawer.css',
+			array( 'def-core-admin' ),
+			DEF_CORE_VERSION
+		);
+		wp_register_script(
+			'def-core-setup-assistant',
+			DEF_CORE_PLUGIN_URL . 'assets/js/setup-assistant-drawer.js',
+			array( 'def-core-admin' ),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
 	}
 
 	/**
