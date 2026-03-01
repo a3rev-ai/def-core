@@ -41,6 +41,15 @@
 		'update_user_role':      'Updating user role...'
 	};
 
+	var TOOL_DONE_LABELS = {
+		'get_setup_status':      'Setup status checked',
+		'get_setting':           'Settings read',
+		'test_connection':       'Connection tested',
+		'get_users_with_roles':  'User roles checked',
+		'update_setting':        'Settings updated',
+		'update_user_role':      'User role updated'
+	};
+
 	// Secret fields: never send raw values in dirty context.
 	var SECRET_FIELDS = ['def_core_api_key'];
 
@@ -130,9 +139,11 @@
 			self.close();
 		});
 
-		this.backdropEl.addEventListener('click', function () {
-			self.close();
-		});
+		if (this.backdropEl) {
+			this.backdropEl.addEventListener('click', function () {
+				self.close();
+			});
+		}
 
 		this.clearEl.addEventListener('click', function () {
 			self.clearConversation();
@@ -316,7 +327,7 @@
 		var label = TOOL_STATUS_LABELS[output.tool_name] || 'Processing...';
 		var div = document.createElement('div');
 		div.className = 'def-sa-tool-status';
-		div.innerHTML = '<span class="def-sa-spinner"></span>' + this.escapeHtml(label);
+		div.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label">' + this.escapeHtml(label) + '</span>';
 
 		// Add show-details toggle if there's raw output data.
 		if (output.result) {
@@ -446,7 +457,7 @@
 	SetupAssistantDrawer.prototype.processToolOutputs = function (outputs) {
 		for (var i = 0; i < outputs.length; i++) {
 			var output = outputs[i];
-			this.renderToolStatus(output);
+			var statusEl = this.renderToolStatus(output);
 
 			// Process ui_actions from this tool output.
 			if (output.ui_actions && output.ui_actions.length) {
@@ -457,7 +468,28 @@
 			if (output.escalation) {
 				this.renderEscalationCard(output.escalation);
 			}
+
+			// Mark tool status as complete (replace spinner with checkmark).
+			this.completeToolStatus(statusEl, output.tool_name);
 		}
+	};
+
+	SetupAssistantDrawer.prototype.completeToolStatus = function (statusEl, toolName) {
+		if (!statusEl) {
+			return;
+		}
+		var spinner = statusEl.querySelector('.def-sa-spinner');
+		if (spinner) {
+			spinner.className = 'def-sa-check';
+			spinner.innerHTML = '&#10003;';
+		}
+		// Update label to "done" text.
+		var doneLabel = TOOL_DONE_LABELS[toolName] || 'Done';
+		var labelEl = statusEl.querySelector('.def-sa-tool-label');
+		if (labelEl) {
+			labelEl.textContent = doneLabel;
+		}
+		statusEl.classList.add('def-sa-tool-done');
 	};
 
 	// ─── ui_actions Interpreter ──────────────────────────────────

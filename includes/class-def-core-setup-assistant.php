@@ -734,6 +734,14 @@ final class DEF_Core_Setup_Assistant {
 			);
 		}
 
+		// Update the field in the DOM (use short key for FIELD_MAP lookup).
+		$short_key = preg_replace( '/^def_core_/', '', $key );
+		$ui_actions[] = array(
+			'action' => 'update_field',
+			'field'  => $short_key,
+			'value'  => $value,
+		);
+
 		return $this->success_response( array(
 			'key'   => $key,
 			'saved' => true,

@@ -79,24 +79,13 @@
 
 .def-sa-drawer[aria-hidden="false"] {
 	visibility: visible;
-	pointer-events: auto;
+	pointer-events: none;
 }
 
-/* ─── Backdrop ────────────────────────────────────────────────── */
+/* ─── Backdrop (hidden — drawer is non-modal) ────────────────── */
 
 .def-sa-backdrop {
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	background: rgba(0, 0, 0, 0.3);
-	opacity: 0;
-	transition: opacity 0.3s ease;
-}
-
-.def-sa-drawer[aria-hidden="false"] .def-sa-backdrop {
-	opacity: 1;
+	display: none;
 }
 
 /* ─── Panel ───────────────────────────────────────────────────── */
@@ -113,6 +102,7 @@
 	box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
 	transform: translateX(100%);
 	transition: transform 0.3s ease;
+	pointer-events: auto;
 }
 
 .def-sa-drawer[aria-hidden="false"] .def-sa-panel {
@@ -303,6 +293,22 @@
 
 @keyframes def-sa-spin {
 	to { transform: rotate(360deg); }
+}
+
+.def-sa-tool-status .def-sa-check {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	line-height: 14px;
+	text-align: center;
+	color: #00a32a;
+	font-size: 14px;
+	font-weight: bold;
+}
+
+.def-sa-tool-status.def-sa-tool-done {
+	color: #00a32a;
+	background: #edfaef;
 }
 
 /* Show details toggle */
@@ -517,7 +523,7 @@
 }
 
 .def-sa-highlighted {
-	animation: def-sa-highlight 1.5s ease-out;
+	animation: def-sa-highlight 3s ease-out;
 }
 
 /* ─── Error Message ───────────────────────────────────────────── */
@@ -561,7 +567,4 @@
 }
 
 /* ─── Body class when drawer is open ──────────────────────────── */
-
-body.def-sa-drawer-open {
-	overflow: hidden;
-}
+/* No overflow:hidden — page remains scrollable behind the drawer */
