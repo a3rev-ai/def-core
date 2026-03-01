@@ -565,6 +565,9 @@
 
 		var fieldConfig = FIELD_MAP[fieldKey];
 		if (!fieldConfig) {
+			if (typeof console !== 'undefined' && console.warn) {
+				console.warn('[DEF SA] update_field: unknown FIELD_MAP key', fieldKey);
+			}
 			return;
 		}
 
