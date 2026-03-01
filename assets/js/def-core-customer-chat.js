@@ -48,6 +48,8 @@
 			'th', 'td', 'hr', 'img', 'span', 'div', 'sub', 'sup',
 		],
 		FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'object', 'embed'],
+		FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick', 'onmouseover'],
+		ALLOW_DATA_ATTR: false,
 		ALLOWED_URI_REGEXP:
 			/^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
 	};
