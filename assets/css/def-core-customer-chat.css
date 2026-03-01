@@ -280,6 +280,13 @@
 	flex-shrink: 0;
 }
 
+.def-cc-header-close {
+	position: static;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+}
+
 .def-cc-btn {
 	display: inline-flex;
 	align-items: center;

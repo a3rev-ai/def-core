@@ -216,14 +216,17 @@
 		els.menu = menu;
 		menuWrap.appendChild(menu);
 		actions.appendChild(menuWrap);
+
+		// Move close button into header actions (instead of absolute overlay).
+		if (closeBtn) {
+			closeBtn.classList.add('def-cc-header-close');
+			actions.appendChild(closeBtn);
+		}
+
 		header.appendChild(actions);
 
-		// Insert header as first child of panel (before close button).
+		// Insert header as first child of panel.
 		panel.insertBefore(header, panel.firstChild);
-		// Re-append close button after header so it overlays correctly.
-		if (closeBtn) {
-			panel.appendChild(closeBtn);
-		}
 
 		// ── Messages area ──
 		var messages = el('div', 'def-cc-messages');
@@ -231,7 +234,7 @@
 		messages.setAttribute('aria-live', 'polite');
 		messages.setAttribute('aria-relevant', 'additions');
 		els.messages = messages;
-		panel.insertBefore(messages, closeBtn);
+		panel.appendChild(messages);
 
 		// Greeting.
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
@@ -247,7 +250,7 @@
 		var staged = el('div', 'def-cc-staged');
 		staged.style.display = 'none';
 		els.staged = staged;
-		panel.insertBefore(staged, closeBtn);
+		panel.appendChild(staged);
 
 		// ── Composer ──
 		var composer = el('div', 'def-cc-composer');
@@ -300,7 +303,7 @@
 		form.appendChild(sendBtn);
 
 		composer.appendChild(form);
-		panel.insertBefore(composer, closeBtn);
+		panel.appendChild(composer);
 
 		// ── Overlays (confirm, login, escalation) ──
 		buildConfirmOverlay(panel);
