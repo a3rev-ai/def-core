@@ -533,13 +533,52 @@ final class DEF_Core {
 	}
 
 	/**
-	 * Get Python backend API URL for customer chat.
+	 * Get Python backend API URL for customer chat (browser-side).
+	 *
+	 * The stored def_core_staff_ai_api_url is for server-side PHP proxy calls
+	 * and may use Docker internal hostnames (e.g. http://def-api:8000).
+	 * The Customer Chat runs in the browser via direct fetch(), so it needs
+	 * a browser-accessible URL. Replace non-routable Docker hostnames with
+	 * the current site's hostname.
 	 *
 	 * @return string API base URL or empty string.
 	 */
 	private function get_customer_chat_api_url(): string {
 		$url = get_option( 'def_core_staff_ai_api_url', '' );
-		return ! empty( $url ) ? rtrim( $url, '/' ) : '';
+		if ( empty( $url ) ) {
+			return '';
+		}
+
+		$url = rtrim( $url, '/' );
+
+		// If the URL host is not browser-routable (Docker internal name),
+		// replace it with the current site's hostname.
+		$parsed = wp_parse_url( $url );
+		if ( ! $parsed || empty( $parsed['host'] ) ) {
+			return $url;
+		}
+
+		$host = $parsed['host'];
+
+		// Localhost, IPs, and real domains are browser-routable.
+		if (
+			'localhost' === $host ||
+			'127.0.0.1' === $host ||
+			filter_var( $host, FILTER_VALIDATE_IP ) ||
+			preg_match( '/\.[a-z]{2,}$/i', $host )
+		) {
+			return $url;
+		}
+
+		// Docker internal hostname (e.g. "def-api") — swap with site host.
+		$site_parsed = wp_parse_url( home_url() );
+		$site_host   = $site_parsed['host'] ?? 'localhost';
+
+		$scheme = $parsed['scheme'] ?? 'http';
+		$port   = ! empty( $parsed['port'] ) ? ':' . $parsed['port'] : '';
+		$path   = $parsed['path'] ?? '';
+
+		return $scheme . '://' . $site_host . $port . $path;
 	}
 
 	/**
