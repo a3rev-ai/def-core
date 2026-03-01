@@ -1,6 +1,122 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-02-25
+## MUST DO — Post Phase 7: Native Customer Chat Widget
+
+**Priority:** Immediately after Phase 7 completion
+**Scope:** Replace iframe-based Customer Chat with native JS widget + Chat Settings appearance
+
+**Why:** Current Customer Chat loads an iframe from the Python backend — triggers a full second page load (HTML + CSS + JS + API calls) from a separate origin. Kills Core Web Vitals (LCP, FID/INP). Branding settings can't reach the iframe content. Style/theme isolation means no visual consistency with the host site.
+
+**Architecture:**
+- **Floating button only** on page load — pure CSS, zero JS execution, zero CWV impact
+- **Fully lazy** — chat JS module loaded on first click only (not on page load)
+- **Direct API calls** — `fetch()` to Python backend REST API with JWT from existing bridge auth
+- **Native DOM** — chat UI as DOM elements in parent page, reads branding from `window.DEFCore`, inherits site fonts/theme
+- **Tiny footprint** — ~15-20KB JS module loaded on demand
+
+**Combined with Chat Settings appearance:**
+- Chat bubble position (bottom-right, bottom-left)
+- Chat bubble background colour
+- Chat bubble icon
+- Floating button position (existing `data-position` setting, moved to Chat Settings tab)
+- All settings read from `window.DEFCore` by the native widget
+
+**Files:** New `assets/js/def-core-chat.js` (lazy-loaded module), update `def-core.js` (bridge), update `class-def-core.php` (enqueue + localize settings), update Chat Settings tab UI.
+
+---
+
+## Latest Session: 2026-03-01
+
+### Phase 7 Sub-PR D-II: Settings Tabs — IN PROGRESS
+**Branch:** `phase7-subpr-d2-settings-tabs`
+
+**D-II builds 4 settings tabs:** Branding, Chat Settings, Escalation, User Roles + `def_admin_access` capability infrastructure.
+
+**Dashboard tweaks applied (pre-commit):**
+1. User Roles UX rework — replaced "show all users" table with search-and-add model:
+   - Only users with DEF capabilities shown on load
+   - Locked admin row (non-removable)
+   - AJAX search to find and add users by email/name
+   - Remove button with confirmation dialog per user
+   - New endpoints: `ajax_search_users`, `ajax_remove_user_roles`
+2. Remove button X icon vertical centering fix
+3. Confirmation dialog on user remove
+4. Help text rewrite: Staff/Management = Staff AI access tiers (document authority levels), DEF Admin = settings page access
+5. Removed Staff AI escalation email (replaced by Share feature, sender selects email)
+6. Setup Assistant help text: "Enter your DEF Partner's email address here for Setup Assistant human escalation."
+
+**Status:** All code complete, Docker-tested, awaiting commit + PR.
+
+---
+
+## Previous Session: 2026-02-28
+
+### Phase 7 Sub-PR B: File Upload UX — MERGED
+**PR:** https://github.com/a3rev-ai/def-core/pull/17 (branch: `phase7-subpr-b-upload-ux`)
+**Companion DEF PR:** https://github.com/a3rev-ai/digital-employee-framework/pull/33
+
+**4 commits + 1 UX fix commit:**
+
+1. **PHP proxy endpoints** (`includes/class-def-core-staff-ai.php`):
+   - `POST /staff-ai/uploads/init` — proxy to DEF with PHP pre-validation
+   - `POST /staff-ai/uploads/commit` — proxy to DEF commit endpoint
+   - MIME allowlist (10 types) → 415, size limit 10MB → 413, filename sanitization
+   - Modified `rest_send_message()`: accepts `file_ids[]`, validates format, forwards as `attachments`, allows empty message when files present
+
+2. **CSS upload styles** (`assets/css/staff-ai.css`):
+   - ~180 lines added: upload button, drop overlay, staged area, file chips with status variants (staged/uploading/uploaded/failed), pulse animation, error tooltip, file indicators in messages
+   - All using existing CSS custom properties → automatic light/dark theme
+
+3. **JS upload module** (`assets/js/staff-ai.js`):
+   - ~200 lines: validation helpers, file staging with image thumbnails, 3-step upload flow (init → PUT to Azure → commit), blob PUT retry (2 retries, 1s/2s backoff)
+   - Event handlers: file picker, drag-and-drop with overlay, clipboard paste
+   - Modified `sendMessage()`: uploads staged files first, collects file_ids, includes in request
+   - Modified `updateSendButton()`: enables when files staged even without text
+
+4. **HTML template changes** (`templates/staff-ai-shell.php`):
+   - Hidden file input with accept filter, upload button (paperclip SVG), staged files area with `aria-live="polite"`, drop overlay
+   - `StaffAIConfig.upload` config block + 8 new i18n strings
+
+5. **UX fixes** (from manual Docker testing):
+   - Specific validation error in banner when staging fails (not generic "Some files failed")
+   - Re-validation of failed files when removing a staged file (count may now be under limit)
+   - Auto-fill "Please analyze the attached file(s)." shown in user bubble for files-only sends
+
+**Tests:** 14 new test sections (50 assertions) in `tests/test-staff-ai.php`. Added `sanitize_file_name()` and `get_current_user_id()` stubs to `tests/wp-stubs.php`.
+**Total:** 239 tests pass, 0 fail.
+
+**Manual testing:** Docker integration — upload via paperclip, drag-drop, paste all working. Light + dark theme verified. File-aware AI responses confirmed.
+
+**ChatGPT code review:** Approved, no blockers. All integrity checks passed.
+
+**Status:** MERGED to main (2026-02-28)
+
+---
+
+### Phase 7 Sub-PR A: Staff AI Refactor — MERGED
+**PR:** https://github.com/a3rev-ai/def-core/pull/16 (branch: `phase7-subpr-a-staff-ai-refactor`)
+
+**3 atomic commits:**
+
+1. **Stub removal:** Removed `rest_export_conversation()` and `rest_escalate()` stub endpoints + route registrations. Fixed pre-existing test data bugs (wrong route names `share`/`revoke` → `share-settings`/`share-send`/`share-event`/`summarize`).
+
+2. **Cache bug fixes:** `invalidate_user()` now accepts optional `$prefix` parameter for selective invalidation. `on_product_changed()` uses `self::build_key(0, 'products_list')` instead of wrong literal `'de_products_list'`. Added `tests/test-cache.php` (14 assertions).
+
+3. **CSS/JS/HTML extraction:** Extracted `render_shell()` from ~2,200 lines to ~45 lines:
+   - `assets/css/staff-ai.css` (1,067 lines) — verbatim CSS
+   - `assets/js/staff-ai.js` (907 lines) — IIFE with StaffAIConfig references
+   - `templates/staff-ai-shell.php` (276 lines) — standalone HTML document
+   - `render_shell()` now prepares variables + includes template
+
+**Monolith:** 3,641 → 1,407 lines
+**Tests:** 185 pass, 0 fail
+**Visual testing:** Docker integration stack — CSS/JS load as external files, StaffAIConfig populated, all DOM IDs present, no PHP errors
+
+**Status:** MERGED to main (2026-02-28)
+
+---
+
+## Previous Session: 2026-02-25
 
 ### Staff AI Share Form Overhaul — MERGED
 **PR:** https://github.com/a3rev-ai/def-core/pull/14 (branch: `staff-ai-share-form-overhaul`)

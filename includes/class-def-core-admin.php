@@ -47,6 +47,38 @@ final class DEF_Core_Admin {
 				'sanitize' => 'sanitize_external_issuer',
 			),
 		),
+		'branding'         => array(
+			'def_core_logo_id'                 => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
+			'def_core_display_name'            => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_display_name',
+			),
+			'def_core_logo_show_staff_ai'      => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
+			'def_core_logo_show_customer_chat' => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
+			'def_core_logo_max_height'         => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_max_height',
+			),
+		),
+		'chat-settings'    => array(
+			'def_core_chat_display_mode' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_chat_display_mode',
+			),
+			'def_core_chat_drawer_width' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_drawer_width',
+			),
+		),
 		'employees-tools'  => array(
 			'def_core_tools_status' => array(
 				'type'     => 'tools_array',
@@ -64,6 +96,10 @@ final class DEF_Core_Admin {
 		add_action( 'wp_ajax_def_core_save_settings', array( __CLASS__, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_def_core_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_def_core_regenerate_service_secret', array( __CLASS__, 'ajax_regenerate_service_secret' ) );
+		add_action( 'wp_ajax_def_core_save_user_roles', array( __CLASS__, 'ajax_save_user_roles' ) );
+		add_action( 'wp_ajax_def_core_search_users', array( __CLASS__, 'ajax_search_users' ) );
+		add_action( 'wp_ajax_def_core_remove_user_roles', array( __CLASS__, 'ajax_remove_user_roles' ) );
+		add_action( 'wp_ajax_def_core_test_escalation_email', array( __CLASS__, 'ajax_test_escalation_email' ) );
 	}
 
 	/**
@@ -130,6 +166,19 @@ final class DEF_Core_Admin {
 		wp_enqueue_style( 'def-core-admin' );
 		wp_enqueue_script( 'def-core-admin' );
 
+		// D-II: Check for DEF Admin access.
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			echo '<div class="wrap def-core-wrap">';
+			echo '<h1>' . esc_html__( 'Digital Employees', 'def-core' ) . '</h1>';
+			echo '<div class="def-core-card"><div class="def-core-notice def-core-notice-info">';
+			echo '<p>' . esc_html__( 'Your administrator has not granted you DEF Admin access. Contact a DEF Admin to request access.', 'def-core' ) . '</p>';
+			echo '</div></div></div>';
+			return;
+		}
+
+		// D-II: Enqueue media uploader for branding tab.
+		wp_enqueue_media();
+
 		// Localize script data for JS.
 		$cached_connection = get_transient( 'def_core_connection_test' );
 		wp_localize_script( 'def-core-admin', 'defCoreAdmin', array(
@@ -137,10 +186,13 @@ final class DEF_Core_Admin {
 			'saveNonce'        => wp_create_nonce( 'def_core_save_settings' ),
 			'testNonce'        => wp_create_nonce( 'def_core_test_connection' ),
 			'secretNonce'      => wp_create_nonce( 'def_core_regenerate_service_secret' ),
+			'rolesNonce'       => wp_create_nonce( 'def_core_save_user_roles' ),
+			'searchUsersNonce' => wp_create_nonce( 'def_core_search_users' ),
+			'testEmailNonce'   => wp_create_nonce( 'def_core_test_escalation_email' ),
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
 		) );
 
-		// Prepare template data.
+		// Prepare template data — Connection settings.
 		$settings = array(
 			'api_url'          => get_option( 'def_core_staff_ai_api_url', '' ),
 			'api_key'          => get_option( 'def_core_api_key', '' ),
@@ -167,6 +219,62 @@ final class DEF_Core_Admin {
 
 		// SSO configuration status.
 		$sso_configured = ! empty( $settings['external_jwks'] ) && ! empty( $settings['external_issuer'] );
+
+		// D-II: Branding data.
+		$branding = array(
+			'logo_id'              => (int) get_option( 'def_core_logo_id', 0 ),
+			'display_name'         => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
+			'logo_show_staff_ai'   => '0' !== get_option( 'def_core_logo_show_staff_ai', '1' ),
+			'logo_show_customer_chat' => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
+			'logo_max_height'      => (int) get_option( 'def_core_logo_max_height', 40 ),
+		);
+
+		// D-II: Logo preview URL.
+		$logo_url = '';
+		if ( $branding['logo_id'] ) {
+			$logo_url = wp_get_attachment_image_url( $branding['logo_id'], 'medium' );
+		}
+
+		// D-II: Escalation emails (the 'to' address per channel).
+		$escalation = array();
+		foreach ( array( 'customer', 'setup_assistant' ) as $channel ) {
+			$stored = get_option( 'def_core_escalation_' . $channel, array() );
+			$escalation[ $channel ] = ! empty( $stored['to'] ) ? implode( ', ', (array) $stored['to'] ) : '';
+		}
+
+		// D-II: User roles data — only users with at least one DEF capability.
+		$def_capabilities = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		$def_user_ids     = array();
+		foreach ( $def_capabilities as $cap ) {
+			$ids = get_users( array(
+				'capability' => $cap,
+				'fields'     => 'ids',
+			) );
+			$def_user_ids = array_merge( $def_user_ids, $ids );
+		}
+		$def_user_ids = array_unique( array_map( 'intval', $def_user_ids ) );
+
+		$def_users = array();
+		if ( ! empty( $def_user_ids ) ) {
+			$query = new \WP_User_Query( array(
+				'include' => $def_user_ids,
+				'orderby' => 'display_name',
+				'order'   => 'ASC',
+			) );
+			$def_users = $query->get_results();
+		}
+
+		$def_admin_ids   = get_users( array(
+			'capability' => 'def_admin_access',
+			'fields'     => 'ids',
+		) );
+		$def_admin_count = count( $def_admin_ids );
+
+		// D-II: Chat settings.
+		$chat_settings = array(
+			'display_mode' => get_option( 'def_core_chat_display_mode', 'modal' ),
+			'drawer_width' => (int) get_option( 'def_core_chat_drawer_width', 400 ),
+		);
 
 		// Load template.
 		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';
@@ -195,6 +303,12 @@ final class DEF_Core_Admin {
 
 		if ( ! is_array( $data ) ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid settings data.', 'def-core' ) ) );
+		}
+
+		// Special handling for escalation tab (structured options).
+		if ( 'escalation' === $tab ) {
+			self::save_escalation_tab( $data );
+			return;
 		}
 
 		// Get allowlist for this tab.
@@ -493,5 +607,386 @@ final class DEF_Core_Admin {
 			return '';
 		}
 		return $value;
+	}
+
+	// ─── D-II Sanitize Callbacks ────────────────────────────────────
+
+	/**
+	 * Sanitize logo attachment ID.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return int Valid attachment ID or 0.
+	 */
+	public static function sanitize_logo_id( $value ): int {
+		$id = (int) $value;
+		if ( $id > 0 && ! wp_attachment_is_image( $id ) ) {
+			add_settings_error( 'def_core_logo_id', 'invalid_image',
+				__( 'Selected file is not a valid image.', 'def-core' )
+			);
+			return 0;
+		}
+		return $id;
+	}
+
+	/**
+	 * Sanitize display name.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitized name (max 100 chars).
+	 */
+	public static function sanitize_display_name( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return substr( $value, 0, 100 );
+	}
+
+	/**
+	 * Sanitize boolean setting (stored as '1' or '0').
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string '1' or '0'.
+	 */
+	public static function sanitize_bool_setting( $value ): string {
+		return ( $value && '0' !== $value ) ? '1' : '0';
+	}
+
+	/**
+	 * Sanitize logo max height (24–120 px).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return int Clamped height value.
+	 */
+	public static function sanitize_logo_max_height( $value ): int {
+		$value = (int) $value;
+		return max( 24, min( 120, $value ) );
+	}
+
+	/**
+	 * Sanitize chat display mode.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string 'modal' or 'drawer'.
+	 */
+	public static function sanitize_chat_display_mode( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return in_array( $value, array( 'modal', 'drawer' ), true ) ? $value : 'modal';
+	}
+
+	/**
+	 * Sanitize drawer width (300–600 px).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return int Clamped width value.
+	 */
+	public static function sanitize_drawer_width( $value ): int {
+		$value = (int) $value;
+		return max( 300, min( 600, $value ) );
+	}
+
+	// ─── D-II: Escalation Tab Save ──────────────────────────────────
+
+	/**
+	 * Save escalation tab data.
+	 * Escalation uses structured options, not flat key-value.
+	 *
+	 * @param array $data Submitted data.
+	 */
+	private static function save_escalation_tab( array $data ): void {
+		$channels_map = array(
+			'escalation_customer'        => 'customer',
+			'escalation_staff_ai'        => 'staff_ai',
+			'escalation_setup_assistant' => 'setup_assistant',
+		);
+
+		$saved = array();
+		foreach ( $data as $key => $email ) {
+			$key = sanitize_text_field( (string) $key );
+			if ( ! isset( $channels_map[ $key ] ) ) {
+				continue;
+			}
+			$channel = $channels_map[ $key ];
+			$email   = sanitize_email( (string) $email );
+
+			// Get existing settings to preserve other fields (cc, bcc, etc.).
+			$current = get_option( 'def_core_escalation_' . $channel, array() );
+			if ( ! is_array( $current ) ) {
+				$current = array();
+			}
+			$current['to'] = ! empty( $email ) ? array( $email ) : array();
+			DEF_Core_Escalation::save_channel_settings( $channel, $current );
+			$saved[] = $key;
+		}
+
+		wp_send_json_success( array(
+			'message' => __( 'Settings saved.', 'def-core' ),
+			'saved'   => $saved,
+		) );
+	}
+
+	// ─── D-II: AJAX User Roles ──────────────────────────────────────
+
+	/**
+	 * AJAX handler for saving user DEF capabilities.
+	 * Requires def_admin_access capability.
+	 */
+	public static function ajax_save_user_roles(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_user_roles' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$roles_data = isset( $_POST['roles'] ) ? wp_unslash( $_POST['roles'] ) : array();
+		if ( ! is_array( $roles_data ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid data.', 'def-core' ) ) );
+		}
+
+		$capabilities   = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		$submitted_ids  = array_map( 'intval', array_keys( $roles_data ) );
+
+		// Lockout prevention: count remaining def_admin_access after proposed changes.
+		$remaining_admins = 0;
+
+		// Count submitted users who would keep def_admin_access.
+		foreach ( $roles_data as $uid => $caps ) {
+			if ( ! empty( $caps['def_admin_access'] ) ) {
+				$remaining_admins++;
+			}
+		}
+
+		// Count existing def_admin_access users NOT in the submitted data.
+		$existing_admins = get_users( array(
+			'capability' => 'def_admin_access',
+			'fields'     => 'ids',
+			'exclude'    => $submitted_ids,
+		) );
+		$remaining_admins += count( $existing_admins );
+
+		if ( $remaining_admins < 1 ) {
+			wp_send_json_error( array(
+				'message' => __( 'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.', 'def-core' ),
+			) );
+			return;
+		}
+
+		// Apply capability changes.
+		foreach ( $roles_data as $user_id => $caps ) {
+			$user_id = (int) $user_id;
+			$user    = get_userdata( $user_id );
+			if ( ! $user ) {
+				continue;
+			}
+
+			foreach ( $capabilities as $cap ) {
+				$should_have = ! empty( $caps[ $cap ] );
+				if ( $should_have && ! $user->has_cap( $cap ) ) {
+					$user->add_cap( $cap );
+				} elseif ( ! $should_have && $user->has_cap( $cap ) ) {
+					$user->remove_cap( $cap );
+				}
+			}
+		}
+
+		wp_send_json_success( array(
+			'message' => __( 'User roles updated.', 'def-core' ),
+		) );
+	}
+
+	// ─── D-II: AJAX Search Users ────────────────────────────────────
+
+	/**
+	 * AJAX handler for searching WordPress users by email or display name.
+	 * Returns users not already in the DEF user roles table.
+	 */
+	public static function ajax_search_users(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_search_users' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$term = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
+		if ( strlen( $term ) < 2 ) {
+			wp_send_json_success( array( 'users' => array() ) );
+			return;
+		}
+
+		// Search by email or display name.
+		$query = new \WP_User_Query( array(
+			'search'         => '*' . $term . '*',
+			'search_columns' => array( 'user_email', 'display_name', 'user_login' ),
+			'number'         => 10,
+			'orderby'        => 'display_name',
+			'order'          => 'ASC',
+		) );
+
+		$results = array();
+		foreach ( $query->get_results() as $user ) {
+			$results[] = array(
+				'id'           => $user->ID,
+				'display_name' => $user->display_name,
+				'email'        => $user->user_email,
+				'role'         => implode( ', ', array_map( 'ucfirst', $user->roles ) ),
+				'avatar'       => get_avatar_url( $user->ID, array( 'size' => 24 ) ),
+				'has_staff'    => $user->has_cap( 'def_staff_access' ),
+				'has_mgmt'     => $user->has_cap( 'def_management_access' ),
+				'has_admin'    => $user->has_cap( 'def_admin_access' ),
+			);
+		}
+
+		wp_send_json_success( array( 'users' => $results ) );
+	}
+
+	// ─── D-II: AJAX Remove User Roles ───────────────────────────────
+
+	/**
+	 * AJAX handler for removing all DEF capabilities from a user.
+	 */
+	public static function ajax_remove_user_roles(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_user_roles' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$user_id = isset( $_POST['user_id'] ) ? (int) $_POST['user_id'] : 0;
+		if ( ! $user_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid user.', 'def-core' ) ) );
+			return;
+		}
+
+		$user = get_userdata( $user_id );
+		if ( ! $user ) {
+			wp_send_json_error( array( 'message' => __( 'User not found.', 'def-core' ) ) );
+			return;
+		}
+
+		// Lockout prevention: don't remove last def_admin_access user.
+		if ( $user->has_cap( 'def_admin_access' ) ) {
+			$admin_count = count( get_users( array(
+				'capability' => 'def_admin_access',
+				'fields'     => 'ids',
+			) ) );
+			if ( $admin_count <= 1 ) {
+				wp_send_json_error( array(
+					'message' => __( 'Cannot remove the last DEF Admin.', 'def-core' ),
+				) );
+				return;
+			}
+		}
+
+		$capabilities = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		foreach ( $capabilities as $cap ) {
+			if ( $user->has_cap( $cap ) ) {
+				$user->remove_cap( $cap );
+			}
+		}
+
+		wp_send_json_success( array(
+			'message' => sprintf(
+				/* translators: %s: user display name */
+				__( '%s removed from DEF access.', 'def-core' ),
+				$user->display_name
+			),
+		) );
+	}
+
+	// ─── D-II: AJAX Test Escalation Email ───────────────────────────
+
+	/**
+	 * AJAX handler for sending a test escalation email.
+	 */
+	public static function ajax_test_escalation_email(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_test_escalation_email' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		}
+
+		$channel         = isset( $_POST['channel'] ) ? sanitize_text_field( wp_unslash( $_POST['channel'] ) ) : '';
+		$valid_channels  = array( 'customer', 'staff_ai', 'setup_assistant' );
+		if ( ! in_array( $channel, $valid_channels, true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid channel.', 'def-core' ) ) );
+		}
+
+		// Get the configured email for this channel.
+		$stored    = get_option( 'def_core_escalation_' . $channel, array() );
+		$to_emails = ! empty( $stored['to'] ) ? (array) $stored['to'] : array( get_option( 'admin_email' ) );
+		$to        = implode( ', ', $to_emails );
+
+		if ( empty( $to ) ) {
+			wp_send_json_error( array( 'message' => __( 'No email address configured for this channel.', 'def-core' ) ) );
+		}
+
+		$channel_label = ucwords( str_replace( '_', ' ', $channel ) );
+		$subject       = sprintf( '[DEF Test] Escalation test — %s', $channel_label );
+		$body          = __( 'This is a test escalation email from Digital Employee Framework. If you received this, escalation is working correctly.', 'def-core' );
+
+		$sent = wp_mail( $to, $subject, $body );
+
+		if ( $sent ) {
+			wp_send_json_success( array(
+				'message' => sprintf(
+					/* translators: %s: email address */
+					__( 'Test email sent to %s', 'def-core' ),
+					$to
+				),
+			) );
+		} else {
+			wp_send_json_error( array(
+				'message' => __( 'Failed to send test email. Check your WordPress email configuration.', 'def-core' ),
+			) );
+		}
+	}
+
+	// ─── D-II: Logo Helper ──────────────────────────────────────────
+
+	/**
+	 * Get logo HTML with fallback chain.
+	 * Chain: def_core_logo_id → custom_logo theme mod → display name text.
+	 *
+	 * @param int $max_height Maximum height in pixels. 0 = use saved setting.
+	 * @return string Logo HTML.
+	 */
+	public static function get_logo_html( int $max_height = 0 ): string {
+		if ( $max_height <= 0 ) {
+			$max_height = (int) get_option( 'def_core_logo_max_height', 40 );
+		}
+
+		// 1. DEF Core logo.
+		$logo_id = (int) get_option( 'def_core_logo_id', 0 );
+		if ( $logo_id ) {
+			$html = wp_get_attachment_image( $logo_id, 'full', false, array(
+				'class' => 'header-logo-img',
+				'style' => 'max-height: ' . $max_height . 'px; width: auto;',
+			) );
+			if ( $html ) {
+				return $html;
+			}
+		}
+
+		// 2. WordPress custom logo (theme mod).
+		$custom_logo_id = get_theme_mod( 'custom_logo' );
+		if ( $custom_logo_id ) {
+			$html = wp_get_attachment_image( (int) $custom_logo_id, 'full', false, array(
+				'class' => 'header-logo-img',
+				'style' => 'max-height: ' . $max_height . 'px; width: auto;',
+			) );
+			if ( $html ) {
+				return $html;
+			}
+		}
+
+		// 3. Fallback: display name text.
+		$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
+		return '<span class="header-logo-text">' . esc_html( $display_name ) . '</span>';
 	}
 }

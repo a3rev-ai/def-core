@@ -1,6 +1,7 @@
 /**
  * Digital Employee Framework - Core - Admin Scripts
- * Phase 7 D-I: Tab switching, AJAX save, connection test, keyboard navigation.
+ * Phase 7 D-I/D-II: Tab switching, AJAX save, connection test, keyboard navigation,
+ * media uploader, user roles, escalation test, chat mode toggle.
  */
 (function () {
 	'use strict';
@@ -28,6 +29,11 @@
 		initToggleSwitches();
 		initWidgetGuide();
 		autoTestConnection();
+		// D-II features.
+		initMediaUploader();
+		initUserRoles();
+		initTestEmail();
+		initChatMode();
 	}
 
 	// ─── Tab Switching ────────────────────────────────────────────
@@ -192,18 +198,8 @@
 	}
 
 	function collectTabData(tabId, panel, formData) {
-		if (tabId === 'connection') {
-			// Collect text/url/password inputs with data-setting attribute.
-			panel
-				.querySelectorAll('[data-setting]')
-				.forEach(function (input) {
-					formData.append(
-						'settings[' + input.dataset.setting + ']',
-						input.value
-					);
-				});
-		} else if (tabId === 'employees-tools') {
-			// Collect tool toggle checkboxes.
+		if (tabId === 'employees-tools') {
+			// Custom handling for tool toggle checkboxes.
 			panel
 				.querySelectorAll('.def-core-tool-toggle')
 				.forEach(function (checkbox) {
@@ -214,6 +210,26 @@
 								']',
 							checkbox.checked ? '1' : '0'
 						);
+					}
+				});
+		} else {
+			// Generic data-setting handler for all other tabs.
+			// Handles text, url, password, hidden, number, checkbox, radio, textarea.
+			panel
+				.querySelectorAll('[data-setting]')
+				.forEach(function (input) {
+					var key = input.dataset.setting;
+					if (input.type === 'radio') {
+						if (input.checked) {
+							formData.append('settings[' + key + ']', input.value);
+						}
+					} else if (input.type === 'checkbox') {
+						formData.append(
+							'settings[' + key + ']',
+							input.checked ? '1' : '0'
+						);
+					} else {
+						formData.append('settings[' + key + ']', input.value);
 					}
 				});
 		}
@@ -502,6 +518,442 @@
 					}
 				});
 			});
+	}
+
+	// ─── D-II: Media Uploader ─────────────────────────────────────
+
+	function initMediaUploader() {
+		if (typeof wp === 'undefined' || typeof wp.media === 'undefined') {
+			return;
+		}
+
+		var selectBtn = document.getElementById('def-core-select-logo');
+		var removeBtn = document.getElementById('def-core-remove-logo');
+		var preview = document.getElementById('def-core-logo-preview');
+		var logoInput = document.getElementById('def_core_logo_id');
+
+		if (!selectBtn || !logoInput) {
+			return;
+		}
+
+		var frame;
+
+		selectBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+
+			if (frame) {
+				frame.open();
+				return;
+			}
+
+			frame = wp.media({
+				title: 'Select Logo',
+				button: { text: 'Use as Logo' },
+				multiple: false,
+				library: { type: 'image' },
+			});
+
+			frame.on('select', function () {
+				var attachment = frame
+					.state()
+					.get('selection')
+					.first()
+					.toJSON();
+				logoInput.value = attachment.id;
+
+				if (preview) {
+					var size =
+						attachment.sizes && attachment.sizes.medium
+							? attachment.sizes.medium
+							: attachment;
+					preview.innerHTML =
+						'<img src="' +
+						escapeHtml(size.url) +
+						'" style="max-height: 120px; width: auto;" />';
+				}
+
+				if (removeBtn) {
+					removeBtn.style.display = 'inline-block';
+				}
+			});
+
+			frame.open();
+		});
+
+		if (removeBtn) {
+			removeBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				logoInput.value = '0';
+				if (preview) {
+					preview.innerHTML =
+						'<span class="def-core-no-logo">No logo selected</span>';
+				}
+				removeBtn.style.display = 'none';
+			});
+		}
+	}
+
+	// ─── D-II: User Roles ─────────────────────────────────────────
+
+	function initUserRoles() {
+		var saveBtn = document.querySelector('.def-core-save-roles-btn');
+		var searchInput = document.getElementById('def-core-user-search');
+		var searchResults = document.getElementById(
+			'def-core-user-search-results'
+		);
+		var tbody = document.getElementById('def-core-roles-tbody');
+		if (!saveBtn || !defCoreAdmin) {
+			return;
+		}
+
+		var searchTimer = null;
+
+		// ── Save handler ──
+		saveBtn.addEventListener('click', function () {
+			var spinner = saveBtn.parentElement.querySelector('.spinner');
+			saveBtn.disabled = true;
+			if (spinner) {
+				spinner.classList.add('is-active');
+			}
+
+			var formData = new FormData();
+			formData.append('action', 'def_core_save_user_roles');
+			formData.append('nonce', defCoreAdmin.rolesNonce);
+
+			document
+				.querySelectorAll('.def-core-role-cb')
+				.forEach(function (cb) {
+					formData.append(
+						'roles[' +
+							cb.dataset.user +
+							'][' +
+							cb.dataset.cap +
+							']',
+						cb.checked ? '1' : '0'
+					);
+				});
+
+			fetch(defCoreAdmin.ajaxUrl, {
+				method: 'POST',
+				body: formData,
+				credentials: 'same-origin',
+			})
+				.then(function (res) {
+					return res.json();
+				})
+				.then(function (data) {
+					if (data.success) {
+						showToast(
+							data.data.message || 'User roles updated.',
+							'success'
+						);
+					} else {
+						showToast(
+							(data.data && data.data.message) || 'Save failed.',
+							'error'
+						);
+					}
+				})
+				.catch(function () {
+					showToast('Network error. Please try again.', 'error');
+				})
+				.finally(function () {
+					saveBtn.disabled = false;
+					if (spinner) {
+						spinner.classList.remove('is-active');
+					}
+				});
+		});
+
+		// ── Search handler ──
+		if (searchInput && searchResults) {
+			searchInput.addEventListener('input', function () {
+				clearTimeout(searchTimer);
+				var term = searchInput.value.trim();
+				if (term.length < 2) {
+					searchResults.hidden = true;
+					searchResults.innerHTML = '';
+					return;
+				}
+				searchTimer = setTimeout(function () {
+					doSearch(term);
+				}, 300);
+			});
+
+			// Close results when clicking outside.
+			document.addEventListener('click', function (e) {
+				if (
+					!searchInput.contains(e.target) &&
+					!searchResults.contains(e.target)
+				) {
+					searchResults.hidden = true;
+				}
+			});
+		}
+
+		function doSearch(term) {
+			var formData = new FormData();
+			formData.append('action', 'def_core_search_users');
+			formData.append('nonce', defCoreAdmin.searchUsersNonce);
+			formData.append('term', term);
+
+			fetch(defCoreAdmin.ajaxUrl, {
+				method: 'POST',
+				body: formData,
+				credentials: 'same-origin',
+			})
+				.then(function (res) {
+					return res.json();
+				})
+				.then(function (data) {
+					if (!data.success || !data.data.users.length) {
+						searchResults.innerHTML =
+							'<div class="def-core-search-no-results">No users found</div>';
+						searchResults.hidden = false;
+						return;
+					}
+					renderSearchResults(data.data.users);
+				})
+				.catch(function () {
+					searchResults.hidden = true;
+				});
+		}
+
+		function renderSearchResults(users) {
+			searchResults.innerHTML = '';
+			users.forEach(function (u) {
+				// Check if user is already in the table.
+				var existingRow = tbody.querySelector(
+					'tr[data-user-id="' + u.id + '"]'
+				);
+				var item = document.createElement('div');
+				item.className = 'def-core-search-result-item';
+				if (existingRow) {
+					item.classList.add('is-existing');
+				}
+
+				item.innerHTML =
+					'<img class="def-core-search-result-avatar" src="' +
+					escHtml(u.avatar) +
+					'" alt="" />' +
+					'<div class="def-core-search-result-info">' +
+					'<div class="def-core-search-result-name">' +
+					escHtml(u.display_name) +
+					'</div>' +
+					'<div class="def-core-search-result-email">' +
+					escHtml(u.email) +
+					'</div>' +
+					'</div>' +
+					'<span class="def-core-search-result-role">' +
+					escHtml(u.role) +
+					'</span>' +
+					(existingRow
+						? '<span class="def-core-search-result-badge">Already added</span>'
+						: '');
+
+				if (!existingRow) {
+					item.addEventListener('click', function () {
+						addUserRow(u);
+						searchResults.hidden = true;
+						searchInput.value = '';
+					});
+				}
+
+				searchResults.appendChild(item);
+			});
+			searchResults.hidden = false;
+		}
+
+		function addUserRow(u) {
+			var tr = document.createElement('tr');
+			tr.setAttribute('data-user-id', u.id);
+			tr.innerHTML =
+				'<td>' +
+				'<img class="def-core-user-avatar" src="' +
+				escHtml(u.avatar) +
+				'" width="24" height="24" alt="" />' +
+				escHtml(u.display_name) +
+				'<span class="def-core-user-email">' +
+				escHtml(u.email) +
+				'</span>' +
+				'</td>' +
+				'<td>' +
+				escHtml(u.role) +
+				'</td>' +
+				'<td class="def-core-role-col">' +
+				'<input type="checkbox" class="def-core-role-cb" data-user="' +
+				u.id +
+				'" data-cap="def_staff_access" />' +
+				'</td>' +
+				'<td class="def-core-role-col">' +
+				'<input type="checkbox" class="def-core-role-cb" data-user="' +
+				u.id +
+				'" data-cap="def_management_access" />' +
+				'</td>' +
+				'<td class="def-core-role-col">' +
+				'<input type="checkbox" class="def-core-role-cb" data-user="' +
+				u.id +
+				'" data-cap="def_admin_access" />' +
+				'</td>' +
+				'<td class="def-core-role-col">' +
+				'<button type="button" class="def-core-remove-user-btn" data-user-id="' +
+				u.id +
+				'" title="Remove all DEF access">&times;</button>' +
+				'</td>';
+
+			tbody.appendChild(tr);
+			bindRemoveButton(tr.querySelector('.def-core-remove-user-btn'));
+		}
+
+		// ── Remove handler ──
+		function bindRemoveButton(btn) {
+			btn.addEventListener('click', function () {
+				var userId = btn.dataset.userId;
+				var row = btn.closest('tr');
+
+				// Get user display name from the row.
+				var nameEl = row.querySelector('td');
+				var userName = nameEl
+					? nameEl.textContent.replace(/\s+/g, ' ').trim().split(' ')[0]
+					: 'this user';
+
+				if (
+					!confirm(
+						'Remove ' +
+							userName +
+							' from all Digital Employee access?\n\nThis will revoke their Staff AI, Management, and DEF Admin permissions immediately.'
+					)
+				) {
+					return;
+				}
+
+				btn.disabled = true;
+
+				var formData = new FormData();
+				formData.append('action', 'def_core_remove_user_roles');
+				formData.append('nonce', defCoreAdmin.rolesNonce);
+				formData.append('user_id', userId);
+
+				fetch(defCoreAdmin.ajaxUrl, {
+					method: 'POST',
+					body: formData,
+					credentials: 'same-origin',
+				})
+					.then(function (res) {
+						return res.json();
+					})
+					.then(function (data) {
+						if (data.success) {
+							row.remove();
+							showToast(data.data.message, 'success');
+						} else {
+							showToast(
+								(data.data && data.data.message) ||
+									'Remove failed.',
+								'error'
+							);
+							btn.disabled = false;
+						}
+					})
+					.catch(function () {
+						showToast(
+							'Network error. Please try again.',
+							'error'
+						);
+						btn.disabled = false;
+					});
+			});
+		}
+
+		// Bind existing remove buttons.
+		document
+			.querySelectorAll('.def-core-remove-user-btn')
+			.forEach(bindRemoveButton);
+
+		// HTML escape helper.
+		function escHtml(str) {
+			var div = document.createElement('div');
+			div.appendChild(document.createTextNode(str || ''));
+			return div.innerHTML;
+		}
+	}
+
+	// ─── D-II: Test Escalation Email ──────────────────────────────
+
+	function initTestEmail() {
+		document
+			.querySelectorAll('.def-core-test-email-btn')
+			.forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					if (!defCoreAdmin) {
+						return;
+					}
+
+					var channel = btn.dataset.channel;
+					var originalText = btn.textContent;
+
+					btn.disabled = true;
+					btn.textContent = 'Sending...';
+
+					var formData = new FormData();
+					formData.append(
+						'action',
+						'def_core_test_escalation_email'
+					);
+					formData.append('nonce', defCoreAdmin.testEmailNonce);
+					formData.append('channel', channel);
+
+					fetch(defCoreAdmin.ajaxUrl, {
+						method: 'POST',
+						body: formData,
+						credentials: 'same-origin',
+					})
+						.then(function (res) {
+							return res.json();
+						})
+						.then(function (data) {
+							if (data.success) {
+								showToast(
+									data.data.message || 'Test email sent.',
+									'success'
+								);
+							} else {
+								showToast(
+									(data.data && data.data.message) ||
+										'Failed to send.',
+									'error'
+								);
+							}
+						})
+						.catch(function () {
+							showToast('Network error.', 'error');
+						})
+						.finally(function () {
+							btn.disabled = false;
+							btn.textContent = originalText;
+						});
+				});
+			});
+	}
+
+	// ─── D-II: Chat Mode Toggle ───────────────────────────────────
+
+	function initChatMode() {
+		var radios = document.querySelectorAll(
+			'input[data-setting="def_core_chat_display_mode"]'
+		);
+		var drawerOptions = document.getElementById('def-core-drawer-options');
+
+		if (!radios.length || !drawerOptions) {
+			return;
+		}
+
+		radios.forEach(function (radio) {
+			radio.addEventListener('change', function () {
+				drawerOptions.style.display =
+					radio.value === 'drawer' ? 'block' : 'none';
+			});
+		});
 	}
 
 	// ─── Toast Notifications ──────────────────────────────────────

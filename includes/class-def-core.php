@@ -67,6 +67,9 @@ final class DEF_Core {
 
 		// Add settings link to plugin action links.
 		add_filter( 'plugin_action_links_' . plugin_basename( DEF_CORE_PLUGIN_DIR . 'def-core.php' ), array( $this, 'add_settings_link' ) );
+
+		// Check for version upgrade (D-II capabilities).
+		add_action( 'admin_init', array( __CLASS__, 'maybe_upgrade' ) );
 	}
 
 	/**
@@ -117,6 +120,67 @@ final class DEF_Core {
 		}
 		// Flush rewrite rules for Staff AI endpoint.
 		DEF_Core_Staff_AI::on_activate();
+		// Grant def_admin_access to administrators.
+		self::ensure_def_admin_capability();
+		update_option( 'def_core_db_version', '2.1.0' );
+	}
+
+	/**
+	 * Check for version upgrade and run required migrations.
+	 */
+	public static function maybe_upgrade(): void {
+		$current = get_option( 'def_core_db_version', '0' );
+		if ( version_compare( $current, '2.1.0', '<' ) ) {
+			self::ensure_def_admin_capability();
+			update_option( 'def_core_db_version', '2.1.0' );
+		}
+	}
+
+	/**
+	 * Ensure DEF admin capability exists.
+	 * Grants def_admin_access to all current administrators.
+	 * Includes lockout prevention with V1.1 fallback chain.
+	 */
+	public static function ensure_def_admin_capability(): void {
+		$admins = get_users( array(
+			'capability' => 'manage_options',
+			'fields'     => 'ids',
+		) );
+
+		foreach ( $admins as $user_id ) {
+			$user = new \WP_User( $user_id );
+			if ( ! $user->has_cap( 'def_admin_access' ) ) {
+				$user->add_cap( 'def_admin_access' );
+			}
+		}
+
+		// Lockout prevention: at least one user must have the capability.
+		$def_admins = get_users( array(
+			'capability' => 'def_admin_access',
+			'fields'     => 'ids',
+			'number'     => 1,
+		) );
+
+		if ( empty( $def_admins ) ) {
+			// Fallback 1: admin_email user.
+			$admin_email = get_option( 'admin_email' );
+			$admin_user  = get_user_by( 'email', $admin_email );
+
+			if ( $admin_user ) {
+				$admin_user->add_cap( 'def_admin_access' );
+			} else {
+				// V1.1 fallback: first Administrator by user ID ascending.
+				$fallback = get_users( array(
+					'role'    => 'administrator',
+					'orderby' => 'ID',
+					'order'   => 'ASC',
+					'number'  => 1,
+				) );
+				if ( ! empty( $fallback ) ) {
+					$fallback[0]->add_cap( 'def_admin_access' );
+				}
+			}
+		}
 	}
 
 	/**
