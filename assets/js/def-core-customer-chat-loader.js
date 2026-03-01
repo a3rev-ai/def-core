@@ -154,11 +154,10 @@
 			'.def-cc-panel--open {' +
 			'  transform: translateY(0); opacity: 1; pointer-events: auto;' +
 			'}' +
-			/* Close button inside panel */
+			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
-			'  position: absolute; top: 10px; right: 10px; z-index: 10;' +
-			'  width: 36px; height: 36px; border: none; border-radius: 50%;' +
-			'  background: #f3f4f6; color: #374151; cursor: pointer;' +
+			'  width: 32px; height: 32px; border: none; border-radius: 6px;' +
+			'  background: transparent; color: #374151; cursor: pointer;' +
 			'  display: flex; align-items: center; justify-content: center;' +
 			'  transition: background 0.15s ease, color 0.15s ease;' +
 			'}' +

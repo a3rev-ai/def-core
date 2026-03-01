@@ -280,11 +280,9 @@
 	flex-shrink: 0;
 }
 
-.def-cc-header-close {
-	position: static;
-	width: 32px;
-	height: 32px;
-	border-radius: 6px;
+.def-cc-panel-close:hover {
+	background: var(--def-cc-bg-hover);
+	color: var(--def-cc-text);
 }
 
 .def-cc-btn {
