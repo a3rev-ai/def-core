@@ -477,6 +477,28 @@ final class DEF_Core_Setup_Assistant {
 		), $status );
 	}
 
+	/**
+	 * Build a 429 rate-limited response with Retry-After.
+	 *
+	 * @param int $retry_after Seconds until rate limit resets.
+	 * @return \WP_REST_Response
+	 * @since 2.0.0
+	 */
+	private function rate_limited_response( int $retry_after ): \WP_REST_Response {
+		$response = new \WP_REST_Response( array(
+			'success'    => false,
+			'data'       => null,
+			'error'      => array(
+				'code'        => 'RATE_LIMITED',
+				'message'     => 'Too many write requests. Try again later.',
+				'retry_after' => $retry_after,
+			),
+			'ui_actions' => array(),
+		), 429 );
+		$response->header( 'Retry-After', (string) $retry_after );
+		return $response;
+	}
+
 	// ─── GET /setup/status ──────────────────────────────────────────────
 
 	/**
@@ -641,11 +663,7 @@ final class DEF_Core_Setup_Assistant {
 		// Rate limit check.
 		$rate_check = $this->check_write_rate_limit( $user_id );
 		if ( is_array( $rate_check ) ) {
-			return $this->error_response(
-				'RATE_LIMITED',
-				'Too many write requests. Try again later.',
-				429
-			);
+			return $this->rate_limited_response( $rate_check['retry_after'] );
 		}
 
 		$key = sanitize_text_field( $request->get_param( 'key' ) );
@@ -844,11 +862,7 @@ final class DEF_Core_Setup_Assistant {
 		// Rate limit check.
 		$rate_check = $this->check_write_rate_limit( $acting_user_id );
 		if ( is_array( $rate_check ) ) {
-			return $this->error_response(
-				'RATE_LIMITED',
-				'Too many write requests. Try again later.',
-				429
-			);
+			return $this->rate_limited_response( $rate_check['retry_after'] );
 		}
 
 		$body = $request->get_json_params();

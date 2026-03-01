@@ -75,6 +75,7 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 	class WP_REST_Response {
 		public $data;
 		public $status;
+		public $headers = array();
 
 		public function __construct( $data = null, int $status = 200 ) {
 			$this->data   = $data;
@@ -87,6 +88,14 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 
 		public function get_data() {
 			return $this->data;
+		}
+
+		public function header( string $key, string $value ): void {
+			$this->headers[ $key ] = $value;
+		}
+
+		public function get_headers(): array {
+			return $this->headers;
 		}
 	}
 }
@@ -1101,6 +1110,10 @@ $response = $sa->rest_update_setting( $request );
 $data     = $response->get_data();
 assert_equals( 429, $response->get_status(), '31st write returns 429' );
 assert_equals( 'RATE_LIMITED', $data['error']['code'], 'error code is RATE_LIMITED' );
+assert_true( isset( $data['error']['retry_after'] ), 'retry_after in error body' );
+assert_true( $data['error']['retry_after'] > 0, 'retry_after is positive' );
+$headers = $response->get_headers();
+assert_true( isset( $headers['Retry-After'] ), 'Retry-After HTTP header set' );
 
 // Read is NOT rate limited (different endpoint, no rate check).
 $request = new WP_REST_Request( 'GET', '/def-core/v1/setup/setting/def_core_display_name' );
