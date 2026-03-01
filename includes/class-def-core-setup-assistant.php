@@ -227,6 +227,20 @@ final class DEF_Core_Setup_Assistant {
 			'permission_callback' => array( $this, 'permission_check' ),
 			'callback'            => array( $this, 'rest_delete_thread' ),
 		) );
+
+		// GET + POST /setup/seen (first-visit detection)
+		register_rest_route( self::REST_NAMESPACE, '/setup/seen', array(
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_get_seen' ),
+				'permission_callback' => array( $this, 'permission_check' ),
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'rest_set_seen' ),
+				'permission_callback' => array( $this, 'permission_check' ),
+			),
+		) );
 	}
 
 	// ─── Authentication ─────────────────────────────────────────────────
@@ -1057,6 +1071,42 @@ final class DEF_Core_Setup_Assistant {
 
 		return $this->success_response( array(
 			'deleted' => true,
+		) );
+	}
+
+	// ─── GET /setup/seen ────────────────────────────────────────────────
+
+	/**
+	 * Check if the current user has seen the Setup Assistant drawer.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 2.0.0
+	 */
+	public function rest_get_seen( \WP_REST_Request $request ): \WP_REST_Response {
+		$user_id = $this->get_acting_user_id( $request );
+		$seen    = get_user_meta( $user_id, 'def_sa_drawer_seen', true );
+
+		return $this->success_response( array(
+			'seen' => ! empty( $seen ),
+		) );
+	}
+
+	// ─── POST /setup/seen ───────────────────────────────────────────────
+
+	/**
+	 * Mark the Setup Assistant drawer as seen for the current user.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 2.0.0
+	 */
+	public function rest_set_seen( \WP_REST_Request $request ): \WP_REST_Response {
+		$user_id = $this->get_acting_user_id( $request );
+		update_user_meta( $user_id, 'def_sa_drawer_seen', '1' );
+
+		return $this->success_response( array(
+			'seen' => true,
 		) );
 	}
 

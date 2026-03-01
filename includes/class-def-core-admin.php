@@ -276,8 +276,17 @@ final class DEF_Core_Admin {
 			'drawer_width' => (int) get_option( 'def_core_chat_drawer_width', 400 ),
 		);
 
+		// Setup Assistant drawer assets.
+		wp_enqueue_style( 'def-core-setup-assistant' );
+		wp_enqueue_script( 'def-core-setup-assistant' );
+		wp_localize_script( 'def-core-setup-assistant', 'defSetupAssistant', array(
+			'restUrl' => esc_url_raw( rest_url( 'def-core/v1/' ) ),
+			'nonce'   => wp_create_nonce( 'wp_rest' ),
+		) );
+
 		// Load template.
 		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';
+		include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
 	}
 
 	// ─── AJAX: Save Settings ─────────────────────────────────────────
