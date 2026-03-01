@@ -41,8 +41,13 @@
 		'update_user_role':      'Updating user role...'
 	};
 
-	var LS_THREAD_KEY = 'def_sa_thread_id';
-	var LS_SEEN_KEY   = 'def_sa_seen';
+	// Secret fields: never send raw values in dirty context.
+	var SECRET_FIELDS = ['def_core_api_key'];
+
+	// Namespace localStorage keys per site to avoid cross-install collisions.
+	var LS_PREFIX     = 'def_sa_' + (config.restUrl || '').replace(/[^a-z0-9]/gi, '').slice(0, 32) + '_';
+	var LS_THREAD_KEY = LS_PREFIX + 'thread_id';
+	var LS_SEEN_KEY   = LS_PREFIX + 'seen';
 
 	// ─── Constructor ─────────────────────────────────────────────
 
@@ -656,7 +661,17 @@
 		if (!keys.length) {
 			return {};
 		}
-		return { dirty_fields: this.dirtyFields };
+		// Redact secret fields — send boolean only, never raw values.
+		var safe = {};
+		for (var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			if (SECRET_FIELDS.indexOf(key) !== -1) {
+				safe[key] = '[changed]';
+			} else {
+				safe[key] = this.dirtyFields[key];
+			}
+		}
+		return { dirty_fields: safe };
 	};
 
 	// ─── Thread Persistence ──────────────────────────────────────
