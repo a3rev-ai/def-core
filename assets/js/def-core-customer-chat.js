@@ -586,11 +586,10 @@
 		trackAbort(controller);
 
 		return fetch(config.restUrl, {
-			method: 'POST',
+			method: 'GET',
 			credentials: 'same-origin',
 			headers: {
 				'X-WP-Nonce': config.nonce || '',
-				'Content-Type': 'application/json',
 			},
 			signal: controller.signal,
 		})
