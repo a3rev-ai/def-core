@@ -431,6 +431,156 @@ $first_tab = 'connection';
 			</div>
 		</div>
 
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Chat Button Appearance', 'def-core' ); ?></h2>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Button Position', 'def-core' ); ?></label>
+				<div class="def-core-radio-group">
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_position"
+							data-setting="def_core_chat_button_position"
+							value="right"
+							<?php checked( $button_settings['position'], 'right' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Right', 'def-core' ); ?></strong>
+						<span class="description"><?php esc_html_e( 'Bottom-right corner of the page.', 'def-core' ); ?></span>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_position"
+							data-setting="def_core_chat_button_position"
+							value="left"
+							<?php checked( $button_settings['position'], 'left' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Left', 'def-core' ); ?></strong>
+						<span class="description"><?php esc_html_e( 'Bottom-left corner of the page.', 'def-core' ); ?></span>
+					</label>
+				</div>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_button_color"><?php esc_html_e( 'Button Color', 'def-core' ); ?></label>
+				<div class="def-core-color-field">
+					<input
+						type="color"
+						id="def_core_chat_button_color"
+						data-setting="def_core_chat_button_color"
+						value="<?php echo esc_attr( $button_settings['color'] ); ?>"
+					/>
+					<span class="def-core-color-value"><?php echo esc_html( $button_settings['color'] ); ?></span>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Background color for the floating chat button.', 'def-core' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_button_hover_color"><?php esc_html_e( 'Button Hover Color', 'def-core' ); ?></label>
+				<div class="def-core-color-field">
+					<input
+						type="color"
+						id="def_core_chat_button_hover_color"
+						data-setting="def_core_chat_button_hover_color"
+						value="<?php echo esc_attr( $button_settings['hover_color'] ? $button_settings['hover_color'] : $button_settings['color'] ); ?>"
+					/>
+					<span class="def-core-color-value"><?php echo esc_html( $button_settings['hover_color'] ? $button_settings['hover_color'] : $button_settings['color'] ); ?></span>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Background color when hovering over the chat button. Defaults to the button color if not set.', 'def-core' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Button Icon', 'def-core' ); ?></label>
+				<div class="def-core-radio-group def-core-icon-radios">
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_icon"
+							data-setting="def_core_chat_button_icon"
+							value="chat"
+							<?php checked( $button_settings['icon'], 'chat' ); ?>
+						/>
+						<span class="def-core-icon-preview">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+						</span>
+						<strong><?php esc_html_e( 'Chat bubble', 'def-core' ); ?></strong>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_icon"
+							data-setting="def_core_chat_button_icon"
+							value="headset"
+							<?php checked( $button_settings['icon'], 'headset' ); ?>
+						/>
+						<span class="def-core-icon-preview">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+						</span>
+						<strong><?php esc_html_e( 'Headset', 'def-core' ); ?></strong>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_icon"
+							data-setting="def_core_chat_button_icon"
+							value="custom"
+							<?php checked( $button_settings['icon'], 'custom' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Custom', 'def-core' ); ?></strong>
+					</label>
+				</div>
+			</div>
+
+			<div id="def-core-custom-icon-upload" class="def-core-field" style="<?php echo 'custom' === $button_settings['icon'] ? '' : 'display: none;'; ?>">
+				<label><?php esc_html_e( 'Custom Icon', 'def-core' ); ?></label>
+				<div class="def-core-logo-upload">
+					<div id="def-core-icon-preview" class="def-core-logo-preview">
+						<?php if ( $button_icon_url ) : ?>
+							<img src="<?php echo esc_url( $button_icon_url ); ?>" style="max-height: 48px; width: auto;" />
+						<?php else : ?>
+							<span class="def-core-no-logo"><?php esc_html_e( 'No icon selected', 'def-core' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<input type="hidden" id="def_core_chat_button_icon_id" data-setting="def_core_chat_button_icon_id" value="<?php echo esc_attr( $button_settings['icon_id'] ); ?>" />
+					<p class="def-core-logo-actions">
+						<button type="button" class="button" id="def-core-select-icon">
+							<?php esc_html_e( 'Select Icon', 'def-core' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-icon" style="<?php echo $button_settings['icon_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove Icon', 'def-core' ); ?>
+						</button>
+					</p>
+					<p class="description">
+						<?php esc_html_e( 'Upload a custom icon for the chat button. Recommended: 48×48px PNG or SVG.', 'def-core' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<div class="def-core-field def-core-checkbox-field">
+				<label>
+					<input
+						type="checkbox"
+						id="def_core_chat_show_floating"
+						data-setting="def_core_chat_show_floating"
+						value="1"
+						<?php checked( $button_settings['show_floating'] ); ?>
+					/>
+					<?php esc_html_e( 'Show floating chat button on frontend', 'def-core' ); ?>
+				</label>
+			</div>
+
+			<div id="def-core-floating-warning" class="def-core-notice def-core-notice-warning" style="<?php echo $button_settings['show_floating'] ? 'display: none;' : ''; ?>">
+				<p>
+					<?php esc_html_e( 'The floating chat button is hidden. Make sure you\'ve placed the [def_chat_button] shortcode or theme hook, otherwise visitors won\'t be able to open the chat.', 'def-core' ); ?>
+				</p>
+			</div>
+		</div>
+
 		<div class="def-core-save-area">
 			<button type="button" class="button button-primary def-core-save-btn" data-tab="chat-settings">
 				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>

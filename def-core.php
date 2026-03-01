@@ -29,7 +29,7 @@ if ( ! defined( 'DEF_CORE_KEY' ) ) {
 	define( 'DEF_CORE_KEY', 'def-core' );
 }
 if ( ! defined( 'DEF_CORE_VERSION' ) ) {
-	define( 'DEF_CORE_VERSION', '1.0.0' );
+	define( 'DEF_CORE_VERSION', '1.1.0' );
 }
 
 define( 'DEF_CORE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
