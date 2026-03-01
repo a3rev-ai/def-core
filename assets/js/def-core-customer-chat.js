@@ -1639,10 +1639,12 @@
 				}
 
 				// Step 2: PUT blob.
+				// Translate Docker-internal hostnames to browser-routable ones.
+				var putUrl = translateDockerUrl(initData.upload_url);
 				var controller2 = new AbortController();
 				trackAbort(controller2);
 
-				return fetch(initData.upload_url, {
+				return fetch(putUrl, {
 					method: 'PUT',
 					headers: {
 						'Content-Type': getMimeType(staged.file.name),
@@ -2068,6 +2070,32 @@
 	}
 
 	// ─── 12. UI HELPERS ───────────────────────────────────────────
+
+	/**
+	 * Translate Docker-internal hostnames to browser-routable ones.
+	 * E.g. http://azurite:10000/... → http://localhost:10000/...
+	 */
+	function translateDockerUrl(url) {
+		if (!url) return url;
+		try {
+			var parsed = new URL(url);
+			var host = parsed.hostname;
+			// localhost, IPs, and real domains are already routable.
+			if (
+				host === 'localhost' ||
+				host === '127.0.0.1' ||
+				/^\d+\.\d+\.\d+\.\d+$/.test(host) ||
+				/\.[a-z]{2,}$/i.test(host)
+			) {
+				return url;
+			}
+			// Docker internal hostname — swap with current page's hostname.
+			parsed.hostname = window.location.hostname || 'localhost';
+			return parsed.toString();
+		} catch (e) {
+			return url;
+		}
+	}
 
 	function scrollToBottom(smooth) {
 		if (!els.messages) return;
