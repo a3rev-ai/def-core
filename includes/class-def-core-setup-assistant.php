@@ -994,7 +994,7 @@ final class DEF_Core_Setup_Assistant {
 					'X-WP-User-ID'  => (string) $user_id,
 				),
 				'body'    => wp_json_encode( $body ),
-				'timeout' => 30,
+				'timeout' => 60,
 			)
 		);
 
