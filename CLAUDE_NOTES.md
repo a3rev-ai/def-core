@@ -27,7 +27,39 @@
 
 ## Latest Session: 2026-03-01
 
-### Phase 7 Sub-PR D-II: Settings Tabs — IN PROGRESS
+### Phase 7 Sub-PR D-III: Setup Assistant REST Endpoints + HMAC Auth — BUILT
+**Files created:**
+- `includes/class-def-core-setup-assistant.php` (~750 lines) — Complete Setup Assistant REST controller
+- `tests/test-setup-assistant.php` (~800 lines) — 161 tests, all passing
+
+**Files modified:**
+- `includes/class-def-core.php` — Added require_once + `DEF_Core_Setup_Assistant::init()` call
+
+**What was built:**
+- 10 REST endpoints under `def-core/v1/setup/` namespace (separate from `a3-ai/v1` tool namespace)
+- Dual authentication: Mode A (WP nonce + def_admin_access) and Mode B (HMAC-SHA256 server-to-server)
+- Mixed-mode auth rejection (both nonce AND HMAC → 400)
+- HMAC validation: timestamp freshness (300s), body hash, canonical route, timing-safe comparison
+- 9-setting allowlist with per-setting validation (URL, email, enum, integer range, attachment image)
+- Secret redaction: `def_core_api_key` never returns raw value (configured_only mode)
+- Chat proxy: forwards to `{api_url}/api/setup_assistant/chat` with API key auth (Mode A only)
+- Connection test: reuses health check pattern from admin class
+- User listing: all users with any DEF capability
+- User role management: add/remove capabilities with lockout prevention
+- Thread CRUD: user meta storage for conversation persistence
+- Rate limiting: 30 writes/minute per user via transient sliding window
+- Audit log: 100-entry FIFO in wp_options, API key values redacted
+- Standard response envelope: `{success, data, error, ui_actions}`
+
+**Tests:** 161 tests across 45 test sections — auth, HMAC, settings, status, users, chat proxy, connection, threads, rate limiting, audit log, validation, envelope structure.
+
+**Full suite:** 400 tests pass (161 new + 239 existing), 0 failures.
+
+**Status:** Code complete, tested, awaiting commit + PR. D-II still awaiting commit separately.
+
+---
+
+### Phase 7 Sub-PR D-II: Settings Tabs — BUILT (awaiting commit)
 **Branch:** `phase7-subpr-d2-settings-tabs`
 
 **D-II builds 4 settings tabs:** Branding, Chat Settings, Escalation, User Roles + `def_admin_access` capability infrastructure.

@@ -57,6 +57,7 @@ final class DEF_Core {
 		DEF_Core_Cache::init();
 		DEF_Core_Staff_AI::init();
 		DEF_Core_Escalation::init();
+		DEF_Core_Setup_Assistant::init();
 
 		// Register AJAX handlers for inline login (Loop 6).
 		add_action( 'wp_ajax_nopriv_def_core_inline_login', array( $this, 'ajax_inline_login' ) );
@@ -97,6 +98,9 @@ final class DEF_Core {
 
 		// Escalation email bridge.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-escalation.php';
+
+		// Setup Assistant REST endpoints.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-setup-assistant.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
