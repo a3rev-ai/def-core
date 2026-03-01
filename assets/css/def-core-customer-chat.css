@@ -272,19 +272,6 @@
 	text-overflow: ellipsis;
 }
 
-.def-cc-header-separator {
-	color: var(--def-cc-text-muted);
-	flex-shrink: 0;
-}
-
-.def-cc-header-role {
-	font-weight: 500;
-	font-size: 14px;
-	color: #4b5563;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
 
 .def-cc-header-actions {
 	display: flex;
@@ -440,13 +427,6 @@
 	background: var(--def-cc-text-light);
 }
 
-.def-cc-message-icon--sales {
-	background: var(--def-cc-primary);
-}
-
-.def-cc-message-icon--support {
-	background: var(--def-cc-success);
-}
 
 .def-cc-message-content {
 	padding: 10px 14px;
@@ -817,52 +797,6 @@
 	border-top-color: var(--def-cc-text);
 }
 
-/* ─── Handoff Confirmation ──────────────────────────────────────── */
-
-.def-cc-handoff {
-	margin: 8px 16px;
-	padding: 12px 14px;
-	background: var(--def-cc-warning-bg);
-	border: 1px solid var(--def-cc-warning-border);
-	border-radius: var(--def-cc-radius-sm);
-	color: var(--def-cc-warning-text);
-	font-size: 14px;
-}
-
-.def-cc-handoff-actions {
-	display: flex;
-	gap: 8px;
-	margin-top: 10px;
-}
-
-.def-cc-handoff-btn {
-	padding: 6px 14px;
-	border: none;
-	border-radius: 6px;
-	font-family: var(--def-cc-font);
-	font-size: 13px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: background 0.15s ease;
-}
-
-.def-cc-handoff-btn--yes {
-	background: var(--def-cc-success);
-	color: #ffffff;
-}
-
-.def-cc-handoff-btn--yes:hover {
-	background: #059669;
-}
-
-.def-cc-handoff-btn--no {
-	background: var(--def-cc-border);
-	color: var(--def-cc-text);
-}
-
-.def-cc-handoff-btn--no:hover {
-	background: var(--def-cc-border-input);
-}
 
 /* ─── Confirmation Dialog ───────────────────────────────────────── */
 

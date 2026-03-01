@@ -76,7 +76,6 @@
 
 	var THREAD_KEY = 'a3rev_thread_id';
 	var HISTORY_KEY = 'a3rev_threads';
-	var THREAD_MODE_PREFIX = 'a3rev_thread_mode:';
 
 	function t(key) {
 		return (
@@ -99,11 +98,9 @@
 	var refreshPromise = null; // single-flight lock (V1.2)
 
 	// Chat state.
-	var currentEmployee = 'SalesAssistant';
 	var threadId = null;
 	var isContinuing = false;
 	var isComposerDisabled = false;
-	var pendingHandoff = null;
 
 	// Upload state.
 	var stagedFiles = [];
@@ -158,17 +155,6 @@
 		bizName.textContent = config.displayName || '';
 		identity.appendChild(bizName);
 		els.headerBusiness = bizName;
-
-		// Separator.
-		var sep = el('span', 'def-cc-header-separator');
-		sep.textContent = '·';
-		identity.appendChild(sep);
-
-		// Role.
-		var role = el('span', 'def-cc-header-role');
-		role.textContent = getEmployeeRole(currentEmployee);
-		identity.appendChild(role);
-		els.headerRole = role;
 
 		header.appendChild(identity);
 
@@ -249,7 +235,7 @@
 
 		// Greeting.
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
-		var greetingIcon = createEmployeeIcon(currentEmployee);
+		var greetingIcon = createAssistantIcon();
 		greetingEl.appendChild(greetingIcon);
 		var greetingContent = el('div', 'def-cc-message-content');
 		greetingContent.textContent = t('greeting');
@@ -807,8 +793,7 @@
 					if (name) {
 						appendMessage(
 							'assistant',
-							'Welcome back, ' + escapeHtml(name) + '! How can I help you?',
-							currentEmployee
+							'Welcome back, ' + escapeHtml(name) + '! How can I help you?'
 						);
 					}
 				} else {
@@ -943,8 +928,7 @@
 							hideThinking(thinkingEl);
 							appendMessage(
 								'assistant',
-								t('rateLimited'),
-								currentEmployee
+								t('rateLimited')
 							);
 							setComposerDisabled(false);
 							return null;
@@ -959,8 +943,7 @@
 							if (!data || data.error) {
 								appendMessage(
 									'assistant',
-									t('connectionError'),
-									currentEmployee
+									t('connectionError')
 								);
 								setComposerDisabled(false);
 								return;
@@ -988,29 +971,8 @@
 								reply = data.choices[0].message.content || '';
 							}
 
-							// Employee handoff detection.
-							var responseEmployee = data.employee || currentEmployee;
-
-							if (
-								reply &&
-								isHandoffProposed(responseEmployee)
-							) {
-								showHandoffConfirmation(
-									currentEmployee,
-									responseEmployee,
-									reply
-								);
-							} else {
-								if (reply) {
-									if (responseEmployee !== currentEmployee) {
-										setActiveEmployee(responseEmployee);
-									}
-									appendMessage(
-										'assistant',
-										reply,
-										currentEmployee
-									);
-								}
+							if (reply) {
+								appendMessage('assistant', reply);
 							}
 
 							// Check for escalation offer.
@@ -1053,8 +1015,7 @@
 				if (thinkingEl) hideThinking(thinkingEl);
 				appendMessage(
 					'assistant',
-					t('connectionError'),
-					currentEmployee
+					t('connectionError')
 				);
 				setComposerDisabled(false);
 			});
@@ -1086,11 +1047,11 @@
 		scrollToBottom();
 	}
 
-	function appendMessage(role, content, employee) {
+	function appendMessage(role, content) {
 		var msgEl = el('div', 'def-cc-message def-cc-message--' + role);
 
 		if (role === 'assistant') {
-			var icon = createEmployeeIcon(employee || currentEmployee);
+			var icon = createAssistantIcon();
 			msgEl.appendChild(icon);
 		}
 
@@ -1157,7 +1118,7 @@
 			'div',
 			'def-cc-message def-cc-message--assistant def-cc-message--thinking'
 		);
-		var icon = createEmployeeIcon(currentEmployee);
+		var icon = createAssistantIcon();
 		msgEl.appendChild(icon);
 
 		var content = el('div', 'def-cc-message-content');
@@ -1178,125 +1139,13 @@
 		}
 	}
 
-	// ─── 7. EMPLOYEE IDENTITY + HANDOFF ────────────────────────────
+	// ─── 7. ASSISTANT ICON ────────────────────────────────────────
 
-	function getEmployeeRole(employee) {
-		var roles = {
-			SalesAssistant: 'Sales Assistant',
-			SupportAssistant: 'Support Assistant',
-			StaffAssistant: 'Staff Assistant',
-			ManagementAssistant: 'Management Assistant',
-			SetupAssistant: 'Setup Assistant',
-		};
-		return roles[employee] || 'Digital Employee';
-	}
-
-	function getEmployeeIconText(employee) {
-		var icons = {
-			SalesAssistant: 'SA',
-			SupportAssistant: 'SU',
-			StaffAssistant: 'ST',
-			ManagementAssistant: 'MA',
-			SetupAssistant: 'SE',
-		};
-		return icons[employee] || 'DE';
-	}
-
-	function getEmployeeIconClass(employee) {
-		if (employee === 'SalesAssistant') return 'sales';
-		if (employee === 'SupportAssistant') return 'support';
-		return 'default';
-	}
-
-	function createEmployeeIcon(employee) {
+	function createAssistantIcon() {
 		var iconEl = el('div', 'def-cc-message-icon');
-		var iconClass = getEmployeeIconClass(employee);
-		if (iconClass !== 'default') {
-			iconEl.classList.add('def-cc-message-icon--' + iconClass);
-		}
-		iconEl.textContent = getEmployeeIconText(employee);
+		iconEl.textContent = 'DE';
 		iconEl.setAttribute('aria-hidden', 'true');
 		return iconEl;
-	}
-
-	function setActiveEmployee(employee) {
-		currentEmployee = employee;
-		if (els.headerRole) {
-			els.headerRole.textContent = getEmployeeRole(employee);
-		}
-		persistAssistantMode(employee);
-		checkUploadEligibility();
-	}
-
-	function persistAssistantMode(employee) {
-		if (!threadId) return;
-		try {
-			localStorage.setItem(THREAD_MODE_PREFIX + threadId, employee);
-		} catch (e) {}
-	}
-
-	function restoreAssistantMode(tid) {
-		try {
-			var mode = localStorage.getItem(THREAD_MODE_PREFIX + tid);
-			if (mode) {
-				currentEmployee = mode;
-				if (els.headerRole) {
-					els.headerRole.textContent =
-						getEmployeeRole(currentEmployee);
-				}
-			}
-		} catch (e) {}
-	}
-
-	function isHandoffProposed(responseEmployee) {
-		return (
-			responseEmployee &&
-			responseEmployee !== currentEmployee &&
-			responseEmployee !== 'SalesAssistant' // SalesAssistant is default, not a handoff.
-		);
-	}
-
-	function showHandoffConfirmation(from, to, reply) {
-		var handoffEl = el('div', 'def-cc-handoff');
-		handoffEl.innerHTML =
-			'<div>I\'d like to connect you with our <strong>' +
-			escapeHtml(getEmployeeRole(to)) +
-			'</strong> for better assistance. Would you like that?</div>';
-
-		var actions = el('div', 'def-cc-handoff-actions');
-
-		var yesBtn = el('button', 'def-cc-handoff-btn def-cc-handoff-btn--yes');
-		yesBtn.type = 'button';
-		yesBtn.textContent = 'Yes, switch';
-		yesBtn.addEventListener('click', function () {
-			handleHandoffConfirm(true, from, to, reply, handoffEl);
-		});
-		actions.appendChild(yesBtn);
-
-		var noBtn = el('button', 'def-cc-handoff-btn def-cc-handoff-btn--no');
-		noBtn.type = 'button';
-		noBtn.textContent = 'No thanks';
-		noBtn.addEventListener('click', function () {
-			handleHandoffConfirm(false, from, to, reply, handoffEl);
-		});
-		actions.appendChild(noBtn);
-
-		handoffEl.appendChild(actions);
-		els.messages.appendChild(handoffEl);
-		scrollToBottom();
-	}
-
-	function handleHandoffConfirm(confirmed, from, to, reply, handoffEl) {
-		if (handoffEl && handoffEl.parentNode) {
-			handoffEl.parentNode.removeChild(handoffEl);
-		}
-
-		if (confirmed) {
-			setActiveEmployee(to);
-			appendMessage('assistant', reply, to);
-		} else {
-			appendMessage('assistant', reply, from);
-		}
 	}
 
 	// ─── 8. ESCALATION FORM ───────────────────────────────────────
@@ -1846,8 +1695,7 @@
 
 		fetch(
 			config.apiBaseUrl +
-				'/api/customer/employee-tools?employee=' +
-				encodeURIComponent(currentEmployee),
+				'/api/customer/employee-tools?employee=SalesAssistant',
 			{
 				method: 'GET',
 				headers: headers,
@@ -1988,11 +1836,7 @@
 		// Render all messages.
 		for (var j = 0; j < thread.messages.length; j++) {
 			var msg = thread.messages[j];
-			appendMessage(
-				msg.role,
-				msg.content,
-				msg.role === 'assistant' ? currentEmployee : null
-			);
+			appendMessage(msg.role, msg.content);
 		}
 	}
 
@@ -2062,13 +1906,6 @@
 	}
 
 	function clearConversation() {
-		// Clear assistant mode for current thread.
-		if (threadId) {
-			try {
-				localStorage.removeItem(THREAD_MODE_PREFIX + threadId);
-			} catch (e) {}
-		}
-
 		// Remove thread from local history.
 		if (threadId) {
 			localThreads = localThreads.filter(function (t) {
@@ -2090,15 +1927,6 @@
 
 		// Clear staged files.
 		clearStagedFiles();
-
-		// Reset employee.
-		currentEmployee = 'SalesAssistant';
-		if (els.headerRole) {
-			els.headerRole.textContent = getEmployeeRole(currentEmployee);
-		}
-
-		// Re-check upload eligibility for new employee.
-		checkUploadEligibility();
 
 		// Show greeting.
 		if (els.greeting) {
@@ -2205,8 +2033,7 @@
 		onAuthChange();
 		appendMessage(
 			'assistant',
-			'You have been logged out.',
-			currentEmployee
+			'You have been logged out.'
 		);
 	}
 
@@ -2373,8 +2200,7 @@
 
 				if (threadId) {
 					isContinuing = true;
-					restoreAssistantMode(threadId);
-					loadThreadMessages(threadId);
+		loadThreadMessages(threadId);
 				}
 
 				// Load server threads if authenticated.
@@ -2393,8 +2219,7 @@
 				} catch (e) {}
 				if (threadId) {
 					isContinuing = true;
-					restoreAssistantMode(threadId);
-					loadThreadMessages(threadId);
+		loadThreadMessages(threadId);
 				}
 				checkUploadEligibility();
 			});
@@ -2442,11 +2267,9 @@
 		contextToken = null;
 		contextPayload = null;
 		refreshPromise = null;
-		currentEmployee = 'SalesAssistant';
 		threadId = null;
 		isContinuing = false;
 		isComposerDisabled = false;
-		pendingHandoff = null;
 		stagedFiles = [];
 		uploadEligible = false;
 		localThreads = [];
