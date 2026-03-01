@@ -28,8 +28,7 @@ $tabs = array(
 	'documentation'   => __( 'Documentation', 'def-core' ),
 );
 
-$placeholder_tabs = array( 'branding', 'chat-settings', 'escalation', 'user-roles' );
-$first_tab        = 'connection';
+$first_tab = 'connection';
 ?>
 <div class="wrap def-core-wrap">
 	<h1><?php esc_html_e( 'Digital Employees', 'def-core' ); ?></h1>
@@ -73,6 +72,7 @@ $first_tab        = 'connection';
 					value="<?php echo esc_attr( $settings['api_url'] ); ?>"
 					class="large-text code"
 					placeholder="https://your-def-api.example.com"
+					autocomplete="off"
 				/>
 				<p class="description">
 					<?php esc_html_e( 'The base URL of the Digital Employee Framework Python API.', 'def-core' ); ?>
@@ -89,7 +89,7 @@ $first_tab        = 'connection';
 						value="<?php echo esc_attr( $settings['api_key'] ); ?>"
 						class="large-text code"
 						placeholder="<?php esc_attr_e( 'Enter API key', 'def-core' ); ?>"
-						autocomplete="off"
+						autocomplete="new-password"
 					/>
 					<button type="button" class="button def-core-password-toggle" aria-label="<?php esc_attr_e( 'Show API key', 'def-core' ); ?>">
 						<span class="dashicons dashicons-visibility"></span>
@@ -267,24 +267,341 @@ $first_tab        = 'connection';
 		</div>
 	</div>
 
-	<?php // ─── Placeholder Tabs ───────────────────────────────────────── ?>
-	<?php foreach ( $placeholder_tabs as $ptab ) : ?>
-		<div
-			id="panel-<?php echo esc_attr( $ptab ); ?>"
-			role="tabpanel"
-			aria-labelledby="tab-<?php echo esc_attr( $ptab ); ?>"
-			class="def-core-panel"
-			tabindex="0"
-			hidden
-		>
-			<div class="def-core-card">
-				<div class="def-core-placeholder">
-					<span class="dashicons dashicons-clock"></span>
-					<p><?php esc_html_e( 'Coming in a future update.', 'def-core' ); ?></p>
+	<?php // ─── Branding Tab ──────────────────────────────────────────── ?>
+	<div
+		id="panel-branding"
+		role="tabpanel"
+		aria-labelledby="tab-branding"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Logo & Branding', 'def-core' ); ?></h2>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Logo', 'def-core' ); ?></label>
+				<div class="def-core-logo-upload">
+					<div id="def-core-logo-preview" class="def-core-logo-preview">
+						<?php if ( $logo_url ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" style="max-height: 120px; width: auto;" />
+						<?php else : ?>
+							<span class="def-core-no-logo"><?php esc_html_e( 'No logo selected', 'def-core' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<input type="hidden" id="def_core_logo_id" data-setting="def_core_logo_id" value="<?php echo esc_attr( $branding['logo_id'] ); ?>" />
+					<p class="def-core-logo-actions">
+						<button type="button" class="button" id="def-core-select-logo">
+							<?php esc_html_e( 'Select Logo', 'def-core' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-logo" style="<?php echo $branding['logo_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove Logo', 'def-core' ); ?>
+						</button>
+					</p>
+					<p class="description">
+						<?php esc_html_e( 'Upload a logo for your Digital Employees. Used in Staff AI and Customer Chat headers.', 'def-core' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_display_name"><?php esc_html_e( 'Display Name', 'def-core' ); ?></label>
+				<input
+					type="text"
+					id="def_core_display_name"
+					data-setting="def_core_display_name"
+					value="<?php echo esc_attr( $branding['display_name'] ); ?>"
+					class="regular-text"
+					maxlength="100"
+				/>
+				<p class="description">
+					<?php esc_html_e( 'Shown in chat headers when no logo is available. Defaults to your site name.', 'def-core' ); ?>
+				</p>
+			</div>
+
+			<h3><?php esc_html_e( 'Logo Visibility', 'def-core' ); ?></h3>
+
+			<div class="def-core-field def-core-checkbox-field">
+				<label>
+					<input
+						type="checkbox"
+						id="def_core_logo_show_staff_ai"
+						data-setting="def_core_logo_show_staff_ai"
+						value="1"
+						<?php checked( $branding['logo_show_staff_ai'] ); ?>
+					/>
+					<?php esc_html_e( 'Show logo in Staff AI chat header', 'def-core' ); ?>
+				</label>
+			</div>
+
+			<div class="def-core-field def-core-checkbox-field">
+				<label>
+					<input
+						type="checkbox"
+						id="def_core_logo_show_customer_chat"
+						data-setting="def_core_logo_show_customer_chat"
+						value="1"
+						<?php checked( $branding['logo_show_customer_chat'] ); ?>
+					/>
+					<?php esc_html_e( 'Show logo in Customer Chat header', 'def-core' ); ?>
+				</label>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_logo_max_height"><?php esc_html_e( 'Logo Max Height (px)', 'def-core' ); ?></label>
+				<input
+					type="number"
+					id="def_core_logo_max_height"
+					data-setting="def_core_logo_max_height"
+					value="<?php echo esc_attr( $branding['logo_max_height'] ); ?>"
+					min="24"
+					max="120"
+					class="small-text"
+				/>
+				<p class="description">
+					<?php esc_html_e( 'Maximum display height for the logo. Range: 24–120px.', 'def-core' ); ?>
+				</p>
+			</div>
+		</div>
+
+		<div class="def-core-save-area">
+			<button type="button" class="button button-primary def-core-save-btn" data-tab="branding">
+				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
+			</button>
+			<span class="spinner"></span>
+		</div>
+	</div>
+
+	<?php // ─── Chat Settings Tab ────────────────────────────────────────── ?>
+	<div
+		id="panel-chat-settings"
+		role="tabpanel"
+		aria-labelledby="tab-chat-settings"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Customer Chat Display', 'def-core' ); ?></h2>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Display Mode', 'def-core' ); ?></label>
+				<div class="def-core-radio-group">
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_display_mode"
+							data-setting="def_core_chat_display_mode"
+							value="modal"
+							<?php checked( $chat_settings['display_mode'], 'modal' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Modal', 'def-core' ); ?></strong>
+						<span class="description"><?php esc_html_e( 'Chat opens in a centered overlay window.', 'def-core' ); ?></span>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_display_mode"
+							data-setting="def_core_chat_display_mode"
+							value="drawer"
+							<?php checked( $chat_settings['display_mode'], 'drawer' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Drawer', 'def-core' ); ?></strong>
+						<span class="description"><?php esc_html_e( 'Chat slides in from the right edge of the screen.', 'def-core' ); ?></span>
+					</label>
+				</div>
+			</div>
+
+			<div id="def-core-drawer-options" style="<?php echo 'drawer' === $chat_settings['display_mode'] ? '' : 'display: none;'; ?>">
+				<div class="def-core-field">
+					<label for="def_core_chat_drawer_width"><?php esc_html_e( 'Drawer Width (px)', 'def-core' ); ?></label>
+					<input
+						type="number"
+						id="def_core_chat_drawer_width"
+						data-setting="def_core_chat_drawer_width"
+						value="<?php echo esc_attr( $chat_settings['drawer_width'] ); ?>"
+						min="300"
+						max="600"
+						class="small-text"
+					/>
+					<p class="description">
+						<?php esc_html_e( 'Width of the chat drawer in pixels. Range: 300–600px.', 'def-core' ); ?>
+					</p>
 				</div>
 			</div>
 		</div>
-	<?php endforeach; ?>
+
+		<div class="def-core-save-area">
+			<button type="button" class="button button-primary def-core-save-btn" data-tab="chat-settings">
+				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
+			</button>
+			<span class="spinner"></span>
+		</div>
+	</div>
+
+	<?php // ─── Escalation Tab ───────────────────────────────────────────── ?>
+	<div
+		id="panel-escalation"
+		role="tabpanel"
+		aria-labelledby="tab-escalation"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Escalation Email Settings', 'def-core' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'When a user accepts an AI escalation offer, the request is emailed to the address configured for each channel. If no email is set, the WordPress admin email is used.', 'def-core' ); ?>
+			</p>
+
+			<?php
+			$channels_info = array(
+				'customer'        => array(
+					'label' => __( 'Customer Chat', 'def-core' ),
+					'help'  => __( 'Receives escalation emails from anonymous or logged-in customer chat sessions.', 'def-core' ),
+				),
+				'setup_assistant' => array(
+					'label' => __( 'Setup Assistant', 'def-core' ),
+					'help'  => __( "Enter your DEF Partner's email address here for Setup Assistant human escalation.", 'def-core' ),
+				),
+			);
+			?>
+
+			<?php foreach ( $channels_info as $channel_id => $channel_info ) : ?>
+				<div class="def-core-field">
+					<label for="escalation_<?php echo esc_attr( $channel_id ); ?>">
+						<?php echo esc_html( $channel_info['label'] ); ?>
+					</label>
+					<div class="def-core-escalation-row">
+						<input
+							type="email"
+							id="escalation_<?php echo esc_attr( $channel_id ); ?>"
+							data-setting="escalation_<?php echo esc_attr( $channel_id ); ?>"
+							value="<?php echo esc_attr( $escalation[ $channel_id ] ); ?>"
+							class="regular-text"
+							placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>"
+						/>
+						<button
+							type="button"
+							class="button button-small def-core-test-email-btn"
+							data-channel="<?php echo esc_attr( $channel_id ); ?>"
+						><?php esc_html_e( 'Test Email', 'def-core' ); ?></button>
+					</div>
+					<p class="description"><?php echo esc_html( $channel_info['help'] ); ?></p>
+				</div>
+			<?php endforeach; ?>
+		</div>
+
+		<div class="def-core-save-area">
+			<button type="button" class="button button-primary def-core-save-btn" data-tab="escalation">
+				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
+			</button>
+			<span class="spinner"></span>
+		</div>
+	</div>
+
+	<?php // ─── User Roles Tab ───────────────────────────────────────────── ?>
+	<div
+		id="panel-user-roles"
+		role="tabpanel"
+		aria-labelledby="tab-user-roles"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'User Access', 'def-core' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Staff and Management both grant login access to Staff AI but at different document authority levels — Management users can access documents that Staff users cannot. DEF Admin grants access to this settings page.', 'def-core' ); ?>
+			</p>
+
+			<table class="def-core-roles-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'User', 'def-core' ); ?></th>
+						<th><?php esc_html_e( 'WordPress Role', 'def-core' ); ?></th>
+						<th class="def-core-role-col"><?php esc_html_e( 'Staff', 'def-core' ); ?></th>
+						<th class="def-core-role-col"><?php esc_html_e( 'Management', 'def-core' ); ?></th>
+						<th class="def-core-role-col"><?php esc_html_e( 'DEF Admin', 'def-core' ); ?></th>
+						<th class="def-core-role-col"><?php esc_html_e( 'Actions', 'def-core' ); ?></th>
+					</tr>
+				</thead>
+				<tbody id="def-core-roles-tbody">
+					<?php foreach ( $def_users as $u ) :
+						$is_last_admin = $u->has_cap( 'def_admin_access' ) && $def_admin_count <= 1;
+						$is_locked     = $is_last_admin;
+						?>
+						<tr data-user-id="<?php echo esc_attr( $u->ID ); ?>">
+							<td>
+								<?php echo get_avatar( $u->ID, 24, '', '', array( 'class' => 'def-core-user-avatar' ) ); ?>
+								<?php echo esc_html( $u->display_name ); ?>
+								<span class="def-core-user-email"><?php echo esc_html( $u->user_email ); ?></span>
+							</td>
+							<td><?php echo esc_html( implode( ', ', array_map( 'ucfirst', $u->roles ) ) ); ?></td>
+							<td class="def-core-role-col">
+								<input
+									type="checkbox"
+									class="def-core-role-cb"
+									data-user="<?php echo esc_attr( $u->ID ); ?>"
+									data-cap="def_staff_access"
+									<?php checked( $u->has_cap( 'def_staff_access' ) ); ?>
+								/>
+							</td>
+							<td class="def-core-role-col">
+								<input
+									type="checkbox"
+									class="def-core-role-cb"
+									data-user="<?php echo esc_attr( $u->ID ); ?>"
+									data-cap="def_management_access"
+									<?php checked( $u->has_cap( 'def_management_access' ) ); ?>
+								/>
+							</td>
+							<td class="def-core-role-col">
+								<input
+									type="checkbox"
+									class="def-core-role-cb"
+									data-user="<?php echo esc_attr( $u->ID ); ?>"
+									data-cap="def_admin_access"
+									<?php checked( $u->has_cap( 'def_admin_access' ) ); ?>
+									<?php disabled( $is_locked ); ?>
+								/>
+								<?php if ( $is_locked ) : ?>
+									<span class="def-core-locked-label" title="<?php esc_attr_e( 'At least one DEF Admin is required', 'def-core' ); ?>"><?php esc_html_e( 'locked', 'def-core' ); ?></span>
+								<?php endif; ?>
+							</td>
+							<td class="def-core-role-col">
+								<?php if ( ! $is_locked ) : ?>
+									<button type="button" class="def-core-remove-user-btn" data-user-id="<?php echo esc_attr( $u->ID ); ?>" title="<?php esc_attr_e( 'Remove all DEF access', 'def-core' ); ?>">&times;</button>
+								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<!-- Add User search -->
+			<div class="def-core-add-user-section">
+				<label for="def-core-user-search"><?php esc_html_e( 'Add User', 'def-core' ); ?></label>
+				<div class="def-core-user-search-wrap">
+					<input
+						type="text"
+						id="def-core-user-search"
+						class="regular-text"
+						placeholder="<?php esc_attr_e( 'Search by email or name...', 'def-core' ); ?>"
+						autocomplete="off"
+					/>
+					<div id="def-core-user-search-results" class="def-core-search-results" hidden></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="def-core-save-area">
+			<button type="button" class="button button-primary def-core-save-roles-btn">
+				<?php esc_html_e( 'Save User Roles', 'def-core' ); ?>
+			</button>
+			<span class="spinner"></span>
+		</div>
+	</div>
 
 	<?php // ─── Employees & Tools Tab ──────────────────────────────────── ?>
 	<div

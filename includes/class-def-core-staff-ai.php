@@ -1513,17 +1513,13 @@ final class DEF_Core_Staff_AI
 		$api_base = rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai' );
 		$nonce    = wp_create_nonce( 'wp_rest' );
 
-		// Header logo — use custom_logo or fall back to site name.
-		$custom_logo_id = get_theme_mod( 'custom_logo' );
-		$logo_html      = '';
-		if ( $custom_logo_id ) {
-			$logo_html = wp_get_attachment_image( $custom_logo_id, 'full', false, array(
-				'class' => 'header-logo-img',
-				'style' => 'max-height: 32px; width: auto;',
-			) );
-		}
-		if ( empty( $logo_html ) ) {
-			$logo_html = '<span class="header-logo-text">' . esc_html( get_bloginfo( 'name' ) ) . '</span>';
+		// Header logo — D-II fallback chain: def_core_logo_id → custom_logo → site name.
+		$show_logo = '0' !== get_option( 'def_core_logo_show_staff_ai', '1' );
+		if ( $show_logo ) {
+			$logo_html = DEF_Core_Admin::get_logo_html( 32 );
+		} else {
+			$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
+			$logo_html    = '<span class="header-logo-text">' . esc_html( $display_name ) . '</span>';
 		}
 
 		// Template expects: $channel, $user, $api_base, $nonce, $logo_html.

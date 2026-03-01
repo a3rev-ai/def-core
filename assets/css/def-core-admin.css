@@ -309,6 +309,271 @@
 	background: #d63638;
 }
 
+/* ─── Logo Upload (D-II) ──────────────────────────────────── */
+
+.def-core-logo-upload {
+	margin-top: 4px;
+}
+
+.def-core-logo-preview {
+	margin-bottom: 12px;
+	padding: 16px;
+	background: #f6f7f7;
+	border: 1px dashed #c3c4c7;
+	border-radius: 4px;
+	display: inline-block;
+	min-width: 120px;
+	min-height: 60px;
+	text-align: center;
+}
+
+.def-core-logo-preview img {
+	display: block;
+}
+
+.def-core-no-logo {
+	color: #646970;
+	font-size: 13px;
+	line-height: 60px;
+}
+
+.def-core-logo-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+/* ─── Checkbox Fields (D-II) ──────────────────────────────── */
+
+.def-core-checkbox-field label {
+	font-weight: normal;
+}
+
+.def-core-checkbox-field input[type="checkbox"] {
+	margin-right: 6px;
+}
+
+/* ─── Radio Group (D-II) ─────────────────────────────────── */
+
+.def-core-radio-group {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 4px;
+}
+
+.def-core-radio-label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 12px 16px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+	font-weight: normal;
+}
+
+.def-core-radio-label:hover {
+	border-color: #2271b1;
+}
+
+.def-core-radio-label input[type="radio"] {
+	margin-top: 3px;
+}
+
+.def-core-radio-label input[type="radio"]:checked ~ strong {
+	color: #2271b1;
+}
+
+.def-core-radio-label .description {
+	margin-top: 2px;
+	margin-left: 0;
+}
+
+/* ─── Escalation Row (D-II) ──────────────────────────────── */
+
+.def-core-escalation-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.def-core-escalation-row .regular-text {
+	flex: 1;
+}
+
+/* ─── User Roles Table (D-II) ────────────────────────────── */
+
+.def-core-roles-table {
+	width: 100%;
+	margin-top: 10px;
+	border-collapse: collapse;
+}
+
+.def-core-roles-table th {
+	padding: 10px 12px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+	border-bottom: 2px solid #c3c4c7;
+}
+
+.def-core-roles-table td {
+	padding: 8px 12px;
+	vertical-align: middle;
+}
+
+.def-core-roles-table tbody tr {
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.def-core-roles-table tbody tr:hover {
+	background: #f6f7f7;
+}
+
+.def-core-role-col {
+	text-align: center;
+	width: 80px;
+}
+
+.def-core-user-avatar {
+	border-radius: 50%;
+	vertical-align: middle;
+	margin-right: 8px;
+}
+
+.def-core-user-email {
+	display: block;
+	font-size: 12px;
+	color: #646970;
+	margin-left: 32px;
+}
+
+.def-core-locked-label {
+	font-size: 11px;
+	color: #d63638;
+	display: block;
+	margin-top: 2px;
+}
+
+.def-core-remove-user-btn {
+	background: none;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	color: #b32d2e;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 1;
+	padding: 4px 8px;
+	vertical-align: middle;
+	transition: all 0.15s ease;
+}
+
+.def-core-remove-user-btn:hover {
+	background: #d63638;
+	border-color: #d63638;
+	color: #fff;
+}
+
+/* Add User search */
+
+.def-core-add-user-section {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid #f0f0f1;
+}
+
+.def-core-add-user-section label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.def-core-user-search-wrap {
+	position: relative;
+	max-width: 400px;
+}
+
+.def-core-search-results {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+	max-height: 280px;
+	overflow-y: auto;
+	z-index: 100;
+}
+
+.def-core-search-result-item {
+	display: flex;
+	align-items: center;
+	padding: 8px 12px;
+	cursor: pointer;
+	border-bottom: 1px solid #f0f0f1;
+	gap: 8px;
+}
+
+.def-core-search-result-item:last-child {
+	border-bottom: none;
+}
+
+.def-core-search-result-item:hover {
+	background: #f0f6fc;
+}
+
+.def-core-search-result-item.is-existing {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.def-core-search-result-avatar {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.def-core-search-result-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.def-core-search-result-name {
+	font-weight: 500;
+	font-size: 13px;
+}
+
+.def-core-search-result-email {
+	font-size: 12px;
+	color: #646970;
+}
+
+.def-core-search-result-role {
+	font-size: 12px;
+	color: #646970;
+	flex-shrink: 0;
+}
+
+.def-core-search-result-badge {
+	font-size: 11px;
+	color: #2271b1;
+	flex-shrink: 0;
+}
+
+.def-core-search-no-results {
+	padding: 12px;
+	color: #646970;
+	font-size: 13px;
+	text-align: center;
+}
+
 /* ─── Placeholder Tabs ─────────────────────────────────────── */
 
 .def-core-placeholder {
@@ -619,5 +884,20 @@
 
 	.def-core-toast {
 		max-width: none;
+	}
+
+	.def-core-escalation-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.def-core-roles-table th.def-core-role-col,
+	.def-core-roles-table td.def-core-role-col {
+		width: auto;
+		padding: 8px 6px;
+	}
+
+	.def-core-radio-group {
+		gap: 8px;
 	}
 }
