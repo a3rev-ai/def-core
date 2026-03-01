@@ -424,6 +424,7 @@
 
 		if (trigger) {
 			trigger.setAttribute('aria-expanded', 'false');
+			trigger.focus();
 		}
 
 		setStoredState(false);
