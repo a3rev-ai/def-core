@@ -433,6 +433,15 @@
 	background: #f6f7f7;
 }
 
+@keyframes def-row-flash {
+	0%   { background: #d4edda; }
+	100% { background: transparent; }
+}
+
+.def-core-roles-table tbody tr.def-core-row-flash {
+	animation: def-row-flash 2s ease-out;
+}
+
 .def-core-role-col {
 	text-align: center;
 	width: 80px;

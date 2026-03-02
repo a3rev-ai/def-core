@@ -510,6 +510,9 @@
 				case 'show_toast':
 					this.handleShowToast(action);
 					break;
+				case 'update_user_row':
+					this.handleUpdateUserRow(action);
+					break;
 				default:
 					if (typeof console !== 'undefined' && console.log) {
 						console.log('[DEF SA] Unknown ui_action:', action.action);
@@ -613,6 +616,44 @@
 
 		if (window.DEFAdmin && window.DEFAdmin.showToast) {
 			window.DEFAdmin.showToast(message, type);
+		}
+	};
+
+	SetupAssistantDrawer.prototype.handleUpdateUserRow = function (action) {
+		var userId = action.wp_user_id;
+		var caps = action.capabilities || {};
+		if (!userId) return;
+
+		var tbody = document.getElementById('def-core-roles-tbody');
+		if (!tbody) return;
+
+		var row = tbody.querySelector('tr[data-user-id="' + userId + '"]');
+		if (row) {
+			// Update existing row checkboxes.
+			var checkboxes = row.querySelectorAll('input[type="checkbox"]');
+			for (var i = 0; i < checkboxes.length; i++) {
+				var cap = checkboxes[i].getAttribute('data-cap');
+				if (cap && caps.hasOwnProperty(cap)) {
+					checkboxes[i].checked = !!caps[cap];
+				}
+			}
+		} else if (window.DEFAdmin && window.DEFAdmin.addUserRow) {
+			// New user — add row via existing admin function.
+			window.DEFAdmin.addUserRow({
+				id: userId,
+				display_name: action.display_name || '',
+				user_email: action.email || '',
+				wp_role: action.wp_role || '',
+				caps: caps,
+			});
+			row = tbody.querySelector('tr[data-user-id="' + userId + '"]');
+		}
+
+		// Flash highlight on the updated row so the change is visible.
+		if (row) {
+			row.classList.remove('def-core-row-flash');
+			void row.offsetWidth; // force reflow to restart animation
+			row.classList.add('def-core-row-flash');
 		}
 	};
 

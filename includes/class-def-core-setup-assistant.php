@@ -946,10 +946,25 @@ final class DEF_Core_Setup_Assistant {
 			$wp_user_id
 		);
 
+		// Build current capabilities for this user.
+		$def_caps = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		$user_caps = array();
+		foreach ( $def_caps as $cap ) {
+			$user_caps[ $cap ] = $user->has_cap( $cap );
+		}
+
 		$ui_actions = array(
 			array(
 				'action' => 'highlight_tab',
 				'tab'    => 'user-roles',
+			),
+			array(
+				'action'       => 'update_user_row',
+				'wp_user_id'   => $wp_user_id,
+				'display_name' => $user->display_name,
+				'email'        => $user->user_email,
+				'wp_role'      => implode( ', ', array_values( (array) $user->roles ) ),
+				'capabilities' => $user_caps,
 			),
 		);
 

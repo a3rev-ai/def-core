@@ -9,6 +9,7 @@
 	var STORAGE_KEY = 'def_core_active_tab';
 	var TOAST_DURATION = 4000;
 	var tabs, panels;
+	var _addUserRowFn = null; // Set by initUserRoles(), used by DEFAdmin bridge.
 
 	document.addEventListener('DOMContentLoaded', init);
 
@@ -877,6 +878,30 @@
 			div.appendChild(document.createTextNode(str || ''));
 			return div.innerHTML;
 		}
+
+		// Expose for Setup Assistant drawer (via DEFAdmin bridge created later).
+		_addUserRowFn = function (u) {
+			// Skip if already in table.
+			if (tbody.querySelector('tr[data-user-id="' + u.id + '"]')) return;
+			addUserRow({
+				id: u.id,
+				display_name: u.display_name || '',
+				email: u.user_email || u.email || '',
+				role: u.wp_role || '',
+				avatar: u.avatar || '',
+			});
+			// Pre-check capabilities from Setup Assistant response.
+			var row = tbody.querySelector('tr[data-user-id="' + u.id + '"]');
+			if (row && u.caps) {
+				var cbs = row.querySelectorAll('input[type="checkbox"]');
+				for (var i = 0; i < cbs.length; i++) {
+					var cap = cbs[i].getAttribute('data-cap');
+					if (u.caps.hasOwnProperty(cap)) {
+						cbs[i].checked = !!u.caps[cap];
+					}
+				}
+			}
+		};
 	}
 
 	// ─── D-II: Test Escalation Email ──────────────────────────────
@@ -1122,6 +1147,7 @@
 	// Bridge for Setup Assistant drawer.
 	window.DEFAdmin = {
 		switchTab: switchTab,
-		showToast: showToast
+		showToast: showToast,
+		addUserRow: _addUserRowFn
 	};
 })();

@@ -78,6 +78,7 @@
 
 	var THREAD_KEY = 'a3rev_thread_id';
 	var HISTORY_KEY = 'a3rev_threads';
+	var USER_KEY = 'def:customer-chat:user';
 
 	function t(key) {
 		return (
@@ -2037,6 +2038,8 @@
 		// Clear auth state (memory-only token).
 		setContextToken(null);
 		onAuthChange();
+		// Clear conversation so the next user doesn't see stale messages.
+		clearConversation();
 		appendMessage(
 			'assistant',
 			'You have been logged out.'
@@ -2222,6 +2225,19 @@
 				if (token) {
 					setContextToken(token);
 					onAuthChange();
+				}
+
+				// Detect user identity change (e.g. WP logout → login as different user).
+				var newSub = contextPayload && contextPayload.sub;
+				var prevSub = null;
+				try { prevSub = localStorage.getItem(USER_KEY); } catch (e) {}
+				if (prevSub && newSub && prevSub !== String(newSub)) {
+					// Different user — wipe stale conversation.
+					try { localStorage.removeItem(THREAD_KEY); } catch (e) {}
+					try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
+				}
+				if (newSub) {
+					try { localStorage.setItem(USER_KEY, String(newSub)); } catch (e) {}
 				}
 
 				// Load existing thread.
