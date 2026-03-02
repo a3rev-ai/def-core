@@ -130,12 +130,14 @@ final class DEF_Core_Admin {
 	 * Add the settings page under Settings menu.
 	 */
 	public static function add_settings_page(): void {
-		add_options_page(
+		add_menu_page(
 			__( 'Digital Employees', 'def-core' ),
 			__( 'Digital Employees', 'def-core' ),
-			'manage_options',
+			'def_admin_access',
 			'def-core',
-			array( __CLASS__, 'render_settings_page' )
+			array( __CLASS__, 'render_settings_page' ),
+			'dashicons-groups',
+			81
 		);
 	}
 
@@ -182,7 +184,7 @@ final class DEF_Core_Admin {
 	 * Render the settings page.
 	 */
 	public static function render_settings_page(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( 'def_admin_access' ) ) {
 			return;
 		}
 
@@ -190,15 +192,8 @@ final class DEF_Core_Admin {
 		wp_enqueue_style( 'def-core-admin' );
 		wp_enqueue_script( 'def-core-admin' );
 
-		// D-II: Check for DEF Admin access.
-		if ( ! current_user_can( 'def_admin_access' ) ) {
-			echo '<div class="wrap def-core-wrap">';
-			echo '<h1>' . esc_html__( 'Digital Employees', 'def-core' ) . '</h1>';
-			echo '<div class="def-core-card"><div class="def-core-notice def-core-notice-info">';
-			echo '<p>' . esc_html__( 'Your administrator has not granted you DEF Admin access. Contact a DEF Admin to request access.', 'def-core' ) . '</p>';
-			echo '</div></div></div>';
-			return;
-		}
+		// Menu capability already gates access; this is a safety check.
+		// No additional permission block needed — user must have def_admin_access to see this page.
 
 		// D-II: Enqueue media uploader for branding tab.
 		wp_enqueue_media();
@@ -342,8 +337,8 @@ final class DEF_Core_Admin {
 		}
 
 		// Verify capability.
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
 		}
 
 		$tab = isset( $_POST['tab'] ) ? sanitize_text_field( wp_unslash( $_POST['tab'] ) ) : '';
@@ -427,8 +422,8 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
 		}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
 		}
 
 		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
@@ -509,8 +504,8 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
 		}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
 		}
 
 		$new_secret = DEF_Core_Escalation::get_service_secret( true );
@@ -831,13 +826,13 @@ final class DEF_Core_Admin {
 		$capabilities   = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
 		$submitted_ids  = array_map( 'intval', array_keys( $roles_data ) );
 
-		// Lockout prevention: count remaining def_admin_access after proposed changes.
-		$remaining_admins = 0;
+		// Lockout prevention: ensure at least one user keeps def_admin_access.
+		$admin_count = 0;
 
 		// Count submitted users who would keep def_admin_access.
 		foreach ( $roles_data as $uid => $caps ) {
 			if ( ! empty( $caps['def_admin_access'] ) ) {
-				$remaining_admins++;
+				$admin_count++;
 			}
 		}
 
@@ -847,11 +842,11 @@ final class DEF_Core_Admin {
 			'fields'     => 'ids',
 			'exclude'    => $submitted_ids,
 		) );
-		$remaining_admins += count( $existing_admins );
+		$admin_count += count( $existing_admins );
 
-		if ( $remaining_admins < 1 ) {
+		if ( $admin_count < 1 ) {
 			wp_send_json_error( array(
-				'message' => __( 'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.', 'def-core' ),
+				'message' => __( 'Cannot save — at least one user must have DEF Admin access.', 'def-core' ),
 			) );
 			return;
 		}
@@ -952,15 +947,15 @@ final class DEF_Core_Admin {
 			return;
 		}
 
-		// Lockout prevention: don't remove last def_admin_access user.
+		// Lockout prevention: cannot remove the last DEF Admin.
 		if ( $user->has_cap( 'def_admin_access' ) ) {
-			$admin_count = count( get_users( array(
+			$admin_ids = get_users( array(
 				'capability' => 'def_admin_access',
 				'fields'     => 'ids',
-			) ) );
-			if ( $admin_count <= 1 ) {
+			) );
+			if ( count( $admin_ids ) <= 1 && in_array( $user_id, array_map( 'intval', $admin_ids ), true ) ) {
 				wp_send_json_error( array(
-					'message' => __( 'Cannot remove the last DEF Admin.', 'def-core' ),
+					'message' => __( 'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.', 'def-core' ),
 				) );
 				return;
 			}
@@ -992,8 +987,8 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
 		}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
 		}
 
 		$channel         = isset( $_POST['channel'] ) ? sanitize_text_field( wp_unslash( $_POST['channel'] ) ) : '';
