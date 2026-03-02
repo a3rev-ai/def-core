@@ -193,6 +193,13 @@ final class DEF_Core_Setup_Assistant {
 			'callback'            => array( $this, 'rest_get_users' ),
 		) );
 
+		// GET /setup/users/search?term=...
+		register_rest_route( self::REST_NAMESPACE, '/setup/users/search', array(
+			'methods'             => 'GET',
+			'permission_callback' => array( $this, 'permission_check' ),
+			'callback'            => array( $this, 'rest_search_users' ),
+		) );
+
 		// POST /setup/user-role
 		register_rest_route( self::REST_NAMESPACE, '/setup/user-role', array(
 			'methods'             => 'POST',
@@ -869,6 +876,51 @@ final class DEF_Core_Setup_Assistant {
 		}
 
 		return $this->success_response( array( 'users' => $users ) );
+	}
+
+	// ─── GET /setup/users/search ────────────────────────────────────────
+
+	/**
+	 * Search WordPress users by name, email, or login.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 2.0.0
+	 */
+	public function rest_search_users( \WP_REST_Request $request ): \WP_REST_Response {
+		$term = sanitize_text_field( $request->get_param( 'term' ) );
+
+		if ( strlen( $term ) < 2 ) {
+			return $this->success_response( array( 'users' => array() ) );
+		}
+
+		$query = new \WP_User_Query( array(
+			'search'         => '*' . $term . '*',
+			'search_columns' => array( 'user_email', 'display_name', 'user_login' ),
+			'number'         => 10,
+			'orderby'        => 'display_name',
+			'order'          => 'ASC',
+		) );
+
+		$def_caps = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		$results  = array();
+
+		foreach ( $query->get_results() as $user ) {
+			$caps = array();
+			foreach ( $def_caps as $cap ) {
+				$caps[ $cap ] = $user->has_cap( $cap );
+			}
+
+			$results[] = array(
+				'user_id'      => $user->ID,
+				'display_name' => $user->display_name,
+				'email'        => $user->user_email,
+				'wp_role'      => implode( ', ', array_map( 'ucfirst', $user->roles ) ),
+				'capabilities' => $caps,
+			);
+		}
+
+		return $this->success_response( array( 'users' => $results ) );
 	}
 
 	// ─── POST /setup/user-role ──────────────────────────────────────────
