@@ -51,6 +51,7 @@ wp-config.php
 \._*
 node_modules/
 vendor/
+!assets/js/vendor/
 .bit/
 package-lock.json
 composer.lock

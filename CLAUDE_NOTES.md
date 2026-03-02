@@ -1,38 +1,86 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-01
+## Latest Session: 2026-03-01 (continued)
 
-### Phase 8 Sub-PR A: Foundation — Floating Button + Panel Shell + Branding — BUILT
+### Phase 8 Sub-PR B: Chat Engine — Native Customer Chat Module — BUILT (awaiting commit/PR)
 
-**Branch:** `phase8-subpr-a-native-chat-foundation`
+**Files created (2):**
+- `assets/js/vendor/marked.min.js` (39KB, v15.0.12) — Markdown parser, UMD build
+- `assets/js/vendor/purify.min.js` (21KB, v3.1.6) — HTML sanitizer, UMD build
 
-**Files created:**
+**Files modified (4):**
+- `assets/js/def-core-customer-chat.js` (2,461 lines) — Complete chat engine replacing 20-line placeholder
+- `assets/js/def-core-customer-chat-loader.js` — Updated loadChatModule() for sequential vendor loading (marked → purify → chat module)
+- `assets/css/def-core-customer-chat.css` — Added 3 structural wrapper CSS stubs (login-form, escalation-form-wrap, escalation-anon-fields)
+- `includes/class-def-core.php` — Registered vendor scripts in register_assets(), added markedUrl + purifyUrl to DEFCore config
+
+**Chat module structure (13 sections):**
+1. Defaults + i18n (t() helper, SANITIZE_CONFIG, UPLOAD_CONFIG)
+2. State (memory-only auth, chat state, upload state, thread state)
+3. DOM construction (header, messages area, composer, overlays)
+4. Auth — JWT-only, direct fetch to restUrl with X-WP-Nonce (replaces postMessage)
+5. Login overlay — direct AJAX to loginUrl (replaces postMessage to parent)
+6. Message engine — POST apiBaseUrl+'/api/chat', 401 retry, 429 UX, markdown rendering
+7. Employee identity + handoff confirmation UI
+8. Escalation form — anon/auth modes, validation, transcript snippet
+9. File upload — client validation, 3-step (init → PUT blob → commit), atomic (fail = no send)
+10. Thread management — localStorage (backward-compatible keys), server merge, claim
+11. Menu — clear chat, login/logout, escalate (visibility toggled by auth state)
+12. UI helpers — scroll, resize, escape HTML, DOM helpers
+13. Lifecycle — init(shadowRoot, config), destroy() with full cleanup
+
+**Key architectural changes from shell.js:**
+- Auth: direct fetch() with X-WP-Nonce → no postMessage, no iframe bridge
+- Token: memory-only (never persisted to storage)
+- API calls: absolute URLs via config.apiBaseUrl (not relative)
+- Single-flight token refresh (V1.2 spec)
+- DOM: all queries via shadowRoot, not document
+- Vendor libs: loaded sequentially by loader before chat module
+- destroy(): clears timers, aborts fetches, removes listeners, resets state
+
+**Tests:** 418 PHP tests pass, 0 failures. JS syntax validated.
+**Status:** Code complete, awaiting commit + PR creation.
+
+---
+
+## Previous Session: 2026-03-01
+
+### Phase 8 Sub-PR A: Foundation — Floating Button + Panel Shell + Branding — MERGED
+**PR:** https://github.com/a3rev-ai/def-core/pull/24 (branch: `phase8-subpr-a-native-chat-foundation`)
+
+**Files created (3):**
 - `assets/css/def-core-customer-chat.css` (1,428 lines) — Full Shadow DOM scoped CSS adapted from shell.css + popup.css
-- `assets/js/def-core-customer-chat-loader.js` (503 lines) — Lightweight IIFE loader: Shadow DOM host, floating trigger button, panel shell, lazy-load infrastructure
+- `assets/js/def-core-customer-chat-loader.js` (568 lines) — IIFE loader: Shadow DOM host, floating trigger button, panel shell, lazy-load
 - `assets/js/def-core-customer-chat.js` (20 lines) — Placeholder chat module (Sub-PR B fills this in)
 
-**Files modified:**
-- `includes/class-def-core-admin.php` — 5 new `$tab_allowlists` entries (button position/color/icon/icon_id/show_floating) + 3 sanitizer methods + button settings data in render_settings_page()
-- `templates/admin-settings.php` — New "Chat Button Appearance" card in Chat Settings tab (position radio, color picker, icon radio with SVG previews, custom icon upload, floating toggle with warning)
-- `assets/js/def-core-admin.js` — initButtonAppearance() with icon uploader toggle, floating warning toggle, color preview
+**Files modified (8):**
+- `includes/class-def-core-admin.php` — 6 `$tab_allowlists` entries (position/color/hover_color/icon/icon_id/show_floating) + 3 sanitizer methods + button settings data
+- `templates/admin-settings.php` — Chat Button Appearance card (position, color, hover color, icon with SVG previews, custom upload, floating toggle)
+- `assets/js/def-core-admin.js` — initButtonAppearance() with icon toggle, floating warning, color previews for all pickers
 - `assets/css/def-core-admin.css` — Color field + icon preview styles
-- `includes/class-def-core.php` — 3 new asset registrations, expanded enqueue_frontend_assets() with branding/chat/button/API/i18n data in window.DEFCore, shortcode [def_chat_button] + action hook, 4 private helpers (get_logo_url_for_frontend, get_customer_chat_api_url, get_button_icon_url, get_chat_strings)
-- `includes/class-def-core-tools.php` — Cache-Control: no-store on context-token response
+- `includes/class-def-core.php` — 3 asset registrations, expanded enqueue_frontend_assets() with full window.DEFCore config, shortcode + action hook, 5 helpers
+- `includes/class-def-core-tools.php` — Cache-Control: no-store on context-token
+- `def-core.php` — Version bump to 1.1.0
 
-**What was built:**
-- Shadow DOM host with CSS-only floating trigger button (zero chat JS on page load)
-- Trigger button reads config from window.DEFCore: position, color, icon (chat/headset/custom)
-- Panel shell (modal or drawer mode) created on first click
-- Lazy-load infrastructure: hover preload, script/CSS injection on first open
-- 24-hour hide via localStorage (same key as popup.js for continuity)
-- Header trigger buttons via [data-def-chat-trigger] attribute (shortcode/action hook)
-- Escape key closes, click-outside closes (modal mode)
-- Admin bar offset for drawer mode
-- iOS scroll lock, prefers-reduced-motion, mobile responsive
-- destroy() for SPA/PJAX cleanup
-- Full CSS: trigger, panel, header, messages, composer, attachments, overlays, dialogs
+**Key features:**
+- Shadow DOM isolation with CSS-only floating trigger (zero chat JS on page load)
+- Modal mode: floating panel (450×560px), click-outside to close
+- Drawer mode: full-height slide-in, transparent clickable backdrop, X close button, trigger hides when open, inner-edge shadow for contrast
+- Configurable: position (left/right), color, hover color, icon (chat/headset/custom)
+- Lazy-load: hover preload + script/CSS injection on first click
+- localStorage state (separate key `def:customer-chat:state` from old popup.js)
+- `[def_chat_button]` shortcode + `def_core_chat_button` action hook
+- i18n strings, branding data, API URL all in window.DEFCore
 
-**Status:** Code complete, PHP syntax verified, awaiting commit + PR + Docker testing.
+**Bugs fixed during testing:**
+- Old `mu-plugins/def-chat-widget.php` was masking new widget (removed)
+- localStorage key collision with old popup.js (changed to `def:customer-chat:state`)
+- 24-hour hide was blocking trigger button render (moved to auto-open only)
+- `showFloatingButton` type coercion from wp_localize_script (handles string ""/​"0")
+- Left-position button going full-width (added `width: fit-content` + explicit `right: auto`)
+- `initIconUploader()` wp.media guard blocking radio toggle (moved guard after event binding)
+
+**Status:** PR #24 created, Docker-tested, all modes verified.
 
 ---
 

@@ -154,11 +154,10 @@
 			'.def-cc-panel--open {' +
 			'  transform: translateY(0); opacity: 1; pointer-events: auto;' +
 			'}' +
-			/* Close button inside panel */
+			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
-			'  position: absolute; top: 10px; right: 10px; z-index: 10;' +
-			'  width: 36px; height: 36px; border: none; border-radius: 50%;' +
-			'  background: #f3f4f6; color: #374151; cursor: pointer;' +
+			'  width: 32px; height: 32px; border: none; border-radius: 6px;' +
+			'  background: transparent; color: #374151; cursor: pointer;' +
 			'  display: flex; align-items: center; justify-content: center;' +
 			'  transition: background 0.15s ease, color 0.15s ease;' +
 			'}' +
@@ -447,27 +446,47 @@
 			shadowRoot.insertBefore(link, shadowRoot.firstChild);
 		}
 
-		// Load the chat module script (runs in document scope).
+		// Sequential script loading: marked.js → purify.js → chat module.
+		// Each onload triggers the next since chat module needs window.marked
+		// and window.DOMPurify available at init time.
+		loadScript(config.markedUrl, function () {
+			loadScript(config.purifyUrl, function () {
+				loadScript(config.chatModuleUrl, function () {
+					moduleLoading = false;
+					moduleLoaded = true;
+
+					if (
+						window.DEFCustomerChat &&
+						typeof window.DEFCustomerChat.init === 'function'
+					) {
+						window.DEFCustomerChat.init(shadowRoot, config);
+					}
+				});
+			});
+		});
+	}
+
+	/**
+	 * Load a script tag sequentially.
+	 *
+	 * @param {string|null} url Script URL to load.
+	 * @param {Function} onSuccess Callback on successful load.
+	 */
+	function loadScript(url, onSuccess) {
+		if (!url) {
+			// Skip missing vendor URLs — degrade gracefully.
+			onSuccess();
+			return;
+		}
+
 		var script = document.createElement('script');
-		script.src = config.chatModuleUrl;
+		script.src = url;
 
-		script.onload = function () {
-			moduleLoading = false;
-			moduleLoaded = true;
-
-			// Sub-PR B will expose window.DEFCustomerChat.init().
-			if (
-				window.DEFCustomerChat &&
-				typeof window.DEFCustomerChat.init === 'function'
-			) {
-				window.DEFCustomerChat.init(shadowRoot, config);
-			}
-		};
+		script.onload = onSuccess;
 
 		script.onerror = function () {
 			moduleLoading = false;
-			// Show error in panel.
-			var loading = panel.querySelector('.def-cc-loading');
+			var loading = panel && panel.querySelector('.def-cc-loading');
 			if (loading) {
 				loading.innerHTML =
 					'<span style="color:#ef4444;">Failed to load chat. Please refresh the page.</span>';

@@ -256,6 +256,22 @@ final class DEF_Core {
 			DEF_CORE_VERSION
 		);
 
+		// Vendor libraries for customer chat (lazy-loaded by loader, NOT enqueued directly).
+		wp_register_script(
+			'def-core-marked',
+			DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js',
+			array(),
+			'15.0.12',
+			array( 'in_footer' => true )
+		);
+		wp_register_script(
+			'def-core-purify',
+			DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js',
+			array(),
+			'3.1.6',
+			array( 'in_footer' => true )
+		);
+
 		// Setup Assistant drawer assets.
 		wp_register_style(
 			'def-core-setup-assistant',
@@ -309,6 +325,8 @@ final class DEF_Core {
 			// Asset URLs for lazy loading.
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
+			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js',
+			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js',
 			// i18n strings.
 			'strings'         => $this->get_chat_strings(),
 		);
@@ -515,13 +533,52 @@ final class DEF_Core {
 	}
 
 	/**
-	 * Get Python backend API URL for customer chat.
+	 * Get Python backend API URL for customer chat (browser-side).
+	 *
+	 * The stored def_core_staff_ai_api_url is for server-side PHP proxy calls
+	 * and may use Docker internal hostnames (e.g. http://def-api:8000).
+	 * The Customer Chat runs in the browser via direct fetch(), so it needs
+	 * a browser-accessible URL. Replace non-routable Docker hostnames with
+	 * the current site's hostname.
 	 *
 	 * @return string API base URL or empty string.
 	 */
 	private function get_customer_chat_api_url(): string {
 		$url = get_option( 'def_core_staff_ai_api_url', '' );
-		return ! empty( $url ) ? rtrim( $url, '/' ) : '';
+		if ( empty( $url ) ) {
+			return '';
+		}
+
+		$url = rtrim( $url, '/' );
+
+		// If the URL host is not browser-routable (Docker internal name),
+		// replace it with the current site's hostname.
+		$parsed = wp_parse_url( $url );
+		if ( ! $parsed || empty( $parsed['host'] ) ) {
+			return $url;
+		}
+
+		$host = $parsed['host'];
+
+		// Localhost, IPs, and real domains are browser-routable.
+		if (
+			'localhost' === $host ||
+			'127.0.0.1' === $host ||
+			filter_var( $host, FILTER_VALIDATE_IP ) ||
+			preg_match( '/\.[a-z]{2,}$/i', $host )
+		) {
+			return $url;
+		}
+
+		// Docker internal hostname (e.g. "def-api") — swap with site host.
+		$site_parsed = wp_parse_url( home_url() );
+		$site_host   = $site_parsed['host'] ?? 'localhost';
+
+		$scheme = $parsed['scheme'] ?? 'http';
+		$port   = ! empty( $parsed['port'] ) ? ':' . $parsed['port'] : '';
+		$path   = $parsed['path'] ?? '';
+
+		return $scheme . '://' . $site_host . $port . $path;
 	}
 
 	/**
