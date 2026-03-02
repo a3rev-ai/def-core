@@ -36,6 +36,14 @@
 		initTestEmail();
 		initChatMode();
 		initButtonAppearance();
+
+		// Bridge for Setup Assistant drawer — must be after initUserRoles()
+		// so _addUserRowFn is set.
+		window.DEFAdmin = {
+			switchTab: switchTab,
+			showToast: showToast,
+			addUserRow: _addUserRowFn
+		};
 	}
 
 	// ─── Tab Switching ────────────────────────────────────────────
@@ -769,11 +777,13 @@
 		function addUserRow(u) {
 			var tr = document.createElement('tr');
 			tr.setAttribute('data-user-id', u.id);
+			tr.setAttribute('data-wp-role', (u.role || '').toLowerCase());
+			var avatarHtml = u.avatar
+				? '<img class="def-core-user-avatar" src="' + escHtml(u.avatar) + '" width="24" height="24" alt="" />'
+				: '';
 			tr.innerHTML =
 				'<td>' +
-				'<img class="def-core-user-avatar" src="' +
-				escHtml(u.avatar) +
-				'" width="24" height="24" alt="" />' +
+				avatarHtml +
 				escHtml(u.display_name) +
 				'<span class="def-core-user-email">' +
 				escHtml(u.email) +
@@ -812,6 +822,22 @@
 			btn.addEventListener('click', function () {
 				var userId = btn.dataset.userId;
 				var row = btn.closest('tr');
+
+				// Lockout prevention: cannot remove the last DEF Admin.
+				var adminCheckbox = row.querySelector('input[data-cap="def_admin_access"]');
+				if (adminCheckbox && adminCheckbox.checked) {
+					var tbody = row.closest('tbody');
+					var allAdminBoxes = tbody
+						? tbody.querySelectorAll('input[data-cap="def_admin_access"]:checked')
+						: [];
+					if (allAdminBoxes.length <= 1) {
+						showToast(
+							'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.',
+							'error'
+						);
+						return;
+					}
+				}
 
 				// Get user display name from the row.
 				var nameEl = row.querySelector('td');
@@ -1144,10 +1170,4 @@
 		return div.innerHTML;
 	}
 
-	// Bridge for Setup Assistant drawer.
-	window.DEFAdmin = {
-		switchTab: switchTab,
-		showToast: showToast,
-		addUserRow: _addUserRowFn
-	};
 })();

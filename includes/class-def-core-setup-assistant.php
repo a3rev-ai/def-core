@@ -74,6 +74,18 @@ final class DEF_Core_Setup_Assistant {
 	private const RATE_LIMIT_TTL = 120;
 
 	/**
+	 * All DEF capabilities — single source of truth for user queries.
+	 *
+	 * @var array
+	 */
+	private const DEF_CAPABILITIES = array(
+		'def_staff_access',
+		'def_management_access',
+		'def_admin_access',
+		'def_ap_access',
+	);
+
+	/**
 	 * HMAC timestamp tolerance in seconds.
 	 *
 	 * @var int
@@ -191,6 +203,13 @@ final class DEF_Core_Setup_Assistant {
 			'methods'             => 'GET',
 			'permission_callback' => array( $this, 'permission_check' ),
 			'callback'            => array( $this, 'rest_get_users' ),
+		) );
+
+		// GET /setup/users/search?term=...
+		register_rest_route( self::REST_NAMESPACE, '/setup/users/search', array(
+			'methods'             => 'GET',
+			'permission_callback' => array( $this, 'permission_check' ),
+			'callback'            => array( $this, 'rest_search_users' ),
 		) );
 
 		// POST /setup/user-role
@@ -832,7 +851,7 @@ final class DEF_Core_Setup_Assistant {
 	 * @since 2.0.0
 	 */
 	public function rest_get_users( \WP_REST_Request $request ): \WP_REST_Response {
-		$def_capabilities = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
+		$def_capabilities = self::DEF_CAPABILITIES;
 		$user_ids         = array();
 
 		// Collect unique user IDs across all capabilities.
@@ -871,6 +890,66 @@ final class DEF_Core_Setup_Assistant {
 		return $this->success_response( array( 'users' => $users ) );
 	}
 
+	// ─── GET /setup/users/search ────────────────────────────────────────
+
+	/**
+	 * Search WordPress users by name/email/login and/or WordPress role.
+	 *
+	 * Accepts optional `term` (min 2 chars) and optional `role` params.
+	 * At least one must be provided. Both can be combined to filter
+	 * e.g. "subscribers named john".
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 2.0.0
+	 */
+	public function rest_search_users( \WP_REST_Request $request ): \WP_REST_Response {
+		$term = sanitize_text_field( $request->get_param( 'term' ) );
+		$role = sanitize_text_field( $request->get_param( 'role' ) );
+
+		$has_term = strlen( $term ) >= 2;
+		$has_role = strlen( $role ) >= 1;
+
+		if ( ! $has_term && ! $has_role ) {
+			return $this->success_response( array( 'users' => array() ) );
+		}
+
+		$query_args = array(
+			'number'  => 20,
+			'orderby' => 'display_name',
+			'order'   => 'ASC',
+		);
+
+		if ( $has_term ) {
+			$query_args['search']         = '*' . $term . '*';
+			$query_args['search_columns'] = array( 'user_email', 'display_name', 'user_login' );
+		}
+
+		if ( $has_role ) {
+			$query_args['role'] = $role;
+		}
+
+		$query   = new \WP_User_Query( $query_args );
+		$results = array();
+
+		foreach ( $query->get_results() as $user ) {
+			$caps = array();
+			foreach ( self::DEF_CAPABILITIES as $cap ) {
+				$caps[ $cap ] = $user->has_cap( $cap );
+			}
+
+			$results[] = array(
+				'user_id'      => $user->ID,
+				'display_name' => $user->display_name,
+				'email'        => $user->user_email,
+				'wp_role'      => implode( ', ', array_map( 'ucfirst', $user->roles ) ),
+				'capabilities' => $caps,
+			);
+		}
+
+		return $this->success_response( array( 'users' => $results ) );
+	}
+
 	// ─── POST /setup/user-role ──────────────────────────────────────────
 
 	/**
@@ -896,8 +975,7 @@ final class DEF_Core_Setup_Assistant {
 		$action     = isset( $body['action'] ) ? sanitize_text_field( $body['action'] ) : '';
 
 		// Validate params.
-		$valid_caps = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
-		if ( ! in_array( $capability, $valid_caps, true ) ) {
+		if ( ! in_array( $capability, self::DEF_CAPABILITIES, true ) ) {
 			return $this->error_response( 'INVALID_CAPABILITY', 'Invalid capability.', 400 );
 		}
 
@@ -914,7 +992,7 @@ final class DEF_Core_Setup_Assistant {
 			return $this->error_response( 'USER_NOT_FOUND', 'User not found.', 404 );
 		}
 
-		// Lockout prevention: can't remove last def_admin_access user.
+		// Lockout prevention: cannot remove the last DEF Admin.
 		if ( $action === 'remove' && $capability === 'def_admin_access' ) {
 			$admin_ids = get_users( array(
 				'capability' => 'def_admin_access',
@@ -947,9 +1025,8 @@ final class DEF_Core_Setup_Assistant {
 		);
 
 		// Build current capabilities for this user.
-		$def_caps = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
 		$user_caps = array();
-		foreach ( $def_caps as $cap ) {
+		foreach ( self::DEF_CAPABILITIES as $cap ) {
 			$user_caps[ $cap ] = $user->has_cap( $cap );
 		}
 
@@ -964,6 +1041,7 @@ final class DEF_Core_Setup_Assistant {
 				'display_name' => $user->display_name,
 				'email'        => $user->user_email,
 				'wp_role'      => implode( ', ', array_values( (array) $user->roles ) ),
+				'avatar'       => get_avatar_url( $wp_user_id, array( 'size' => 48 ) ),
 				'capabilities' => $user_caps,
 			),
 		);

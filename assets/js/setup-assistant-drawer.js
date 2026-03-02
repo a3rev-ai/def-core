@@ -644,6 +644,7 @@
 				display_name: action.display_name || '',
 				user_email: action.email || '',
 				wp_role: action.wp_role || '',
+				avatar: action.avatar || '',
 				caps: caps,
 			});
 			row = tbody.querySelector('tr[data-user-id="' + userId + '"]');
