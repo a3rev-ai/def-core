@@ -76,6 +76,40 @@
 		maxFilesPerMessage: 3,
 	};
 
+	// ─── SSE STREAMING LABELS (Phase 9 PR 2) ──────────────────────
+
+	var TOOL_STATUS_LABELS = {
+		'get_orders':             'Looking up orders...',
+		'get_order_detail':       'Getting order details...',
+		'get_subscriptions':      'Checking subscriptions...',
+		'get_licenses':           'Checking licenses...',
+		'get_tickets':            'Looking up tickets...',
+		'get_products_list':      'Browsing products...',
+		'add_to_cart':            'Adding to cart...',
+		'add_to_cart_by_name':    'Adding to cart...',
+		'get_user_profile':       'Loading your profile...',
+		'handle_file_upload':     'Processing upload...',
+		'extract_upload_content': 'Analyzing file...',
+		'escalate_to_human':      'Preparing escalation...',
+	};
+
+	var TOOL_DONE_LABELS = {
+		'get_orders':             'Orders loaded',
+		'get_order_detail':       'Order details loaded',
+		'get_subscriptions':      'Subscriptions checked',
+		'get_licenses':           'Licenses checked',
+		'get_tickets':            'Tickets loaded',
+		'get_products_list':      'Products loaded',
+		'add_to_cart':            'Added to cart',
+		'add_to_cart_by_name':    'Added to cart',
+		'get_user_profile':       'Profile loaded',
+		'handle_file_upload':     'Upload processed',
+		'extract_upload_content': 'File analyzed',
+		'escalate_to_human':      'Escalation ready',
+	};
+
+	var SSE_TOOL_PACING_MS = 400;
+
 	var THREAD_KEY = 'a3rev_thread_id';
 	var HISTORY_KEY = 'a3rev_threads';
 	var USER_KEY = 'def:customer-chat:user';
@@ -821,6 +855,103 @@
 			});
 	}
 
+	// ─── 5B. SSE STREAMING HELPERS (Phase 9 PR 2) ─────────────────
+
+	/**
+	 * Parse an SSE text buffer into JSON events.
+	 * Handles comments (: keep-alive), multi-line data: payloads,
+	 * and partial chunk boundaries per SSE spec.
+	 */
+	function parseSSEBuffer(buffer) {
+		var events = [];
+		var parts = buffer.split('\n\n');
+		var remaining = parts.pop(); // incomplete chunk kept for next iteration
+
+		for (var i = 0; i < parts.length; i++) {
+			var block = parts[i];
+			var lines = block.split('\n');
+			var dataLines = [];
+
+			for (var j = 0; j < lines.length; j++) {
+				var line = lines[j];
+				// Skip SSE comments (heartbeats etc.)
+				if (line.charAt(0) === ':') continue;
+				// Collect data lines
+				if (line.indexOf('data: ') === 0) {
+					dataLines.push(line.substring(6));
+				} else if (line.indexOf('data:') === 0) {
+					dataLines.push(line.substring(5));
+				}
+				// Ignore event:, id:, retry: fields (not used)
+			}
+
+			if (dataLines.length > 0) {
+				var payload = dataLines.join('\n');
+				try { events.push(JSON.parse(payload)); } catch (e) { /* malformed */ }
+			}
+		}
+
+		return { parsed: events, remaining: remaining };
+	}
+
+	/**
+	 * Shared error handler for both sync and streaming paths.
+	 */
+	function handleChatError(err, thinkingEl) {
+		if (err && err.name === 'AbortError') return;
+		if (thinkingEl) hideThinking(thinkingEl);
+		var msg = t('connectionError');
+		if (err && err.status === 429) {
+			msg = t('rateLimited');
+		}
+		appendMessage('assistant', msg);
+		setComposerDisabled(false);
+	}
+
+	/**
+	 * Render a tool status line with spinner during streaming.
+	 */
+	function renderToolStatusForStream(toolName) {
+		var label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+		var div = el('div', 'cc-tool-status');
+		div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">'
+			+ escapeHtml(label) + '</span>';
+		els.messages.appendChild(div);
+		scrollToBottom();
+		return div;
+	}
+
+	/**
+	 * Mark a tool status line as complete (spinner → checkmark).
+	 */
+	function completeToolStatus(statusEl, toolName) {
+		if (!statusEl) return;
+		var label = TOOL_DONE_LABELS[toolName] || 'Done';
+		statusEl.innerHTML = '<span class="cc-checkmark">\u2713</span><span class="cc-tool-label">'
+			+ escapeHtml(label) + '</span>';
+		statusEl.className = 'cc-tool-status cc-tool-done';
+	}
+
+	/**
+	 * Update the thinking indicator with step label text.
+	 */
+	function updateTypingLabel(text) {
+		if (!els.messages) return;
+		var indicator = els.messages.querySelector('.def-cc-message--thinking');
+		if (indicator) {
+			var label = indicator.querySelector('.cc-typing-label');
+			if (label) {
+				label.textContent = text;
+			} else {
+				var span = document.createElement('span');
+				span.className = 'cc-typing-label';
+				span.textContent = text;
+				var content = indicator.querySelector('.def-cc-message-content');
+				if (content) content.appendChild(span);
+			}
+		}
+	}
+
 	// ─── 6. MESSAGE ENGINE ─────────────────────────────────────────
 
 	function handleSubmit(e) {
@@ -895,135 +1026,251 @@
 					headers['Authorization'] = 'Bearer ' + contextToken;
 				}
 
-				var controller = new AbortController();
-				trackAbort(controller);
-
-				return fetch(config.apiBaseUrl + '/api/chat', {
-					method: 'POST',
-					headers: headers,
-					body: JSON.stringify(body),
-					signal: controller.signal,
-				})
-					.then(function (res) {
-						untrackAbort(controller);
-						if (res.status === 401 && contextToken) {
-							// Token expired — try refresh and retry once.
-							return getValidToken().then(function (newToken) {
-								if (newToken && newToken !== contextToken) {
-									headers['Authorization'] =
-										'Bearer ' + newToken;
-								}
-								var controller2 = new AbortController();
-								trackAbort(controller2);
-								return fetch(
-									config.apiBaseUrl + '/api/chat',
-									{
-										method: 'POST',
-										headers: headers,
-										body: JSON.stringify(body),
-										signal: controller2.signal,
-									}
-								).then(function (r) {
-									untrackAbort(controller2);
-									return r;
-								});
-							});
-						}
-						if (res.status === 429) {
-							hideThinking(thinkingEl);
-							appendMessage(
-								'assistant',
-								t('rateLimited')
-							);
-							setComposerDisabled(false);
-							return null;
-						}
-						return res;
-					})
-					.then(function (res) {
-						if (!res) return;
-						return res.json().then(function (data) {
-							hideThinking(thinkingEl);
-
-							if (!data || data.error) {
-								appendMessage(
-									'assistant',
-									t('connectionError')
-								);
-								setComposerDisabled(false);
-								return;
-							}
-
-							// Store thread ID.
-							if (data.thread_id) {
-								threadId = data.thread_id;
-								try {
-									localStorage.setItem(
-										THREAD_KEY,
-										threadId
-									);
-								} catch (e) {}
-								isContinuing = true;
-							}
-
-							// Extract reply.
-							var reply = '';
-							if (
-								data.choices &&
-								data.choices[0] &&
-								data.choices[0].message
-							) {
-								reply = data.choices[0].message.content || '';
-							}
-
-							if (reply) {
-								appendMessage('assistant', reply);
-							}
-
-							// Check for escalation offer.
-							if (data.tool_outputs) {
-								for (
-									var i = 0;
-									i < data.tool_outputs.length;
-									i++
-								) {
-									if (
-										data.tool_outputs[i].type ===
-										'escalation_offer'
-									) {
-										showEscalation(
-											data.tool_outputs[i].reason
-										);
-										break;
-									}
-								}
-							}
-
-							// Save thread to localStorage.
-							upsertThread(
-								threadId,
-								text ||
-									'Please analyze the attached file(s).',
-								reply
-							);
-
-							setComposerDisabled(false);
-						});
-					});
+				// Feature detection: stream if ReadableStream supported
+				if (typeof ReadableStream !== 'undefined') {
+					sendMessageStreaming(text, body, headers, thinkingEl);
+				} else {
+					sendMessageSync(text, body, headers, thinkingEl);
+				}
 			})
 			.catch(function (err) {
-				// Upload or network failure.
-				if (err && err.name === 'AbortError') return;
-				var thinkingEl = root.querySelector(
-					'.def-cc-message--thinking'
-				);
-				if (thinkingEl) hideThinking(thinkingEl);
-				appendMessage(
-					'assistant',
-					t('connectionError')
-				);
-				setComposerDisabled(false);
+				handleChatError(err, root ? root.querySelector('.def-cc-message--thinking') : null);
 			});
+	}
+
+	/**
+	 * Send message via sync /api/chat endpoint (existing behavior).
+	 */
+	function sendMessageSync(text, body, headers, thinkingEl) {
+		var controller = new AbortController();
+		trackAbort(controller);
+
+		fetch(config.apiBaseUrl + '/api/chat', {
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify(body),
+			signal: controller.signal,
+		})
+			.then(function (res) {
+				untrackAbort(controller);
+				if (res.status === 401 && contextToken) {
+					return getValidToken().then(function (newToken) {
+						if (newToken && newToken !== contextToken) {
+							headers['Authorization'] = 'Bearer ' + newToken;
+						}
+						var controller2 = new AbortController();
+						trackAbort(controller2);
+						return fetch(config.apiBaseUrl + '/api/chat', {
+							method: 'POST',
+							headers: headers,
+							body: JSON.stringify(body),
+							signal: controller2.signal,
+						}).then(function (r) {
+							untrackAbort(controller2);
+							return r;
+						});
+					});
+				}
+				if (res.status === 429) {
+					hideThinking(thinkingEl);
+					appendMessage('assistant', t('rateLimited'));
+					setComposerDisabled(false);
+					return null;
+				}
+				return res;
+			})
+			.then(function (res) {
+				if (!res) return;
+				return res.json().then(function (data) {
+					hideThinking(thinkingEl);
+					processChatResponse(data, text);
+				});
+			})
+			.catch(function (err) {
+				handleChatError(err, thinkingEl);
+			});
+	}
+
+	/**
+	 * Send message via SSE streaming /api/chat/stream endpoint.
+	 */
+	function sendMessageStreaming(text, body, headers, thinkingEl) {
+		var controller = new AbortController();
+		trackAbort(controller);
+
+		var toolStatusEls = {};
+		var eventQueue = [];
+		var processing = false;
+		var lastToolTime = 0;
+
+		function processEventQueue() {
+			if (processing || eventQueue.length === 0) return;
+			processing = true;
+
+			var evt = eventQueue.shift();
+			var now = Date.now();
+			var delay = 0;
+
+			if ((evt.type === 'tool_start' || evt.type === 'tool_done') &&
+				now - lastToolTime < SSE_TOOL_PACING_MS) {
+				delay = SSE_TOOL_PACING_MS - (now - lastToolTime);
+			}
+
+			setTimeout(function () {
+				handleSSEEvent(evt);
+				if (evt.type === 'tool_start' || evt.type === 'tool_done') {
+					lastToolTime = Date.now();
+				}
+				processing = false;
+				if (eventQueue.length > 0) {
+					requestAnimationFrame(processEventQueue);
+				}
+			}, delay);
+		}
+
+		function handleSSEEvent(evt) {
+			switch (evt.type) {
+				case 'thinking':
+					updateTypingLabel(
+						'Thinking... (step ' + evt.step + ' of ' + evt.max_steps + ')'
+					);
+					break;
+				case 'tool_start':
+					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
+					break;
+				case 'tool_done':
+					completeToolStatus(toolStatusEls[evt.tool], evt.tool);
+					break;
+				case 'done':
+					hideThinking(thinkingEl);
+					processChatDoneEvent(evt, text);
+					break;
+				case 'error':
+					hideThinking(thinkingEl);
+					appendMessage('assistant', evt.message || t('connectionError'));
+					setComposerDisabled(false);
+					break;
+			}
+		}
+
+		fetch(config.apiBaseUrl + '/api/chat/stream', {
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify(body),
+			signal: controller.signal,
+		})
+			.then(function (res) {
+				untrackAbort(controller);
+				// V1.1: Conditional 401 retry — only if we have a token
+				if (res.status === 401 && contextToken) {
+					return getValidToken().then(function (newToken) {
+						if (newToken && newToken !== contextToken) {
+							headers['Authorization'] = 'Bearer ' + newToken;
+						}
+						var controller2 = new AbortController();
+						trackAbort(controller2);
+						return fetch(config.apiBaseUrl + '/api/chat/stream', {
+							method: 'POST',
+							headers: headers,
+							body: JSON.stringify(body),
+							signal: controller2.signal,
+						}).then(function (r) {
+							untrackAbort(controller2);
+							return r;
+						});
+					});
+				}
+				if (res.status === 401 && !contextToken) {
+					// Anonymous — no token to refresh, surface error
+					throw { status: 401, message: 'Authentication required' };
+				}
+				return res;
+			})
+			.then(function (res) {
+				if (!res || !res.ok) {
+					throw { status: res ? res.status : 0 };
+				}
+				var reader = res.body.getReader();
+				var decoder = new TextDecoder();
+				var buffer = '';
+
+				function pump() {
+					return reader.read().then(function (result) {
+						if (result.done) return;
+						buffer += decoder.decode(result.value, { stream: true });
+						var parsed = parseSSEBuffer(buffer);
+						buffer = parsed.remaining;
+						for (var i = 0; i < parsed.parsed.length; i++) {
+							eventQueue.push(parsed.parsed[i]);
+						}
+						processEventQueue();
+						return pump();
+					});
+				}
+
+				return pump();
+			})
+			.catch(function (err) {
+				handleChatError(err, thinkingEl);
+			});
+	}
+
+	/**
+	 * Process a successful chat response (shared between sync and streaming done).
+	 */
+	function processChatResponse(data, text) {
+		if (!data || data.error) {
+			appendMessage('assistant', t('connectionError'));
+			setComposerDisabled(false);
+			return;
+		}
+
+		// Store thread ID.
+		if (data.thread_id) {
+			threadId = data.thread_id;
+			try {
+				localStorage.setItem(THREAD_KEY, threadId);
+			} catch (e) {}
+			isContinuing = true;
+		}
+
+		// Extract reply.
+		var reply = '';
+		if (data.choices && data.choices[0] && data.choices[0].message) {
+			reply = data.choices[0].message.content || '';
+		}
+
+		if (reply) {
+			appendMessage('assistant', reply);
+		}
+
+		// Check for escalation offer.
+		if (data.tool_outputs) {
+			for (var i = 0; i < data.tool_outputs.length; i++) {
+				if (data.tool_outputs[i].type === 'escalation_offer') {
+					showEscalation(data.tool_outputs[i].reason);
+					break;
+				}
+			}
+		}
+
+		// Handle session_cookie from server.
+		if (data.session_cookie) {
+			try {
+				localStorage.setItem('def:session_cookie', data.session_cookie);
+			} catch (e) {}
+		}
+
+		// Save thread to localStorage.
+		upsertThread(threadId, text || 'Please analyze the attached file(s).', reply);
+		setComposerDisabled(false);
+	}
+
+	/**
+	 * Process a streaming 'done' event (uses processChatResponse).
+	 */
+	function processChatDoneEvent(evt, text) {
+		processChatResponse(evt, text);
 	}
 
 	function appendUserMessage(text, fileIds) {

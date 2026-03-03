@@ -352,14 +352,32 @@
 	function parseSSEBuffer(buffer) {
 		var events = [];
 		var parts = buffer.split('\n\n');
-		var remaining = parts.pop(); // last part may be incomplete
+		var remaining = parts.pop(); // incomplete chunk kept for next iteration
+
 		for (var i = 0; i < parts.length; i++) {
-			var chunk = parts[i].trim();
-			if (chunk.indexOf('data: ') === 0) {
-				try { events.push(JSON.parse(chunk.substring(6))); } catch (e) { /* skip malformed */ }
+			var block = parts[i];
+			var lines = block.split('\n');
+			var dataLines = [];
+
+			for (var j = 0; j < lines.length; j++) {
+				var line = lines[j];
+				// Skip SSE comments (heartbeats etc.)
+				if (line.charAt(0) === ':') continue;
+				// Collect data lines
+				if (line.indexOf('data: ') === 0) {
+					dataLines.push(line.substring(6));
+				} else if (line.indexOf('data:') === 0) {
+					dataLines.push(line.substring(5));
+				}
+				// Ignore event:, id:, retry: fields (not used)
 			}
-			// Skip comment lines (": heartbeat") and empty chunks.
+
+			if (dataLines.length > 0) {
+				var payload = dataLines.join('\n');
+				try { events.push(JSON.parse(payload)); } catch (e) { /* skip malformed */ }
+			}
 		}
+
 		return { parsed: events, remaining: remaining };
 	}
 
