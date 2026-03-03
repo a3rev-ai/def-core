@@ -21,6 +21,76 @@ function t(key, fallback) {
 	const apiBase = StaffAIConfig.apiBase;
 	const nonce = StaffAIConfig.nonce;
 
+	// SSE streaming config (Phase 9 PR 3)
+	const defApiUrl = StaffAIConfig.defApiUrl || '';
+	const tokenUrl = StaffAIConfig.tokenUrl || '';
+	let jwtToken = null;
+	let jwtExpiry = 0;
+
+	// JWT token fetch — cached until expiry minus 30s buffer
+	async function getToken() {
+		if (jwtToken && Date.now() / 1000 < jwtExpiry - 30) {
+			return jwtToken;
+		}
+		const res = await fetch(tokenUrl, {
+			headers: { 'X-WP-Nonce': nonce },
+			credentials: 'same-origin',
+		});
+		const data = await res.json();
+		jwtToken = data.token;
+		jwtExpiry = data.exp;
+		return data.token;
+	}
+
+	// SSE buffer parser — handles comments, multi-line data:, partial chunks
+	function parseSSEBuffer(buffer) {
+		var events = [];
+		var parts = buffer.split('\n\n');
+		var remaining = parts.pop();
+		for (var i = 0; i < parts.length; i++) {
+			var block = parts[i];
+			var lines = block.split('\n');
+			var dataLines = [];
+			for (var j = 0; j < lines.length; j++) {
+				var line = lines[j];
+				if (line.charAt(0) === ':') continue;
+				if (line.indexOf('data: ') === 0) {
+					dataLines.push(line.substring(6));
+				} else if (line.indexOf('data:') === 0) {
+					dataLines.push(line.substring(5));
+				}
+			}
+			if (dataLines.length > 0) {
+				var payload = dataLines.join('\n');
+				try { events.push(JSON.parse(payload)); } catch (e) { /* skip malformed */ }
+			}
+		}
+		return { parsed: events, remaining: remaining };
+	}
+
+	// Tool status labels for SSE streaming
+	const TOOL_STATUS_LABELS = {
+		'retrieve_company_knowledge': 'Searching knowledge base...',
+		'create_document': 'Creating document...',
+		'create_spreadsheet': 'Creating spreadsheet...',
+		'generate_image': 'Generating image...',
+		'ingest_document': 'Ingesting document...',
+		'spawn_sub_agent': 'Running sub-agent...',
+		'escalate_to_human': 'Preparing handoff...',
+		'extract_upload_content': 'Analyzing file...',
+	};
+	const TOOL_DONE_LABELS = {
+		'retrieve_company_knowledge': 'Knowledge retrieved',
+		'create_document': 'Document created',
+		'create_spreadsheet': 'Spreadsheet created',
+		'generate_image': 'Image generated',
+		'ingest_document': 'Document ingested',
+		'spawn_sub_agent': 'Sub-agent complete',
+		'escalate_to_human': 'Handoff prepared',
+		'extract_upload_content': 'File analyzed',
+	};
+	const SSE_TOOL_PACING_MS = 400;
+
 	// HTML escape helper
 	function escapeHtml(str) {
 		const div = document.createElement('div');
@@ -710,7 +780,47 @@ function t(key, fallback) {
 		});
 	}
 
-	// Send message
+	// =============================================
+	// SSE STREAMING UI HELPERS (Phase 9 PR 3)
+	// =============================================
+
+	function renderToolStatus(toolName) {
+		var label = TOOL_STATUS_LABELS[toolName] || (toolName + '...');
+		var el = document.createElement('div');
+		el.className = 'tool-status';
+		el.setAttribute('data-tool', toolName);
+		el.innerHTML = '<span class="tool-spinner"></span><span class="tool-label">' + escapeHtml(label) + '</span>';
+		// Insert before the typing indicator message
+		var typingMsg = messagesList.querySelector('.message:last-child .typing-indicator');
+		if (typingMsg) {
+			typingMsg.parentNode.insertBefore(el, typingMsg);
+		}
+		return el;
+	}
+
+	function completeToolStatus(el, toolName) {
+		if (!el) return;
+		var doneLabel = TOOL_DONE_LABELS[toolName] || (toolName + ' done');
+		el.classList.add('done');
+		el.innerHTML = '<span class="tool-checkmark">&#10003;</span><span class="tool-label">' + escapeHtml(doneLabel) + '</span>';
+	}
+
+	function updateTypingLabel(text) {
+		var typingMsg = messagesList.querySelector('.message:last-child .typing-indicator');
+		if (!typingMsg) return;
+		var labelEl = typingMsg.parentNode.querySelector('.typing-label');
+		if (!labelEl) {
+			labelEl = document.createElement('span');
+			labelEl.className = 'typing-label';
+			typingMsg.parentNode.insertBefore(labelEl, typingMsg.nextSibling);
+		}
+		labelEl.textContent = text;
+	}
+
+	// =============================================
+	// SEND MESSAGE — with streaming/sync split
+	// =============================================
+
 	async function sendMessage() {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
@@ -757,6 +867,19 @@ function t(key, fallback) {
 		isLoading = true;
 		updateSendButton();
 
+		// Feature detection: streaming vs sync fallback (V1.1)
+		if (defApiUrl && typeof ReadableStream !== 'undefined') {
+			console.info('[Staff AI] Using streaming path');
+			await sendMessageStreaming(text, fileIds);
+		} else {
+			console.info('[Staff AI] Using sync fallback' +
+				(!defApiUrl ? ' (no defApiUrl)' : ' (no ReadableStream)'));
+			await sendMessageSync(text, fileIds);
+		}
+	}
+
+	// Sync fallback — existing PHP proxy behavior (zero change)
+	async function sendMessageSync(text, fileIds) {
 		try {
 			var requestBody = { message: text };
 			if (currentConversationId) {
@@ -771,7 +894,6 @@ function t(key, fallback) {
 				body: JSON.stringify(requestBody)
 			});
 
-			// Clear staged files ONLY on success (V1.1: C6).
 			clearStagedFiles();
 
 			messages.pop();
@@ -782,20 +904,170 @@ function t(key, fallback) {
 			});
 			renderMessages();
 
-			// Update conversation ID from response
 			if (result.thread_id) {
 				currentConversationId = result.thread_id;
 			}
 
-			// Refresh conversation list
 			loadConversations();
-
 			updateReadOnlyState();
 		} catch (err) {
-			// Do NOT clear staged files on error — user can retry.
 			messages.pop();
 			renderMessages();
 			console.error('Failed to send message:', err);
+			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
+		} finally {
+			isLoading = false;
+			updateSendButton();
+		}
+	}
+
+	// Streaming — direct-to-DEF with JWT + SSE
+	async function sendMessageStreaming(text, fileIds) {
+		var retried = false;
+
+		async function attemptStream() {
+			var token = await getToken();
+
+			// Build messages array for DEF (full conversation history)
+			var reqMessages = [];
+			for (var i = 0; i < messages.length; i++) {
+				var m = messages[i];
+				if (m.isTyping) continue;
+				if (m.role !== 'user' && m.role !== 'assistant') continue;
+				var msgObj = { role: m.role, content: m.content };
+				// Attach file references on the latest user message
+				if (m.role === 'user' && i === messages.length - 2 && fileIds.length > 0) {
+					msgObj.attachments = fileIds.map(function(fid) { return { file_id: fid }; });
+				}
+				reqMessages.push(msgObj);
+			}
+
+			var requestBody = { messages: reqMessages };
+			if (currentConversationId) {
+				requestBody.thread_id = currentConversationId;
+				requestBody.continue_thread = true;
+			}
+
+			var response = await fetch(defApiUrl + '/api/staff-ai/chat/stream', {
+				method: 'POST',
+				headers: {
+					'Authorization': 'Bearer ' + token,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(requestBody),
+			});
+
+			// 401 retry: refresh token once
+			if (response.status === 401 && !retried) {
+				retried = true;
+				jwtToken = null;
+				jwtExpiry = 0;
+				return attemptStream();
+			}
+
+			if (!response.ok) {
+				var errText = '';
+				try { errText = (await response.json()).detail || ''; } catch (e) { /* ignore */ }
+				throw new Error(errText || 'Stream request failed (' + response.status + ')');
+			}
+
+			// Check if response is JSON (extraction early-exit) vs SSE
+			var ct = response.headers.get('content-type') || '';
+			if (ct.indexOf('application/json') !== -1) {
+				var jsonResult = await response.json();
+				clearStagedFiles();
+				messages.pop();
+				messages.push({
+					role: 'assistant',
+					content: jsonResult.choices?.[0]?.message?.content || '',
+					tool_outputs: jsonResult.choices?.[0]?.message?.tool_outputs || []
+				});
+				renderMessages();
+				if (jsonResult.thread_id) {
+					currentConversationId = jsonResult.thread_id;
+				}
+				loadConversations();
+				updateReadOnlyState();
+				return;
+			}
+
+			// SSE stream processing
+			var reader = response.body.getReader();
+			var decoder = new TextDecoder();
+			var buffer = '';
+			var toolStatusElements = {};
+			var eventQueue = [];
+			var processing = false;
+
+			async function processEventQueue() {
+				if (processing) return;
+				processing = true;
+				while (eventQueue.length > 0) {
+					var evt = eventQueue.shift();
+					if (evt.type === 'thinking') {
+						var label = 'Thinking...';
+						if (evt.step && evt.max_steps) {
+							label = 'Thinking... (step ' + evt.step + ' of ' + evt.max_steps + ')';
+						}
+						updateTypingLabel(label);
+					} else if (evt.type === 'tool_start') {
+						var el = renderToolStatus(evt.tool);
+						toolStatusElements[evt.tool] = el;
+						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
+					} else if (evt.type === 'tool_done') {
+						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
+						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
+					} else if (evt.type === 'done') {
+						clearStagedFiles();
+						messages.pop();
+						messages.push({
+							role: 'assistant',
+							content: evt.choices[0].message.content,
+							tool_outputs: evt.choices[0].message.tool_outputs || []
+						});
+						renderMessages();
+						if (evt.thread_id) {
+							currentConversationId = evt.thread_id;
+						}
+						loadConversations();
+						updateReadOnlyState();
+					} else if (evt.type === 'error') {
+						messages.pop();
+						renderMessages();
+						showError(evt.message || 'An error occurred.');
+					}
+				}
+				processing = false;
+			}
+
+			// Read SSE chunks
+			while (true) {
+				var result = await reader.read();
+				if (result.done) break;
+				buffer += decoder.decode(result.value, { stream: true });
+				var parsed = parseSSEBuffer(buffer);
+				buffer = parsed.remaining;
+				for (var k = 0; k < parsed.parsed.length; k++) {
+					eventQueue.push(parsed.parsed[k]);
+				}
+				await processEventQueue();
+			}
+			// Process any remaining events
+			if (buffer.trim()) {
+				var finalParsed = parseSSEBuffer(buffer + '\n\n');
+				for (var k = 0; k < finalParsed.parsed.length; k++) {
+					eventQueue.push(finalParsed.parsed[k]);
+				}
+				await processEventQueue();
+			}
+		}
+
+		try {
+			await attemptStream();
+		} catch (err) {
+			messages.pop();
+			renderMessages();
+			console.error('[Staff AI] Streaming error:', err);
 			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
 		} finally {
 			isLoading = false;
