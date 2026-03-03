@@ -413,7 +413,23 @@
 		// Progressive text rendering state.
 		var streamBuffer = '';
 		var streamEl = null;
-		var streamTimer = null;
+		var wordDrainTimer = null;
+		var displayedLen = 0;
+
+		function drainNextWord() {
+			if (displayedLen >= streamBuffer.length) {
+				wordDrainTimer = null;
+				return;
+			}
+			var i = displayedLen;
+			// Skip whitespace, then skip word characters.
+			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
+			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
+			displayedLen = i;
+			streamEl.innerHTML = self.formatMarkdown(streamBuffer.slice(0, displayedLen));
+			self.scrollToBottom();
+			wordDrainTimer = setTimeout(drainNextWord, 30);
+		}
 
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) { return; }
@@ -450,7 +466,7 @@
 		function handleSSEEvent(event) {
 			switch (event.type) {
 				case 'thinking':
-					self.updateTypingIndicator('Thinking... (step ' + event.step + ' of ' + event.max_steps + ')');
+					self.updateTypingIndicator('Thinking...');
 					break;
 
 				case 'tool_start':
@@ -475,16 +491,14 @@
 						self.messagesEl.appendChild(streamEl);
 					}
 					streamBuffer += event.text;
-					if (streamTimer) clearTimeout(streamTimer);
-					streamTimer = setTimeout(function () {
-						streamEl.innerHTML = self.formatMarkdown(streamBuffer);
-						self.scrollToBottom();
-					}, 50);
+					if (!wordDrainTimer) {
+						drainNextWord();
+					}
 					break;
 
 				case 'done':
 					self.hideTypingIndicator();
-					if (streamTimer) clearTimeout(streamTimer);
+					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
 					if (streamEl) {
 						var finalText = event.reply || streamBuffer;
@@ -498,7 +512,8 @@
 
 					streamBuffer = '';
 					streamEl = null;
-					streamTimer = null;
+					wordDrainTimer = null;
+					displayedLen = 0;
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
 					if (event.tool_outputs && event.tool_outputs.length) {

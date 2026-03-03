@@ -1106,7 +1106,22 @@
 		// Progressive text rendering state.
 		var streamBuffer = '';
 		var streamEl = null;
-		var streamTimer = null;
+		var wordDrainTimer = null;
+		var displayedLen = 0;
+
+		function drainNextWord() {
+			if (displayedLen >= streamBuffer.length) {
+				wordDrainTimer = null;
+				return;
+			}
+			var i = displayedLen;
+			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
+			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
+			displayedLen = i;
+			streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
+			scrollToBottom();
+			wordDrainTimer = setTimeout(drainNextWord, 30);
+		}
 
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) return;
@@ -1136,9 +1151,7 @@
 		function handleSSEEvent(evt) {
 			switch (evt.type) {
 				case 'thinking':
-					updateTypingLabel(
-						'Thinking... (step ' + evt.step + ' of ' + evt.max_steps + ')'
-					);
+					updateTypingLabel('Thinking...');
 					break;
 				case 'tool_start':
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
@@ -1158,15 +1171,13 @@
 						streamEl = contentEl;
 					}
 					streamBuffer += evt.text;
-					if (streamTimer) clearTimeout(streamTimer);
-					streamTimer = setTimeout(function () {
-						streamEl.innerHTML = renderMarkdown(streamBuffer);
-						scrollToBottom();
-					}, 50);
+					if (!wordDrainTimer) {
+						drainNextWord();
+					}
 					break;
 				case 'done':
 					hideThinking(thinkingEl);
-					if (streamTimer) clearTimeout(streamTimer);
+					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
 					if (streamEl) {
 						var reply = '';
@@ -1180,16 +1191,18 @@
 					var wasStreamed = !!streamEl;
 					streamBuffer = '';
 					streamEl = null;
-					streamTimer = null;
+					wordDrainTimer = null;
+					displayedLen = 0;
 
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'error':
 					hideThinking(thinkingEl);
-					if (streamTimer) clearTimeout(streamTimer);
+					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 					streamBuffer = '';
 					streamEl = null;
-					streamTimer = null;
+					wordDrainTimer = null;
+					displayedLen = 0;
 					appendMessage('assistant', evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;

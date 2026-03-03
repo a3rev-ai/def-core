@@ -1002,7 +1002,22 @@ function t(key, fallback) {
 			// Progressive text rendering state.
 			var streamBuffer = '';
 			var streamEl = null;
-			var streamTimer = null;
+			var wordDrainTimer = null;
+			var displayedLen = 0;
+
+			function drainNextWord() {
+				if (displayedLen >= streamBuffer.length) {
+					wordDrainTimer = null;
+					return;
+				}
+				var i = displayedLen;
+				while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
+				while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
+				displayedLen = i;
+				streamEl.textContent = streamBuffer.slice(0, displayedLen);
+				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+				wordDrainTimer = setTimeout(drainNextWord, 30);
+			}
 
 			async function processEventQueue() {
 				if (processing) return;
@@ -1012,7 +1027,7 @@ function t(key, fallback) {
 					if (evt.type === 'thinking') {
 						var label = 'Thinking...';
 						if (evt.step && evt.max_steps) {
-							label = 'Thinking... (step ' + evt.step + ' of ' + evt.max_steps + ')';
+							label = 'Thinking...';
 						}
 						updateTypingLabel(label);
 					} else if (evt.type === 'tool_start') {
@@ -1040,14 +1055,12 @@ function t(key, fallback) {
 						}
 						if (streamEl) {
 							streamBuffer += evt.text;
-							if (streamTimer) clearTimeout(streamTimer);
-							streamTimer = setTimeout(function () {
-								streamEl.textContent = streamBuffer;
-								messagesContainer.scrollTop = messagesContainer.scrollHeight;
-							}, 50);
+							if (!wordDrainTimer) {
+								drainNextWord();
+							}
 						}
 					} else if (evt.type === 'done') {
-						if (streamTimer) clearTimeout(streamTimer);
+						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						clearStagedFiles();
 						messages.pop();
 						messages.push({
@@ -1072,7 +1085,8 @@ function t(key, fallback) {
 
 						streamBuffer = '';
 						streamEl = null;
-						streamTimer = null;
+						wordDrainTimer = null;
+						displayedLen = 0;
 
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
@@ -1080,10 +1094,11 @@ function t(key, fallback) {
 						loadConversations();
 						updateReadOnlyState();
 					} else if (evt.type === 'error') {
-						if (streamTimer) clearTimeout(streamTimer);
+						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						streamBuffer = '';
 						streamEl = null;
-						streamTimer = null;
+						wordDrainTimer = null;
+						displayedLen = 0;
 						messages.pop();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');
