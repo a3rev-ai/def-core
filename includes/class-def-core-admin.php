@@ -315,8 +315,10 @@ final class DEF_Core_Admin {
 		wp_enqueue_style( 'def-core-setup-assistant' );
 		wp_enqueue_script( 'def-core-setup-assistant' );
 		wp_localize_script( 'def-core-setup-assistant', 'defSetupAssistant', array(
-			'restUrl' => esc_url_raw( rest_url( 'def-core/v1/' ) ),
-			'nonce'   => wp_create_nonce( 'wp_rest' ),
+			'restUrl'    => esc_url_raw( rest_url( 'def-core/v1/' ) ),
+			'nonce'      => wp_create_nonce( 'wp_rest' ),
+			'apiBaseUrl' => DEF_Core::get_def_api_url(),
+			'tokenUrl'   => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
 		) );
 
 		// Load template.

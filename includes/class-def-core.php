@@ -321,7 +321,7 @@ final class DEF_Core {
 			'buttonIconUrl'   => $this->get_button_icon_url(),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// API URL for direct fetch.
-			'apiBaseUrl'      => $this->get_customer_chat_api_url(),
+			'apiBaseUrl'      => self::get_def_api_url(),
 			// Asset URLs for lazy loading.
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
@@ -537,13 +537,13 @@ final class DEF_Core {
 	 *
 	 * The stored def_core_staff_ai_api_url is for server-side PHP proxy calls
 	 * and may use Docker internal hostnames (e.g. http://def-api:8000).
-	 * The Customer Chat runs in the browser via direct fetch(), so it needs
-	 * a browser-accessible URL. Replace non-routable Docker hostnames with
-	 * the current site's hostname.
+	 * Browser-facing channels (Customer Chat, Setup Assistant SSE) use
+	 * direct fetch(), so they need a browser-accessible URL. Replace
+	 * non-routable Docker hostnames with the current site's hostname.
 	 *
 	 * @return string API base URL or empty string.
 	 */
-	private function get_customer_chat_api_url(): string {
+	public static function get_def_api_url(): string {
 		$url = get_option( 'def_core_staff_ai_api_url', '' );
 		if ( empty( $url ) ) {
 			return '';

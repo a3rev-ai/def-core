@@ -45,6 +45,7 @@ final class DEF_Core_Tools {
 			'first_name'   => $user->user_firstname,
 			'email'        => $user->user_email,
 			'roles'        => array_values( (array) $user->roles ),
+			'capabilities' => self::get_user_def_capabilities( $user ),
 			'iss'          => get_site_url(),
 			'aud'          => DEF_CORE_AUDIENCE,
 		);
@@ -58,6 +59,23 @@ final class DEF_Core_Tools {
 		);
 		$response->set_headers( array( 'Cache-Control' => 'no-store' ) );
 		return $response;
+	}
+
+	/**
+	 * Get the DEF capabilities for a WordPress user.
+	 *
+	 * @param \WP_User $user The user to check.
+	 * @return array List of DEF capability strings the user has.
+	 */
+	private static function get_user_def_capabilities( \WP_User $user ): array {
+		$all  = array( 'def_admin_access', 'def_staff_access', 'def_management_access' );
+		$caps = array();
+		foreach ( $all as $cap ) {
+			if ( $user->has_cap( $cap ) ) {
+				$caps[] = $cap;
+			}
+		}
+		return $caps;
 	}
 
 	/**
