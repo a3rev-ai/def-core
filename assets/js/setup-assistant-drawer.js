@@ -37,6 +37,7 @@
 		'get_setting':           'Reading settings...',
 		'test_connection':       'Testing connection...',
 		'get_users_with_roles':  'Checking user roles...',
+		'search_users':          'Searching users...',
 		'update_setting':        'Updating settings...',
 		'update_user_role':      'Updating user role...'
 	};
@@ -46,6 +47,7 @@
 		'get_setting':           'Settings read',
 		'test_connection':       'Connection tested',
 		'get_users_with_roles':  'User roles checked',
+		'search_users':          'Users found',
 		'update_setting':        'Settings updated',
 		'update_user_role':      'User role updated'
 	};
@@ -60,9 +62,16 @@
 
 	// ─── Constructor ─────────────────────────────────────────────
 
+	// Minimum visual pacing between SSE tool status updates (ms).
+	var SSE_TOOL_PACING_MS = 400;
+
 	function SetupAssistantDrawer() {
 		this.apiBase       = config.restUrl || '';
 		this.nonce         = config.nonce || '';
+		this.apiBaseUrl    = config.apiBaseUrl || '';
+		this.tokenUrl      = config.tokenUrl || '';
+		this.jwtToken      = null;
+		this.jwtExpiry     = 0;
 		this.threadId      = null;
 		this.messages      = [];
 		this.dirtyFields   = {};
@@ -240,6 +249,17 @@
 	};
 
 	SetupAssistantDrawer.prototype.sendMessage = function (text) {
+		// Feature detection: use streaming if apiBaseUrl configured and ReadableStream available.
+		if (this.apiBaseUrl && typeof ReadableStream !== 'undefined') {
+			this.sendMessageStreaming(text);
+		} else {
+			this.sendMessageSync(text);
+		}
+	};
+
+	// ─── Sync Chat (original path via PHP proxy) ─────────────────
+
+	SetupAssistantDrawer.prototype.sendMessageSync = function (text) {
 		var self = this;
 		this.isSending = true;
 		this.sendEl.disabled = true;
@@ -302,6 +322,253 @@
 				self.isSending = false;
 				self.sendEl.disabled = false;
 			});
+	};
+
+	// ─── JWT Token Fetch ─────────────────────────────────────────
+
+	SetupAssistantDrawer.prototype.getToken = function () {
+		var self = this;
+		// Return cached token if still valid (30s buffer).
+		if (this.jwtToken && Date.now() / 1000 < this.jwtExpiry - 30) {
+			return Promise.resolve(this.jwtToken);
+		}
+		return fetch(this.tokenUrl, {
+			headers: { 'X-WP-Nonce': this.nonce },
+			credentials: 'same-origin'
+		})
+		.then(function (r) {
+			if (!r.ok) { throw new Error('Token fetch failed: ' + r.status); }
+			return r.json();
+		})
+		.then(function (data) {
+			self.jwtToken  = data.token;
+			self.jwtExpiry = data.exp;
+			return data.token;
+		});
+	};
+
+	// ─── SSE Buffer Parser ───────────────────────────────────────
+
+	function parseSSEBuffer(buffer) {
+		var events = [];
+		var parts = buffer.split('\n\n');
+		var remaining = parts.pop(); // last part may be incomplete
+		for (var i = 0; i < parts.length; i++) {
+			var chunk = parts[i].trim();
+			if (chunk.indexOf('data: ') === 0) {
+				try { events.push(JSON.parse(chunk.substring(6))); } catch (e) { /* skip malformed */ }
+			}
+			// Skip comment lines (": heartbeat") and empty chunks.
+		}
+		return { parsed: events, remaining: remaining };
+	}
+
+	// ─── Streaming Chat (direct to DEF via JWT) ──────────────────
+
+	SetupAssistantDrawer.prototype.sendMessageStreaming = function (text) {
+		var self = this;
+		this.isSending = true;
+		this.sendEl.disabled = true;
+
+		// Render user message immediately.
+		this.renderMessage({ role: 'user', content: text });
+
+		// Show typing indicator.
+		this.showTypingIndicator();
+
+		// Build request body.
+		var body = { message: text };
+		if (this.threadId) {
+			body.thread_id = this.threadId;
+		}
+		var dirtyContext = this.getDirtyContext();
+		if (dirtyContext.dirty_fields) {
+			body.context = dirtyContext;
+		}
+
+		// Track active tool status elements for pacing.
+		var toolStatusEls = {};
+		var eventQueue = [];
+		var processing = false;
+		var lastToolTime = 0;
+
+		function processEventQueue() {
+			if (processing || eventQueue.length === 0) { return; }
+			processing = true;
+
+			function processNext() {
+				if (eventQueue.length === 0) {
+					processing = false;
+					return;
+				}
+
+				var event = eventQueue.shift();
+				var now = Date.now();
+				var delay = 0;
+
+				// Visual pacing: ensure minimum gap between tool status updates.
+				if (event.type === 'tool_start' || event.type === 'tool_done') {
+					var elapsed = now - lastToolTime;
+					if (elapsed < SSE_TOOL_PACING_MS) {
+						delay = SSE_TOOL_PACING_MS - elapsed;
+					}
+				}
+
+				setTimeout(function () {
+					handleSSEEvent(event);
+					lastToolTime = Date.now();
+					processNext();
+				}, delay);
+			}
+
+			processNext();
+		}
+
+		function handleSSEEvent(event) {
+			switch (event.type) {
+				case 'thinking':
+					self.updateTypingIndicator('Thinking... (step ' + event.step + ' of ' + event.max_steps + ')');
+					break;
+
+				case 'tool_start':
+					// Create a tool status element with spinner.
+					var startEl = self.renderToolStatusForStream(event.tool);
+					toolStatusEls[event.tool] = startEl;
+					break;
+
+				case 'tool_done':
+					// Complete the tool status (spinner → checkmark).
+					var doneEl = toolStatusEls[event.tool];
+					if (doneEl) {
+						self.completeToolStatus(doneEl, event.tool);
+					}
+					break;
+
+				case 'done':
+					self.hideTypingIndicator();
+
+					// Render reply.
+					if (event.reply) {
+						self.renderMessage({ role: 'assistant', content: event.reply });
+					}
+
+					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
+					if (event.tool_outputs && event.tool_outputs.length) {
+						for (var i = 0; i < event.tool_outputs.length; i++) {
+							var output = event.tool_outputs[i];
+							if (output.ui_actions && output.ui_actions.length) {
+								self.processUiActions(output.ui_actions);
+							}
+							if (output.escalation) {
+								self.renderEscalationCard(output.escalation);
+							}
+						}
+					}
+
+					// Save thread ID.
+					if (event.thread_id && !self.threadId) {
+						self.threadId = event.thread_id;
+						self.saveThread(event.thread_id);
+					}
+
+					self.isSending = false;
+					self.sendEl.disabled = false;
+					break;
+
+				case 'error':
+					self.hideTypingIndicator();
+					self.renderError(event.message || 'An error occurred.');
+					self.isSending = false;
+					self.sendEl.disabled = false;
+					break;
+			}
+		}
+
+		// Fetch JWT then start SSE stream.
+		this.getToken()
+			.then(function (token) {
+				return fetch(self.apiBaseUrl + '/api/setup_assistant/chat/stream', {
+					method: 'POST',
+					headers: {
+						'Authorization': 'Bearer ' + token,
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(body)
+				});
+			})
+			.then(function (response) {
+				if (!response.ok) {
+					throw new Error('Stream request failed: ' + response.status);
+				}
+
+				var reader = response.body.getReader();
+				var decoder = new TextDecoder();
+				var buffer = '';
+
+				function readChunk() {
+					return reader.read().then(function (result) {
+						if (result.done) {
+							// Process any remaining buffer.
+							if (buffer.trim()) {
+								var final = parseSSEBuffer(buffer + '\n\n');
+								for (var i = 0; i < final.parsed.length; i++) {
+									eventQueue.push(final.parsed[i]);
+								}
+								processEventQueue();
+							}
+							return;
+						}
+
+						buffer += decoder.decode(result.value, { stream: true });
+						var parsed = parseSSEBuffer(buffer);
+						buffer = parsed.remaining;
+
+						for (var i = 0; i < parsed.parsed.length; i++) {
+							eventQueue.push(parsed.parsed[i]);
+						}
+						processEventQueue();
+
+						return readChunk();
+					});
+				}
+
+				return readChunk();
+			})
+			.catch(function (err) {
+				// Mid-stream fallback: show error but keep any progress already rendered.
+				self.hideTypingIndicator();
+				self.renderError(err.message || 'Connection lost. Please try again.');
+				self.isSending = false;
+				self.sendEl.disabled = false;
+			});
+	};
+
+	// ─── Streaming Tool Status Helpers ───────────────────────────
+
+	SetupAssistantDrawer.prototype.renderToolStatusForStream = function (toolName) {
+		var label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+		var div = document.createElement('div');
+		div.className = 'def-sa-tool-status';
+		div.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label">' + this.escapeHtml(label) + '</span>';
+		this.messagesEl.appendChild(div);
+		this.scrollToBottom();
+		return div;
+	};
+
+	SetupAssistantDrawer.prototype.updateTypingIndicator = function (text) {
+		var indicator = this.messagesEl.querySelector('.def-sa-typing');
+		if (indicator) {
+			var label = indicator.querySelector('.def-sa-typing-label');
+			if (label) {
+				label.textContent = text;
+			} else {
+				// Add label span next to the dots.
+				var span = document.createElement('span');
+				span.className = 'def-sa-typing-label';
+				span.textContent = text;
+				indicator.appendChild(span);
+			}
+		}
 	};
 
 	// ─── Message Rendering ───────────────────────────────────────
