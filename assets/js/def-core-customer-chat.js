@@ -1103,6 +1103,11 @@
 		var processing = false;
 		var lastToolTime = 0;
 
+		// Progressive text rendering state.
+		var streamBuffer = '';
+		var streamEl = null;
+		var streamTimer = null;
+
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) return;
 			processing = true;
@@ -1141,12 +1146,50 @@
 				case 'tool_done':
 					completeToolStatus(toolStatusEls[evt.tool], evt.tool);
 					break;
+				case 'text_delta':
+					if (!streamEl) {
+						hideThinking(thinkingEl);
+						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
+						var icon = createAssistantIcon();
+						msgEl.appendChild(icon);
+						var contentEl = el('div', 'def-cc-message-content');
+						msgEl.appendChild(contentEl);
+						els.messages.appendChild(msgEl);
+						streamEl = contentEl;
+					}
+					streamBuffer += evt.text;
+					if (streamTimer) clearTimeout(streamTimer);
+					streamTimer = setTimeout(function () {
+						streamEl.innerHTML = renderMarkdown(streamBuffer);
+						scrollToBottom();
+					}, 50);
+					break;
 				case 'done':
 					hideThinking(thinkingEl);
-					processChatDoneEvent(evt, text);
+					if (streamTimer) clearTimeout(streamTimer);
+
+					if (streamEl) {
+						var reply = '';
+						if (evt.choices && evt.choices[0] && evt.choices[0].message) {
+							reply = evt.choices[0].message.content || '';
+						}
+						streamEl.innerHTML = renderMarkdown(reply || streamBuffer);
+						streamEl.parentNode.classList.remove('def-cc-message--streaming');
+					}
+
+					var wasStreamed = !!streamEl;
+					streamBuffer = '';
+					streamEl = null;
+					streamTimer = null;
+
+					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'error':
 					hideThinking(thinkingEl);
+					if (streamTimer) clearTimeout(streamTimer);
+					streamBuffer = '';
+					streamEl = null;
+					streamTimer = null;
 					appendMessage('assistant', evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;
@@ -1267,10 +1310,58 @@
 	}
 
 	/**
-	 * Process a streaming 'done' event (uses processChatResponse).
+	 * Process streaming done metadata (thread, session, escalation).
+	 * If wasStreamed is true, text was already rendered progressively — skip appendMessage.
 	 */
-	function processChatDoneEvent(evt, text) {
-		processChatResponse(evt, text);
+	function processChatResponseMeta(data, text, wasStreamed) {
+		if (!data || data.error) {
+			if (!wasStreamed) {
+				appendMessage('assistant', t('connectionError'));
+			}
+			setComposerDisabled(false);
+			return;
+		}
+
+		// Store thread ID.
+		if (data.thread_id) {
+			threadId = data.thread_id;
+			try {
+				localStorage.setItem(THREAD_KEY, threadId);
+			} catch (e) {}
+			isContinuing = true;
+		}
+
+		// Extract reply for metadata (upsertThread).
+		var reply = '';
+		if (data.choices && data.choices[0] && data.choices[0].message) {
+			reply = data.choices[0].message.content || '';
+		}
+
+		// Only render message bubble if NOT already streamed.
+		if (!wasStreamed && reply) {
+			appendMessage('assistant', reply);
+		}
+
+		// Check for escalation offer.
+		if (data.tool_outputs) {
+			for (var i = 0; i < data.tool_outputs.length; i++) {
+				if (data.tool_outputs[i].type === 'escalation_offer') {
+					showEscalation(data.tool_outputs[i].reason);
+					break;
+				}
+			}
+		}
+
+		// Handle session_cookie from server.
+		if (data.session_cookie) {
+			try {
+				localStorage.setItem('def:session_cookie', data.session_cookie);
+			} catch (e) {}
+		}
+
+		// Save thread to localStorage.
+		upsertThread(threadId, text || 'Please analyze the attached file(s).', reply);
+		setComposerDisabled(false);
 	}
 
 	function appendUserMessage(text, fileIds) {

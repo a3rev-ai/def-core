@@ -999,6 +999,11 @@ function t(key, fallback) {
 			var eventQueue = [];
 			var processing = false;
 
+			// Progressive text rendering state.
+			var streamBuffer = '';
+			var streamEl = null;
+			var streamTimer = null;
+
 			async function processEventQueue() {
 				if (processing) return;
 				processing = true;
@@ -1017,7 +1022,32 @@ function t(key, fallback) {
 					} else if (evt.type === 'tool_done') {
 						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
+					} else if (evt.type === 'text_delta') {
+						if (!streamEl) {
+							// Take over the typing indicator message.
+							var lastMsg = messagesList.querySelector('.message:last-child');
+							if (lastMsg) {
+								lastMsg.classList.add('message-streaming');
+								var contentDiv = lastMsg.querySelector('.message-content');
+								if (contentDiv) {
+									var typingInd = contentDiv.querySelector('.typing-indicator');
+									if (typingInd) typingInd.remove();
+									var labelEl = contentDiv.querySelector('.typing-label');
+									if (labelEl) labelEl.remove();
+									streamEl = contentDiv;
+								}
+							}
+						}
+						if (streamEl) {
+							streamBuffer += evt.text;
+							if (streamTimer) clearTimeout(streamTimer);
+							streamTimer = setTimeout(function () {
+								streamEl.textContent = streamBuffer;
+								messagesContainer.scrollTop = messagesContainer.scrollHeight;
+							}, 50);
+						}
 					} else if (evt.type === 'done') {
+						if (streamTimer) clearTimeout(streamTimer);
 						clearStagedFiles();
 						messages.pop();
 						messages.push({
@@ -1025,13 +1055,35 @@ function t(key, fallback) {
 							content: evt.choices[0].message.content,
 							tool_outputs: evt.choices[0].message.tool_outputs || []
 						});
-						renderMessages();
+
+						if (streamEl) {
+							// Remove streaming cursor class.
+							var streamingMsg = messagesList.querySelector('.message-streaming');
+							if (streamingMsg) streamingMsg.classList.remove('message-streaming');
+							// Final text + tool output cards on existing element.
+							streamEl.textContent = evt.choices[0].message.content;
+							var toolOutputs = evt.choices[0].message.tool_outputs || [];
+							toolOutputs.forEach(function(tool) {
+								streamEl.appendChild(createToolOutputCard(tool));
+							});
+						} else {
+							renderMessages();
+						}
+
+						streamBuffer = '';
+						streamEl = null;
+						streamTimer = null;
+
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
 						}
 						loadConversations();
 						updateReadOnlyState();
 					} else if (evt.type === 'error') {
+						if (streamTimer) clearTimeout(streamTimer);
+						streamBuffer = '';
+						streamEl = null;
+						streamTimer = null;
 						messages.pop();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');

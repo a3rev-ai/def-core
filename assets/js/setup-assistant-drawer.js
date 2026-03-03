@@ -410,6 +410,11 @@
 		var processing = false;
 		var lastToolTime = 0;
 
+		// Progressive text rendering state.
+		var streamBuffer = '';
+		var streamEl = null;
+		var streamTimer = null;
+
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) { return; }
 			processing = true;
@@ -462,13 +467,38 @@
 					}
 					break;
 
+				case 'text_delta':
+					if (!streamEl) {
+						self.hideTypingIndicator();
+						streamEl = document.createElement('div');
+						streamEl.className = 'def-sa-message def-sa-message-assistant def-sa-message-streaming';
+						self.messagesEl.appendChild(streamEl);
+					}
+					streamBuffer += event.text;
+					if (streamTimer) clearTimeout(streamTimer);
+					streamTimer = setTimeout(function () {
+						streamEl.innerHTML = self.formatMarkdown(streamBuffer);
+						self.scrollToBottom();
+					}, 50);
+					break;
+
 				case 'done':
 					self.hideTypingIndicator();
+					if (streamTimer) clearTimeout(streamTimer);
 
-					// Render reply.
-					if (event.reply) {
+					if (streamEl) {
+						var finalText = event.reply || streamBuffer;
+						streamEl.innerHTML = self.formatMarkdown(finalText);
+						streamEl.classList.remove('def-sa-message-streaming');
+						self.messages.push({ role: 'assistant', content: finalText });
+						self.scrollToBottom();
+					} else if (event.reply) {
 						self.renderMessage({ role: 'assistant', content: event.reply });
 					}
+
+					streamBuffer = '';
+					streamEl = null;
+					streamTimer = null;
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
 					if (event.tool_outputs && event.tool_outputs.length) {

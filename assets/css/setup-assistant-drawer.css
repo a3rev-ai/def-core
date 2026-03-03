@@ -566,5 +566,18 @@
 	}
 }
 
+/* ─── Streaming Cursor (Phase 9 text_delta) ──────────────────── */
+
+.def-sa-message-streaming::after {
+	content: '\258B';
+	display: inline;
+	color: currentColor;
+	animation: def-sa-blink 0.7s step-end infinite;
+}
+
+@keyframes def-sa-blink {
+	50% { opacity: 0; }
+}
+
 /* ─── Body class when drawer is open ──────────────────────────── */
 /* No overflow:hidden — page remains scrollable behind the drawer */

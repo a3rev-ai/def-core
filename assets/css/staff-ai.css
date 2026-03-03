@@ -511,6 +511,18 @@ body {
 	}
 }
 
+/* Streaming cursor (Phase 9 text_delta) */
+.message-streaming .message-content::after {
+	content: '\258B';
+	display: inline;
+	color: currentColor;
+	animation: staff-ai-blink 0.7s step-end infinite;
+}
+
+@keyframes staff-ai-blink {
+	50% { opacity: 0; }
+}
+
 /* Banners */
 .info-banner {
 	background: var(--banner-info-bg);
