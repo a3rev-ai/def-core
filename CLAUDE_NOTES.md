@@ -1,6 +1,28 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-01 (continued)
+## Latest Session: 2026-03-03 (Phase 9 PR 1 — SSE Streaming — MERGED)
+
+### Sub-PR B: JWT Capabilities + SA Config — PR #28 (MERGED)
+- **PR:** https://github.com/a3rev-ai/def-core/pull/28
+- `class-def-core-tools.php`: Added `capabilities` claim to context-token JWT + `get_user_def_capabilities()` helper
+- `class-def-core-admin.php`: Added `apiBaseUrl` and `tokenUrl` to SA drawer wp_localize_script
+- `class-def-core.php`: Renamed `get_customer_chat_api_url()` → `get_def_api_url()`, changed from private → public static
+
+### Sub-PR C: JS Streaming Client — PR #30 (MERGED)
+- **PR:** https://github.com/a3rev-ai/def-core/pull/30 (rebased from #29 after B merged)
+- 267 lines added to `setup-assistant-drawer.js`: feature detection (streaming vs sync), JWT getToken(), parseSSEBuffer(), sendMessageStreaming() with visual pacing (400ms), event handlers, helpers, search_users tool labels, mid-stream fallback
+
+### Docker Integration Test — PASSED
+- Full end-to-end SSE streaming in browser: "Users found" ✓ → "User role updated" ✓ → reply
+- ChatGPT merge-gate: disconnect safety, blocked tool events, JWT capability enforcement, ledger stale eviction, SSE headers — all passed
+
+### Previous Session: 2026-03-02 (SSE Streaming — REVERTED, then re-done correctly)
+- First attempt reverted (PHP AJAX proxy approach). V1.1 spec approved after 3-AI review.
+- Re-implementation uses direct browser-to-DEF JWT auth, bypassing PHP/Apache buffering entirely.
+
+---
+
+## Previous Session: 2026-03-01 (continued)
 
 ### Phase 8 Sub-PR B: Chat Engine — Native Customer Chat Module — BUILT (awaiting commit/PR)
 
