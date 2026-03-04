@@ -1119,7 +1119,7 @@
 			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
 			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
 			displayedLen = i;
-			streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
+			streamEl.textContent = streamBuffer.slice(0, displayedLen);
 			scrollToBottom();
 			wordDrainTimer = setTimeout(drainNextWord, 30);
 		}
@@ -1264,7 +1264,16 @@
 
 				function pump() {
 					return reader.read().then(function (result) {
-						if (result.done) return;
+						if (result.done) {
+							if (buffer.trim()) {
+								var final = parseSSEBuffer(buffer + '\n\n');
+								for (var i = 0; i < final.parsed.length; i++) {
+									eventQueue.push(final.parsed[i]);
+								}
+								processEventQueue();
+							}
+							return;
+						}
 						buffer += decoder.decode(result.value, { stream: true });
 						var parsed = parseSSEBuffer(buffer);
 						buffer = parsed.remaining;
