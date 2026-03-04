@@ -410,6 +410,28 @@
 		var processing = false;
 		var lastToolTime = 0;
 
+		// Progressive text rendering state.
+		var streamBuffer = '';
+		var streamEl = null;
+		var wordDrainTimer = null;
+		var displayedLen = 0;
+		var thinkingStatusEl = null;
+
+		function drainNextWord() {
+			if (displayedLen >= streamBuffer.length) {
+				wordDrainTimer = null;
+				return;
+			}
+			var i = displayedLen;
+			// Skip whitespace, then skip word characters.
+			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
+			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
+			displayedLen = i;
+			streamEl.innerHTML = self.formatMarkdown(streamBuffer.slice(0, displayedLen));
+			self.scrollToBottom();
+			wordDrainTimer = setTimeout(drainNextWord, 30);
+		}
+
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) { return; }
 			processing = true;
@@ -445,10 +467,17 @@
 		function handleSSEEvent(event) {
 			switch (event.type) {
 				case 'thinking':
-					self.updateTypingIndicator('Thinking... (step ' + event.step + ' of ' + event.max_steps + ')');
+					self.hideTypingIndicator();
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); }
+					thinkingStatusEl = document.createElement('div');
+					thinkingStatusEl.className = 'def-sa-tool-status';
+					thinkingStatusEl.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label">Thinking…</span>';
+					self.messagesEl.appendChild(thinkingStatusEl);
+					self.scrollToBottom();
 					break;
 
 				case 'tool_start':
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					// Create a tool status element with spinner.
 					var startEl = self.renderToolStatusForStream(event.tool);
 					toolStatusEls[event.tool] = startEl;
@@ -462,13 +491,40 @@
 					}
 					break;
 
+				case 'text_delta':
+					if (!streamEl) {
+						self.hideTypingIndicator();
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						streamEl = document.createElement('div');
+						streamEl.className = 'def-sa-message def-sa-message-assistant def-sa-message-streaming';
+						self.messagesEl.appendChild(streamEl);
+					}
+					streamBuffer += event.text;
+					if (!wordDrainTimer) {
+						drainNextWord();
+					}
+					break;
+
 				case 'done':
 					self.hideTypingIndicator();
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
-					// Render reply.
-					if (event.reply) {
+					if (streamEl) {
+						var finalText = event.reply || streamBuffer;
+						streamEl.innerHTML = self.formatMarkdown(finalText);
+						streamEl.classList.remove('def-sa-message-streaming');
+						self.messages.push({ role: 'assistant', content: finalText });
+						self.scrollToBottom();
+					} else if (event.reply) {
 						self.renderMessage({ role: 'assistant', content: event.reply });
 					}
+
+					streamBuffer = '';
+					streamEl = null;
+					wordDrainTimer = null;
+					displayedLen = 0;
+					thinkingStatusEl = null;
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
 					if (event.tool_outputs && event.tool_outputs.length) {

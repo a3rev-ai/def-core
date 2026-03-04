@@ -999,25 +999,79 @@ function t(key, fallback) {
 			var eventQueue = [];
 			var processing = false;
 
+			// Progressive text rendering state.
+			var streamBuffer = '';
+			var streamEl = null;
+			var wordDrainTimer = null;
+			var displayedLen = 0;
+			var thinkingStatusEl = null;
+
+			function drainNextWord() {
+				if (displayedLen >= streamBuffer.length) {
+					wordDrainTimer = null;
+					return;
+				}
+				var i = displayedLen;
+				while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
+				while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
+				displayedLen = i;
+				streamEl.textContent = streamBuffer.slice(0, displayedLen);
+				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+				wordDrainTimer = setTimeout(drainNextWord, 30);
+			}
+
 			async function processEventQueue() {
 				if (processing) return;
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
 					if (evt.type === 'thinking') {
-						var label = 'Thinking...';
-						if (evt.step && evt.max_steps) {
-							label = 'Thinking... (step ' + evt.step + ' of ' + evt.max_steps + ')';
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						thinkingStatusEl = document.createElement('div');
+						thinkingStatusEl.className = 'tool-status';
+						thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label">Thinking…</span>';
+						var thinkTarget = messagesList.querySelector('.message:last-child .message-content');
+						var thinkTyping = thinkTarget ? thinkTarget.querySelector('.typing-indicator') : null;
+						if (thinkTyping) {
+							thinkTyping.style.display = 'none';
+							thinkTarget.insertBefore(thinkingStatusEl, thinkTyping);
 						}
-						updateTypingLabel(label);
+						var oldLabel = messagesList.querySelector('.message:last-child .typing-label');
+						if (oldLabel) oldLabel.remove();
 					} else if (evt.type === 'tool_start') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var el = renderToolStatus(evt.tool);
 						toolStatusElements[evt.tool] = el;
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'tool_done') {
 						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
+					} else if (evt.type === 'text_delta') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						if (!streamEl) {
+							// Take over the typing indicator message.
+							var lastMsg = messagesList.querySelector('.message:last-child');
+							if (lastMsg) {
+								lastMsg.classList.add('message-streaming');
+								var contentDiv = lastMsg.querySelector('.message-content');
+								if (contentDiv) {
+									var typingInd = contentDiv.querySelector('.typing-indicator');
+									if (typingInd) typingInd.remove();
+									var labelEl = contentDiv.querySelector('.typing-label');
+									if (labelEl) labelEl.remove();
+									streamEl = contentDiv;
+								}
+							}
+						}
+						if (streamEl) {
+							streamBuffer += evt.text;
+							if (!wordDrainTimer) {
+								drainNextWord();
+							}
+						}
 					} else if (evt.type === 'done') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						clearStagedFiles();
 						messages.pop();
 						messages.push({
@@ -1025,13 +1079,39 @@ function t(key, fallback) {
 							content: evt.choices[0].message.content,
 							tool_outputs: evt.choices[0].message.tool_outputs || []
 						});
-						renderMessages();
+
+						if (streamEl) {
+							// Remove streaming cursor class.
+							var streamingMsg = messagesList.querySelector('.message-streaming');
+							if (streamingMsg) streamingMsg.classList.remove('message-streaming');
+							// Final text + tool output cards on existing element.
+							streamEl.textContent = evt.choices[0].message.content;
+							var toolOutputs = evt.choices[0].message.tool_outputs || [];
+							toolOutputs.forEach(function(tool) {
+								streamEl.appendChild(createToolOutputCard(tool));
+							});
+						} else {
+							renderMessages();
+						}
+
+						streamBuffer = '';
+						streamEl = null;
+						wordDrainTimer = null;
+						displayedLen = 0;
+						thinkingStatusEl = null;
+
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
 						}
 						loadConversations();
 						updateReadOnlyState();
 					} else if (evt.type === 'error') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						if (wordDrainTimer) clearTimeout(wordDrainTimer);
+						streamBuffer = '';
+						streamEl = null;
+						wordDrainTimer = null;
+						displayedLen = 0;
 						messages.pop();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');

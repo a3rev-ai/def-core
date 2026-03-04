@@ -270,15 +270,13 @@
 /* ─── Tool Status ─────────────────────────────────────────────── */
 
 .def-sa-tool-status {
-	align-self: center;
+	align-self: flex-start;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 14px;
-	font-size: 12px;
+	padding: 4px 0;
+	font-size: 13px;
 	color: #646970;
-	background: #f6f7f7;
-	border-radius: 16px;
 }
 
 .def-sa-tool-status .def-sa-spinner {
@@ -308,7 +306,6 @@
 
 .def-sa-tool-status.def-sa-tool-done {
 	color: #00a32a;
-	background: #edfaef;
 }
 
 /* Show details toggle */
@@ -564,6 +561,19 @@
 	.admin-bar .def-sa-drawer {
 		top: 46px;
 	}
+}
+
+/* ─── Streaming Cursor (Phase 9 text_delta) ──────────────────── */
+
+.def-sa-message-streaming::after {
+	content: '\258B';
+	display: inline;
+	color: currentColor;
+	animation: def-sa-blink 0.7s step-end infinite;
+}
+
+@keyframes def-sa-blink {
+	50% { opacity: 0; }
 }
 
 /* ─── Body class when drawer is open ──────────────────────────── */

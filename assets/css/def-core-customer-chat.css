@@ -1380,13 +1380,26 @@
 	-webkit-overflow-scrolling: touch;
 }
 
+/* ─── Streaming Cursor (Phase 9 text_delta) ────────────────────── */
+
+.def-cc-message--streaming .def-cc-message-content::after {
+	content: '\258B';
+	display: inline;
+	color: currentColor;
+	animation: def-cc-blink 0.7s step-end infinite;
+}
+
+@keyframes def-cc-blink {
+	50% { opacity: 0; }
+}
+
 /* ─── SSE Streaming Tool Status (Phase 9 PR 2) ────────────────── */
 
 .cc-tool-status {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 12px;
+	padding: 4px 0;
 	margin: 4px 0;
 	font-size: 13px;
 	color: var(--text-secondary, #666);
