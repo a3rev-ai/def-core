@@ -1004,6 +1004,7 @@ function t(key, fallback) {
 			var streamEl = null;
 			var wordDrainTimer = null;
 			var displayedLen = 0;
+			var thinkingStatusEl = null;
 
 			function drainNextWord() {
 				if (displayedLen >= streamBuffer.length) {
@@ -1025,12 +1026,20 @@ function t(key, fallback) {
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
 					if (evt.type === 'thinking') {
-						var label = 'Thinking...';
-						if (evt.step && evt.max_steps) {
-							label = 'Thinking...';
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+						thinkingStatusEl = document.createElement('div');
+						thinkingStatusEl.className = 'tool-status';
+						thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label">Thinking…</span>';
+						var thinkTarget = messagesList.querySelector('.message:last-child .message-content');
+						var thinkTyping = thinkTarget ? thinkTarget.querySelector('.typing-indicator') : null;
+						if (thinkTyping) {
+							thinkTyping.style.display = 'none';
+							thinkTarget.insertBefore(thinkingStatusEl, thinkTyping);
 						}
-						updateTypingLabel(label);
+						var oldLabel = messagesList.querySelector('.message:last-child .typing-label');
+						if (oldLabel) oldLabel.remove();
 					} else if (evt.type === 'tool_start') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var el = renderToolStatus(evt.tool);
 						toolStatusElements[evt.tool] = el;
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
@@ -1038,6 +1047,7 @@ function t(key, fallback) {
 						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'text_delta') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (!streamEl) {
 							// Take over the typing indicator message.
 							var lastMsg = messagesList.querySelector('.message:last-child');
@@ -1060,6 +1070,7 @@ function t(key, fallback) {
 							}
 						}
 					} else if (evt.type === 'done') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						clearStagedFiles();
 						messages.pop();
@@ -1087,6 +1098,7 @@ function t(key, fallback) {
 						streamEl = null;
 						wordDrainTimer = null;
 						displayedLen = 0;
+						thinkingStatusEl = null;
 
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
@@ -1094,6 +1106,7 @@ function t(key, fallback) {
 						loadConversations();
 						updateReadOnlyState();
 					} else if (evt.type === 'error') {
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						streamBuffer = '';
 						streamEl = null;

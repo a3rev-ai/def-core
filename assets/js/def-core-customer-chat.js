@@ -1108,6 +1108,7 @@
 		var streamEl = null;
 		var wordDrainTimer = null;
 		var displayedLen = 0;
+		var thinkingStatusEl = null;
 
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
@@ -1151,9 +1152,15 @@
 		function handleSSEEvent(evt) {
 			switch (evt.type) {
 				case 'thinking':
-					updateTypingLabel('Thinking...');
+					hideThinking(thinkingEl);
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); }
+					thinkingStatusEl = el('div', 'cc-tool-status');
+					thinkingStatusEl.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">Thinking…</span>';
+					els.messages.appendChild(thinkingStatusEl);
+					scrollToBottom();
 					break;
 				case 'tool_start':
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
 					break;
 				case 'tool_done':
@@ -1162,6 +1169,7 @@
 				case 'text_delta':
 					if (!streamEl) {
 						hideThinking(thinkingEl);
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
 						var icon = createAssistantIcon();
 						msgEl.appendChild(icon);
@@ -1177,6 +1185,7 @@
 					break;
 				case 'done':
 					hideThinking(thinkingEl);
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
 					if (streamEl) {
@@ -1193,16 +1202,19 @@
 					streamEl = null;
 					wordDrainTimer = null;
 					displayedLen = 0;
+					thinkingStatusEl = null;
 
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'error':
 					hideThinking(thinkingEl);
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 					streamBuffer = '';
 					streamEl = null;
 					wordDrainTimer = null;
 					displayedLen = 0;
+					thinkingStatusEl = null;
 					appendMessage('assistant', evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;

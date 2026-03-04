@@ -415,6 +415,7 @@
 		var streamEl = null;
 		var wordDrainTimer = null;
 		var displayedLen = 0;
+		var thinkingStatusEl = null;
 
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
@@ -466,10 +467,17 @@
 		function handleSSEEvent(event) {
 			switch (event.type) {
 				case 'thinking':
-					self.updateTypingIndicator('Thinking...');
+					self.hideTypingIndicator();
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); }
+					thinkingStatusEl = document.createElement('div');
+					thinkingStatusEl.className = 'def-sa-tool-status';
+					thinkingStatusEl.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label">Thinking…</span>';
+					self.messagesEl.appendChild(thinkingStatusEl);
+					self.scrollToBottom();
 					break;
 
 				case 'tool_start':
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					// Create a tool status element with spinner.
 					var startEl = self.renderToolStatusForStream(event.tool);
 					toolStatusEls[event.tool] = startEl;
@@ -486,6 +494,7 @@
 				case 'text_delta':
 					if (!streamEl) {
 						self.hideTypingIndicator();
+						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						streamEl = document.createElement('div');
 						streamEl.className = 'def-sa-message def-sa-message-assistant def-sa-message-streaming';
 						self.messagesEl.appendChild(streamEl);
@@ -498,6 +507,7 @@
 
 				case 'done':
 					self.hideTypingIndicator();
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
 					if (streamEl) {
@@ -514,6 +524,7 @@
 					streamEl = null;
 					wordDrainTimer = null;
 					displayedLen = 0;
+					thinkingStatusEl = null;
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
 					if (event.tool_outputs && event.tool_outputs.length) {
