@@ -26,6 +26,10 @@ The bridge is intentionally thin.
 - User identity, role, and tenant context passthrough
 - Optional integration endpoints (WooCommerce tools, etc.) when plugins are present
 
+## Real-Time Streaming
+
+All three chat channels (Customer Chat, Staff AI, Setup Assistant) use Server-Sent Events (SSE) for real-time streaming. Text renders word-by-word with a client-side word-drain animation and blinking cursor, matching the experience of ChatGPT and Claude. Orchestrator progress is visible throughout — thinking indicators, tool execution status, and streamed text output. When the SSE connection is unavailable, channels fall back to synchronous rendering automatically.
+
 ## WooCommerce Integration (Optional)
 
 When WooCommerce is active, def-core registers additional tool endpoints (product search, cart operations, order lookup, etc.) that digital employees can invoke through the framework. When WooCommerce is absent, these routes are not registered and the plugin operates normally without them.
