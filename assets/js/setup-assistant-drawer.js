@@ -92,7 +92,6 @@
 		this.sendEl     = null;
 		this.dirtyInput = false;
 		this.lastSuggestion = null;       // Phase 10.1: last suggestion shown
-		this.suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 		this.init();
 	}
@@ -183,12 +182,19 @@
 				e.preventDefault();
 				self.sendEl.focus();
 			}
-			if (e.key === 'Escape' && self.inputEl.classList.contains('def-sa-suggestion-text')) {
-				e.stopPropagation(); // Don't close drawer
-				self.suggestionOutcome = 'dismissed';
+			// Auto-clear suggestion ghost text on any printable keystroke
+			if (self.inputEl.classList.contains('def-sa-suggestion-text') &&
+				e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				self.inputEl.value = '';
 				self.inputEl.classList.remove('def-sa-suggestion-text');
-				self.lastSuggestion = null;
+				self.autoResizeInput();
+			}
+		});
+		// Click in input clears suggestion ghost text
+		this.inputEl.addEventListener('click', function () {
+			if (self.inputEl.classList.contains('def-sa-suggestion-text')) {
+				self.inputEl.value = '';
+				self.inputEl.classList.remove('def-sa-suggestion-text');
 				self.autoResizeInput();
 			}
 		});
@@ -296,10 +302,9 @@
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, this.lastSuggestion);
-		this._pendingOutcome = this.suggestionOutcome || suggResult.outcome;
+		this._pendingOutcome = suggResult.outcome;
 		this._pendingScore = suggResult.score;
 		this.lastSuggestion = null;
-		this.suggestionOutcome = null;
 
 		this.inputEl.value = '';
 		this.autoResizeInput();

@@ -176,7 +176,6 @@ function t(key, fallback) {
 	let isReadOnly = false;
 	let dirtyInput = false;
 	let lastSuggestion = null;       // Phase 10.1: last suggestion shown
-	let suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 	// Upload state
 	const UPLOAD_MAX_FILES = StaffAIConfig.upload.maxFiles;
@@ -365,7 +364,7 @@ function t(key, fallback) {
 		sendBtn.disabled = (!composerInput.value.trim() && !hasActiveFiles()) || isLoading || isReadOnly;
 	}
 
-	// Keyboard handler: Enter to send, Shift+Enter for newline, Escape to clear suggestion
+	// Keyboard handler: Enter to send, Shift+Enter for newline
 	composerInput.addEventListener('keydown', function(e) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
@@ -373,11 +372,20 @@ function t(key, fallback) {
 				sendMessage();
 			}
 		}
-		if (e.key === 'Escape' && composerInput.classList.contains('staff-ai-suggestion-text')) {
-			suggestionOutcome = 'dismissed';
+		// Auto-clear suggestion ghost text on any printable keystroke
+		if (composerInput.classList.contains('staff-ai-suggestion-text') &&
+			e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 			composerInput.value = '';
 			composerInput.classList.remove('staff-ai-suggestion-text');
-			lastSuggestion = null;
+			autoResize();
+			updateSendButton();
+		}
+	});
+	// Click in input clears suggestion ghost text
+	composerInput.addEventListener('click', function() {
+		if (composerInput.classList.contains('staff-ai-suggestion-text')) {
+			composerInput.value = '';
+			composerInput.classList.remove('staff-ai-suggestion-text');
 			autoResize();
 			updateSendButton();
 		}
@@ -881,10 +889,9 @@ function t(key, fallback) {
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
-		var pendingOutcome = suggestionOutcome || suggResult.outcome;
+		var pendingOutcome = suggResult.outcome;
 		var pendingScore = suggResult.score;
 		lastSuggestion = null;
-		suggestionOutcome = null;
 
 		hideError();
 		hideInfo();
@@ -928,7 +935,7 @@ function t(key, fallback) {
 		// Feature detection: streaming vs sync fallback (V1.1)
 		if (defApiUrl && typeof ReadableStream !== 'undefined') {
 			console.info('[Staff AI] Using streaming path');
-			await sendMessageStreaming(text, fileIds);
+			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore);
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
 				(!defApiUrl ? ' (no defApiUrl)' : ' (no ReadableStream)'));
@@ -980,7 +987,7 @@ function t(key, fallback) {
 	}
 
 	// Streaming — direct-to-DEF with JWT + SSE
-	async function sendMessageStreaming(text, fileIds) {
+	async function sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore) {
 		var retried = false;
 
 		async function attemptStream() {
