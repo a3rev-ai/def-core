@@ -140,7 +140,6 @@
 	var isComposerDisabled = false;
 	var dirtyInput = false;
 	var lastSuggestion = null;       // Phase 10.1: last suggestion shown
-	var suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 	// Upload state.
 	var stagedFiles = [];
@@ -328,11 +327,20 @@
 				e.preventDefault();
 				handleSubmit(e);
 			}
-			if (e.key === 'Escape' && els.input.classList.contains('def-cc-suggestion-text')) {
-				suggestionOutcome = 'dismissed';
+			// Auto-clear suggestion ghost text on any printable keystroke
+			if (els.input.classList.contains('def-cc-suggestion-text') &&
+				e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				els.input.value = '';
 				els.input.classList.remove('def-cc-suggestion-text');
-				lastSuggestion = null;
+				autoResizeInput();
+				updateSendButton();
+			}
+		});
+		// Click in input clears suggestion ghost text
+		input.addEventListener('click', function () {
+			if (els.input.classList.contains('def-cc-suggestion-text')) {
+				els.input.value = '';
+				els.input.classList.remove('def-cc-suggestion-text');
 				autoResizeInput();
 				updateSendButton();
 			}
@@ -1073,13 +1081,11 @@
 
 				// Phase 10.1: Add suggestion feedback signal
 				var suggResult = classifySuggestionOutcome(text, lastSuggestion);
-				var outcome = suggestionOutcome || suggResult.outcome;
-				if (outcome) {
-					body.suggestion_outcome = outcome;
+				if (suggResult.outcome) {
+					body.suggestion_outcome = suggResult.outcome;
 					body.similarity_score = suggResult.score;
 				}
 				lastSuggestion = null;
-				suggestionOutcome = null;
 
 				// Headers.
 				var headers = {
