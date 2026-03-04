@@ -91,6 +91,8 @@
 		this.inputEl    = null;
 		this.sendEl     = null;
 		this.dirtyInput = false;
+		this.lastSuggestion = null;       // Phase 10.1: last suggestion shown
+		this.suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 		this.init();
 	}
@@ -183,8 +185,10 @@
 			}
 			if (e.key === 'Escape' && self.inputEl.classList.contains('def-sa-suggestion-text')) {
 				e.stopPropagation(); // Don't close drawer
+				self.suggestionOutcome = 'dismissed';
 				self.inputEl.value = '';
 				self.inputEl.classList.remove('def-sa-suggestion-text');
+				self.lastSuggestion = null;
 				self.autoResizeInput();
 			}
 		});
@@ -248,11 +252,54 @@
 
 	// ─── Chat ────────────────────────────────────────────────────
 
+	// KEEP IN SYNC: def-core-customer-chat.js, staff-ai.js, setup-assistant-drawer.js
+	function classifySuggestionOutcome(sentText, suggestion) {
+		if (!suggestion) return { outcome: null, score: null };
+		var normalize = function(s) {
+			return s.trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+		};
+		var normSent = normalize(sentText);
+		var normSuggestion = normalize(suggestion);
+		if (normSent === normSuggestion) return { outcome: 'accepted', score: 1.0 };
+		var stopwords = ['the','a','an','is','are','was','were','to','of','in','for','on','and','or','but','it','be'];
+		var tokenize = function(s) {
+			return s.split(/\s+/).filter(function(w) {
+				return w.length >= 3 && stopwords.indexOf(w) === -1;
+			});
+		};
+		var sentTokens = tokenize(normSent);
+		var suggTokens = tokenize(normSuggestion);
+		if (suggTokens.length < 4) {
+			return normSent === normSuggestion
+				? { outcome: 'accepted', score: 1.0 }
+				: { outcome: 'ignored', score: 0.0 };
+		}
+		var union = {};
+		var intersection = 0;
+		var i;
+		for (i = 0; i < sentTokens.length; i++) union[sentTokens[i]] = true;
+		for (i = 0; i < suggTokens.length; i++) {
+			if (union[suggTokens[i]]) intersection++;
+			union[suggTokens[i]] = true;
+		}
+		var unionSize = Object.keys(union).length;
+		var score = unionSize > 0 ? intersection / unionSize : 0;
+		if (score >= 0.5) return { outcome: 'edited', score: score };
+		return { outcome: 'ignored', score: score };
+	}
+
 	SetupAssistantDrawer.prototype.handleSend = function () {
 		var text = this.inputEl.value.trim();
 		if (!text || this.isSending) {
 			return;
 		}
+
+		// Phase 10.1: Classify suggestion outcome before clearing input
+		var suggResult = classifySuggestionOutcome(text, this.lastSuggestion);
+		this._pendingOutcome = this.suggestionOutcome || suggResult.outcome;
+		this._pendingScore = suggResult.score;
+		this.lastSuggestion = null;
+		this.suggestionOutcome = null;
 
 		this.inputEl.value = '';
 		this.autoResizeInput();
@@ -414,6 +461,13 @@
 		if (dirtyContext.dirty_fields) {
 			body.context = dirtyContext;
 		}
+		// Phase 10.1: Add suggestion feedback signal
+		if (self._pendingOutcome) {
+			body.suggestion_outcome = self._pendingOutcome;
+			body.similarity_score = self._pendingScore;
+		}
+		self._pendingOutcome = null;
+		self._pendingScore = null;
 
 		// Track active tool status elements for pacing.
 		var toolStatusEls = {};
@@ -562,6 +616,7 @@
 					break;
 
 				case 'suggestions':
+					self.lastSuggestion = event.suggestion || null;
 					if (!self.dirtyInput && self.inputEl && event.suggestion) {
 						self.inputEl.value = event.suggestion;
 						self.inputEl.classList.add('def-sa-suggestion-text');
