@@ -471,6 +471,11 @@
 	color: #a7aaad;
 }
 
+.def-sa-input.def-sa-suggestion-text {
+	color: #a7aaad;
+	font-style: italic;
+}
+
 .def-sa-send {
 	display: flex;
 	align-items: center;

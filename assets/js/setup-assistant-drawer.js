@@ -90,6 +90,7 @@
 		this.messagesEl = null;
 		this.inputEl    = null;
 		this.sendEl     = null;
+		this.dirtyInput = false;
 
 		this.init();
 	}
@@ -180,10 +181,20 @@
 				e.preventDefault();
 				self.sendEl.focus();
 			}
+			if (e.key === 'Escape' && self.inputEl.classList.contains('def-sa-suggestion-text')) {
+				e.stopPropagation(); // Don't close drawer
+				self.inputEl.value = '';
+				self.inputEl.classList.remove('def-sa-suggestion-text');
+				self.autoResizeInput();
+			}
 		});
 
-		// Auto-resize textarea.
+		// Auto-resize textarea + track dirty input.
 		this.inputEl.addEventListener('input', function () {
+			self.dirtyInput = true;
+			if (self.inputEl.classList.contains('def-sa-suggestion-text')) {
+				self.inputEl.classList.remove('def-sa-suggestion-text');
+			}
 			self.autoResizeInput();
 		});
 
@@ -547,6 +558,15 @@
 
 					self.isSending = false;
 					self.sendEl.disabled = false;
+					self.dirtyInput = false;
+					break;
+
+				case 'suggestions':
+					if (!self.dirtyInput && self.inputEl && event.suggestion) {
+						self.inputEl.value = event.suggestion;
+						self.inputEl.classList.add('def-sa-suggestion-text');
+						self.autoResizeInput();
+					}
 					break;
 
 				case 'error':

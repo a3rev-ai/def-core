@@ -138,6 +138,7 @@
 	var threadId = null;
 	var isContinuing = false;
 	var isComposerDisabled = false;
+	var dirtyInput = false;
 
 	// Upload state.
 	var stagedFiles = [];
@@ -325,8 +326,20 @@
 				e.preventDefault();
 				handleSubmit(e);
 			}
+			if (e.key === 'Escape' && els.input.classList.contains('def-cc-suggestion-text')) {
+				els.input.value = '';
+				els.input.classList.remove('def-cc-suggestion-text');
+				autoResizeInput();
+				updateSendButton();
+			}
 		});
-		input.addEventListener('input', autoResizeInput);
+		input.addEventListener('input', function () {
+			dirtyInput = true;
+			if (els.input.classList.contains('def-cc-suggestion-text')) {
+				els.input.classList.remove('def-cc-suggestion-text');
+			}
+			autoResizeInput();
+		});
 		els.input = input;
 		form.appendChild(input);
 
@@ -1203,8 +1216,17 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					dirtyInput = false;
 
 					processChatResponseMeta(evt, text, wasStreamed);
+					break;
+				case 'suggestions':
+					if (!dirtyInput && els.input && evt.suggestion) {
+						els.input.value = evt.suggestion;
+						els.input.classList.add('def-cc-suggestion-text');
+						autoResizeInput();
+						updateSendButton();
+					}
 					break;
 				case 'error':
 					hideThinking(thinkingEl);
