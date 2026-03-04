@@ -551,6 +551,12 @@
 
 				case 'error':
 					self.hideTypingIndicator();
+					if (wordDrainTimer) clearTimeout(wordDrainTimer);
+					streamBuffer = '';
+					streamEl = null;
+					wordDrainTimer = null;
+					displayedLen = 0;
+					thinkingStatusEl = null;
 					self.renderError(event.message || 'An error occurred.');
 					self.isSending = false;
 					self.sendEl.disabled = false;
