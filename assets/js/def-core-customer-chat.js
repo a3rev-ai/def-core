@@ -139,6 +139,8 @@
 	var isContinuing = false;
 	var isComposerDisabled = false;
 	var dirtyInput = false;
+	var lastSuggestion = null;       // Phase 10.1: last suggestion shown
+	var suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 	// Upload state.
 	var stagedFiles = [];
@@ -327,8 +329,10 @@
 				handleSubmit(e);
 			}
 			if (e.key === 'Escape' && els.input.classList.contains('def-cc-suggestion-text')) {
+				suggestionOutcome = 'dismissed';
 				els.input.value = '';
 				els.input.classList.remove('def-cc-suggestion-text');
+				lastSuggestion = null;
 				autoResizeInput();
 				updateSendButton();
 			}
@@ -967,6 +971,42 @@
 
 	// ─── 6. MESSAGE ENGINE ─────────────────────────────────────────
 
+	// KEEP IN SYNC: def-core-customer-chat.js, staff-ai.js, setup-assistant-drawer.js
+	function classifySuggestionOutcome(sentText, suggestion) {
+		if (!suggestion) return { outcome: null, score: null };
+		var normalize = function(s) {
+			return s.trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+		};
+		var normSent = normalize(sentText);
+		var normSuggestion = normalize(suggestion);
+		if (normSent === normSuggestion) return { outcome: 'accepted', score: 1.0 };
+		var stopwords = ['the','a','an','is','are','was','were','to','of','in','for','on','and','or','but','it','be'];
+		var tokenize = function(s) {
+			return s.split(/\s+/).filter(function(w) {
+				return w.length >= 3 && stopwords.indexOf(w) === -1;
+			});
+		};
+		var sentTokens = tokenize(normSent);
+		var suggTokens = tokenize(normSuggestion);
+		if (suggTokens.length < 4) {
+			return normSent === normSuggestion
+				? { outcome: 'accepted', score: 1.0 }
+				: { outcome: 'ignored', score: 0.0 };
+		}
+		var union = {};
+		var intersection = 0;
+		var i;
+		for (i = 0; i < sentTokens.length; i++) union[sentTokens[i]] = true;
+		for (i = 0; i < suggTokens.length; i++) {
+			if (union[suggTokens[i]]) intersection++;
+			union[suggTokens[i]] = true;
+		}
+		var unionSize = Object.keys(union).length;
+		var score = unionSize > 0 ? intersection / unionSize : 0;
+		if (score >= 0.5) return { outcome: 'edited', score: score };
+		return { outcome: 'ignored', score: score };
+	}
+
 	function handleSubmit(e) {
 		if (e && e.preventDefault) e.preventDefault();
 		if (destroyed || isComposerDisabled) return;
@@ -1030,6 +1070,16 @@
 					thread_id: threadId || null,
 					continue_thread: isContinuing,
 				};
+
+				// Phase 10.1: Add suggestion feedback signal
+				var suggResult = classifySuggestionOutcome(text, lastSuggestion);
+				var outcome = suggestionOutcome || suggResult.outcome;
+				if (outcome) {
+					body.suggestion_outcome = outcome;
+					body.similarity_score = suggResult.score;
+				}
+				lastSuggestion = null;
+				suggestionOutcome = null;
 
 				// Headers.
 				var headers = {
@@ -1221,6 +1271,7 @@
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'suggestions':
+					lastSuggestion = evt.suggestion || null;
 					if (!dirtyInput && els.input && evt.suggestion) {
 						els.input.value = evt.suggestion;
 						els.input.classList.add('def-cc-suggestion-text');

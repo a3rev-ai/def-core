@@ -175,6 +175,8 @@ function t(key, fallback) {
 	let isLoading = false;
 	let isReadOnly = false;
 	let dirtyInput = false;
+	let lastSuggestion = null;       // Phase 10.1: last suggestion shown
+	let suggestionOutcome = null;    // Phase 10.1: explicit dismiss tracking
 
 	// Upload state
 	const UPLOAD_MAX_FILES = StaffAIConfig.upload.maxFiles;
@@ -372,8 +374,10 @@ function t(key, fallback) {
 			}
 		}
 		if (e.key === 'Escape' && composerInput.classList.contains('staff-ai-suggestion-text')) {
+			suggestionOutcome = 'dismissed';
 			composerInput.value = '';
 			composerInput.classList.remove('staff-ai-suggestion-text');
+			lastSuggestion = null;
 			autoResize();
 			updateSendButton();
 		}
@@ -828,6 +832,42 @@ function t(key, fallback) {
 		labelEl.textContent = text;
 	}
 
+	// KEEP IN SYNC: def-core-customer-chat.js, staff-ai.js, setup-assistant-drawer.js
+	function classifySuggestionOutcome(sentText, suggestion) {
+		if (!suggestion) return { outcome: null, score: null };
+		var normalize = function(s) {
+			return s.trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+		};
+		var normSent = normalize(sentText);
+		var normSuggestion = normalize(suggestion);
+		if (normSent === normSuggestion) return { outcome: 'accepted', score: 1.0 };
+		var stopwords = ['the','a','an','is','are','was','were','to','of','in','for','on','and','or','but','it','be'];
+		var tokenize = function(s) {
+			return s.split(/\s+/).filter(function(w) {
+				return w.length >= 3 && stopwords.indexOf(w) === -1;
+			});
+		};
+		var sentTokens = tokenize(normSent);
+		var suggTokens = tokenize(normSuggestion);
+		if (suggTokens.length < 4) {
+			return normSent === normSuggestion
+				? { outcome: 'accepted', score: 1.0 }
+				: { outcome: 'ignored', score: 0.0 };
+		}
+		var union = {};
+		var intersection = 0;
+		var i;
+		for (i = 0; i < sentTokens.length; i++) union[sentTokens[i]] = true;
+		for (i = 0; i < suggTokens.length; i++) {
+			if (union[suggTokens[i]]) intersection++;
+			union[suggTokens[i]] = true;
+		}
+		var unionSize = Object.keys(union).length;
+		var score = unionSize > 0 ? intersection / unionSize : 0;
+		if (score >= 0.5) return { outcome: 'edited', score: score };
+		return { outcome: 'ignored', score: score };
+	}
+
 	// =============================================
 	// SEND MESSAGE — with streaming/sync split
 	// =============================================
@@ -838,6 +878,13 @@ function t(key, fallback) {
 
 		if (!text && !hasFiles) return;
 		if (isLoading || isReadOnly) return;
+
+		// Phase 10.1: Classify suggestion outcome before clearing input
+		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
+		var pendingOutcome = suggestionOutcome || suggResult.outcome;
+		var pendingScore = suggResult.score;
+		lastSuggestion = null;
+		suggestionOutcome = null;
 
 		hideError();
 		hideInfo();
@@ -957,6 +1004,11 @@ function t(key, fallback) {
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 				requestBody.continue_thread = true;
+			}
+			// Phase 10.1: Add suggestion feedback signal
+			if (pendingOutcome) {
+				requestBody.suggestion_outcome = pendingOutcome;
+				requestBody.similarity_score = pendingScore;
 			}
 
 			var response = await fetch(defApiUrl + '/api/staff-ai/chat/stream', {
@@ -1118,6 +1170,7 @@ function t(key, fallback) {
 						loadConversations();
 						updateReadOnlyState();
 					} else if (evt.type === 'suggestions') {
+						lastSuggestion = evt.suggestion || null;
 						if (!dirtyInput && composerInput && evt.suggestion) {
 							composerInput.value = evt.suggestion;
 							composerInput.classList.add('staff-ai-suggestion-text');
