@@ -1,17 +1,20 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-04 (Phase 9 Post-Merge Cleanup)
+## Latest Session: 2026-03-04 (Suggested Replies — Frontend)
 
-### Phase 9 Post-Merge Cleanup PR
-- Customer Chat word-drain: switched from `renderMarkdown()` to `textContent` during streaming — eliminates O(n²) marked.parse() + DOMPurify on every 30ms tick. Final `done` handler still does full markdown render.
-- Setup Assistant error handler: added streaming state reset (wordDrainTimer, streamBuffer, streamEl, displayedLen, thinkingStatusEl) — matches Staff AI pattern
-- Customer Chat pump(): added EOF buffer flush — parses any remaining SSE data when stream ends, matches SA/Staff AI pattern
+### Status
+- **Branch:** `suggested-replies-frontend`
+- **Sub-PR B:** Frontend suggested replies for all 3 channels
 
-### Phase 9 Final Status
-- **def-core PR #33** MERGED to main — progressive text rendering (word-by-word animation, blinking cursor, orchestrator step visibility)
-- **DEF PR #44** MERGED to main — stream-native orchestrator (`run_streaming()` async generator)
-- **Local branches cleaned up:** `phase9-stream-native-text-delta` deleted, repo on `main`, up to date with origin
-- **README updated:** Added "Real-Time Streaming" section
+### Completed This Session
+- All 3 JS files: `suggestions` SSE event handler with `dirtyInput` gating
+- Ghost text CSS: italic + muted color when suggestion is pre-filled
+- Escape-to-clear: pressing Escape clears suggestion from input
+- Input tracking: typing removes ghost style, sets `dirtyInput` flag
+- Files changed: 3 JS + 3 CSS (6 files total)
+
+### Previous Session: 2026-03-04 (Phase 9 Post-Merge Cleanup — COMPLETE)
+- **PR #34 merged:** textContent perf, SA error handler reset, EOF buffer flush
 
 ---
 

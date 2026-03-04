@@ -174,6 +174,7 @@ function t(key, fallback) {
 	let messages = [];
 	let isLoading = false;
 	let isReadOnly = false;
+	let dirtyInput = false;
 
 	// Upload state
 	const UPLOAD_MAX_FILES = StaffAIConfig.upload.maxFiles;
@@ -349,6 +350,10 @@ function t(key, fallback) {
 	}
 
 	composerInput.addEventListener('input', function() {
+		dirtyInput = true;
+		if (composerInput.classList.contains('staff-ai-suggestion-text')) {
+			composerInput.classList.remove('staff-ai-suggestion-text');
+		}
 		autoResize();
 		updateSendButton();
 	});
@@ -358,13 +363,19 @@ function t(key, fallback) {
 		sendBtn.disabled = (!composerInput.value.trim() && !hasActiveFiles()) || isLoading || isReadOnly;
 	}
 
-	// Keyboard handler: Enter to send, Shift+Enter for newline
+	// Keyboard handler: Enter to send, Shift+Enter for newline, Escape to clear suggestion
 	composerInput.addEventListener('keydown', function(e) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			if (!sendBtn.disabled) {
 				sendMessage();
 			}
+		}
+		if (e.key === 'Escape' && composerInput.classList.contains('staff-ai-suggestion-text')) {
+			composerInput.value = '';
+			composerInput.classList.remove('staff-ai-suggestion-text');
+			autoResize();
+			updateSendButton();
 		}
 	});
 
@@ -1103,8 +1114,16 @@ function t(key, fallback) {
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
 						}
+						dirtyInput = false;
 						loadConversations();
 						updateReadOnlyState();
+					} else if (evt.type === 'suggestions') {
+						if (!dirtyInput && composerInput && evt.suggestion) {
+							composerInput.value = evt.suggestion;
+							composerInput.classList.add('staff-ai-suggestion-text');
+							autoResize();
+							updateSendButton();
+						}
 					} else if (evt.type === 'error') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);

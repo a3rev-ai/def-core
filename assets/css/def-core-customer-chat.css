@@ -608,6 +608,11 @@
 	color: var(--def-cc-text-muted);
 }
 
+.def-cc-composer-input.def-cc-suggestion-text {
+	color: var(--def-cc-text-muted);
+	font-style: italic;
+}
+
 .def-cc-composer-input:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
