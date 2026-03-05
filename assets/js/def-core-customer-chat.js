@@ -1544,7 +1544,7 @@
 		var content = el('div', 'def-cc-message-content');
 		content.textContent = text;
 
-		// File indicators.
+		// File indicators — chip style matching staged attachments.
 		if (fileIds && fileIds.length > 0) {
 			var filesDiv = el('div', 'def-cc-message-files');
 			var staged = stagedFiles.filter(function (f) {
@@ -1552,7 +1552,21 @@
 			});
 			for (var i = 0; i < staged.length; i++) {
 				var chip = el('span', 'def-cc-message-file');
-				chip.textContent = '\u{1F4CE} ' + staged[i].file.name;
+				// Thumbnail for images.
+				if (staged[i].thumbnailUrl) {
+					var thumb = document.createElement('img');
+					thumb.className = 'def-cc-message-file-thumb';
+					thumb.src = staged[i].thumbnailUrl;
+					thumb.alt = '';
+					chip.appendChild(thumb);
+				} else {
+					var icon = document.createElement('span');
+					icon.textContent = '\u{1F4CE}';
+					chip.appendChild(icon);
+				}
+				var name = el('span', 'def-cc-message-file-name');
+				name.textContent = staged[i].file.name;
+				chip.appendChild(name);
 				filesDiv.appendChild(chip);
 			}
 			if (filesDiv.children.length > 0) {
