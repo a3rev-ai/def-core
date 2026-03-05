@@ -2082,16 +2082,16 @@
 
 	function uploadStatusSVG(status) {
 		if (status === 'uploading') {
-			return '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="25" stroke-dashoffset="5"><animateTransform attributeName="transform" type="rotate" values="0 8 8;360 8 8" dur="1s" repeatCount="indefinite"/></circle></svg>';
+			return '<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="6" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="25" stroke-dashoffset="5"><animateTransform attributeName="transform" type="rotate" values="0 8 8;360 8 8" dur="1s" repeatCount="indefinite"/></circle></svg>';
 		}
 		if (status === 'uploaded') {
-			return '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#10b981"/><polyline points="5 8 7 10 11 6" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+			return '<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="7" fill="#10b981"/><polyline points="5 8 7 10 11 6" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 		}
 		if (status === 'failed') {
-			return '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="7" fill="#ef4444"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>';
+			return '<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="7" fill="#ef4444"/><line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>';
 		}
 		// staged
-		return '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="#6b7280" stroke-width="1.5"/><path d="M5 9l2 2 4-4" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+		return '<svg viewBox="0 0 16 16" width="100%" height="100%"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="#6b7280" stroke-width="1.5"/><path d="M5 9l2 2 4-4" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 	}
 
 	function truncateFilename(filename, maxLen) {
