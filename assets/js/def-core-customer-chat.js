@@ -145,6 +145,7 @@
 	var stagedFiles = [];
 	var uploadEligible = false;
 	var fileIdCounter = 0;
+	var dragCounter = 0;
 
 	// Thread state.
 	var localThreads = [];
@@ -352,6 +353,22 @@
 			}
 			autoResizeInput();
 		});
+		// Clipboard paste — stage pasted files (images, screenshots).
+		input.addEventListener('paste', function (e) {
+			if (!uploadEligible) return;
+			var items = (e.clipboardData || {}).items;
+			if (!items) return;
+			var hasFile = false;
+			for (var i = 0; i < items.length; i++) {
+				if (items[i].kind === 'file') {
+					hasFile = true;
+					var file = items[i].getAsFile();
+					if (file) stageFile(file);
+				}
+			}
+			if (hasFile) e.preventDefault();
+		});
+
 		els.input = input;
 		form.appendChild(input);
 
@@ -365,6 +382,51 @@
 		form.appendChild(sendBtn);
 
 		composer.appendChild(form);
+
+		// Drop overlay for drag & drop file uploads.
+		var dropOverlay = el('div', 'def-cc-drop-overlay');
+		var dropContent = el('div', 'def-cc-drop-overlay-content');
+		dropContent.innerHTML =
+			'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+			+ '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+			+ '<polyline points="7 10 12 15 17 10"/>'
+			+ '<line x1="12" y1="15" x2="12" y2="3"/></svg>'
+			+ '<span>Drop files here</span>';
+		dropOverlay.appendChild(dropContent);
+		composer.appendChild(dropOverlay);
+		els.dropOverlay = dropOverlay;
+		els.composer = composer;
+
+		// Drag & drop event listeners (drag counter pattern for nested elements).
+		composer.addEventListener('dragenter', function (e) {
+			e.preventDefault();
+			if (!uploadEligible || isComposerDisabled) return;
+			dragCounter++;
+			if (els.dropOverlay) els.dropOverlay.classList.add('visible');
+		});
+		composer.addEventListener('dragover', function (e) {
+			e.preventDefault();
+		});
+		composer.addEventListener('dragleave', function (e) {
+			e.preventDefault();
+			dragCounter--;
+			if (dragCounter <= 0) {
+				dragCounter = 0;
+				if (els.dropOverlay) els.dropOverlay.classList.remove('visible');
+			}
+		});
+		composer.addEventListener('drop', function (e) {
+			e.preventDefault();
+			dragCounter = 0;
+			if (els.dropOverlay) els.dropOverlay.classList.remove('visible');
+			if (!uploadEligible || isComposerDisabled) return;
+			var files = e.dataTransfer && e.dataTransfer.files;
+			if (!files) return;
+			for (var i = 0; i < files.length; i++) {
+				stageFile(files[i]);
+			}
+		});
+
 		panel.appendChild(composer);
 
 		// ── Overlays (confirm, login, escalation) ──
@@ -1849,17 +1911,8 @@
 
 		for (var i = 0; i < files.length; i++) {
 			if (stagedFiles.length >= UPLOAD_CONFIG.maxFilesPerMessage) break;
-
-			var validation = validateFilePreflight(files[i]);
-			if (validation) {
-				stageFile(files[i], 'failed', null, validation);
-			} else {
-				stageFile(files[i], 'staged', null, null);
-			}
+			stageFile(files[i]);
 		}
-
-		renderStagedAttachments();
-		updateSendButton();
 	}
 
 	function validateFilePreflight(file) {
@@ -1888,14 +1941,34 @@
 	}
 
 	function stageFile(file, status, fileId, error) {
+		// When called without status (drag/drop, paste), run validation.
+		if (typeof status === 'undefined' || status === null) {
+			error = validateFilePreflight(file);
+			status = error ? 'failed' : 'staged';
+		}
 		fileIdCounter++;
-		stagedFiles.push({
+		var entry = {
 			localId: fileIdCounter,
 			file: file,
 			status: status,
-			fileId: fileId,
-			error: error,
-		});
+			fileId: fileId || null,
+			error: error || null,
+			thumbnailUrl: null,
+		};
+
+		// Generate thumbnail for images under 5MB.
+		if (!error && file.type && file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
+			var reader = new FileReader();
+			reader.onload = function (e) {
+				entry.thumbnailUrl = e.target.result;
+				renderStagedAttachments();
+			};
+			reader.readAsDataURL(file);
+		}
+
+		stagedFiles.push(entry);
+		renderStagedAttachments();
+		updateSendButton();
 	}
 
 	function removeStagedFile(localId) {
@@ -1939,19 +2012,27 @@
 			);
 			chip.style.position = 'relative';
 
-			// Status icon.
-			var iconSpan = el('span', 'def-cc-attachment-chip-icon');
-			if (f.status === 'uploading') {
-				iconSpan.classList.add('def-cc-attachment-chip-icon--pending');
-				iconSpan.innerHTML = uploadStatusSVG('uploading');
-			} else if (f.status === 'uploaded') {
-				iconSpan.innerHTML = uploadStatusSVG('uploaded');
-			} else if (f.status === 'failed') {
-				iconSpan.innerHTML = uploadStatusSVG('failed');
+			// Thumbnail or status icon.
+			if (f.thumbnailUrl) {
+				var thumb = document.createElement('img');
+				thumb.className = 'def-cc-attachment-chip-thumb';
+				thumb.src = f.thumbnailUrl;
+				thumb.alt = '';
+				chip.appendChild(thumb);
 			} else {
-				iconSpan.innerHTML = uploadStatusSVG('staged');
+				var iconSpan = el('span', 'def-cc-attachment-chip-icon');
+				if (f.status === 'uploading') {
+					iconSpan.classList.add('def-cc-attachment-chip-icon--pending');
+					iconSpan.innerHTML = uploadStatusSVG('uploading');
+				} else if (f.status === 'uploaded') {
+					iconSpan.innerHTML = uploadStatusSVG('uploaded');
+				} else if (f.status === 'failed') {
+					iconSpan.innerHTML = uploadStatusSVG('failed');
+				} else {
+					iconSpan.innerHTML = uploadStatusSVG('staged');
+				}
+				chip.appendChild(iconSpan);
 			}
-			chip.appendChild(iconSpan);
 
 			// Filename.
 			var nameSpan = el('span', 'def-cc-attachment-chip-name');
