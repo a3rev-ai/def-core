@@ -86,6 +86,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="header-actions">
 					<button type="button" class="header-btn" id="exportBtn" disabled><?php echo esc_html__( 'Export', 'def-core' ); ?></button>
 					<button type="button" class="header-btn" id="shareBtn" disabled><?php echo esc_html__( 'Share', 'def-core' ); ?></button>
+					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'def-core' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'def-core' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+							<polyline points="15 3 21 3 21 9"></polyline>
+							<line x1="10" y1="14" x2="21" y2="3"></line>
+						</svg>
+					</a>
+					<a href="<?php echo esc_url( wp_logout_url( wp_login_url( home_url( '/staff-ai/' ) ) ) ); ?>" class="header-btn header-btn-icon" title="<?php echo esc_attr__( 'Log out', 'def-core' ); ?>" aria-label="<?php echo esc_attr__( 'Log out', 'def-core' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+							<polyline points="16 17 21 12 16 7"></polyline>
+							<line x1="21" y1="12" x2="9" y2="12"></line>
+						</svg>
+					</a>
 					<button type="button" class="theme-toggle" id="themeToggle" aria-label="<?php echo esc_attr__( 'Toggle theme', 'def-core' ); ?>">
 						<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<circle cx="12" cy="12" r="5"></circle>
@@ -102,6 +116,54 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
 						</svg>
 					</button>
+					<!-- Mobile overflow menu -->
+					<button type="button" class="header-overflow-toggle" id="headerOverflowToggle" aria-label="<?php echo esc_attr__( 'More options', 'def-core' ); ?>">
+						<svg viewBox="0 0 24 24" fill="currentColor">
+							<circle cx="12" cy="5" r="2"></circle>
+							<circle cx="12" cy="12" r="2"></circle>
+							<circle cx="12" cy="19" r="2"></circle>
+						</svg>
+					</button>
+					<div class="header-overflow-menu" id="headerOverflowMenu">
+						<button type="button" id="overflowExport"><?php echo esc_html__( 'Export', 'def-core' ); ?></button>
+						<button type="button" id="overflowShare"><?php echo esc_html__( 'Share', 'def-core' ); ?></button>
+						<button type="button" id="overflowCreate">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+								<polyline points="14 2 14 8 20 8"></polyline>
+								<line x1="12" y1="11" x2="12" y2="17"></line>
+								<line x1="9" y1="14" x2="15" y2="14"></line>
+							</svg>
+							<?php echo esc_html__( 'Create', 'def-core' ); ?>
+						</button>
+						<a href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" rel="noopener">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+								<polyline points="15 3 21 3 21 9"></polyline>
+								<line x1="10" y1="14" x2="21" y2="3"></line>
+							</svg>
+							<?php echo esc_html__( 'Go to website', 'def-core' ); ?>
+						</a>
+						<button type="button" id="overflowThemeToggle">
+							<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="12" cy="12" r="5"></circle>
+								<line x1="12" y1="1" x2="12" y2="3"></line>
+								<line x1="12" y1="21" x2="12" y2="23"></line>
+							</svg>
+							<svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+							</svg>
+							<?php echo esc_html__( 'Toggle theme', 'def-core' ); ?>
+						</button>
+						<a href="<?php echo esc_url( wp_logout_url( wp_login_url( home_url( '/staff-ai/' ) ) ) ); ?>">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+								<polyline points="16 17 21 12 16 7"></polyline>
+								<line x1="21" y1="12" x2="9" y2="12"></line>
+							</svg>
+							<?php echo esc_html__( 'Log out', 'def-core' ); ?>
+						</a>
+					</div>
 				</div>
 			</header>
 

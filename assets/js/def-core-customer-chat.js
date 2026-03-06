@@ -1970,8 +1970,8 @@
 			thumbnailUrl: null,
 		};
 
-		// Generate thumbnail for images under 5MB.
-		if (!error && file.type && file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
+		// Generate thumbnail for images under 20MB.
+		if (!error && file.type && file.type.startsWith('image/') && file.size < 20 * 1024 * 1024) {
 			var reader = new FileReader();
 			reader.onload = function (e) {
 				entry.thumbnailUrl = e.target.result;
