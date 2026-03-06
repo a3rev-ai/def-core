@@ -139,6 +139,47 @@ final class DEF_Core_Admin {
 			'dashicons-groups',
 			81
 		);
+
+		// Rename the auto-created first submenu from "Digital Employees" to "Settings".
+		add_submenu_page(
+			'def-core',
+			__( 'Settings', 'def-core' ),
+			__( 'Settings', 'def-core' ),
+			'def_admin_access',
+			'def-core'
+		);
+
+		// Add "Open Staff AI" link — opens in new tab via JS (see admin_footer hook).
+		add_submenu_page(
+			'def-core',
+			__( 'Staff AI', 'def-core' ),
+			__( 'Open Staff AI', 'def-core' ),
+			'def_staff_access',
+			'def-core-staff-ai',
+			'__return_null'
+		);
+
+		// Redirect the Staff AI submenu slug to the actual /staff-ai frontend URL.
+		add_action( 'admin_footer', array( __CLASS__, 'staff_ai_submenu_redirect' ) );
+	}
+
+	/**
+	 * Output inline JS to make the "Open Staff AI" submenu link open /staff-ai in a new tab.
+	 */
+	public static function staff_ai_submenu_redirect(): void {
+		$staff_ai_url = home_url( '/staff-ai/' );
+		?>
+		<script>
+		(function() {
+			var link = document.querySelector('a[href="admin.php?page=def-core-staff-ai"]');
+			if (link) {
+				link.href = <?php echo wp_json_encode( $staff_ai_url ); ?>;
+				link.target = '_blank';
+				link.rel = 'noopener';
+			}
+		})();
+		</script>
+		<?php
 	}
 
 	/**

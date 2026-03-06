@@ -214,10 +214,55 @@ function t(key, fallback) {
 
 	// Theme toggle
 	const themeToggle = document.getElementById('themeToggle');
-	themeToggle.addEventListener('click', function() {
+	function toggleTheme() {
 		const isDark = document.documentElement.classList.toggle('dark-theme');
 		localStorage.setItem('staff-ai-theme', isDark ? 'dark' : 'light');
-	});
+	}
+	themeToggle.addEventListener('click', toggleTheme);
+
+	// Header overflow menu (mobile)
+	const overflowToggle = document.getElementById('headerOverflowToggle');
+	const overflowMenu = document.getElementById('headerOverflowMenu');
+	if (overflowToggle && overflowMenu) {
+		overflowToggle.addEventListener('click', function(e) {
+			e.stopPropagation();
+			overflowMenu.classList.toggle('open');
+		});
+		document.addEventListener('click', function() {
+			overflowMenu.classList.remove('open');
+		});
+		overflowMenu.addEventListener('click', function(e) {
+			e.stopPropagation();
+		});
+		var overflowExport = document.getElementById('overflowExport');
+		if (overflowExport) {
+			overflowExport.addEventListener('click', function() {
+				overflowMenu.classList.remove('open');
+				document.getElementById('exportBtn').click();
+			});
+		}
+		var overflowShare = document.getElementById('overflowShare');
+		if (overflowShare) {
+			overflowShare.addEventListener('click', function() {
+				overflowMenu.classList.remove('open');
+				shareBtn.click();
+			});
+		}
+		var overflowCreate = document.getElementById('overflowCreate');
+		if (overflowCreate) {
+			overflowCreate.addEventListener('click', function() {
+				overflowMenu.classList.remove('open');
+				document.getElementById('createBtn').click();
+			});
+		}
+		var overflowTheme = document.getElementById('overflowThemeToggle');
+		if (overflowTheme) {
+			overflowTheme.addEventListener('click', function() {
+				overflowMenu.classList.remove('open');
+				toggleTheme();
+			});
+		}
+	}
 
 	// Load conversations from backend
 	async function loadConversations() {
@@ -617,7 +662,7 @@ function t(key, fallback) {
 		}
 
 		// Generate thumbnail for images.
-		if (!error && file.type && file.type.startsWith('image/') && file.size < 5 * 1024 * 1024) {
+		if (!error && file.type && file.type.startsWith('image/') && file.size < 20 * 1024 * 1024) {
 			var reader = new FileReader();
 			reader.onload = function(e) {
 				entry.thumbnailUrl = e.target.result;
