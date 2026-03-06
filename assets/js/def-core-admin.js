@@ -601,6 +601,65 @@
 				removeBtn.style.display = 'none';
 			});
 		}
+
+		// App icon uploader (same pattern as logo).
+		var appIconSelect = document.getElementById('def-core-select-app-icon');
+		var appIconRemove = document.getElementById('def-core-remove-app-icon');
+		var appIconPreview = document.getElementById('def-core-app-icon-preview');
+		var appIconInput = document.getElementById('def_core_app_icon_id');
+
+		if (appIconSelect && appIconInput) {
+			var appIconFrame;
+
+			appIconSelect.addEventListener('click', function (e) {
+				e.preventDefault();
+				if (appIconFrame) {
+					appIconFrame.open();
+					return;
+				}
+				appIconFrame = wp.media({
+					title: 'Select App Icon',
+					button: { text: 'Use as App Icon' },
+					multiple: false,
+					library: { type: 'image' },
+				});
+				appIconFrame.on('select', function () {
+					var attachment = appIconFrame
+						.state()
+						.get('selection')
+						.first()
+						.toJSON();
+					appIconInput.value = attachment.id;
+					if (appIconPreview) {
+						var size =
+							attachment.sizes && attachment.sizes.medium
+								? attachment.sizes.medium
+								: attachment;
+						appIconPreview.innerHTML =
+							'<img src="' +
+							escapeHtml(size.url) +
+							'" style="max-width: 128px; max-height: 128px; border-radius: 16px;" />';
+						appIconPreview.style.display = '';
+					}
+					if (appIconRemove) {
+						appIconRemove.style.display = 'inline-block';
+					}
+				});
+				appIconFrame.open();
+			});
+
+			if (appIconRemove) {
+				appIconRemove.addEventListener('click', function (e) {
+					e.preventDefault();
+					appIconInput.value = '0';
+					if (appIconPreview) {
+						appIconPreview.style.display = 'none';
+						appIconPreview.innerHTML = '<img src="" alt="" style="max-width: 128px; max-height: 128px; border-radius: 16px;" />';
+					}
+					appIconRemove.style.display = 'none';
+				});
+			}
+		}
 	}
 
 	// ─── D-II: User Roles ─────────────────────────────────────────

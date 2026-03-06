@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?php echo esc_html__( 'Staff AI', 'def-core' ); ?> - <?php bloginfo( 'name' ); ?></title>
+	<link rel="manifest" href="<?php echo esc_url( home_url( '/staff-ai/manifest.json' ) ); ?>">
+	<meta name="theme-color" content="#6366f1">
 	<link rel="stylesheet" href="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/css/staff-ai.css' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>">
 	<script>
 	// Theme init — must run before body renders to prevent flash.
@@ -86,6 +88,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="header-actions">
 					<button type="button" class="header-btn" id="exportBtn" disabled><?php echo esc_html__( 'Export', 'def-core' ); ?></button>
 					<button type="button" class="header-btn" id="shareBtn" disabled><?php echo esc_html__( 'Share', 'def-core' ); ?></button>
+					<button type="button" class="header-btn header-btn-install" id="installBtn" style="display:none;" title="<?php echo esc_attr__( 'Install app', 'def-core' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="7 10 12 15 17 10"></polyline>
+							<line x1="12" y1="15" x2="12" y2="3"></line>
+						</svg>
+						<?php echo esc_html__( 'Install', 'def-core' ); ?>
+					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'def-core' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'def-core' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -135,6 +145,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<line x1="9" y1="14" x2="15" y2="14"></line>
 							</svg>
 							<?php echo esc_html__( 'Create', 'def-core' ); ?>
+						</button>
+						<button type="button" id="overflowInstall" style="display:none;">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+								<polyline points="7 10 12 15 17 10"></polyline>
+								<line x1="12" y1="15" x2="12" y2="3"></line>
+							</svg>
+							<?php echo esc_html__( 'Install app', 'def-core' ); ?>
 						</button>
 						<a href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" rel="noopener">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

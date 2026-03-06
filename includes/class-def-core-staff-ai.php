@@ -70,8 +70,8 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function prevent_download_redirect($redirect_url, $requested_url)
 	{
-		// Don't redirect if this is a file download request
-		if (get_query_var('staff_ai_download')) {
+		// Don't redirect if this is a file download or PWA asset request.
+		if (get_query_var('staff_ai_download') || get_query_var('staff_ai_pwa')) {
 			return false;
 		}
 		return $redirect_url;
@@ -1158,6 +1158,23 @@ final class DEF_Core_Staff_AI
 			'top'
 		);
 
+		// PWA manifest and service worker.
+		add_rewrite_rule(
+			'^' . self::ENDPOINT_SLUG . '/manifest\.json$',
+			'index.php?staff_ai_pwa=manifest',
+			'top'
+		);
+		add_rewrite_rule(
+			'^' . self::ENDPOINT_SLUG . '/sw\.js$',
+			'index.php?staff_ai_pwa=sw',
+			'top'
+		);
+		add_rewrite_rule(
+			'^' . self::ENDPOINT_SLUG . '/icon\.svg$',
+			'index.php?staff_ai_pwa=icon',
+			'top'
+		);
+
 		// File download endpoint (uses cookie auth, not REST nonce).
 		add_rewrite_rule(
 			'^staff-ai-download/([^/]+)/(.+)$',
@@ -1178,6 +1195,7 @@ final class DEF_Core_Staff_AI
 		$vars[] = 'staff_ai_download';
 		$vars[] = 'staff_ai_tenant';
 		$vars[] = 'staff_ai_filename';
+		$vars[] = 'staff_ai_pwa';
 		return $vars;
 	}
 
@@ -1186,6 +1204,13 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function handle_endpoint(): void
 	{
+		// Handle PWA assets (manifest, service worker, icon) — no auth required.
+		$pwa_asset = get_query_var('staff_ai_pwa');
+		if ($pwa_asset) {
+			self::handle_pwa_asset($pwa_asset);
+			return;
+		}
+
 		// Handle file download endpoint.
 		if (get_query_var('staff_ai_download')) {
 			self::handle_file_download();
@@ -1492,6 +1517,160 @@ final class DEF_Core_Staff_AI
 	<?php
 	}
 
+
+	// ─── PWA Support ────────────────────────────────────────────────
+
+	/**
+	 * Handle PWA asset requests (manifest.json, sw.js, icon.svg).
+	 *
+	 * @param string $asset The asset type to serve.
+	 */
+	private static function handle_pwa_asset(string $asset): void
+	{
+		switch ($asset) {
+			case 'manifest':
+				self::serve_pwa_manifest();
+				break;
+			case 'sw':
+				self::serve_pwa_service_worker();
+				break;
+			case 'icon':
+				self::serve_pwa_icon();
+				break;
+			default:
+				status_header(404);
+				exit;
+		}
+	}
+
+	/**
+	 * Serve the PWA web app manifest.
+	 */
+	private static function serve_pwa_manifest(): void
+	{
+		$display_name = get_option('def_core_display_name', '');
+		if (empty($display_name)) {
+			$display_name = get_bloginfo('name');
+		}
+		$app_name = __('Staff AI', 'def-core');
+
+		// Icon priority: 1. Uploaded app icon, 2. WordPress site icon, 3. Generated SVG.
+		$icons = array();
+
+		// 1. Uploaded app icon (from Branding > Web App Icon).
+		$app_icon_id = (int) get_option('def_core_app_icon_id', 0);
+		if ($app_icon_id) {
+			$icon_192 = wp_get_attachment_image_url($app_icon_id, array(192, 192));
+			$icon_512 = wp_get_attachment_image_url($app_icon_id, array(512, 512));
+			if ($icon_192) {
+				$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
+			}
+			if ($icon_512) {
+				$icons[] = array('src' => $icon_512, 'sizes' => '512x512', 'type' => 'image/png');
+			}
+		}
+
+		// 2. WordPress site icon.
+		if (empty($icons)) {
+			$site_icon_id = get_option('site_icon');
+			if ($site_icon_id) {
+				$icon_192 = wp_get_attachment_image_url((int) $site_icon_id, array(192, 192));
+				$icon_512 = wp_get_attachment_image_url((int) $site_icon_id, array(512, 512));
+				if ($icon_192) {
+					$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
+				}
+				if ($icon_512) {
+					$icons[] = array('src' => $icon_512, 'sizes' => '512x512', 'type' => 'image/png');
+				}
+			}
+		}
+
+		// 3. Fallback: generated SVG icon with site initials.
+		if (empty($icons)) {
+			$icon_url = home_url('/staff-ai/icon.svg');
+			$icons[] = array('src' => $icon_url, 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any');
+		}
+
+		$manifest = array(
+			'name'             => $app_name,
+			'short_name'       => __('Staff AI', 'def-core'),
+			'description'      => sprintf(
+				/* translators: %s: site display name */
+				__('%s Staff AI Assistant', 'def-core'),
+				$display_name
+			),
+			'start_url'        => home_url('/staff-ai/'),
+			'scope'            => home_url('/staff-ai/'),
+			'display'          => 'standalone',
+			'background_color' => '#ffffff',
+			'theme_color'      => '#6366f1',
+			'icons'            => $icons,
+		);
+
+		nocache_headers();
+		header('Content-Type: application/manifest+json');
+		echo wp_json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+		exit;
+	}
+
+	/**
+	 * Serve the PWA service worker.
+	 * Minimal worker — just enough for PWA installability.
+	 */
+	private static function serve_pwa_service_worker(): void
+	{
+		header('Content-Type: application/javascript');
+		header('Service-Worker-Allowed: /staff-ai/');
+		header('Cache-Control: no-cache');
+		echo <<<'JS'
+// Staff AI Service Worker — enables PWA install.
+const CACHE_NAME = 'staff-ai-v1';
+
+self.addEventListener('install', function(event) {
+	self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+	event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', function(event) {
+	// Network-first for all requests — Staff AI is a live app, not offline-capable.
+	event.respondWith(
+		fetch(event.request).catch(function() {
+			return caches.match(event.request);
+		})
+	);
+});
+JS;
+		exit;
+	}
+
+	/**
+	 * Serve a generated SVG icon with site initials.
+	 * Used as fallback when no site icon is configured.
+	 */
+	private static function serve_pwa_icon(): void
+	{
+		$display_name = get_option('def_core_display_name', get_bloginfo('name'));
+		// Get first 2 initials from display name.
+		$words    = preg_split('/\s+/', trim($display_name));
+		$initials = '';
+		foreach (array_slice($words, 0, 2) as $word) {
+			$initials .= mb_strtoupper(mb_substr($word, 0, 1));
+		}
+		if (empty($initials)) {
+			$initials = 'AI';
+		}
+
+		header('Content-Type: image/svg+xml');
+		header('Cache-Control: public, max-age=86400');
+		echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">';
+		echo '<rect width="512" height="512" rx="96" fill="#6366f1"/>';
+		echo '<text x="256" y="280" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="200" font-weight="700" fill="#fff">' . esc_html($initials) . '</text>';
+		echo '</svg>';
+		exit;
+	}
 
 	/**
 	 * Render the Staff AI application shell.
