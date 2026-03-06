@@ -1552,9 +1552,7 @@ final class DEF_Core_Staff_AI
 		if (empty($display_name)) {
 			$display_name = get_bloginfo('name');
 		}
-		$app_name = !empty($display_name)
-			? $display_name . ' ' . __('Staff AI', 'def-core')
-			: __('Staff AI', 'def-core');
+		$app_name = __('Staff AI', 'def-core');
 
 		// Icon priority: 1. Uploaded app icon, 2. WordPress site icon, 3. Generated SVG.
 		$icons = array();
