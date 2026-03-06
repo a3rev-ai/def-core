@@ -364,6 +364,38 @@ $first_tab = 'connection';
 			</div>
 		</div>
 
+		<div class="def-core-section">
+			<h3><?php esc_html_e( 'Web App Icon', 'def-core' ); ?></h3>
+			<hr />
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'App Icon', 'def-core' ); ?></label>
+				<div class="def-core-image-upload" id="def-core-app-icon-upload">
+					<?php if ( $branding['app_icon_url'] ) : ?>
+						<div class="def-core-image-preview" id="def-core-app-icon-preview">
+							<img src="<?php echo esc_url( $branding['app_icon_url'] ); ?>" alt="" style="max-width: 128px; max-height: 128px; border-radius: 16px;" />
+						</div>
+					<?php else : ?>
+						<div class="def-core-image-preview" id="def-core-app-icon-preview" style="display: none;">
+							<img src="" alt="" style="max-width: 128px; max-height: 128px; border-radius: 16px;" />
+						</div>
+					<?php endif; ?>
+					<input type="hidden" id="def_core_app_icon_id" data-setting="def_core_app_icon_id" value="<?php echo esc_attr( $branding['app_icon_id'] ); ?>" />
+					<div class="def-core-image-buttons">
+						<button type="button" class="button" id="def-core-select-app-icon">
+							<?php esc_html_e( 'Select Icon', 'def-core' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-app-icon" style="<?php echo $branding['app_icon_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove Icon', 'def-core' ); ?>
+						</button>
+					</div>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Upload a square PNG icon (512×512px recommended) for the Staff AI desktop app. If not set, an icon is auto-generated from your site name.', 'def-core' ); ?>
+				</p>
+			</div>
+		</div>
+
 		<div class="def-core-save-area">
 			<button type="button" class="button button-primary def-core-save-btn" data-tab="branding">
 				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>

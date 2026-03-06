@@ -68,6 +68,10 @@ final class DEF_Core_Admin {
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_max_height',
 			),
+			'def_core_app_icon_id'             => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
 		),
 		'chat-settings'    => array(
 			'def_core_chat_display_mode' => array(
@@ -287,7 +291,14 @@ final class DEF_Core_Admin {
 			'logo_show_staff_ai'   => '0' !== get_option( 'def_core_logo_show_staff_ai', '1' ),
 			'logo_show_customer_chat' => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
 			'logo_max_height'      => (int) get_option( 'def_core_logo_max_height', 40 ),
+			'app_icon_id'          => (int) get_option( 'def_core_app_icon_id', 0 ),
+			'app_icon_url'         => '',
 		);
+
+		// App icon preview URL.
+		if ( $branding['app_icon_id'] ) {
+			$branding['app_icon_url'] = wp_get_attachment_image_url( $branding['app_icon_id'], 'medium' );
+		}
 
 		// D-II: Logo preview URL.
 		$logo_url = '';

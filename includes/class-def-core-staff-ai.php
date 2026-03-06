@@ -1548,15 +1548,22 @@ final class DEF_Core_Staff_AI
 	 */
 	private static function serve_pwa_manifest(): void
 	{
-		$display_name = get_option('def_core_display_name', get_bloginfo('name'));
-		$app_name     = $display_name . ' ' . __('Staff AI', 'def-core');
+		$display_name = get_option('def_core_display_name', '');
+		if (empty($display_name)) {
+			$display_name = get_bloginfo('name');
+		}
+		$app_name = !empty($display_name)
+			? $display_name . ' ' . __('Staff AI', 'def-core')
+			: __('Staff AI', 'def-core');
 
-		// Use site icon if available (WordPress site icon at 512px).
+		// Icon priority: 1. Uploaded app icon, 2. WordPress site icon, 3. Generated SVG.
 		$icons = array();
-		$site_icon_id = get_option('site_icon');
-		if ($site_icon_id) {
-			$icon_192 = wp_get_attachment_image_url((int) $site_icon_id, array(192, 192));
-			$icon_512 = wp_get_attachment_image_url((int) $site_icon_id, array(512, 512));
+
+		// 1. Uploaded app icon (from Branding > Web App Icon).
+		$app_icon_id = (int) get_option('def_core_app_icon_id', 0);
+		if ($app_icon_id) {
+			$icon_192 = wp_get_attachment_image_url($app_icon_id, array(192, 192));
+			$icon_512 = wp_get_attachment_image_url($app_icon_id, array(512, 512));
 			if ($icon_192) {
 				$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
 			}
@@ -1565,7 +1572,22 @@ final class DEF_Core_Staff_AI
 			}
 		}
 
-		// Fallback: generated SVG icon with site initials.
+		// 2. WordPress site icon.
+		if (empty($icons)) {
+			$site_icon_id = get_option('site_icon');
+			if ($site_icon_id) {
+				$icon_192 = wp_get_attachment_image_url((int) $site_icon_id, array(192, 192));
+				$icon_512 = wp_get_attachment_image_url((int) $site_icon_id, array(512, 512));
+				if ($icon_192) {
+					$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
+				}
+				if ($icon_512) {
+					$icons[] = array('src' => $icon_512, 'sizes' => '512x512', 'type' => 'image/png');
+				}
+			}
+		}
+
+		// 3. Fallback: generated SVG icon with site initials.
 		if (empty($icons)) {
 			$icon_url = home_url('/staff-ai/icon.svg');
 			$icons[] = array('src' => $icon_url, 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any');
