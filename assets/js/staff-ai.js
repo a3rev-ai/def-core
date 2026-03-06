@@ -262,6 +262,64 @@ function t(key, fallback) {
 				toggleTheme();
 			});
 		}
+		var overflowInstallBtn = document.getElementById('overflowInstall');
+		if (overflowInstallBtn) {
+			overflowInstallBtn.addEventListener('click', function() {
+				overflowMenu.classList.remove('open');
+				triggerPwaInstall();
+			});
+		}
+	}
+
+	// ─── PWA Install ────────────────────────────────────────────
+	var deferredInstallPrompt = null;
+	var installBtn = document.getElementById('installBtn');
+	var overflowInstall = document.getElementById('overflowInstall');
+
+	function showInstallButtons() {
+		if (installBtn) installBtn.classList.add('available');
+		if (overflowInstall) overflowInstall.style.display = '';
+	}
+
+	function hideInstallButtons() {
+		if (installBtn) installBtn.classList.remove('available');
+		if (overflowInstall) overflowInstall.style.display = 'none';
+		deferredInstallPrompt = null;
+	}
+
+	function triggerPwaInstall() {
+		if (!deferredInstallPrompt) return;
+		deferredInstallPrompt.prompt();
+		deferredInstallPrompt.userChoice.then(function(result) {
+			if (result.outcome === 'accepted') {
+				hideInstallButtons();
+			}
+			deferredInstallPrompt = null;
+		});
+	}
+
+	window.addEventListener('beforeinstallprompt', function(e) {
+		e.preventDefault();
+		deferredInstallPrompt = e;
+		showInstallButtons();
+	});
+
+	window.addEventListener('appinstalled', function() {
+		hideInstallButtons();
+	});
+
+	if (installBtn) {
+		installBtn.addEventListener('click', triggerPwaInstall);
+	}
+
+	// Register service worker.
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker.register(
+			StaffAIConfig.homeUrl + 'staff-ai/sw.js',
+			{ scope: StaffAIConfig.homeUrl + 'staff-ai/' }
+		).catch(function(err) {
+			console.warn('SW registration failed:', err);
+		});
 	}
 
 	// Load conversations from backend

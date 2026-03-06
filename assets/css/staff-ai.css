@@ -315,6 +315,21 @@ body {
 	height: 16px;
 }
 
+.header-btn-install {
+	display: none;
+	align-items: center;
+	gap: 4px;
+}
+
+.header-btn-install.available {
+	display: inline-flex;
+}
+
+.header-btn-install svg {
+	width: 14px;
+	height: 14px;
+}
+
 /* Header overflow menu (mobile) */
 .header-overflow-toggle {
 	display: none;
