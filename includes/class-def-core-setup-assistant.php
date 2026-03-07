@@ -109,12 +109,14 @@ final class DEF_Core_Setup_Assistant {
 			'type'      => 'url',
 			'validate'  => 'validate_url',
 			'read_mode' => 'value',
+			'readonly'  => true,
 		),
 		'def_core_api_key' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_api_key',
 			'read_mode' => 'configured_only',
 			'redact'    => true,
+			'readonly'  => true,
 		),
 		'def_core_display_name' => array(
 			'type'      => 'string',
@@ -707,6 +709,11 @@ final class DEF_Core_Setup_Assistant {
 			return $this->error_response( 'UNKNOWN_SETTING', "Setting '{$key}' is not recognized.", 400 );
 		}
 
+		// Connection settings are managed by DEFHO — read-only via Setup Assistant.
+		if ( ! empty( self::$setting_allowlist[ $key ]['readonly'] ) ) {
+			return $this->error_response( 'READONLY_SETTING', "Setting '{$key}' is managed by the DEFHO platform and cannot be changed here.", 403 );
+		}
+
 		$body  = $request->get_json_params();
 		$value = $body['value'] ?? null;
 
@@ -738,8 +745,6 @@ final class DEF_Core_Setup_Assistant {
 		// Build UI actions.
 		$ui_actions = array();
 		$tab_map    = array(
-			'def_core_staff_ai_api_url'          => 'connection',
-			'def_core_api_key'                   => 'connection',
 			'def_core_display_name'              => 'branding',
 			'def_core_logo_id'                   => 'branding',
 			'def_core_escalation_customer'       => 'escalation',

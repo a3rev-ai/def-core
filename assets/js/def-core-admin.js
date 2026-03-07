@@ -1,6 +1,6 @@
 /**
  * Digital Employee Framework - Core - Admin Scripts
- * Phase 7 D-I/D-II: Tab switching, AJAX save, connection test, keyboard navigation,
+ * Phase 7 D-I/D-II: Tab switching, AJAX save, connection status test, keyboard navigation,
  * media uploader, user roles, escalation test, chat mode toggle.
  */
 (function () {
@@ -24,8 +24,6 @@
 		initTabs();
 		initSaveButtons();
 		initConnectionTest();
-		initPasswordToggle();
-		initServiceAuth();
 		initCopyButtons();
 		initToggleSwitches();
 		initWidgetGuide();
@@ -83,7 +81,7 @@
 			// localStorage not available.
 		}
 		// 3. First tab.
-		return 'connection';
+		return 'branding';
 	}
 
 	function switchTab(tabId) {
@@ -338,121 +336,7 @@
 		// If cached result exists, show it.
 		if (defCoreAdmin.cachedConnection) {
 			showConnectionResult(resultEl, defCoreAdmin.cachedConnection);
-			return;
 		}
-
-		// If API URL is configured, auto-test.
-		var apiUrlInput = document.getElementById(
-			'def_core_staff_ai_api_url'
-		);
-		if (apiUrlInput && apiUrlInput.value) {
-			testConnection();
-		}
-	}
-
-	// ─── Password Toggle ─────────────────────────────────────────
-
-	function initPasswordToggle() {
-		document
-			.querySelectorAll('.def-core-password-toggle')
-			.forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					var wrap = btn.closest('.def-core-password-wrap');
-					var input = wrap.querySelector('input');
-					var icon = btn.querySelector('.dashicons');
-
-					if (input.type === 'password') {
-						input.type = 'text';
-						icon.className = 'dashicons dashicons-hidden';
-						btn.setAttribute('aria-label', 'Hide API key');
-					} else {
-						input.type = 'password';
-						icon.className = 'dashicons dashicons-visibility';
-						btn.setAttribute('aria-label', 'Show API key');
-					}
-				});
-			});
-	}
-
-	// ─── Service Auth Regeneration ────────────────────────────────
-
-	function initServiceAuth() {
-		var btn = document.getElementById('def-core-regenerate-secret-btn');
-		if (!btn) {
-			return;
-		}
-
-		btn.addEventListener('click', function () {
-			var confirmed = confirm(
-				'WARNING: Generating a new secret will invalidate the current one!\n\n' +
-					"You MUST update your Python app's .env file immediately after generating a new secret, " +
-					'or anonymous customer escalation will stop working.\n\n' +
-					'Are you sure you want to generate a new secret?'
-			);
-
-			if (!confirmed) {
-				return;
-			}
-
-			btn.disabled = true;
-			var originalText = btn.textContent;
-			btn.textContent = 'Generating...';
-
-			var formData = new FormData();
-			formData.append('action', 'def_core_regenerate_service_secret');
-			formData.append('nonce', defCoreAdmin.secretNonce);
-
-			fetch(defCoreAdmin.ajaxUrl, {
-				method: 'POST',
-				body: formData,
-				credentials: 'same-origin',
-			})
-				.then(function (res) {
-					return res.json();
-				})
-				.then(function (data) {
-					if (data.success) {
-						var secretInput = document.getElementById(
-							'def_service_auth_secret'
-						);
-						if (secretInput) {
-							secretInput.value = data.data.secret;
-						}
-
-						// Update copy button data attribute.
-						var copyBtn = document.getElementById(
-							'def-core-copy-secret-btn'
-						);
-						if (copyBtn) {
-							copyBtn.dataset.copy = data.data.secret;
-						}
-
-						// Update env line.
-						var envLine = document.getElementById(
-							'def-core-secret-env-line'
-						);
-						if (envLine) {
-							envLine.textContent =
-								'DEF_SERVICE_AUTH_SECRET=' + data.data.secret;
-						}
-
-						showToast(data.data.message, 'success');
-					} else {
-						showToast(
-							(data.data && data.data.message) ||
-								'Failed to generate new secret.',
-							'error'
-						);
-					}
-				})
-				.catch(function () {
-					showToast('Network error. Please try again.', 'error');
-				})
-				.finally(function () {
-					btn.textContent = originalText;
-					btn.disabled = false;
-				});
-		});
 	}
 
 	// ─── Copy Buttons ─────────────────────────────────────────────
