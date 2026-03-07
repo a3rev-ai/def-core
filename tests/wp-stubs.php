@@ -228,3 +228,53 @@ if ( ! function_exists( 'set_transient' ) ) {
 		return true;
 	}
 }
+
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( string $key ): bool {
+		global $_wp_test_transients;
+		unset( $_wp_test_transients[ $key ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( string $url, $protocols = null ): string {
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return '';
+		}
+		// Basic validation: must start with http:// or https://.
+		if ( $protocols !== null ) {
+			$valid = false;
+			foreach ( (array) $protocols as $proto ) {
+				if ( strpos( $url, $proto . '://' ) === 0 ) {
+					$valid = true;
+					break;
+				}
+			}
+			if ( ! $valid ) {
+				return '';
+			}
+		}
+		return filter_var( $url, FILTER_SANITIZE_URL ) ?: '';
+	}
+}
+
+if ( ! function_exists( 'get_file_data' ) ) {
+	function get_file_data( string $file, array $headers ): array {
+		$result = array();
+		foreach ( $headers as $key => $header ) {
+			$result[ $key ] = '';
+		}
+		if ( ! file_exists( $file ) ) {
+			return $result;
+		}
+		$content = file_get_contents( $file, false, null, 0, 8192 );
+		foreach ( $headers as $key => $header ) {
+			if ( preg_match( '/^[\s\*#@]*' . preg_quote( $header, '/' ) . ':\s*(.+)$/mi', $content, $m ) ) {
+				$result[ $key ] = trim( $m[1] );
+			}
+		}
+		return $result;
+	}
+}

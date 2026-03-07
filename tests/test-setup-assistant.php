@@ -845,25 +845,18 @@ $request->set_body_params( array( 'value' => 450 ) );
 $response = $sa->rest_update_setting( $request );
 assert_equals( 200, $response->get_status(), 'width 450 accepted' );
 
-// ── 23. POST /setup/setting — URL validation ────────────────────────────
-echo "\n[23] POST /setup/setting — URL validation\n";
+// ── 23. POST /setup/setting — URL validation (readonly after Sub-PR C) ──
+echo "\n[23] POST /setup/setting — URL validation (readonly)\n";
 reset_test_state();
 setup_admin_user();
 
+// def_core_staff_ai_api_url is now readonly (pushed from DEFHO), so writes return 403.
 $request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_staff_ai_api_url' );
 $request->set_param( 'key', 'def_core_staff_ai_api_url' );
-$request->set_body_params( array( 'value' => 'not_a_url' ) );
-$response = $sa->rest_update_setting( $request );
-assert_equals( 400, $response->get_status(), 'invalid URL rejected' );
-
 $request->set_body_params( array( 'value' => 'https://api.example.com' ) );
 $response = $sa->rest_update_setting( $request );
-assert_equals( 200, $response->get_status(), 'valid HTTPS URL accepted' );
-
-// WP_DEBUG is true, so HTTP should also work.
-$request->set_body_params( array( 'value' => 'http://localhost:8000' ) );
-$response = $sa->rest_update_setting( $request );
-assert_equals( 200, $response->get_status(), 'HTTP URL accepted when WP_DEBUG=true' );
+assert_equals( 403, $response->get_status(), 'readonly URL setting rejected with 403' );
+assert_equals( 'READONLY_SETTING', $response->get_data()['error']['code'], 'readonly error code' );
 
 // ── 24. User role: add and remove ───────────────────────────────────────
 echo "\n[24] POST /setup/user-role — add and remove\n";
