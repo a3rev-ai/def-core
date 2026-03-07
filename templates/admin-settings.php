@@ -553,8 +553,18 @@ $first_tab = 'branding';
 						?>
 						<tr data-user-id="<?php echo esc_attr( $u->ID ); ?>">
 							<td>
-								<?php echo get_avatar( $u->ID, 24, '', '', array( 'class' => 'def-core-user-avatar' ) ); ?>
-								<?php echo esc_html( $u->display_name ); ?>
+								<?php
+								echo get_avatar( $u->ID, 24, '', '', array( 'class' => 'def-core-user-avatar' ) );
+								$first = get_user_meta( $u->ID, 'first_name', true );
+								$last  = get_user_meta( $u->ID, 'last_name', true );
+								$full  = trim( $first . ' ' . $last );
+								if ( $full ) {
+									echo '<strong>' . esc_html( $full ) . '</strong> ';
+									echo '<span class="def-core-user-login">(' . esc_html( $u->user_login ) . ')</span>';
+								} else {
+									echo '<strong>' . esc_html( $u->display_name ) . '</strong>';
+								}
+								?>
 								<span class="def-core-user-email"><?php echo esc_html( $u->user_email ); ?></span>
 							</td>
 							<td><?php echo esc_html( implode( ', ', array_map( 'ucfirst', $u->roles ) ) ); ?></td>

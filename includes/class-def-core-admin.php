@@ -744,8 +744,8 @@ final class DEF_Core_Admin {
 			return;
 		}
 
-		// Search by email or display name.
-		$query = new \WP_User_Query( array(
+		// Search by email, display name, or user login.
+		$core_query = new \WP_User_Query( array(
 			'search'         => '*' . $term . '*',
 			'search_columns' => array( 'user_email', 'display_name', 'user_login' ),
 			'number'         => 10,
@@ -753,11 +753,44 @@ final class DEF_Core_Admin {
 			'order'          => 'ASC',
 		) );
 
+		// Also search by first_name / last_name (user meta).
+		$meta_query = new \WP_User_Query( array(
+			'meta_query' => array(
+				'relation' => 'OR',
+				array(
+					'key'     => 'first_name',
+					'value'   => $term,
+					'compare' => 'LIKE',
+				),
+				array(
+					'key'     => 'last_name',
+					'value'   => $term,
+					'compare' => 'LIKE',
+				),
+			),
+			'number'  => 10,
+			'orderby' => 'display_name',
+			'order'   => 'ASC',
+		) );
+
+		// Merge and deduplicate.
+		$seen    = array();
 		$results = array();
-		foreach ( $query->get_results() as $user ) {
+		$all_users = array_merge( $core_query->get_results(), $meta_query->get_results() );
+		foreach ( $all_users as $user ) {
+			if ( isset( $seen[ $user->ID ] ) ) {
+				continue;
+			}
+			$seen[ $user->ID ] = true;
+
+			$first = get_user_meta( $user->ID, 'first_name', true );
+			$last  = get_user_meta( $user->ID, 'last_name', true );
+			$full  = trim( $first . ' ' . $last );
+
 			$results[] = array(
 				'id'           => $user->ID,
-				'display_name' => $user->display_name,
+				'display_name' => $full ? $full : $user->display_name,
+				'user_login'   => $user->user_login,
 				'email'        => $user->user_email,
 				'role'         => implode( ', ', array_map( 'ucfirst', $user->roles ) ),
 				'avatar'       => get_avatar_url( $user->ID, array( 'size' => 24 ) ),
@@ -765,6 +798,9 @@ final class DEF_Core_Admin {
 				'has_mgmt'     => $user->has_cap( 'def_management_access' ),
 				'has_admin'    => $user->has_cap( 'def_admin_access' ),
 			);
+			if ( count( $results ) >= 10 ) {
+				break;
+			}
 		}
 
 		wp_send_json_success( array( 'users' => $results ) );

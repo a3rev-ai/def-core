@@ -506,6 +506,11 @@
 	margin-left: 32px;
 }
 
+.def-core-user-login {
+	font-weight: normal;
+	color: #646970;
+}
+
 .def-core-locked-label {
 	font-size: 11px;
 	color: #d63638;
