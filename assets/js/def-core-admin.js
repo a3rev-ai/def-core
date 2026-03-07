@@ -26,7 +26,6 @@
 		initConnectionTest();
 		initCopyButtons();
 		initToggleSwitches();
-		initWidgetGuide();
 		autoTestConnection();
 		// D-II features.
 		initMediaUploader();
@@ -389,26 +388,6 @@
 							'def-core-disabled',
 							!toggle.checked
 						);
-					}
-				});
-			});
-	}
-
-	// ─── Widget Guide Collapsibles ────────────────────────────────
-
-	function initWidgetGuide() {
-		document
-			.querySelectorAll('.widget-guide-toggle')
-			.forEach(function (toggle) {
-				toggle.addEventListener('click', function () {
-					var content = toggle.nextElementSibling;
-					if (
-						content &&
-						content.classList.contains('widget-guide-content')
-					) {
-						var isHidden = content.style.display === 'none';
-						content.style.display = isHidden ? 'block' : 'none';
-						toggle.classList.toggle('active', isHidden);
 					}
 				});
 			});

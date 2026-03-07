@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin settings page template — 7-tab layout.
+ * Admin settings page template — 6-tab layout.
  * Phase 7 D-I: Foundation tabbed layout with AJAX save.
  * Connection Config Migration: Connection moved to last tab with status dot indicator.
  *
@@ -25,7 +25,6 @@ $tabs = array(
 	'escalation'      => __( 'Escalation', 'def-core' ),
 	'employees-tools' => __( 'Employees & Tools', 'def-core' ),
 	'user-roles'      => __( 'User Roles', 'def-core' ),
-	'documentation'   => __( 'Documentation', 'def-core' ),
 	'connection'      => __( 'Connection', 'def-core' ),
 );
 
@@ -646,128 +645,6 @@ $first_tab = 'branding';
 				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
 			</button>
 			<span class="spinner"></span>
-		</div>
-	</div>
-
-	<?php // ─── Documentation Tab ──────────────────────────────────────── ?>
-	<div
-		id="panel-documentation"
-		role="tabpanel"
-		aria-labelledby="tab-documentation"
-		class="def-core-panel"
-		tabindex="0"
-		hidden
-	>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Chatbot Widget Integration Guide', 'def-core' ); ?></h2>
-			<p><?php esc_html_e( 'Learn how to integrate the Digital Employee chatbot popup widget into your WordPress site.', 'def-core' ); ?></p>
-		</div>
-
-		<div class="def-core-card def-core-widget-guide">
-			<h3><?php esc_html_e( 'Quick Start', 'def-core' ); ?></h3>
-			<p><?php esc_html_e( 'The chatbot widget is an embeddable JavaScript file that creates a floating chat popup on your website. Add it to your theme.', 'def-core' ); ?></p>
-
-			<h4><?php esc_html_e( 'Direct Script Tag in Theme', 'def-core' ); ?></h4>
-			<p><?php esc_html_e( 'Add this to your theme\'s header.php or footer.php (before closing </body> tag):', 'def-core' ); ?></p>
-			<pre><code><?php
-			// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- documentation example
-			$script_example = '<script
-    src="https://a3revai.azurewebsites.net/widget/popup.js"
-    data-chat-url="https://a3revai.azurewebsites.net/v2"
-    data-position="right"
-    data-open="false"
-    async>
-</script>';
-			echo esc_html( $script_example );
-			?></code></pre>
-
-			<h3><?php esc_html_e( 'Configuration Options', 'def-core' ); ?></h3>
-			<p><?php esc_html_e( 'The widget supports the following data attributes:', 'def-core' ); ?></p>
-
-			<div class="widget-attribute">
-				<strong>data-chat-url</strong><br>
-				<?php esc_html_e( 'The URL of the Digital Employee Framework interface to load in the iframe.', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Default:', 'def-core' ); ?> <code>https://a3revai.azurewebsites.net/v2</code></em>
-			</div>
-
-			<div class="widget-attribute">
-				<strong>data-position</strong><br>
-				<?php esc_html_e( 'Controls where the chat button appears on the screen.', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Options:', 'def-core' ); ?> <code>"right"</code> <?php esc_html_e( '(default) or', 'def-core' ); ?> <code>"left"</code></em>
-			</div>
-
-			<div class="widget-attribute">
-				<strong>data-open</strong><br>
-				<?php esc_html_e( '"true" to start opened (only applies on first load, default: false)', 'def-core' ); ?><br>
-				<em><?php esc_html_e( 'Note: Once a user closes the popup, it stays hidden for 24 hours.', 'def-core' ); ?></em>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">&#9654;</span>
-					<?php esc_html_e( 'Integration with WordPress Bridge Plugin', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<p><?php esc_html_e( 'If you\'re using this bridge plugin, you can leverage the JWT context token for authenticated access:', 'def-core' ); ?></p>
-					<div class="example-box">
-						<p><strong><?php esc_html_e( 'Example:', 'def-core' ); ?></strong></p>
-						<p><?php esc_html_e( 'The widget will automatically use the WordPress authentication context when loaded on pages where users are logged in. The Digital Employee Framework will receive the user\'s WordPress identity through the bridge plugin\'s context token endpoint.', 'def-core' ); ?></p>
-					</div>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">&#9654;</span>
-					<?php esc_html_e( 'Widget Behavior', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<ul>
-						<li><?php esc_html_e( 'The widget uses localStorage to remember user preferences', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'When a user closes the popup, it stays hidden for 24 hours', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'The data-open="true" attribute only applies if there\'s no saved user preference', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Includes ARIA attributes for accessibility and keyboard support (ESC key closes popup)', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'The widget automatically loads its CSS file - no additional CSS enqueuing required', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">&#9654;</span>
-					<?php esc_html_e( 'Troubleshooting', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<p><strong><?php esc_html_e( 'Widget not appearing?', 'def-core' ); ?></strong></p>
-					<ul>
-						<li><?php esc_html_e( 'Check browser console for JavaScript errors', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Verify script URL is accessible and correct', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check for conflicts with other scripts or themes', 'def-core' ); ?></li>
-					</ul>
-
-					<p><strong><?php esc_html_e( 'Widget appears but chat doesn\'t load?', 'def-core' ); ?></strong></p>
-					<ul>
-						<li><?php esc_html_e( 'Verify data-chat-url points to a valid Digital Employee Framework instance', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check iframe permissions - ensure the chat URL allows embedding', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Check CORS settings on the chat URL server', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
-
-			<div class="widget-guide-section">
-				<h3 class="widget-guide-toggle">
-					<span class="widget-guide-arrow">&#9654;</span>
-					<?php esc_html_e( 'Security Considerations', 'def-core' ); ?>
-				</h3>
-				<div class="widget-guide-content" style="display: none;">
-					<ul>
-						<li><?php esc_html_e( 'Always escape URLs when outputting them in HTML', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Validate user permissions before loading the widget', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Use HTTPS for both widget and chat URLs', 'def-core' ); ?></li>
-						<li><?php esc_html_e( 'Consider CORS policies if loading from different domains', 'def-core' ); ?></li>
-					</ul>
-				</div>
-			</div>
 		</div>
 	</div>
 
