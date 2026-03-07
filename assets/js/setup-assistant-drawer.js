@@ -18,7 +18,7 @@
 
 	var VALID_TABS = [
 		'connection', 'branding', 'chat-settings', 'escalation',
-		'employees-tools', 'user-roles'
+		'user-roles'
 	];
 
 	var FIELD_MAP = {

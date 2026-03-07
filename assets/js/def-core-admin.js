@@ -205,41 +205,25 @@
 	}
 
 	function collectTabData(tabId, panel, formData) {
-		if (tabId === 'employees-tools') {
-			// Custom handling for tool toggle checkboxes.
-			panel
-				.querySelectorAll('.def-core-tool-toggle')
-				.forEach(function (checkbox) {
-					if (!checkbox.disabled) {
-						formData.append(
-							'settings[def_core_tools_status][' +
-								checkbox.dataset.route +
-								']',
-							checkbox.checked ? '1' : '0'
-						);
-					}
-				});
-		} else {
-			// Generic data-setting handler for all other tabs.
-			// Handles text, url, password, hidden, number, checkbox, radio, textarea.
-			panel
-				.querySelectorAll('[data-setting]')
-				.forEach(function (input) {
-					var key = input.dataset.setting;
-					if (input.type === 'radio') {
-						if (input.checked) {
-							formData.append('settings[' + key + ']', input.value);
-						}
-					} else if (input.type === 'checkbox') {
-						formData.append(
-							'settings[' + key + ']',
-							input.checked ? '1' : '0'
-						);
-					} else {
+		// Generic data-setting handler for all tabs.
+		// Handles text, url, password, hidden, number, checkbox, radio, textarea.
+		panel
+			.querySelectorAll('[data-setting]')
+			.forEach(function (input) {
+				var key = input.dataset.setting;
+				if (input.type === 'radio') {
+					if (input.checked) {
 						formData.append('settings[' + key + ']', input.value);
 					}
-				});
-		}
+				} else if (input.type === 'checkbox') {
+					formData.append(
+						'settings[' + key + ']',
+						input.checked ? '1' : '0'
+					);
+				} else {
+					formData.append('settings[' + key + ']', input.value);
+				}
+			});
 	}
 
 	// ─── Connection Test ──────────────────────────────────────────

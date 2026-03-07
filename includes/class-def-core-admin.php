@@ -88,12 +88,6 @@ final class DEF_Core_Admin {
 				'sanitize' => 'sanitize_bool_setting',
 			),
 		),
-		'employees-tools'  => array(
-			'def_core_tools_status' => array(
-				'type'     => 'tools_array',
-				'sanitize' => 'sanitize_tools_status',
-			),
-		),
 	);
 
 	/**
@@ -217,13 +211,6 @@ final class DEF_Core_Admin {
 		$conn_last_sync = get_option( 'def_core_conn_last_sync_at', '' );
 
 		// Tool registry data.
-		$registry     = DEF_Core_API_Registry::instance();
-		$tools        = $registry->get_tools_with_status();
-		$tools_status = get_option( 'def_core_tools_status', array() );
-		if ( ! is_array( $tools_status ) ) {
-			$tools_status = array();
-		}
-
 		// D-II: Branding data.
 		$branding = array(
 			'logo_id'              => (int) get_option( 'def_core_logo_id', 0 ),

@@ -23,7 +23,6 @@ $tabs = array(
 	'branding'        => __( 'Branding', 'def-core' ),
 	'chat-settings'   => __( 'Chat Settings', 'def-core' ),
 	'escalation'      => __( 'Escalation', 'def-core' ),
-	'employees-tools' => __( 'Employees & Tools', 'def-core' ),
 	'user-roles'      => __( 'User Roles', 'def-core' ),
 	'connection'      => __( 'Connection', 'def-core' ),
 );
@@ -619,72 +618,6 @@ $first_tab = 'branding';
 		<div class="def-core-save-area">
 			<button type="button" class="button button-primary def-core-save-roles-btn">
 				<?php esc_html_e( 'Save User Roles', 'def-core' ); ?>
-			</button>
-			<span class="spinner"></span>
-		</div>
-	</div>
-
-	<?php // ─── Employees & Tools Tab ──────────────────────────────────── ?>
-	<div
-		id="panel-employees-tools"
-		role="tabpanel"
-		aria-labelledby="tab-employees-tools"
-		class="def-core-panel"
-		tabindex="0"
-		hidden
-	>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'API Tools', 'def-core' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Enable or disable individual API tools. Core routes (context-token, jwks) are always enabled.', 'def-core' ); ?>
-			</p>
-
-			<?php if ( ! empty( $tools ) ) : ?>
-				<table class="def-core-tools-table">
-					<tbody>
-						<?php foreach ( $tools as $route => $tool ) :
-							$tool_id    = 'tool_' . md5( $route );
-							$status     = isset( $tools_status[ $route ] ) ? (int) $tools_status[ $route ] : 1;
-							$is_enabled = 1 === $status;
-							$is_core    = ! empty( $tool['is_core'] );
-							?>
-							<tr class="<?php echo $is_enabled ? 'def-core-enabled' : 'def-core-disabled'; ?>">
-								<th scope="row">
-									<label for="<?php echo esc_attr( $tool_id ); ?>">
-										<?php echo esc_html( $tool['name'] ); ?>
-									</label>
-								</th>
-								<td>
-									<span class="def-core-toggle-switch <?php echo $is_core ? 'def-core-toggle-disabled' : ''; ?>">
-										<input
-											type="checkbox"
-											id="<?php echo esc_attr( $tool_id ); ?>"
-											class="def-core-tool-toggle"
-											data-route="<?php echo esc_attr( $route ); ?>"
-											value="1"
-											<?php checked( $is_enabled, true ); ?>
-											<?php disabled( $is_core, true ); ?>
-										/>
-										<span class="def-core-slider"></span>
-									</span>
-									<code class="def-core-route"><?php echo esc_html( $tool['route'] ); ?></code>
-									<span class="def-core-methods"><?php echo esc_html( implode( ', ', $tool['methods'] ) ); ?></span>
-									<?php if ( ! empty( $tool['module'] ) ) : ?>
-										<span class="def-core-module-badge"><?php echo esc_html( $tool['module'] ); ?></span>
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-			<?php else : ?>
-				<p><?php esc_html_e( 'No API tools registered.', 'def-core' ); ?></p>
-			<?php endif; ?>
-		</div>
-
-		<div class="def-core-save-area">
-			<button type="button" class="button button-primary def-core-save-btn" data-tab="employees-tools">
-				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
 			</button>
 			<span class="spinner"></span>
 		</div>
