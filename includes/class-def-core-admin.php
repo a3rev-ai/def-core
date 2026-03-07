@@ -3,7 +3,7 @@
  * Class DEF_Core_Admin
  *
  * Admin settings page for the Digital Employee Framework - Core plugin.
- * Phase 7 D-I: Tabbed layout with 7 tabs, AJAX save, connection test.
+ * Phase 7 D-I: Tabbed layout with 6 tabs, AJAX save, connection status test.
  *
  * @package def-core
  * @since 2.0.0
@@ -24,29 +24,6 @@ final class DEF_Core_Admin {
 	 * @var array<string, array<string, array>>
 	 */
 	private static $tab_allowlists = array(
-		'connection'       => array(
-			'def_core_staff_ai_api_url' => array(
-				'type'     => 'url',
-				'sanitize' => 'sanitize_staff_ai_api_url',
-			),
-			'def_core_api_key'          => array(
-				'type'     => 'string',
-				'sanitize' => 'sanitize_api_key',
-				'autoload' => false,
-			),
-			'def_core_allowed_origins'  => array(
-				'type'     => 'origins',
-				'sanitize' => 'sanitize_allowed_origins',
-			),
-			'def_core_external_jwks_url' => array(
-				'type'     => 'url',
-				'sanitize' => 'sanitize_external_jwks_url',
-			),
-			'def_core_external_issuer'  => array(
-				'type'     => 'url',
-				'sanitize' => 'sanitize_external_issuer',
-			),
-		),
 		'branding'         => array(
 			'def_core_logo_id'                 => array(
 				'type'     => 'int',
@@ -123,7 +100,6 @@ final class DEF_Core_Admin {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'wp_ajax_def_core_save_settings', array( __CLASS__, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_def_core_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
-		add_action( 'wp_ajax_def_core_regenerate_service_secret', array( __CLASS__, 'ajax_regenerate_service_secret' ) );
 		add_action( 'wp_ajax_def_core_save_user_roles', array( __CLASS__, 'ajax_save_user_roles' ) );
 		add_action( 'wp_ajax_def_core_search_users', array( __CLASS__, 'ajax_search_users' ) );
 		add_action( 'wp_ajax_def_core_remove_user_roles', array( __CLASS__, 'ajax_remove_user_roles' ) );
@@ -191,34 +167,10 @@ final class DEF_Core_Admin {
 	 * Kept for option whitelisting and sanitize callbacks.
 	 */
 	public static function register_settings(): void {
-		register_setting( 'def_core_settings', DEF_CORE_OPTION_ALLOWED_ORIGINS, array(
-			'type'              => 'array',
-			'sanitize_callback' => array( __CLASS__, 'sanitize_allowed_origins' ),
-			'default'           => array(),
-			'show_in_rest'      => false,
-		) );
-		register_setting( 'def_core_settings', 'def_core_external_jwks_url', array(
-			'type'              => 'string',
-			'sanitize_callback' => array( __CLASS__, 'sanitize_external_jwks_url' ),
-			'default'           => '',
-			'show_in_rest'      => false,
-		) );
-		register_setting( 'def_core_settings', 'def_core_external_issuer', array(
-			'type'              => 'string',
-			'sanitize_callback' => array( __CLASS__, 'sanitize_external_issuer' ),
-			'default'           => '',
-			'show_in_rest'      => false,
-		) );
 		register_setting( 'def_core_settings', 'def_core_tools_status', array(
 			'type'              => 'array',
 			'sanitize_callback' => array( __CLASS__, 'sanitize_tools_status' ),
 			'default'           => array(),
-			'show_in_rest'      => false,
-		) );
-		register_setting( 'def_core_settings', 'def_core_staff_ai_api_url', array(
-			'type'              => 'string',
-			'sanitize_callback' => array( __CLASS__, 'sanitize_staff_ai_api_url' ),
-			'default'           => '',
 			'show_in_rest'      => false,
 		) );
 	}
@@ -249,22 +201,16 @@ final class DEF_Core_Admin {
 			'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
 			'saveNonce'        => wp_create_nonce( 'def_core_save_settings' ),
 			'testNonce'        => wp_create_nonce( 'def_core_test_connection' ),
-			'secretNonce'      => wp_create_nonce( 'def_core_regenerate_service_secret' ),
 			'rolesNonce'       => wp_create_nonce( 'def_core_save_user_roles' ),
 			'searchUsersNonce' => wp_create_nonce( 'def_core_search_users' ),
 			'testEmailNonce'   => wp_create_nonce( 'def_core_test_escalation_email' ),
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
 		) );
 
-		// Prepare template data — Connection settings.
-		$settings = array(
-			'api_url'          => get_option( 'def_core_staff_ai_api_url', '' ),
-			'api_key'          => get_option( 'def_core_api_key', '' ),
-			'allowed_origins'  => get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS, array() ),
-			'external_jwks'    => get_option( 'def_core_external_jwks_url', '' ),
-			'external_issuer'  => get_option( 'def_core_external_issuer', '' ),
-			'service_secret'   => DEF_Core_Escalation::get_service_secret(),
-		);
+		// Connection status data (for status indicator).
+		$conn_api_url  = get_option( 'def_core_staff_ai_api_url', '' );
+		$conn_revision = (int) get_option( 'def_core_conn_config_revision', 0 );
+		$conn_last_sync = get_option( 'def_core_conn_last_sync_at', '' );
 
 		// Tool registry data.
 		$registry     = DEF_Core_API_Registry::instance();
@@ -273,16 +219,6 @@ final class DEF_Core_Admin {
 		if ( ! is_array( $tools_status ) ) {
 			$tools_status = array();
 		}
-
-		// Endpoint URLs for reference section.
-		$urls = array(
-			'jwks'    => rest_url( DEF_CORE_API_NAME_SPACE . '/jwks' ),
-			'issuer'  => rtrim( home_url(), '/' ),
-			'token'   => rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ),
-		);
-
-		// SSO configuration status.
-		$sso_configured = ! empty( $settings['external_jwks'] ) && ! empty( $settings['external_issuer'] );
 
 		// D-II: Branding data.
 		$branding = array(
@@ -548,100 +484,7 @@ final class DEF_Core_Admin {
 		}
 	}
 
-	// ─── AJAX: Service Secret Regeneration ───────────────────────────
-
-	/**
-	 * AJAX handler for regenerating the service auth secret.
-	 */
-	public static function ajax_regenerate_service_secret(): void {
-		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_regenerate_service_secret' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
-		}
-
-		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
-		}
-
-		$new_secret = DEF_Core_Escalation::get_service_secret( true );
-
-		wp_send_json_success( array(
-			'secret'  => $new_secret,
-			'message' => __( 'New secret generated. Update your Python app\'s .env file immediately.', 'def-core' ),
-		) );
-	}
-
 	// ─── Sanitize Callbacks ──────────────────────────────────────────
-
-	/**
-	 * Sanitize allowed origins.
-	 *
-	 * @param string|array $value The value to sanitize.
-	 * @return array The sanitized origins.
-	 */
-	public static function sanitize_allowed_origins( $value ) {
-		if ( is_string( $value ) ) {
-			$lines = preg_split( "/\r\n|\n|\r/", $value );
-		} elseif ( is_array( $value ) ) {
-			$lines = $value;
-		} else {
-			$lines = array();
-		}
-		$out = array();
-		foreach ( $lines as $line ) {
-			$line = trim( (string) $line );
-			if ( '' === $line ) {
-				continue;
-			}
-			if ( 0 === strpos( $line, 'http://' ) || 0 === strpos( $line, 'https://' ) ) {
-				$line  = rtrim( $line, '/' );
-				$out[] = $line;
-			}
-		}
-		return array_values( array_unique( $out ) );
-	}
-
-	/**
-	 * Sanitize external JWKS URL.
-	 *
-	 * @param string $value The value to sanitize.
-	 * @return string The sanitized URL.
-	 */
-	public static function sanitize_external_jwks_url( $value ): string {
-		$value = trim( (string) $value );
-		if ( '' === $value ) {
-			return '';
-		}
-		$url = esc_url_raw( $value, array( 'http', 'https' ) );
-		if ( '' === $url ) {
-			add_settings_error( 'def_core_external_jwks_url', 'invalid_url',
-				__( 'External JWKS URL must be a valid HTTP/HTTPS URL.', 'def-core' )
-			);
-			return '';
-		}
-		delete_transient( 'def_core_external_jwks_' . md5( $url ) );
-		return $url;
-	}
-
-	/**
-	 * Sanitize external issuer URL.
-	 *
-	 * @param string $value The value to sanitize.
-	 * @return string The sanitized URL.
-	 */
-	public static function sanitize_external_issuer( $value ): string {
-		$value = trim( (string) $value );
-		if ( '' === $value ) {
-			return '';
-		}
-		$url = esc_url_raw( $value, array( 'http', 'https' ) );
-		if ( '' === $url ) {
-			add_settings_error( 'def_core_external_issuer', 'invalid_url',
-				__( 'External Issuer URL must be a valid HTTP/HTTPS URL.', 'def-core' )
-			);
-			return '';
-		}
-		return rtrim( $url, '/' );
-	}
 
 	/**
 	 * Sanitize tools status array.
@@ -661,50 +504,6 @@ final class DEF_Core_Admin {
 			}
 		}
 		return $sanitized;
-	}
-
-	/**
-	 * Sanitize Staff AI API URL.
-	 *
-	 * @param string $value The value to sanitize.
-	 * @return string The sanitized URL.
-	 */
-	public static function sanitize_staff_ai_api_url( $value ): string {
-		$value = trim( (string) $value );
-		if ( '' === $value ) {
-			return '';
-		}
-		$url = esc_url_raw( $value, array( 'http', 'https' ) );
-		if ( '' === $url ) {
-			add_settings_error( 'def_core_staff_ai_api_url', 'invalid_url',
-				__( 'Staff AI API URL must be a valid HTTP/HTTPS URL.', 'def-core' )
-			);
-			return '';
-		}
-		return rtrim( $url, '/' );
-	}
-
-	/**
-	 * Sanitize API key.
-	 *
-	 * @param string $value The value to sanitize.
-	 * @return string The sanitized key.
-	 */
-	public static function sanitize_api_key( $value ): string {
-		$value = trim( (string) $value );
-		if ( '' === $value ) {
-			return '';
-		}
-		// Strip any whitespace/control characters.
-		$value = preg_replace( '/\s+/', '', $value );
-		// Length validation: 10–256 chars.
-		if ( strlen( $value ) < 10 || strlen( $value ) > 256 ) {
-			add_settings_error( 'def_core_api_key', 'invalid_length',
-				__( 'API key must be between 10 and 256 characters.', 'def-core' )
-			);
-			return '';
-		}
-		return $value;
 	}
 
 	// ─── D-II Sanitize Callbacks ────────────────────────────────────

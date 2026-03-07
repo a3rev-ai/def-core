@@ -1,6 +1,57 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-04 (Suggested Replies — Frontend)
+## Latest Session: 2026-03-07 (Connection Config Migration — Sub-PR C)
+
+### Status
+- **Branch:** `feature/connection-config-sub-pr-c`
+- **Sub-PR C:** Receive config endpoint + Remove Connection tab + Add status indicator
+
+### Completed This Session
+- Created `includes/class-def-core-connection-config.php` (new class):
+  - `POST /wp-json/def-core/v1/internal/connection-config` — receive pushed config from DEFHO
+    - Service auth (X-DEF-AUTH header) with dual-key rotation window (5 min)
+    - Config revision tracking (reject stale, idempotent same revision)
+    - Writes all connection values to WP options (api_url, api_key, origins, jwks, issuer, service_secret)
+    - Dual-key rotation: stores previous secrets with timed expiry
+  - `GET /wp-json/def-core/v1/connection-status` — public health endpoint
+    - Returns plugin_version, def_connected, last_config_revision, last_sync_at
+- Removed entire Connection tab from `admin-settings.php` (was sections A-D: API URL, API Key, Origins, SSO, Service Auth)
+- Added connection status indicator bar above tab navigation (green/red dot + "Test Connection" button)
+- Removed from `class-def-core-admin.php`:
+  - `connection` entry from `$tab_allowlists`
+  - `ajax_regenerate_service_secret()` method + AJAX hook
+  - `register_setting()` calls for connection-related options
+  - 5 sanitize methods: `sanitize_allowed_origins`, `sanitize_external_jwks_url`, `sanitize_external_issuer`, `sanitize_staff_ai_api_url`, `sanitize_api_key`
+  - `secretNonce` from localized script data
+- Removed from `def-core-admin.js`:
+  - `initServiceAuth()` function (secret regeneration UI)
+  - `initPasswordToggle()` function (was only used by API key field)
+  - Auto-test based on API URL input
+  - Default tab changed from `connection` to `branding`
+- Removed unused CSS: password-wrap, password-toggle, endpoints-table, service-auth-actions
+- Added CSS: connection status bar (green/red dot, sync time, responsive)
+- Updated `class-def-core-setup-assistant.php`:
+  - `def_core_staff_ai_api_url` and `def_core_api_key` marked `readonly: true`
+  - `rest_update_setting()` rejects writes to readonly settings with 403
+  - Removed connection tab entries from `$tab_map`
+- Registered new class in `class-def-core.php`
+
+### Files Changed
+- **NEW:** `includes/class-def-core-connection-config.php` (310 lines)
+- **Modified:** `includes/class-def-core.php` (load + init)
+- **Modified:** `includes/class-def-core-admin.php` (-211 lines: removed Connection tab code)
+- **Modified:** `includes/class-def-core-setup-assistant.php` (readonly enforcement)
+- **Modified:** `templates/admin-settings.php` (-269 lines: removed Connection panel, added status bar)
+- **Modified:** `assets/js/def-core-admin.js` (-120 lines: removed service auth, password toggle)
+- **Modified:** `assets/css/def-core-admin.css` (removed unused styles, added status bar)
+
+### Awaiting
+- Commit, push, and PR creation (pending user approval)
+- Companion PRs: Sub-PR A (DEFHO, PR #13), Sub-PR B (DEF, PR #63)
+
+---
+
+## Previous Session: 2026-03-04 (Suggested Replies — Frontend)
 
 ### Status
 - **Branch:** `suggested-replies-frontend`

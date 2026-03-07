@@ -57,6 +57,7 @@ final class DEF_Core {
 		DEF_Core_Cache::init();
 		DEF_Core_Staff_AI::init();
 		DEF_Core_Escalation::init();
+		DEF_Core_Connection_Config::init();
 		DEF_Core_Setup_Assistant::init();
 
 		// Register [def_chat_button] shortcode and action hook.
@@ -102,6 +103,9 @@ final class DEF_Core {
 
 		// Escalation email bridge.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-escalation.php';
+
+		// Connection config (receive pushed config from DEFHO).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-connection-config.php';
 
 		// Setup Assistant REST endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-setup-assistant.php';

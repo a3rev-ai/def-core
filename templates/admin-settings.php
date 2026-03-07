@@ -2,13 +2,14 @@
 /**
  * Admin settings page template — 7-tab layout.
  * Phase 7 D-I: Foundation tabbed layout with AJAX save.
+ * Connection Config Migration: Connection moved to last tab with status dot indicator.
  *
  * Template variables set by DEF_Core_Admin::render_settings_page():
- *   $settings       array  Current settings values.
- *   $tools          array  Registered tools from API registry.
- *   $tools_status   array  Tool enable/disable status.
- *   $urls           array  Endpoint reference URLs (jwks, issuer, token).
- *   $sso_configured bool   Whether external SSO is configured.
+ *   $conn_api_url    string  DEF API URL (pushed from DEFHO).
+ *   $conn_revision   int     Current connection config revision.
+ *   $conn_last_sync  string  ISO 8601 timestamp of last sync.
+ *   $tools           array   Registered tools from API registry.
+ *   $tools_status    array   Tool enable/disable status.
  *
  * @package def-core
  * @since   2.0.0
@@ -19,22 +20,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $tabs = array(
-	'connection'      => __( 'Connection', 'def-core' ),
 	'branding'        => __( 'Branding', 'def-core' ),
 	'chat-settings'   => __( 'Chat Settings', 'def-core' ),
 	'escalation'      => __( 'Escalation', 'def-core' ),
 	'employees-tools' => __( 'Employees & Tools', 'def-core' ),
 	'user-roles'      => __( 'User Roles', 'def-core' ),
 	'documentation'   => __( 'Documentation', 'def-core' ),
+	'connection'      => __( 'Connection', 'def-core' ),
 );
 
-$first_tab = 'connection';
+$first_tab = 'branding';
 ?>
 <div class="wrap def-core-wrap">
 	<h1><?php esc_html_e( 'Digital Employees', 'def-core' ); ?></h1>
 
 	<!-- Toast container -->
 	<div id="def-core-toast-container" class="def-core-toast-container" aria-live="polite"></div>
+
+	<?php
+	$is_connected = ! empty( $conn_api_url ) && $conn_revision > 0;
+	$status_class = $is_connected ? 'connected' : 'disconnected';
+	$status_label = $is_connected
+		? __( 'Connected', 'def-core' )
+		: __( 'Not Connected', 'def-core' );
+	?>
 
 	<!-- Tab Navigation -->
 	<nav class="def-core-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Settings', 'def-core' ); ?>">
@@ -43,229 +52,18 @@ $first_tab = 'connection';
 				type="button"
 				role="tab"
 				id="tab-<?php echo esc_attr( $tab_id ); ?>"
-				class="def-core-tab"
+				class="def-core-tab<?php echo ( 'connection' === $tab_id ) ? ' def-core-tab-connection' : ''; ?>"
 				aria-controls="panel-<?php echo esc_attr( $tab_id ); ?>"
 				aria-selected="<?php echo ( $tab_id === $first_tab ) ? 'true' : 'false'; ?>"
 				tabindex="<?php echo ( $tab_id === $first_tab ) ? '0' : '-1'; ?>"
-			><?php echo esc_html( $tab_label ); ?></button>
+			><?php
+			if ( 'connection' === $tab_id ) {
+				echo '<span class="def-core-conn-dot-tab ' . esc_attr( $status_class ) . '"></span>';
+			}
+			echo esc_html( $tab_label );
+			?></button>
 		<?php endforeach; ?>
 	</nav>
-
-	<?php // ─── Connection Tab ─────────────────────────────────────────── ?>
-	<div
-		id="panel-connection"
-		role="tabpanel"
-		aria-labelledby="tab-connection"
-		class="def-core-panel"
-		tabindex="0"
-	>
-		<?php // Section A — DEF API Connection ?>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'DEF API Connection', 'def-core' ); ?></h2>
-
-			<div class="def-core-field">
-				<label for="def_core_staff_ai_api_url"><?php esc_html_e( 'API URL', 'def-core' ); ?></label>
-				<input
-					type="url"
-					id="def_core_staff_ai_api_url"
-					data-setting="def_core_staff_ai_api_url"
-					value="<?php echo esc_attr( $settings['api_url'] ); ?>"
-					class="large-text code"
-					placeholder="https://your-def-api.example.com"
-					autocomplete="off"
-				/>
-				<p class="description">
-					<?php esc_html_e( 'The base URL of the Digital Employee Framework Python API.', 'def-core' ); ?>
-				</p>
-			</div>
-
-			<div class="def-core-field">
-				<label for="def_core_api_key"><?php esc_html_e( 'API Key', 'def-core' ); ?></label>
-				<div class="def-core-password-wrap">
-					<input
-						type="password"
-						id="def_core_api_key"
-						data-setting="def_core_api_key"
-						value="<?php echo esc_attr( $settings['api_key'] ); ?>"
-						class="large-text code"
-						placeholder="<?php esc_attr_e( 'Enter API key', 'def-core' ); ?>"
-						autocomplete="new-password"
-					/>
-					<button type="button" class="button def-core-password-toggle" aria-label="<?php esc_attr_e( 'Show API key', 'def-core' ); ?>">
-						<span class="dashicons dashicons-visibility"></span>
-					</button>
-				</div>
-				<p class="description">
-					<?php esc_html_e( 'Used for outbound API authentication and inbound HMAC verification.', 'def-core' ); ?>
-				</p>
-			</div>
-
-			<div class="def-core-field">
-				<div class="def-core-connection-test">
-					<button type="button" id="def-core-test-connection" class="button">
-						<?php esc_html_e( 'Test Connection', 'def-core' ); ?>
-					</button>
-					<span id="def-core-connection-result" class="def-core-connection-result"></span>
-				</div>
-			</div>
-		</div>
-
-		<?php // Section B — Session Bridge ?>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Session Bridge — Allowed Origins', 'def-core' ); ?></h2>
-
-			<div class="def-core-field">
-				<label for="def_core_allowed_origins"><?php esc_html_e( 'Allowed Origins', 'def-core' ); ?></label>
-				<?php
-				$origins_text = '';
-				if ( is_array( $settings['allowed_origins'] ) ) {
-					$origins_text = implode( "\n", array_map( 'esc_url_raw', $settings['allowed_origins'] ) );
-				}
-				?>
-				<textarea
-					id="def_core_allowed_origins"
-					data-setting="def_core_allowed_origins"
-					rows="4"
-					class="large-text code"
-				><?php echo esc_textarea( $origins_text ); ?></textarea>
-				<p class="description">
-					<?php esc_html_e( 'One origin per line. Example: https://your-azure-app.azurewebsites.net', 'def-core' ); ?>
-				</p>
-			</div>
-		</div>
-
-		<?php // Section C — External Auth (SSO) ?>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'External Authentication (SSO)', 'def-core' ); ?></h2>
-
-			<?php if ( $sso_configured ) : ?>
-				<div class="def-core-notice def-core-notice-success">
-					<p>
-						<strong><?php esc_html_e( 'Single Sign-On Enabled', 'def-core' ); ?></strong><br>
-						<?php
-						printf(
-							/* translators: %s: external site URL */
-							esc_html__( 'Accepting JWT tokens from: %s', 'def-core' ),
-							'<code>' . esc_html( $settings['external_issuer'] ) . '</code>'
-						);
-						?>
-					</p>
-				</div>
-			<?php else : ?>
-				<div class="def-core-notice def-core-notice-info">
-					<p>
-						<strong><?php esc_html_e( 'Local Authentication Mode', 'def-core' ); ?></strong><br>
-						<?php esc_html_e( 'Configure the fields below to enable Single Sign-On with another WordPress site.', 'def-core' ); ?>
-					</p>
-				</div>
-			<?php endif; ?>
-
-			<div class="def-core-field">
-				<label for="def_core_external_jwks_url"><?php esc_html_e( 'External JWKS URL', 'def-core' ); ?></label>
-				<input
-					type="url"
-					id="def_core_external_jwks_url"
-					data-setting="def_core_external_jwks_url"
-					value="<?php echo esc_attr( $settings['external_jwks'] ); ?>"
-					class="large-text code"
-					placeholder="<?php echo esc_attr( 'https://your-main-site.com/wp-json/' . DEF_CORE_API_NAME_SPACE . '/jwks' ); ?>"
-				/>
-				<p class="description">
-					<?php esc_html_e( 'The JWKS URL from your main WordPress site.', 'def-core' ); ?>
-				</p>
-			</div>
-
-			<div class="def-core-field">
-				<label for="def_core_external_issuer"><?php esc_html_e( 'External Issuer URL', 'def-core' ); ?></label>
-				<input
-					type="url"
-					id="def_core_external_issuer"
-					data-setting="def_core_external_issuer"
-					value="<?php echo esc_attr( $settings['external_issuer'] ); ?>"
-					class="large-text code"
-					placeholder="https://your-main-site.com"
-				/>
-				<p class="description">
-					<?php esc_html_e( 'The base URL of your main WordPress site (must match the JWT issuer claim).', 'def-core' ); ?>
-				</p>
-			</div>
-
-			<h3><?php esc_html_e( 'This Site\'s Endpoints', 'def-core' ); ?></h3>
-			<p class="description"><?php esc_html_e( 'Use these URLs when configuring other sites to accept tokens from this site:', 'def-core' ); ?></p>
-			<table class="def-core-endpoints-table">
-				<tr>
-					<th><?php esc_html_e( 'JWKS URL', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( $urls['jwks'] ); ?></code>
-						<button type="button" class="button button-small def-core-copy-btn" data-copy="<?php echo esc_attr( $urls['jwks'] ); ?>">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-					</td>
-				</tr>
-				<tr>
-					<th><?php esc_html_e( 'Issuer URL', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( $urls['issuer'] ); ?></code>
-						<button type="button" class="button button-small def-core-copy-btn" data-copy="<?php echo esc_attr( $urls['issuer'] ); ?>">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-					</td>
-				</tr>
-				<tr>
-					<th><?php esc_html_e( 'Context Token', 'def-core' ); ?></th>
-					<td>
-						<code><?php echo esc_html( $urls['token'] ); ?></code>
-						<button type="button" class="button button-small def-core-copy-btn" data-copy="<?php echo esc_attr( $urls['token'] ); ?>">
-							<?php esc_html_e( 'Copy', 'def-core' ); ?>
-						</button>
-						<em class="description"><?php esc_html_e( '(Requires authentication)', 'def-core' ); ?></em>
-					</td>
-				</tr>
-			</table>
-		</div>
-
-		<?php // Section D — Service Auth ?>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Service Authentication', 'def-core' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Service-to-service authentication for the Python backend. Required for anonymous customer escalation.', 'def-core' ); ?>
-			</p>
-
-			<div class="def-core-field">
-				<label for="def_service_auth_secret"><?php esc_html_e( 'Service Auth Secret', 'def-core' ); ?></label>
-				<input
-					type="text"
-					id="def_service_auth_secret"
-					value="<?php echo esc_attr( $settings['service_secret'] ); ?>"
-					class="large-text code"
-					readonly
-					onclick="this.select();"
-				/>
-				<p class="def-core-service-auth-actions">
-					<button type="button" class="button button-small def-core-copy-btn" data-copy="<?php echo esc_attr( $settings['service_secret'] ); ?>" id="def-core-copy-secret-btn">
-						<?php esc_html_e( 'Copy', 'def-core' ); ?>
-					</button>
-					<button type="button" class="button button-small" id="def-core-regenerate-secret-btn">
-						<?php esc_html_e( 'Generate New Secret', 'def-core' ); ?>
-					</button>
-				</p>
-				<p class="description">
-					<?php esc_html_e( 'Copy this value to your Python app\'s .env file:', 'def-core' ); ?><br>
-					<code id="def-core-secret-env-line">DEF_SERVICE_AUTH_SECRET=<?php echo esc_html( $settings['service_secret'] ); ?></code>
-				</p>
-				<p class="description">
-					<em><?php esc_html_e( 'Warning: Generating a new secret will invalidate the current one. Update your Python app immediately.', 'def-core' ); ?></em>
-				</p>
-			</div>
-		</div>
-
-		<div class="def-core-save-area">
-			<button type="button" class="button button-primary def-core-save-btn" data-tab="connection">
-				<?php esc_html_e( 'Save Changes', 'def-core' ); ?>
-			</button>
-			<span class="spinner"></span>
-		</div>
-	</div>
 
 	<?php // ─── Branding Tab ──────────────────────────────────────────── ?>
 	<div
@@ -970,6 +768,68 @@ $first_tab = 'connection';
 					</ul>
 				</div>
 			</div>
+		</div>
+	</div>
+
+	<?php // ─── Connection Tab ─────────────────────────────────────────── ?>
+	<div
+		id="panel-connection"
+		role="tabpanel"
+		aria-labelledby="tab-connection"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Connection Status', 'def-core' ); ?></h2>
+
+			<div class="def-core-conn-status-panel <?php echo esc_attr( $status_class ); ?>">
+				<div class="def-core-conn-status-row">
+					<span class="def-core-conn-dot"></span>
+					<span class="def-core-conn-label"><?php echo esc_html( $status_label ); ?></span>
+					<?php if ( $is_connected && ! empty( $conn_last_sync ) ) : ?>
+						<span class="def-core-conn-sync">
+							<?php
+							printf(
+								/* translators: %s: human-readable time difference */
+								esc_html__( 'Last sync: %s ago', 'def-core' ),
+								esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) )
+							);
+							?>
+						</span>
+					<?php endif; ?>
+				</div>
+
+				<div class="def-core-conn-actions">
+					<button type="button" id="def-core-test-connection" class="button">
+						<?php esc_html_e( 'Test Connection', 'def-core' ); ?>
+					</button>
+					<span id="def-core-connection-result" class="def-core-connection-result"></span>
+				</div>
+			</div>
+
+			<?php if ( ! $is_connected ) : ?>
+				<p class="def-core-conn-hint">
+					<?php esc_html_e( 'Connection config is managed by the DEF platform. Contact your platform administrator to provision this site.', 'def-core' ); ?>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( $is_connected ) : ?>
+				<table class="def-core-conn-details">
+					<tr>
+						<th><?php esc_html_e( 'API URL', 'def-core' ); ?></th>
+						<td><code><?php echo esc_html( $conn_api_url ); ?></code></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Config Revision', 'def-core' ); ?></th>
+						<td><?php echo esc_html( $conn_revision ); ?></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Last Sync', 'def-core' ); ?></th>
+						<td><?php echo esc_html( $conn_last_sync ); ?> (<?php echo esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) ); ?> ago)</td>
+					</tr>
+				</table>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>
