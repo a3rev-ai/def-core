@@ -154,35 +154,53 @@
 	line-height: 18px;
 }
 
-/* ─── Connection Status Bar ───────────────────────────────── */
+/* ─── Connection Tab ──────────────────────────────────────── */
 
-.def-core-connection-status-bar {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 12px;
-	padding: 10px 16px;
-	margin-bottom: 12px;
-	background: #fff;
+/* Status dot in the Connection tab button */
+.def-core-conn-dot-tab {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-right: 6px;
+	vertical-align: middle;
+}
+
+.def-core-conn-dot-tab.connected {
+	background: #00a32a;
+	box-shadow: 0 0 4px rgba(0, 163, 42, 0.4);
+}
+
+.def-core-conn-dot-tab.disconnected {
+	background: #d63638;
+	box-shadow: 0 0 4px rgba(214, 54, 56, 0.4);
+}
+
+/* Connection panel content */
+.def-core-conn-status-panel {
+	padding: 16px;
 	border: 1px solid #c3c4c7;
 	border-left: 4px solid #c3c4c7;
 	border-radius: 2px;
+	background: #f6f7f7;
+	margin-bottom: 16px;
 }
 
-.def-core-connection-status-bar:has(.connected) {
+.def-core-conn-status-panel.connected {
 	border-left-color: #00a32a;
 }
 
-.def-core-connection-status-bar:has(.disconnected) {
+.def-core-conn-status-panel.disconnected {
 	border-left-color: #d63638;
 }
 
-.def-core-conn-status {
+.def-core-conn-status-row {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	font-weight: 600;
-	font-size: 13px;
+	font-size: 14px;
+	margin-bottom: 12px;
 }
 
 .def-core-conn-dot {
@@ -193,21 +211,21 @@
 	flex-shrink: 0;
 }
 
-.def-core-conn-status.connected .def-core-conn-dot {
+.def-core-conn-status-panel.connected .def-core-conn-dot {
 	background: #00a32a;
 	box-shadow: 0 0 4px rgba(0, 163, 42, 0.4);
 }
 
-.def-core-conn-status.connected .def-core-conn-label {
+.def-core-conn-status-panel.connected .def-core-conn-label {
 	color: #00a32a;
 }
 
-.def-core-conn-status.disconnected .def-core-conn-dot {
+.def-core-conn-status-panel.disconnected .def-core-conn-dot {
 	background: #d63638;
 	box-shadow: 0 0 4px rgba(214, 54, 56, 0.4);
 }
 
-.def-core-conn-status.disconnected .def-core-conn-label {
+.def-core-conn-status-panel.disconnected .def-core-conn-label {
 	color: #d63638;
 }
 
@@ -221,15 +239,39 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin-left: auto;
 }
 
 .def-core-conn-hint {
-	flex-basis: 100%;
-	margin: 4px 0 0;
-	font-size: 12px;
+	margin: 12px 0 0;
+	font-size: 13px;
 	color: #646970;
 	font-style: italic;
+}
+
+.def-core-conn-details {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.def-core-conn-details th {
+	text-align: left;
+	padding: 8px 12px;
+	color: #1d2327;
+	font-weight: 600;
+	width: 140px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.def-core-conn-details td {
+	padding: 8px 12px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.def-core-conn-details code {
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
 }
 
 /* ─── Notices ──────────────────────────────────────────────── */
@@ -874,13 +916,21 @@
 		margin-top: 4px;
 	}
 
-	.def-core-connection-status-bar {
-		flex-direction: column;
-		align-items: flex-start;
+	.def-core-conn-status-row {
+		flex-wrap: wrap;
 	}
 
-	.def-core-conn-actions {
-		margin-left: 0;
+	.def-core-conn-details th {
+		width: auto;
+		display: block;
+		padding-bottom: 2px;
+		border-bottom: none;
+	}
+
+	.def-core-conn-details td {
+		display: block;
+		padding-top: 0;
+		padding-bottom: 12px;
 	}
 
 	.def-core-toast-container {

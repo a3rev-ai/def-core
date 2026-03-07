@@ -262,7 +262,7 @@ final class DEF_Core_Connection_Config {
 
 		// Update revision and timestamp.
 		update_option( self::OPTION_REVISION, $incoming_revision );
-		update_option( self::OPTION_LAST_SYNC, gmdate( 'c' ) );
+		update_option( self::OPTION_LAST_SYNC, current_time( 'Y-m-d H:i:s' ) );
 
 		// Clear cached connection test result.
 		delete_transient( 'def_core_connection_test' );

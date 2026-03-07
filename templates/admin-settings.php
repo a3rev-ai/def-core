@@ -1,8 +1,8 @@
 <?php
 /**
- * Admin settings page template — 6-tab layout.
+ * Admin settings page template — 7-tab layout.
  * Phase 7 D-I: Foundation tabbed layout with AJAX save.
- * Connection Config Migration: Connection tab removed, status indicator added.
+ * Connection Config Migration: Connection moved to last tab with status dot indicator.
  *
  * Template variables set by DEF_Core_Admin::render_settings_page():
  *   $conn_api_url    string  DEF API URL (pushed from DEFHO).
@@ -26,6 +26,7 @@ $tabs = array(
 	'employees-tools' => __( 'Employees & Tools', 'def-core' ),
 	'user-roles'      => __( 'User Roles', 'def-core' ),
 	'documentation'   => __( 'Documentation', 'def-core' ),
+	'connection'      => __( 'Connection', 'def-core' ),
 );
 
 $first_tab = 'branding';
@@ -36,42 +37,13 @@ $first_tab = 'branding';
 	<!-- Toast container -->
 	<div id="def-core-toast-container" class="def-core-toast-container" aria-live="polite"></div>
 
-	<!-- Connection Status Indicator (always visible above tabs) -->
-	<div class="def-core-connection-status-bar">
-		<?php
-		$is_connected = ! empty( $conn_api_url ) && $conn_revision > 0;
-		$status_class = $is_connected ? 'connected' : 'disconnected';
-		$status_label = $is_connected
-			? __( 'Connected', 'def-core' )
-			: __( 'Not Connected', 'def-core' );
-		?>
-		<div class="def-core-conn-status <?php echo esc_attr( $status_class ); ?>">
-			<span class="def-core-conn-dot"></span>
-			<span class="def-core-conn-label"><?php echo esc_html( $status_label ); ?></span>
-			<?php if ( $is_connected && ! empty( $conn_last_sync ) ) : ?>
-				<span class="def-core-conn-sync">
-					<?php
-					printf(
-						/* translators: %s: human-readable time difference */
-						esc_html__( 'Last sync: %s ago', 'def-core' ),
-						esc_html( human_time_diff( strtotime( $conn_last_sync ), time() ) )
-					);
-					?>
-				</span>
-			<?php endif; ?>
-		</div>
-		<div class="def-core-conn-actions">
-			<button type="button" id="def-core-test-connection" class="button button-small">
-				<?php esc_html_e( 'Test Connection', 'def-core' ); ?>
-			</button>
-			<span id="def-core-connection-result" class="def-core-connection-result"></span>
-		</div>
-		<?php if ( ! $is_connected ) : ?>
-			<p class="def-core-conn-hint">
-				<?php esc_html_e( 'Connection config is managed by the DEFHO platform. Contact your platform administrator to provision this site.', 'def-core' ); ?>
-			</p>
-		<?php endif; ?>
-	</div>
+	<?php
+	$is_connected = ! empty( $conn_api_url ) && $conn_revision > 0;
+	$status_class = $is_connected ? 'connected' : 'disconnected';
+	$status_label = $is_connected
+		? __( 'Connected', 'def-core' )
+		: __( 'Not Connected', 'def-core' );
+	?>
 
 	<!-- Tab Navigation -->
 	<nav class="def-core-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Settings', 'def-core' ); ?>">
@@ -80,11 +52,16 @@ $first_tab = 'branding';
 				type="button"
 				role="tab"
 				id="tab-<?php echo esc_attr( $tab_id ); ?>"
-				class="def-core-tab"
+				class="def-core-tab<?php echo ( 'connection' === $tab_id ) ? ' def-core-tab-connection' : ''; ?>"
 				aria-controls="panel-<?php echo esc_attr( $tab_id ); ?>"
 				aria-selected="<?php echo ( $tab_id === $first_tab ) ? 'true' : 'false'; ?>"
 				tabindex="<?php echo ( $tab_id === $first_tab ) ? '0' : '-1'; ?>"
-			><?php echo esc_html( $tab_label ); ?></button>
+			><?php
+			if ( 'connection' === $tab_id ) {
+				echo '<span class="def-core-conn-dot-tab ' . esc_attr( $status_class ) . '"></span>';
+			}
+			echo esc_html( $tab_label );
+			?></button>
 		<?php endforeach; ?>
 	</nav>
 
@@ -791,6 +768,68 @@ $first_tab = 'branding';
 					</ul>
 				</div>
 			</div>
+		</div>
+	</div>
+
+	<?php // ─── Connection Tab ─────────────────────────────────────────── ?>
+	<div
+		id="panel-connection"
+		role="tabpanel"
+		aria-labelledby="tab-connection"
+		class="def-core-panel"
+		tabindex="0"
+		hidden
+	>
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Connection Status', 'def-core' ); ?></h2>
+
+			<div class="def-core-conn-status-panel <?php echo esc_attr( $status_class ); ?>">
+				<div class="def-core-conn-status-row">
+					<span class="def-core-conn-dot"></span>
+					<span class="def-core-conn-label"><?php echo esc_html( $status_label ); ?></span>
+					<?php if ( $is_connected && ! empty( $conn_last_sync ) ) : ?>
+						<span class="def-core-conn-sync">
+							<?php
+							printf(
+								/* translators: %s: human-readable time difference */
+								esc_html__( 'Last sync: %s ago', 'def-core' ),
+								esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) )
+							);
+							?>
+						</span>
+					<?php endif; ?>
+				</div>
+
+				<div class="def-core-conn-actions">
+					<button type="button" id="def-core-test-connection" class="button">
+						<?php esc_html_e( 'Test Connection', 'def-core' ); ?>
+					</button>
+					<span id="def-core-connection-result" class="def-core-connection-result"></span>
+				</div>
+			</div>
+
+			<?php if ( ! $is_connected ) : ?>
+				<p class="def-core-conn-hint">
+					<?php esc_html_e( 'Connection config is managed by the DEF platform. Contact your platform administrator to provision this site.', 'def-core' ); ?>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( $is_connected ) : ?>
+				<table class="def-core-conn-details">
+					<tr>
+						<th><?php esc_html_e( 'API URL', 'def-core' ); ?></th>
+						<td><code><?php echo esc_html( $conn_api_url ); ?></code></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Config Revision', 'def-core' ); ?></th>
+						<td><?php echo esc_html( $conn_revision ); ?></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Last Sync', 'def-core' ); ?></th>
+						<td><?php echo esc_html( $conn_last_sync ); ?> (<?php echo esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) ); ?> ago)</td>
+					</tr>
+				</table>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>

@@ -210,6 +210,15 @@ if ( ! function_exists( 'wp_parse_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'current_time' ) ) {
+	function current_time( string $type, bool $gmt = false ) {
+		if ( 'timestamp' === $type ) {
+			return time();
+		}
+		return gmdate( $type );
+	}
+}
+
 // ── Transient stubs ─────────────────────────────────────────────────────
 global $_wp_test_transients;
 $_wp_test_transients = array();
