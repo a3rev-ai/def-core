@@ -153,6 +153,16 @@ final class DEF_Core_Setup_Assistant {
 			'validate'  => 'validate_drawer_width',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_button_color' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_hex_color',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_button_hover_color' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_hex_color',
+			'read_mode' => 'value',
+		),
 	);
 
 	/**
@@ -247,6 +257,13 @@ final class DEF_Core_Setup_Assistant {
 			'methods'             => 'DELETE',
 			'permission_callback' => array( $this, 'permission_check' ),
 			'callback'            => array( $this, 'rest_delete_thread' ),
+		) );
+
+		// GET /setup/detect-theme-colors
+		register_rest_route( self::REST_NAMESPACE, '/setup/detect-theme-colors', array(
+			'methods'             => 'GET',
+			'permission_callback' => array( $this, 'permission_check' ),
+			'callback'            => array( $this, 'rest_detect_theme_colors' ),
 		) );
 
 		// GET + POST /setup/seen (first-visit detection)
@@ -752,6 +769,8 @@ final class DEF_Core_Setup_Assistant {
 			'def_core_escalation_setup_assistant' => 'escalation',
 			'def_core_chat_display_mode'         => 'chat-settings',
 			'def_core_chat_drawer_width'         => 'chat-settings',
+			'def_core_chat_button_color'         => 'chat-settings',
+			'def_core_chat_button_hover_color'   => 'chat-settings',
 		);
 		if ( isset( $tab_map[ $key ] ) ) {
 			$ui_actions[] = array(
@@ -844,6 +863,22 @@ final class DEF_Core_Setup_Assistant {
 
 		set_transient( 'def_core_connection_test', $result, 300 );
 		return $this->success_response( $result );
+	}
+
+	// ─── GET /setup/detect-theme-colors ─────────────────────────────────
+
+	/**
+	 * Detect button colors from the active WordPress theme.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 2.1.0
+	 */
+	public function rest_detect_theme_colors( \WP_REST_Request $request ): \WP_REST_Response {
+		$colors = DEF_Core::detect_theme_button_colors();
+		$colors['current_button_color']       = get_option( 'def_core_chat_button_color', '#111827' );
+		$colors['current_button_hover_color'] = get_option( 'def_core_chat_button_hover_color', '' );
+		return $this->success_response( $colors );
 	}
 
 	// ─── GET /setup/users ───────────────────────────────────────────────
@@ -1337,6 +1372,24 @@ final class DEF_Core_Setup_Assistant {
 		$width = intval( $value );
 		if ( $width < 300 || $width > 600 ) {
 			return 'Drawer width must be between 300 and 600 pixels.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate a hex color value.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message if not.
+	 * @since 2.1.0
+	 */
+	private function validate_hex_color( $value ) {
+		$value = trim( (string) $value );
+		if ( $value === '' ) {
+			return true; // Allow empty to clear.
+		}
+		if ( ! preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $value ) ) {
+			return 'Value must be a valid hex color (e.g., #FF5733 or #F00).';
 		}
 		return true;
 	}
