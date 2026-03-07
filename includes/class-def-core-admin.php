@@ -636,7 +636,6 @@ final class DEF_Core_Admin {
 	private static function save_escalation_tab( array $data ): void {
 		$channels_map = array(
 			'escalation_customer'        => 'customer',
-			'escalation_staff_ai'        => 'staff_ai',
 			'escalation_setup_assistant' => 'setup_assistant',
 		);
 
