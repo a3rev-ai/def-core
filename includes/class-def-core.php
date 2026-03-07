@@ -104,6 +104,9 @@ final class DEF_Core {
 		// Escalation email bridge.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-escalation.php';
 
+		// Theme color detection utility.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-theme-colors.php';
+
 		// Connection config (receive pushed config from DEFHO).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-connection-config.php';
 
@@ -637,178 +640,20 @@ final class DEF_Core {
 		return apply_filters( 'def_core_chat_strings', $strings );
 	}
 
-	// ─── Theme Color Detection ──────────────────────────────────────────
+	// ─── Theme Color Detection (delegates to DEF_Core_Theme_Colors) ─────
 
 	/**
 	 * Set button colors from the active theme on first activation.
-	 * Only sets colors if no custom values have been saved yet.
 	 */
 	public static function maybe_set_theme_button_colors(): void {
-		// Only set if not already configured (i.e., still using defaults).
-		if ( get_option( 'def_core_chat_button_color' ) !== false ) {
-			return;
-		}
-
-		$colors = self::detect_theme_button_colors();
-		if ( ! empty( $colors['button_color'] ) ) {
-			update_option( 'def_core_chat_button_color', $colors['button_color'] );
-		}
-		if ( ! empty( $colors['button_hover_color'] ) ) {
-			update_option( 'def_core_chat_button_hover_color', $colors['button_hover_color'] );
-		}
+		DEF_Core_Theme_Colors::maybe_set_defaults();
 	}
 
 	/**
 	 * Detect button colors from the active WordPress theme.
-	 *
-	 * Strategy:
-	 * 1. Block themes (FSE): Use wp_get_global_styles() for button element colors.
-	 * 2. Classic themes: Parse theme's style.css for button/submit CSS rules.
-	 *
-	 * @return array{button_color: string, button_hover_color: string, source: string}
 	 */
 	public static function detect_theme_button_colors(): array {
-		$result = array(
-			'button_color'       => '',
-			'button_hover_color' => '',
-			'source'             => 'none',
-			'theme_name'         => wp_get_theme()->get( 'Name' ),
-		);
-
-		// Strategy 1: Block theme (FSE) — wp_get_global_styles().
-		if ( function_exists( 'wp_get_global_styles' ) ) {
-			$styles = wp_get_global_styles();
-
-			// Primary button background from elements.button.color.background.
-			$button_bg = $styles['elements']['button']['color']['background'] ?? '';
-			if ( $button_bg ) {
-				$resolved = self::resolve_theme_color( $button_bg );
-				if ( $resolved ) {
-					$result['button_color'] = $resolved;
-					$result['source']       = 'block_theme';
-				}
-			}
-
-			// Hover state from elements.button.:hover.color.background.
-			$hover_bg = $styles['elements']['button'][':hover']['color']['background'] ?? '';
-			if ( $hover_bg ) {
-				$resolved = self::resolve_theme_color( $hover_bg );
-				if ( $resolved ) {
-					$result['button_hover_color'] = $resolved;
-				}
-			}
-
-			if ( $result['source'] === 'block_theme' ) {
-				return $result;
-			}
-		}
-
-		// Strategy 2: Classic theme — parse style.css for button colors.
-		$stylesheet_path = get_stylesheet_directory() . '/style.css';
-		if ( ! file_exists( $stylesheet_path ) ) {
-			return $result;
-		}
-
-		$css = file_get_contents( $stylesheet_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		if ( empty( $css ) ) {
-			return $result;
-		}
-
-		// Look for button/submit background-color declarations.
-		// Match selectors containing "button", "btn", or input[type="submit"].
-		$color = self::extract_button_color_from_css( $css );
-		if ( $color ) {
-			$result['button_color'] = $color;
-			$result['source']       = 'classic_theme_css';
-		}
-
-		return $result;
-	}
-
-	/**
-	 * Resolve a theme.json color reference (e.g., "var(--wp--preset--color--primary)")
-	 * to a hex value. Returns the value as-is if it's already a hex color.
-	 *
-	 * @param string $color The color value (hex, rgb, or CSS variable reference).
-	 * @return string Resolved hex color or empty string.
-	 */
-	private static function resolve_theme_color( string $color ): string {
-		// Already a hex color.
-		if ( preg_match( '/^#([0-9a-fA-F]{3,8})$/', $color ) ) {
-			return $color;
-		}
-
-		// CSS variable reference from theme.json: var(--wp--preset--color--slug).
-		if ( preg_match( '/var\(\s*--wp--preset--color--([a-zA-Z0-9-]+)\s*\)/', $color, $matches ) ) {
-			$slug = $matches[1];
-			// Try to get the palette from global settings.
-			if ( function_exists( 'wp_get_global_settings' ) ) {
-				$settings = wp_get_global_settings();
-				$palette  = $settings['color']['palette']['theme'] ?? array();
-				foreach ( $palette as $entry ) {
-					if ( ( $entry['slug'] ?? '' ) === $slug ) {
-						return $entry['color'] ?? '';
-					}
-				}
-			}
-		}
-
-		// RGB/RGBA — try to convert simple rgb() to hex.
-		if ( preg_match( '/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/', $color, $matches ) ) {
-			return sprintf( '#%02x%02x%02x', (int) $matches[1], (int) $matches[2], (int) $matches[3] );
-		}
-
-		// Named CSS colors or complex values — return as-is if it looks usable.
-		if ( preg_match( '/^[a-zA-Z]+$/', $color ) ) {
-			return $color;
-		}
-
-		return '';
-	}
-
-	/**
-	 * Extract the first button background-color from a CSS string.
-	 *
-	 * Looks for selectors that contain common button patterns and extracts
-	 * the background-color property value.
-	 *
-	 * @param string $css Raw CSS content.
-	 * @return string Hex color or empty string.
-	 */
-	private static function extract_button_color_from_css( string $css ): string {
-		// Remove CSS comments.
-		$css = preg_replace( '/\/\*.*?\*\//s', '', $css );
-
-		// Patterns that typically indicate button styles (ordered by specificity).
-		$selectors = array(
-			'/\.wp-element-button\s*\{([^}]+)\}/i',
-			'/\.wp-block-button__link\s*\{([^}]+)\}/i',
-			'/button\s*,?\s*input\[type=["\']submit["\']\]\s*\{([^}]+)\}/i',
-			'/\.btn-primary\s*\{([^}]+)\}/i',
-			'/\.button\s*\{([^}]+)\}/i',
-			'/button\s*\{([^}]+)\}/i',
-			'/input\[type=["\']submit["\']\]\s*\{([^}]+)\}/i',
-			'/\.btn\s*\{([^}]+)\}/i',
-		);
-
-		foreach ( $selectors as $pattern ) {
-			if ( preg_match( $pattern, $css, $block_match ) ) {
-				$block = $block_match[1];
-				// Extract background-color or background (solid color only).
-				if ( preg_match( '/background-color\s*:\s*([^;]+)/i', $block, $color_match ) ) {
-					$value = trim( $color_match[1] );
-					$resolved = self::resolve_theme_color( $value );
-					if ( $resolved ) {
-						return $resolved;
-					}
-				}
-				if ( preg_match( '/background\s*:\s*(#[0-9a-fA-F]{3,8})\b/i', $block, $color_match ) ) {
-					return trim( $color_match[1] );
-				}
-			}
-		}
-
-		return '';
+		return DEF_Core_Theme_Colors::detect();
 	}
 }
 

@@ -875,7 +875,7 @@ final class DEF_Core_Setup_Assistant {
 	 * @since 2.1.0
 	 */
 	public function rest_detect_theme_colors( \WP_REST_Request $request ): \WP_REST_Response {
-		$colors = DEF_Core::detect_theme_button_colors();
+		$colors = DEF_Core_Theme_Colors::detect();
 		$colors['current_button_color']       = get_option( 'def_core_chat_button_color', '#111827' );
 		$colors['current_button_hover_color'] = get_option( 'def_core_chat_button_hover_color', '' );
 		return $this->success_response( $colors );
