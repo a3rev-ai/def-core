@@ -133,11 +133,6 @@ final class DEF_Core_Setup_Assistant {
 			'validate'  => 'validate_email_setting',
 			'read_mode' => 'value',
 		),
-		'def_core_escalation_staff_ai' => array(
-			'type'      => 'email',
-			'validate'  => 'validate_email_setting',
-			'read_mode' => 'value',
-		),
 		'def_core_escalation_setup_assistant' => array(
 			'type'      => 'email',
 			'validate'  => 'validate_email_setting',
@@ -598,9 +593,8 @@ final class DEF_Core_Setup_Assistant {
 
 		// 4. At least one escalation email.
 		$esc_customer = get_option( 'def_core_escalation_customer', '' );
-		$esc_staff    = get_option( 'def_core_escalation_staff_ai', '' );
 		$esc_setup    = get_option( 'def_core_escalation_setup_assistant', '' );
-		$has_escalation = ! empty( $esc_customer ) || ! empty( $esc_staff ) || ! empty( $esc_setup );
+		$has_escalation = ! empty( $esc_customer ) || ! empty( $esc_setup );
 		$checkpoints['escalation'] = array(
 			'label'  => 'At least one escalation email configured',
 			'passed' => $has_escalation,
@@ -775,7 +769,6 @@ final class DEF_Core_Setup_Assistant {
 			'def_core_display_name'              => 'branding',
 			'def_core_logo_id'                   => 'branding',
 			'def_core_escalation_customer'       => 'escalation',
-			'def_core_escalation_staff_ai'       => 'escalation',
 			'def_core_escalation_setup_assistant' => 'escalation',
 			'def_core_chat_display_mode'         => 'chat-settings',
 			'def_core_chat_drawer_width'         => 'chat-settings',
