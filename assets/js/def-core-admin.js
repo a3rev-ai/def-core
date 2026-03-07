@@ -648,13 +648,18 @@
 					item.classList.add('is-existing');
 				}
 
+				var nameHtml = '<strong>' + escHtml(u.display_name) + '</strong>';
+				if (u.user_login && u.user_login !== u.display_name) {
+					nameHtml += ' <span class="def-core-user-login">(' + escHtml(u.user_login) + ')</span>';
+				}
+
 				item.innerHTML =
 					'<img class="def-core-search-result-avatar" src="' +
 					escHtml(u.avatar) +
 					'" alt="" />' +
 					'<div class="def-core-search-result-info">' +
 					'<div class="def-core-search-result-name">' +
-					escHtml(u.display_name) +
+					nameHtml +
 					'</div>' +
 					'<div class="def-core-search-result-email">' +
 					escHtml(u.email) +
@@ -687,10 +692,14 @@
 			var avatarHtml = u.avatar
 				? '<img class="def-core-user-avatar" src="' + escHtml(u.avatar) + '" width="24" height="24" alt="" />'
 				: '';
+			var rowNameHtml = '<strong>' + escHtml(u.display_name) + '</strong>';
+			if (u.user_login && u.user_login !== u.display_name) {
+				rowNameHtml += ' <span class="def-core-user-login">(' + escHtml(u.user_login) + ')</span>';
+			}
 			tr.innerHTML =
 				'<td>' +
 				avatarHtml +
-				escHtml(u.display_name) +
+				rowNameHtml +
 				'<span class="def-core-user-email">' +
 				escHtml(u.email) +
 				'</span>' +
