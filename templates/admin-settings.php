@@ -357,6 +357,19 @@ $first_tab = 'branding';
 							type="radio"
 							name="def_core_chat_button_icon"
 							data-setting="def_core_chat_button_icon"
+							value="sparkle"
+							<?php checked( $button_settings['icon'], 'sparkle' ); ?>
+						/>
+						<span class="def-core-icon-preview">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12.7 6.3 13.2 8.2 15 10C16.8 11.8 18.7 12.3 23 13C18.7 13.7 16.8 14.2 15 16C13.2 17.8 12.7 19.7 12 24C11.3 19.7 10.8 17.8 9 16C7.2 14.2 5.3 13.7 1 13C5.3 12.3 7.2 11.8 9 10C10.8 8.2 11.3 6.3 12 2Z"/><path d="M20 1C20.3 2.6 20.5 3.2 21 3.7C21.5 3.2 21.7 2.6 22 1C21.7 2.6 21.5 3.2 21 3.7C20.5 3.2 20.3 2.6 20 1Z"/><path d="M3 19C3.2 20 3.4 20.4 3.7 20.7C4 20.4 4.2 20 4.4 19C4.2 20 4 20.4 3.7 20.7C3.4 20.4 3.2 20 3 19Z"/></svg>
+						</span>
+						<strong><?php esc_html_e( 'AI sparkle', 'def-core' ); ?></strong>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_icon"
+							data-setting="def_core_chat_button_icon"
 							value="custom"
 							<?php checked( $button_settings['icon'], 'custom' ); ?>
 						/>
@@ -388,6 +401,35 @@ $first_tab = 'branding';
 						<?php esc_html_e( 'Upload a custom icon for the chat button. Recommended: 48×48px PNG or SVG.', 'def-core' ); ?>
 					</p>
 				</div>
+			</div>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Button Label', 'def-core' ); ?></label>
+				<div class="def-core-radio-group">
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_label"
+							data-setting="def_core_chat_button_label"
+							value="Chat"
+							<?php checked( $button_settings['label'], 'Chat' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Chat', 'def-core' ); ?></strong>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_button_label"
+							data-setting="def_core_chat_button_label"
+							value="AI"
+							<?php checked( $button_settings['label'], 'AI' ); ?>
+						/>
+						<strong><?php esc_html_e( 'AI', 'def-core' ); ?></strong>
+					</label>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Text label shown on the floating chat button.', 'def-core' ); ?>
+				</p>
 			</div>
 
 			<div class="def-core-field def-core-checkbox-field">
