@@ -163,6 +163,16 @@ final class DEF_Core_Setup_Assistant {
 			'validate'  => 'validate_hex_color',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_button_icon' => array(
+			'type'      => 'enum',
+			'validate'  => 'validate_button_icon',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_button_label' => array(
+			'type'      => 'enum',
+			'validate'  => 'validate_button_label',
+			'read_mode' => 'value',
+		),
 	);
 
 	/**
@@ -771,6 +781,8 @@ final class DEF_Core_Setup_Assistant {
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_button_color'         => 'chat-settings',
 			'def_core_chat_button_hover_color'   => 'chat-settings',
+			'def_core_chat_button_icon'          => 'chat-settings',
+			'def_core_chat_button_label'         => 'chat-settings',
 		);
 		if ( isset( $tab_map[ $key ] ) ) {
 			$ui_actions[] = array(
@@ -1390,6 +1402,34 @@ final class DEF_Core_Setup_Assistant {
 		}
 		if ( ! preg_match( '/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $value ) ) {
 			return 'Value must be a valid hex color (e.g., #FF5733 or #F00).';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate button icon value.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 2.2.0
+	 */
+	private function validate_button_icon( $value ) {
+		if ( ! in_array( $value, array( 'chat', 'headset', 'sparkle', 'custom' ), true ) ) {
+			return 'Button icon must be "chat", "headset", "sparkle", or "custom".';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate button label value.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 2.2.0
+	 */
+	private function validate_button_label( $value ) {
+		if ( ! in_array( $value, array( 'Chat', 'AI' ), true ) ) {
+			return 'Button label must be "Chat" or "AI".';
 		}
 		return true;
 	}

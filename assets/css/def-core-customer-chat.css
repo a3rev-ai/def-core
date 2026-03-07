@@ -120,6 +120,32 @@
 	border-radius: 4px;
 }
 
+/* Sparkle icon: uses fill instead of stroke */
+.def-cc-trigger-icon--sparkle svg {
+	fill: currentColor;
+	stroke: none;
+}
+
+.def-cc-sparkle-dot {
+	opacity: 0.7;
+}
+
+.def-cc-sparkle-dot--sm {
+	opacity: 0.5;
+}
+
+/* Subtle sparkle animation on hover */
+.def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg {
+	animation: def-cc-sparkle-twinkle 0.6s ease-in-out;
+}
+
+@keyframes def-cc-sparkle-twinkle {
+	0%   { transform: scale(1) rotate(0deg); opacity: 1; }
+	30%  { transform: scale(1.15) rotate(8deg); opacity: 0.85; }
+	60%  { transform: scale(0.95) rotate(-4deg); opacity: 1; }
+	100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
 .def-cc-trigger-label {
 	font-size: 14px;
 	line-height: 1;
@@ -1400,7 +1426,8 @@
 	.def-cc-loading-spinner,
 	.def-cc-escalation-spinner-ring,
 	.def-cc-login-spinner-ring,
-	.def-cc-attachment-chip-icon--pending {
+	.def-cc-attachment-chip-icon--pending,
+	.def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg {
 		animation: none;
 	}
 }

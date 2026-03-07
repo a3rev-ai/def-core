@@ -75,6 +75,10 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_button_icon',
 			),
+			'def_core_chat_button_label' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_button_label',
+			),
 			'def_core_chat_button_icon_id' => array(
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_id',
@@ -289,6 +293,7 @@ final class DEF_Core_Admin {
 			'color'         => get_option( 'def_core_chat_button_color', '#111827' ),
 			'hover_color'   => get_option( 'def_core_chat_button_hover_color', '' ),
 			'icon'          => get_option( 'def_core_chat_button_icon', 'chat' ),
+			'label'         => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'icon_id'       => (int) get_option( 'def_core_chat_button_icon_id', 0 ),
 			'show_floating' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 		);
@@ -612,7 +617,12 @@ final class DEF_Core_Admin {
 	 */
 	public static function sanitize_button_icon( $value ): string {
 		$value = sanitize_text_field( (string) $value );
-		return in_array( $value, array( 'chat', 'headset', 'custom' ), true ) ? $value : 'chat';
+		return in_array( $value, array( 'chat', 'headset', 'sparkle', 'custom' ), true ) ? $value : 'chat';
+	}
+
+	public static function sanitize_button_label( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return in_array( $value, array( 'Chat', 'AI' ), true ) ? $value : 'Chat';
 	}
 
 	// ─── D-II: Escalation Tab Save ──────────────────────────────────

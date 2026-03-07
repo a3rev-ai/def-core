@@ -328,6 +328,7 @@ final class DEF_Core {
 			'buttonHoverColor' => get_option( 'def_core_chat_button_hover_color', '' ),
 			'buttonIcon'      => get_option( 'def_core_chat_button_icon', 'chat' ),
 			'buttonIconUrl'   => $this->get_button_icon_url(),
+			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),

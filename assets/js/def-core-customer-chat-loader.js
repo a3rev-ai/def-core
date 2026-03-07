@@ -132,6 +132,11 @@
 			'.def-cc-trigger-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }' +
 			'.def-cc-trigger-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }' +
 			'.def-cc-trigger-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: 4px; }' +
+			'.def-cc-trigger-icon--sparkle svg { fill: currentColor; stroke: none; }' +
+			'.def-cc-trigger-icon--sparkle.def-cc-sparkle-intro svg { animation: def-cc-sparkle-entrance 1s ease-out 0.3s 5; }' +
+			'.def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: def-cc-sparkle 0.6s ease-in-out; }' +
+			'@keyframes def-cc-sparkle-entrance { 0% { transform: scale(0) rotate(-30deg); opacity: 0; } 50% { transform: scale(1.3) rotate(10deg); opacity: 1; } 75% { transform: scale(0.9) rotate(-3deg); } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }' +
+			'@keyframes def-cc-sparkle { 0% { transform: scale(1) rotate(0deg); } 40% { transform: scale(1.2) rotate(12deg); } 70% { transform: scale(0.95) rotate(-4deg); } 100% { transform: scale(1) rotate(0deg); } }' +
 			'.def-cc-trigger-dot { display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 9999px; flex-shrink: 0; }' +
 			/* Backdrop (drawer mode — invisible but clickable) */
 			'.def-cc-backdrop {' +
@@ -216,7 +221,7 @@
 			/* Reduced motion */
 			'@media (prefers-reduced-motion: reduce) {' +
 			'  .def-cc-panel, .def-cc-trigger, .def-cc-backdrop { transition: none; }' +
-			'  .def-cc-loading-spinner { animation: none; }' +
+			'  .def-cc-loading-spinner, .def-cc-trigger-icon--sparkle svg, .def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: none; }' +
 			'}'
 		);
 	}
@@ -248,6 +253,17 @@
 		} else if (config.buttonIcon === 'headset') {
 			iconWrap.innerHTML =
 				'<svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>';
+		} else if (config.buttonIcon === 'sparkle') {
+			iconWrap.classList.add('def-cc-trigger-icon--sparkle', 'def-cc-sparkle-intro');
+			iconWrap.addEventListener('animationend', function () {
+				iconWrap.classList.remove('def-cc-sparkle-intro');
+			});
+			iconWrap.innerHTML =
+				'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
+				'<path d="M12 2C12.7 6.3 13.2 8.2 15 10C16.8 11.8 18.7 12.3 23 13C18.7 13.7 16.8 14.2 15 16C13.2 17.8 12.7 19.7 12 24C11.3 19.7 10.8 17.8 9 16C7.2 14.2 5.3 13.7 1 13C5.3 12.3 7.2 11.8 9 10C10.8 8.2 11.3 6.3 12 2Z"/>' +
+				'<path d="M20 1C20.3 2.6 20.5 3.2 21 3.7C21.5 3.2 21.7 2.6 22 1C21.7 2.6 21.5 3.2 21 3.7C20.5 3.2 20.3 2.6 20 1Z"/>' +
+				'<path d="M3 19C3.2 20 3.4 20.4 3.7 20.7C4 20.4 4.2 20 4.4 19C4.2 20 4 20.4 3.7 20.7C3.4 20.4 3.2 20 3 19Z"/>' +
+				'</svg>';
 		} else {
 			// Default: chat bubble
 			iconWrap.innerHTML =
@@ -259,7 +275,7 @@
 		// Label
 		var label = document.createElement('span');
 		label.className = 'def-cc-trigger-label';
-		label.textContent = 'Chat';
+		label.textContent = config.buttonLabel || 'Chat';
 		trigger.appendChild(label);
 
 		// Status dot
