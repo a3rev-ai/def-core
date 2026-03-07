@@ -1027,8 +1027,14 @@
 			el.value = value;
 			this.triggerChangeEvent(el);
 
-			// Color inputs also need an 'input' event to update the preview span.
+			// Color inputs: update the preview span directly and force swatch repaint.
 			if (fieldConfig.type === 'color') {
+				var valueSpan = el.parentElement && el.parentElement.querySelector('.def-core-color-value');
+				if (valueSpan) {
+					valueSpan.textContent = value;
+				}
+				// Force the native color picker to repaint by toggling the attribute.
+				el.setAttribute('value', value);
 				try {
 					el.dispatchEvent(new Event('input', { bubbles: true }));
 				} catch (e) {
