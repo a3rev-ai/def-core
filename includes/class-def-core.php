@@ -104,6 +104,9 @@ final class DEF_Core {
 		// Escalation email bridge.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-escalation.php';
 
+		// Theme color detection utility.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-theme-colors.php';
+
 		// Connection config (receive pushed config from DEFHO).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-connection-config.php';
 
@@ -134,6 +137,8 @@ final class DEF_Core {
 		DEF_Core_Staff_AI::on_activate();
 		// Grant def_admin_access to administrators.
 		self::ensure_def_admin_capability();
+		// Set button colors from theme if not already configured.
+		self::maybe_set_theme_button_colors();
 		update_option( 'def_core_db_version', '2.1.0' );
 	}
 
@@ -633,6 +638,22 @@ final class DEF_Core {
 			'rateLimited'          => __( 'Please wait a moment before sending another message', 'def-core' ),
 		);
 		return apply_filters( 'def_core_chat_strings', $strings );
+	}
+
+	// ─── Theme Color Detection (delegates to DEF_Core_Theme_Colors) ─────
+
+	/**
+	 * Set button colors from the active theme on first activation.
+	 */
+	public static function maybe_set_theme_button_colors(): void {
+		DEF_Core_Theme_Colors::maybe_set_defaults();
+	}
+
+	/**
+	 * Detect button colors from the active WordPress theme.
+	 */
+	public static function detect_theme_button_colors(): array {
+		return DEF_Core_Theme_Colors::detect();
 	}
 }
 

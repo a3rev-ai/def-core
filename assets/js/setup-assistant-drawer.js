@@ -18,7 +18,7 @@
 
 	var VALID_TABS = [
 		'connection', 'branding', 'chat-settings', 'escalation',
-		'employees-tools', 'user-roles', 'documentation'
+		'employees-tools', 'user-roles'
 	];
 
 	var FIELD_MAP = {
@@ -26,6 +26,8 @@
 		'api_key':                    { id: 'def_core_api_key',            max_length: 256 },
 		'display_name':               { id: 'def_core_display_name',       max_length: 100 },
 		'chat_drawer_width':          { id: 'def_core_chat_drawer_width',  max_length: 5 },
+		'chat_button_color':          { id: 'def_core_chat_button_color',  max_length: 7, type: 'color' },
+		'chat_button_hover_color':    { id: 'def_core_chat_button_hover_color', max_length: 7, type: 'color' },
 		'allowed_origins':            { id: 'def_core_allowed_origins',    max_length: 2000 },
 		'escalation_customer':        { id: 'escalation_customer',         max_length: 320 },
 		'escalation_setup_assistant': { id: 'escalation_setup_assistant',  max_length: 320 },
@@ -1024,6 +1026,21 @@
 		if (el) {
 			el.value = value;
 			this.triggerChangeEvent(el);
+
+			// Color inputs: update the preview span directly and force swatch repaint.
+			if (fieldConfig.type === 'color') {
+				var valueSpan = el.parentElement && el.parentElement.querySelector('.def-core-color-value');
+				if (valueSpan) {
+					valueSpan.textContent = value;
+				}
+				// Force the native color picker to repaint by toggling the attribute.
+				el.setAttribute('value', value);
+				try {
+					el.dispatchEvent(new Event('input', { bubbles: true }));
+				} catch (e) {
+					// IE fallback — not critical.
+				}
+			}
 
 			// Brief highlight.
 			el.classList.remove('def-sa-highlighted');
