@@ -1,92 +1,86 @@
 # Digital Employee Framework - Core
 
-## Overview
+WordPress bridge plugin for the **[Digital Employee Framework](https://defho.ai/)** (DEF). Connects WordPress sites to AI-powered Digital Employees that can assist customers, support staff, and help configure your site.
 
-WordPress bridge plugin for the **Digital Employee Framework (DEF)**. Connects WordPress sites to AI digital employees running in the DEF backend. The plugin handles authentication, UI rendering, and request routing — all business logic, tool execution, and governance live in the framework.
+## Features
 
-Optional native integrations (WooCommerce, bbPress, etc.) are loaded only when the respective plugin is active. WooCommerce is not a dependency.
+- **Customer Chat** — AI chat widget for your site visitors (floating button or shortcode)
+- **Staff AI** — Internal AI assistant for staff and management (wp-admin)
+- **Setup Assistant** — Intelligent configuration agent that helps set up the plugin
+- **JWT Authentication** — Secure token-based identity bridge between WordPress and DEF
+- **JWKS Endpoint** — Public key endpoint for external JWT verification
+- **WooCommerce Integration** — Product search, cart sync, and order tools (loads only when WooCommerce is active)
+- **Real-Time Streaming** — SSE-based word-by-word text streaming across all channels
+- **Knowledge Export** — Bulk content and product export endpoints for AI knowledge base indexing
+
+## Requirements
+
+- WordPress 6.0+
+- PHP 8.0+
+- A Digital Employee Framework account ([defho.ai](https://defho.ai/))
+
+## Installation
+
+1. Upload the `digital-employees` folder to `/wp-content/plugins/`
+2. Activate the plugin via **Plugins > Installed Plugins**
+3. Go to **Digital Employees > Settings** and configure your connection
+4. Use the **Setup Assistant** to walk through configuration
+
+## Connection
+
+The plugin connects to your DEF backend API. Connection can be configured:
+
+- **Automatically** — via DEFHO platform push (recommended)
+- **Manually** — enter API URL and API Key on the Connection tab
+
+## REST API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/wp-json/a3-ai/v1/jwks` | GET | Public | JWKS public keys |
+| `/wp-json/a3-ai/v1/context-token` | GET | WP Auth | Issue signed context token |
+| `/wp-json/def-core/v1/content/export` | GET | API Key | Bulk content export |
+| `/wp-json/def-core/v1/products/export` | GET | API Key | WooCommerce product export |
+| `/wp-json/def-core/v1/connection-status` | GET | Public | Connection health check |
+
+Tool endpoints (product search, cart operations, order lookup, etc.) are registered dynamically via the API registry.
+
+## Shortcodes
+
+- `[def_chat_button]` — Render the Customer Chat button at a specific location
+
+## Hooks
+
+- `def_core_chat_button` — Action hook to render the chat button in theme templates
+- `def_core_register_tools` — Register additional API tools from modules
+- `def_core_token_expiration` — Filter JWT token lifetime (default: 5 minutes)
+- `def_core_chat_strings` — Filter Customer Chat i18n strings
 
 ## Architecture
 
 ```
-WordPress (UI + Auth Context)
+WordPress (UI + Auth)
         ↓
 def-core (Bridge Plugin)
         ↓
-Digital Employee Framework (Authority, Tools, Execution)
+Digital Employee Framework (AI, Tools, Governance)
 ```
 
-The bridge is intentionally thin.
+The plugin is intentionally thin — all business logic, tool execution, and governance live in the DEF backend. WordPress provides the UI surface and authentication context.
 
-## What This Plugin Does
+## Security
 
-- JWT handling and session context
-- Secure API communication with the framework
-- Chat and assistant UI components (customer-facing and staff-facing)
-- User identity, role, and tenant context passthrough
-- Optional integration endpoints (WooCommerce tools, etc.) when plugins are present
+- RSA-256 signed JWT tokens
+- All authority enforced server-side by the framework
+- No secrets hard-coded — all credentials in WordPress options
+- Bearer token authentication for API endpoints
+- Origin validation for cross-domain requests
+- AI disclosure notice for transparency compliance
 
-## Real-Time Streaming
+## Contributing
 
-All three chat channels (Customer Chat, Staff AI, Setup Assistant) use Server-Sent Events (SSE) for real-time streaming. Text renders word-by-word with a client-side word-drain animation and blinking cursor, matching the experience of ChatGPT and Claude. Orchestrator progress is visible throughout — thinking indicators, tool execution status, and streamed text output. When the SSE connection is unavailable, channels fall back to synchronous rendering automatically.
-
-## WooCommerce Integration (Optional)
-
-When WooCommerce is active, def-core registers additional tool endpoints (product search, cart operations, order lookup, etc.) that digital employees can invoke through the framework. When WooCommerce is absent, these routes are not registered and the plugin operates normally without them.
-
-Future optional integrations (bbPress, CRMs, etc.) follow the same pattern — loaded only when the respective plugin is detected.
-
-## What This Plugin Does Not Do
-
-- Contain business rules or workflows
-- Implement autonomy tiers or execution logic
-- Decide whether actions are allowed
-- Call third-party systems directly
-- Bypass the framework's tool contracts
-
-**If logic is required, it belongs in the Digital Employee Framework, not here.**
-
-## Development & Testing
-
-Quick start:
-
-```bash
-php tests/run.php          # Unit tests (no Docker needed)
-npm run env:start          # Start WordPress Docker environment
-npm run smoke              # Smoke test on latest WP
-npm run env:stop           # Stop containers
-gitleaks detect            # Secret scanning
-```
-
-See [docs/TESTING.md](docs/TESTING.md) for the full testing policy, all npm scripts, and the PR Gate / compatibility / static-check tiers.
-
-## Security Model
-
-- All authority lives server-side in the framework
-- WordPress acts as a client and UI surface only
-- No secrets are hard-coded
-- All requests are authenticated and scoped
-
-## Repository Boundaries
-
-- This repository is part of the a3rev-ai organization
-- Framework code lives in: `digital-employee-framework`
-- Client-specific plugins and modules live in private repositories
-- This repo must remain reusable across clients
-
-## Contribution Rules
-
-- Changes must not introduce business logic
-- Any request for "just handling it here" is a red flag
-- Refactors must not expand responsibility
-- Architecture questions belong in the framework repo
-
-## Status
-
-- Active development
-- Architecture frozen
-- Authority layer enforced by the framework
+Issues and pull requests welcome at [github.com/a3rev-ai/def-core](https://github.com/a3rev-ai/def-core).
 
 ## License
 
-Private, proprietary software. No rights are granted without explicit agreement.
+GPLv2 or later. See [LICENSE](LICENSE) for full text.
