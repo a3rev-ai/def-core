@@ -716,9 +716,43 @@ $first_tab = 'branding';
 			</div>
 
 			<?php if ( ! $is_connected ) : ?>
-				<p class="def-core-conn-hint">
-					<?php esc_html_e( 'Connection config is managed by the DEF platform. Contact your platform administrator to provision this site.', 'digital-employees' ); ?>
-				</p>
+				<div class="def-core-manual-connection" id="def-core-manual-connection">
+					<h3><?php esc_html_e( 'Manual Connection', 'digital-employees' ); ?></h3>
+					<p class="description">
+						<?php esc_html_e( 'Enter the API URL and API Key provided by your DEF platform administrator. Once connected via the platform, these fields will be managed automatically.', 'digital-employees' ); ?>
+					</p>
+
+					<div class="def-core-field">
+						<label for="def_core_manual_api_url"><?php esc_html_e( 'API URL', 'digital-employees' ); ?></label>
+						<input
+							type="url"
+							id="def_core_manual_api_url"
+							class="regular-text"
+							placeholder="https://api.defho.ai"
+							value=""
+						/>
+					</div>
+
+					<div class="def-core-field">
+						<label for="def_core_manual_api_key"><?php esc_html_e( 'API Key', 'digital-employees' ); ?></label>
+						<input
+							type="password"
+							id="def_core_manual_api_key"
+							class="regular-text"
+							placeholder="<?php esc_attr_e( 'Enter your API key', 'digital-employees' ); ?>"
+							value=""
+							autocomplete="off"
+						/>
+					</div>
+
+					<div class="def-core-save-area">
+						<button type="button" class="button button-primary" id="def-core-save-manual-connection">
+							<?php esc_html_e( 'Save Connection', 'digital-employees' ); ?>
+						</button>
+						<span class="spinner"></span>
+						<span id="def-core-manual-conn-result" class="def-core-connection-result"></span>
+					</div>
+				</div>
 			<?php endif; ?>
 
 			<?php if ( $is_connected ) : ?>

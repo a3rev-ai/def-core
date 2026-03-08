@@ -110,6 +110,7 @@ final class DEF_Core_Admin {
 		add_action( 'wp_ajax_def_core_search_users', array( __CLASS__, 'ajax_search_users' ) );
 		add_action( 'wp_ajax_def_core_remove_user_roles', array( __CLASS__, 'ajax_remove_user_roles' ) );
 		add_action( 'wp_ajax_def_core_test_escalation_email', array( __CLASS__, 'ajax_test_escalation_email' ) );
+		add_action( 'wp_ajax_def_core_save_manual_connection', array( __CLASS__, 'ajax_save_manual_connection' ) );
 	}
 
 	/**
@@ -210,6 +211,7 @@ final class DEF_Core_Admin {
 			'rolesNonce'       => wp_create_nonce( 'def_core_save_user_roles' ),
 			'searchUsersNonce' => wp_create_nonce( 'def_core_search_users' ),
 			'testEmailNonce'   => wp_create_nonce( 'def_core_test_escalation_email' ),
+			'connNonce'        => wp_create_nonce( 'def_core_save_manual_connection' ),
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
 		) );
 
@@ -486,6 +488,52 @@ final class DEF_Core_Admin {
 		} else {
 			wp_send_json_error( $result );
 		}
+	}
+
+	// ─── AJAX: Manual Connection Save ───────────────────────────────
+
+	/**
+	 * AJAX handler for manual connection configuration.
+	 * Fallback for when DEFHO push is unavailable (localhost, firewalled, etc).
+	 */
+	public static function ajax_save_manual_connection(): void {
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_manual_connection' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
+		}
+
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-employees' ) ), 403 );
+		}
+
+		$api_url = isset( $_POST['api_url'] ) ? esc_url_raw( wp_unslash( $_POST['api_url'] ) ) : '';
+		$api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
+
+		if ( empty( $api_url ) || empty( $api_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'Both API URL and API Key are required.', 'digital-employees' ) ) );
+		}
+
+		// Validate URL format.
+		if ( ! filter_var( $api_url, FILTER_VALIDATE_URL ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid API URL format.', 'digital-employees' ) ) );
+		}
+
+		// Save connection config (same options as push mechanism).
+		update_option( 'def_core_staff_ai_api_url', $api_url );
+		update_option( 'def_core_api_key', $api_key, false );
+
+		// Set revision to 1 so $is_connected logic works.
+		$current_revision = (int) get_option( 'def_core_conn_config_revision', 0 );
+		if ( $current_revision < 1 ) {
+			update_option( 'def_core_conn_config_revision', 1 );
+		}
+		update_option( 'def_core_conn_last_sync_at', current_time( 'Y-m-d H:i:s' ) );
+
+		// Clear cached connection test.
+		delete_transient( 'def_core_connection_test' );
+
+		wp_send_json_success( array(
+			'message' => __( 'Connection saved. Use Test Connection to verify.', 'digital-employees' ),
+		) );
 	}
 
 	// ─── Sanitize Callbacks ──────────────────────────────────────────
