@@ -5,14 +5,14 @@
  * Version: 1.0.0
  * Author: a3rev
  * Author URI: https://a3rev.com/
- * Text Domain: def-core
+ * Text Domain: digital-employees
  * Domain Path: /languages
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
- * @package def-core
+ * @package digital-employees
  */
 
 declare(strict_types=1);

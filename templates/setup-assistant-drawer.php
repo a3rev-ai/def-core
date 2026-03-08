@@ -25,10 +25,10 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 	class="def-sa-trigger"
 	aria-expanded="false"
 	aria-controls="def-setup-assistant-drawer"
-	title="<?php esc_attr_e( 'Setup Assistant', 'def-core' ); ?>"
+	title="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
 >
 	<span class="dashicons dashicons-admin-comments"></span>
-	<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'def-core' ); ?></span>
+	<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
 </button>
 
 <!-- Drawer container -->
@@ -37,7 +37,7 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 	class="def-sa-drawer"
 	aria-hidden="true"
 	role="dialog"
-	aria-label="<?php esc_attr_e( 'Setup Assistant', 'def-core' ); ?>"
+	aria-label="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
 >
 	<!-- Backdrop -->
 	<div class="def-sa-backdrop"></div>
@@ -46,12 +46,12 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 	<div class="def-sa-panel" role="document">
 		<!-- Header -->
 		<div class="def-sa-header">
-			<h2 class="def-sa-title"><?php esc_html_e( 'Setup Assistant', 'def-core' ); ?></h2>
+			<h2 class="def-sa-title"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></h2>
 			<div class="def-sa-header-actions">
-				<button type="button" class="def-sa-clear" title="<?php esc_attr_e( 'Clear conversation', 'def-core' ); ?>">
+				<button type="button" class="def-sa-clear" title="<?php esc_attr_e( 'Clear conversation', 'digital-employees' ); ?>">
 					<span class="dashicons dashicons-trash"></span>
 				</button>
-				<button type="button" class="def-sa-close" aria-label="<?php esc_attr_e( 'Close Setup Assistant', 'def-core' ); ?>">
+				<button type="button" class="def-sa-close" aria-label="<?php esc_attr_e( 'Close Setup Assistant', 'digital-employees' ); ?>">
 					<span class="dashicons dashicons-no-alt"></span>
 				</button>
 			</div>
@@ -64,11 +64,11 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 		<div class="def-sa-composer">
 			<textarea
 				class="def-sa-input"
-				placeholder="<?php esc_attr_e( 'Ask about your setup...', 'def-core' ); ?>"
+				placeholder="<?php esc_attr_e( 'Ask about your setup...', 'digital-employees' ); ?>"
 				rows="1"
-				aria-label="<?php esc_attr_e( 'Message', 'def-core' ); ?>"
+				aria-label="<?php esc_attr_e( 'Message', 'digital-employees' ); ?>"
 			></textarea>
-			<button type="button" class="def-sa-send" aria-label="<?php esc_attr_e( 'Send message', 'def-core' ); ?>">
+			<button type="button" class="def-sa-send" aria-label="<?php esc_attr_e( 'Send message', 'digital-employees' ); ?>">
 				<span class="dashicons dashicons-arrow-right-alt2"></span>
 			</button>
 		</div>

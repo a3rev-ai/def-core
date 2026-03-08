@@ -109,8 +109,8 @@ final class DEF_Core_Admin {
 	 */
 	public static function add_settings_page(): void {
 		add_menu_page(
-			__( 'Digital Employees', 'def-core' ),
-			__( 'Digital Employees', 'def-core' ),
+			__( 'Digital Employees', 'digital-employees' ),
+			__( 'Digital Employees', 'digital-employees' ),
 			'def_admin_access',
 			'def-core',
 			array( __CLASS__, 'render_settings_page' ),
@@ -121,8 +121,8 @@ final class DEF_Core_Admin {
 		// Rename the auto-created first submenu from "Digital Employees" to "Settings".
 		add_submenu_page(
 			'def-core',
-			__( 'Settings', 'def-core' ),
-			__( 'Settings', 'def-core' ),
+			__( 'Settings', 'digital-employees' ),
+			__( 'Settings', 'digital-employees' ),
 			'def_admin_access',
 			'def-core'
 		);
@@ -130,8 +130,8 @@ final class DEF_Core_Admin {
 		// Add "Open Staff AI" link — opens in new tab via JS (see admin_footer hook).
 		add_submenu_page(
 			'def-core',
-			__( 'Staff AI', 'def-core' ),
-			__( 'Open Staff AI', 'def-core' ),
+			__( 'Staff AI', 'digital-employees' ),
+			__( 'Open Staff AI', 'digital-employees' ),
 			'def_staff_access',
 			'def-core-staff-ai',
 			'__return_null'
@@ -315,12 +315,12 @@ final class DEF_Core_Admin {
 	public static function ajax_save_settings(): void {
 		// Verify nonce.
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_settings' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		// Verify capability.
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
 		$tab = isset( $_POST['tab'] ) ? sanitize_text_field( wp_unslash( $_POST['tab'] ) ) : '';
@@ -328,7 +328,7 @@ final class DEF_Core_Admin {
 		$data = isset( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : array();
 
 		if ( ! is_array( $data ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid settings data.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid settings data.', 'digital-employees' ) ) );
 		}
 
 		// Special handling for escalation tab (structured options).
@@ -339,7 +339,7 @@ final class DEF_Core_Admin {
 
 		// Get allowlist for this tab.
 		if ( ! isset( self::$tab_allowlists[ $tab ] ) ) {
-			wp_send_json_error( array( 'message' => __( 'Unknown tab.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Unknown tab.', 'digital-employees' ) ) );
 		}
 
 		$allowlist = self::$tab_allowlists[ $tab ];
@@ -350,7 +350,7 @@ final class DEF_Core_Admin {
 		foreach ( $data as $key => $value ) {
 			$key = sanitize_text_field( $key );
 			if ( ! isset( $allowlist[ $key ] ) ) {
-				$errors[] = sprintf( __( 'Unknown setting: %s', 'def-core' ), $key );
+				$errors[] = sprintf( __( 'Unknown setting: %s', 'digital-employees' ), $key );
 				continue;
 			}
 
@@ -388,7 +388,7 @@ final class DEF_Core_Admin {
 		}
 
 		wp_send_json_success( array(
-			'message' => __( 'Settings saved.', 'def-core' ),
+			'message' => __( 'Settings saved.', 'digital-employees' ),
 			'saved'   => $saved,
 		) );
 	}
@@ -401,11 +401,11 @@ final class DEF_Core_Admin {
 	 */
 	public static function ajax_test_connection(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_test_connection' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
 		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
@@ -414,7 +414,7 @@ final class DEF_Core_Admin {
 		if ( empty( $api_url ) ) {
 			$result = array(
 				'status'    => 'error',
-				'message'   => __( 'API URL is not configured.', 'def-core' ),
+				'message'   => __( 'API URL is not configured.', 'digital-employees' ),
 				'http_code' => 0,
 				'timestamp' => gmdate( 'c' ),
 			);
@@ -451,7 +451,7 @@ final class DEF_Core_Admin {
 		if ( $http_code >= 200 && $http_code < 300 ) {
 			$result = array(
 				'status'        => 'ok',
-				'message'       => __( 'Connected', 'def-core' ),
+				'message'       => __( 'Connected', 'digital-employees' ),
 				'http_code'     => $http_code,
 				'response_time' => $elapsed,
 				'timestamp'     => gmdate( 'c' ),
@@ -459,7 +459,7 @@ final class DEF_Core_Admin {
 		} else {
 			$result = array(
 				'status'        => 'error',
-				'message'       => sprintf( __( 'HTTP %d response', 'def-core' ), $http_code ),
+				'message'       => sprintf( __( 'HTTP %d response', 'digital-employees' ), $http_code ),
 				'http_code'     => $http_code,
 				'response_time' => $elapsed,
 				'timestamp'     => gmdate( 'c' ),
@@ -510,7 +510,7 @@ final class DEF_Core_Admin {
 		$id = (int) $value;
 		if ( $id > 0 && ! wp_attachment_is_image( $id ) ) {
 			add_settings_error( 'def_core_logo_id', 'invalid_image',
-				__( 'Selected file is not a valid image.', 'def-core' )
+				__( 'Selected file is not a valid image.', 'digital-employees' )
 			);
 			return 0;
 		}
@@ -646,7 +646,7 @@ final class DEF_Core_Admin {
 		}
 
 		wp_send_json_success( array(
-			'message' => __( 'Settings saved.', 'def-core' ),
+			'message' => __( 'Settings saved.', 'digital-employees' ),
 			'saved'   => $saved,
 		) );
 	}
@@ -659,17 +659,17 @@ final class DEF_Core_Admin {
 	 */
 	public static function ajax_save_user_roles(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_user_roles' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$roles_data = isset( $_POST['roles'] ) ? wp_unslash( $_POST['roles'] ) : array();
 		if ( ! is_array( $roles_data ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid data.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid data.', 'digital-employees' ) ) );
 		}
 
 		$capabilities   = array( 'def_staff_access', 'def_management_access', 'def_admin_access' );
@@ -695,7 +695,7 @@ final class DEF_Core_Admin {
 
 		if ( $admin_count < 1 ) {
 			wp_send_json_error( array(
-				'message' => __( 'Cannot save — at least one user must have DEF Admin access.', 'def-core' ),
+				'message' => __( 'Cannot save — at least one user must have DEF Admin access.', 'digital-employees' ),
 			) );
 			return;
 		}
@@ -719,7 +719,7 @@ final class DEF_Core_Admin {
 		}
 
 		wp_send_json_success( array(
-			'message' => __( 'User roles updated.', 'def-core' ),
+			'message' => __( 'User roles updated.', 'digital-employees' ),
 		) );
 	}
 
@@ -731,11 +731,11 @@ final class DEF_Core_Admin {
 	 */
 	public static function ajax_search_users(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_search_users' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-employees' ) ), 403 );
 		}
 
 		$term = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
@@ -813,22 +813,22 @@ final class DEF_Core_Admin {
 	 */
 	public static function ajax_remove_user_roles(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_save_user_roles' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-employees' ) ), 403 );
 		}
 
 		$user_id = isset( $_POST['user_id'] ) ? (int) $_POST['user_id'] : 0;
 		if ( ! $user_id ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid user.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid user.', 'digital-employees' ) ) );
 			return;
 		}
 
 		$user = get_userdata( $user_id );
 		if ( ! $user ) {
-			wp_send_json_error( array( 'message' => __( 'User not found.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'User not found.', 'digital-employees' ) ) );
 			return;
 		}
 
@@ -840,7 +840,7 @@ final class DEF_Core_Admin {
 			) );
 			if ( count( $admin_ids ) <= 1 && in_array( $user_id, array_map( 'intval', $admin_ids ), true ) ) {
 				wp_send_json_error( array(
-					'message' => __( 'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.', 'def-core' ),
+					'message' => __( 'Cannot remove the last DEF Admin. At least one user must have DEF Admin access.', 'digital-employees' ),
 				) );
 				return;
 			}
@@ -856,7 +856,7 @@ final class DEF_Core_Admin {
 		wp_send_json_success( array(
 			'message' => sprintf(
 				/* translators: %s: user display name */
-				__( '%s removed from DEF access.', 'def-core' ),
+				__( '%s removed from DEF access.', 'digital-employees' ),
 				$user->display_name
 			),
 		) );
@@ -869,24 +869,24 @@ final class DEF_Core_Admin {
 	 */
 	public static function ajax_test_escalation_email(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_test_escalation_email' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ), 403 );
 		}
 
 		if ( ! current_user_can( 'def_admin_access' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'def-core' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
 		$channel         = isset( $_POST['channel'] ) ? sanitize_text_field( wp_unslash( $_POST['channel'] ) ) : '';
 		$valid_channels  = array( 'customer', 'staff_ai', 'setup_assistant' );
 		if ( ! in_array( $channel, $valid_channels, true ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid channel.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid channel.', 'digital-employees' ) ) );
 		}
 
 		// Rate limit: 30-second cooldown per channel per user.
 		$user_id       = get_current_user_id();
 		$transient_key = 'def_test_email_' . $user_id . '_' . $channel;
 		if ( get_transient( $transient_key ) ) {
-			wp_send_json_error( array( 'message' => __( 'Please wait 30 seconds before sending another test email.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Please wait 30 seconds before sending another test email.', 'digital-employees' ) ) );
 			return;
 		}
 
@@ -903,12 +903,12 @@ final class DEF_Core_Admin {
 		$to = implode( ', ', $to_emails );
 
 		if ( empty( $to ) ) {
-			wp_send_json_error( array( 'message' => __( 'No valid email address configured for this channel.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No valid email address configured for this channel.', 'digital-employees' ) ) );
 		}
 
 		$channel_label = ucwords( str_replace( '_', ' ', $channel ) );
 		$subject       = sprintf( '[DEF Test] Escalation test — %s', $channel_label );
-		$body          = __( 'This is a test escalation email from Digital Employee Framework. If you received this, escalation is working correctly.', 'def-core' );
+		$body          = __( 'This is a test escalation email from Digital Employee Framework. If you received this, escalation is working correctly.', 'digital-employees' );
 
 		set_transient( $transient_key, 1, 30 );
 		$sent = wp_mail( $to, $subject, $body );
@@ -917,13 +917,13 @@ final class DEF_Core_Admin {
 			wp_send_json_success( array(
 				'message' => sprintf(
 					/* translators: %s: email address */
-					__( 'Test email sent to %s', 'def-core' ),
+					__( 'Test email sent to %s', 'digital-employees' ),
 					$to
 				),
 			) );
 		} else {
 			wp_send_json_error( array(
-				'message' => __( 'Failed to send test email. Check your WordPress email configuration.', 'def-core' ),
+				'message' => __( 'Failed to send test email. Check your WordPress email configuration.', 'digital-employees' ),
 			) );
 		}
 	}

@@ -47,6 +47,9 @@ final class DEF_Core {
 		// Load all required files.
 		$this->load_dependencies();
 
+		// Load text domain for translations.
+		add_action( 'init', array( $this, 'load_textdomain' ) );
+
 		// Register assets.
 		add_action( 'init', array( $this, 'register_assets' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
@@ -202,6 +205,16 @@ final class DEF_Core {
 
 	/**
 	 * Register assets (available everywhere, but not enqueued).
+	 *
+	 * @since 0.2.0
+	 * @version 0.2.0
+	 */
+	public function load_textdomain(): void {
+		load_plugin_textdomain( 'digital-employees', false, dirname( plugin_basename( DEF_CORE_PLUGIN_DIR . 'def-core.php' ) ) . '/languages/' );
+	}
+
+	/**
+	 * Register all plugin assets.
 	 *
 	 * @since 0.2.0
 	 * @version 0.2.0
@@ -399,7 +412,7 @@ final class DEF_Core {
 	 */
 	public function add_settings_link( array $links ): array {
 		$url     = admin_url( 'options-general.php?page=def-core' );
-		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'def-core' ) . '</a>';
+		$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'digital-employees' ) . '</a>';
 		return $links;
 	}
 
@@ -414,7 +427,7 @@ final class DEF_Core {
 	public function ajax_inline_login(): void {
 		// Verify nonce.
 		if ( ! check_ajax_referer( 'wp_rest', '_wpnonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'digital-employees' ) ) );
 			return;
 		}
 
@@ -423,7 +436,7 @@ final class DEF_Core {
 		$password = isset( $_POST['pwd'] ) ? $_POST['pwd'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( empty( $username ) || empty( $password ) ) {
-			wp_send_json_error( array( 'message' => __( 'Please enter both username and password.', 'def-core' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Please enter both username and password.', 'digital-employees' ) ) );
 			return;
 		}
 
@@ -441,7 +454,7 @@ final class DEF_Core {
 			$error_message = $user->get_error_message();
 			// Sanitize error message - don't reveal too much.
 			if ( strpos( $error_message, 'username' ) !== false || strpos( $error_message, 'password' ) !== false ) {
-				$error_message = __( 'Login failed — please check your details and try again.', 'def-core' );
+				$error_message = __( 'Login failed — please check your details and try again.', 'digital-employees' );
 			}
 			wp_send_json_error( array( 'message' => $error_message ) );
 			return;
@@ -484,7 +497,7 @@ final class DEF_Core {
 	 */
 	public function shortcode_chat_button( $atts ): string {
 		$atts = shortcode_atts( array(
-			'label' => __( 'Chat', 'def-core' ),
+			'label' => __( 'Chat', 'digital-employees' ),
 			'class' => '',
 			'icon'  => 'none',
 		), $atts, 'def_chat_button' );
@@ -509,7 +522,7 @@ final class DEF_Core {
 	 */
 	public function action_chat_button( $args = array() ): void {
 		$args = wp_parse_args( $args, array(
-			'label' => __( 'Chat', 'def-core' ),
+			'label' => __( 'Chat', 'digital-employees' ),
 			'class' => '',
 			'icon'  => 'none',
 		) );
@@ -616,27 +629,27 @@ final class DEF_Core {
 	 */
 	private function get_chat_strings(): array {
 		$strings = array(
-			'clearChat'            => __( 'Clear conversation & start fresh', 'def-core' ),
-			'clearConfirmTitle'    => __( 'Clear conversation?', 'def-core' ),
-			'clearConfirmDesc'     => __( 'This will clear your current conversation. This action cannot be undone.', 'def-core' ),
-			'clearConfirmYes'      => __( 'Clear & start fresh', 'def-core' ),
-			'cancel'               => __( 'Cancel', 'def-core' ),
-			'typePlaceholder'      => __( 'Type your message...', 'def-core' ),
-			'greeting'             => __( 'Hello! How can I help you today?', 'def-core' ),
-			'sending'              => __( 'Sending...', 'def-core' ),
-			'login'                => __( 'Log in', 'def-core' ),
-			'loginTitle'           => __( 'Log in to continue', 'def-core' ),
-			'loginSubmit'          => __( 'Log in', 'def-core' ),
-			'sessionExpired'       => __( 'Session expired — please log in again', 'def-core' ),
-			'escalate'             => __( 'Request Human Support', 'def-core' ),
-			'escalateSubmit'       => __( 'Send', 'def-core' ),
-			'escalateSuccess'      => __( 'Your email has been sent.', 'def-core' ),
-			'uploadFailed'         => __( 'Upload failed. Please try again.', 'def-core' ),
-			'fileTooLarge'         => __( 'File too large — maximum 10MB', 'def-core' ),
-			'fileTypeNotSupported' => __( 'File type not supported', 'def-core' ),
-			'connectionError'      => __( 'Unable to connect. Please try again.', 'def-core' ),
-			'connectionLost'       => __( 'Connection lost. Retrying...', 'def-core' ),
-			'rateLimited'          => __( 'Please wait a moment before sending another message', 'def-core' ),
+			'clearChat'            => __( 'Clear conversation & start fresh', 'digital-employees' ),
+			'clearConfirmTitle'    => __( 'Clear conversation?', 'digital-employees' ),
+			'clearConfirmDesc'     => __( 'This will clear your current conversation. This action cannot be undone.', 'digital-employees' ),
+			'clearConfirmYes'      => __( 'Clear & start fresh', 'digital-employees' ),
+			'cancel'               => __( 'Cancel', 'digital-employees' ),
+			'typePlaceholder'      => __( 'Type your message...', 'digital-employees' ),
+			'greeting'             => __( 'Hello! How can I help you today?', 'digital-employees' ),
+			'sending'              => __( 'Sending...', 'digital-employees' ),
+			'login'                => __( 'Log in', 'digital-employees' ),
+			'loginTitle'           => __( 'Log in to continue', 'digital-employees' ),
+			'loginSubmit'          => __( 'Log in', 'digital-employees' ),
+			'sessionExpired'       => __( 'Session expired — please log in again', 'digital-employees' ),
+			'escalate'             => __( 'Request Human Support', 'digital-employees' ),
+			'escalateSubmit'       => __( 'Send', 'digital-employees' ),
+			'escalateSuccess'      => __( 'Your email has been sent.', 'digital-employees' ),
+			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
+			'fileTooLarge'         => __( 'File too large — maximum 10MB', 'digital-employees' ),
+			'fileTypeNotSupported' => __( 'File type not supported', 'digital-employees' ),
+			'connectionError'      => __( 'Unable to connect. Please try again.', 'digital-employees' ),
+			'connectionLost'       => __( 'Connection lost. Retrying...', 'digital-employees' ),
+			'rateLimited'          => __( 'Please wait a moment before sending another message', 'digital-employees' ),
 		);
 		return apply_filters( 'def_core_chat_strings', $strings );
 	}
