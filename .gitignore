@@ -50,7 +50,8 @@ wp-config.php
 \.DS_Store
 \._*
 node_modules/
-vendor/
+vendor/*
+!vendor/plugin-update-checker/
 !assets/js/vendor/
 .bit/
 package-lock.json

@@ -1,81 +1,121 @@
-# Digital Employee Framework - Core
+# Digital Employees
 
-WordPress bridge plugin for the **[Digital Employee Framework](https://defho.ai/)** (DEF). Connects WordPress sites to AI-powered Digital Employees that can assist customers, support staff, and help configure your site.
+AI-powered Digital Employees for your WordPress site. Customer-facing chat, internal staff assistant, and intelligent setup — all connected to the [Digital Employee Framework](https://defho.ai/).
 
-## Features
+## What Are Digital Employees?
 
-- **Customer Chat** — AI chat widget for your site visitors (floating button or shortcode)
-- **Staff AI** — Internal AI assistant for staff and management (wp-admin)
-- **Setup Assistant** — Intelligent configuration agent that helps set up the plugin
-- **JWT Authentication** — Secure token-based identity bridge between WordPress and DEF
-- **JWKS Endpoint** — Public key endpoint for external JWT verification
-- **WooCommerce Integration** — Product search, cart sync, and order tools (loads only when WooCommerce is active)
-- **Real-Time Streaming** — SSE-based word-by-word text streaming across all channels
-- **Knowledge Export** — Bulk content and product export endpoints for AI knowledge base indexing
+Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels:
+
+### Customer Chat
+A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering.
+
+### Staff AI
+An internal AI assistant in wp-admin for your team. Helps staff with product lookups, order queries, customer context, and knowledge base searches. Available to users with the appropriate role.
+
+### Setup Assistant
+An intelligent configuration agent that lives in your wp-admin settings. Guides you through plugin setup conversationally — configures branding, chat settings, user roles, and connection status. Knows the current state of every setting.
 
 ## Requirements
 
 - WordPress 6.0+
 - PHP 8.0+
-- A Digital Employee Framework account ([defho.ai](https://defho.ai/))
+- A [DEFHO](https://defho.ai/) account (Digital Employee Framework platform)
 
 ## Installation
 
-1. Upload the `digital-employees` folder to `/wp-content/plugins/`
-2. Activate the plugin via **Plugins > Installed Plugins**
-3. Go to **Digital Employees > Settings** and configure your connection
-4. Use the **Setup Assistant** to walk through configuration
+### From GitHub Releases
 
-## Connection
+1. Download the latest release .zip from the [Releases page](https://github.com/a3rev-ai/def-core/releases)
+2. In WordPress, go to **Plugins > Add New > Upload Plugin**
+3. Upload the .zip and click **Install Now**
+4. Activate the plugin
 
-The plugin connects to your DEF backend API. Connection can be configured:
+The plugin checks GitHub for updates automatically — you'll see standard WordPress update notifications when a new version is available.
 
-- **Automatically** — via DEFHO platform push (recommended)
-- **Manually** — enter API URL and API Key on the Connection tab
+### Manual
 
-## REST API Endpoints
+1. Clone or download this repository
+2. Upload the `def-core` folder to `/wp-content/plugins/`
+3. Activate via **Plugins > Installed Plugins**
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/wp-json/a3-ai/v1/jwks` | GET | Public | JWKS public keys |
-| `/wp-json/a3-ai/v1/context-token` | GET | WP Auth | Issue signed context token |
-| `/wp-json/def-core/v1/content/export` | GET | API Key | Bulk content export |
-| `/wp-json/def-core/v1/products/export` | GET | API Key | WooCommerce product export |
-| `/wp-json/def-core/v1/connection-status` | GET | Public | Connection health check |
+## Getting Started
 
-Tool endpoints (product search, cart operations, order lookup, etc.) are registered dynamically via the API registry.
+1. **Sign up** at [defho.ai](https://defho.ai/) and create a Tenant for your site
+2. **Install** the plugin on your WordPress site
+3. **Connect** — push the connection from your DEFHO Tenant Portal (or enter credentials manually on the Connection tab)
+4. **Configure** — the Setup Assistant will guide you through branding, chat settings, and user roles
 
-## Shortcodes
+Once connected, Customer Chat is available on your frontend and Staff AI is available in wp-admin.
 
-- `[def_chat_button]` — Render the Customer Chat button at a specific location
-
-## Hooks
-
-- `def_core_chat_button` — Action hook to render the chat button in theme templates
-- `def_core_register_tools` — Register additional API tools from modules
-- `def_core_token_expiration` — Filter JWT token lifetime (default: 5 minutes)
-- `def_core_chat_strings` — Filter Customer Chat i18n strings
-
-## Architecture
+## How It Works
 
 ```
-WordPress (UI + Auth)
-        ↓
-def-core (Bridge Plugin)
-        ↓
+WordPress (UI + Authentication)
+        |
+    def-core (this plugin)
+        |
 Digital Employee Framework (AI, Tools, Governance)
 ```
 
-The plugin is intentionally thin — all business logic, tool execution, and governance live in the DEF backend. WordPress provides the UI surface and authentication context.
+This plugin is the bridge. All AI logic, tool execution, employee orchestration, and governance enforcement happen server-side in the DEF backend. WordPress provides the user interface and authentication context.
+
+## Admin Settings
+
+Five tabs under **Digital Employees** in wp-admin:
+
+| Tab | What It Does |
+|-----|-------------|
+| **Branding** | Display name, logo, app icon |
+| **Chat Settings** | Display mode, button position/color/icon/label, AI disclosure notice |
+| **Escalation** | Email recipients for Customer Chat and Setup Assistant escalations |
+| **User Roles** | Assign DEF capabilities (Staff AI access, Management access) per user |
+| **Connection** | Connection status indicator (read-only when push-configured) |
+
+## WooCommerce Integration
+
+When WooCommerce is active, additional tools load automatically:
+
+- Product search and browsing
+- Cart synchronization
+- Order lookup and status
+- Knowledge export for product catalog indexing
+
+## Shortcodes & Hooks
+
+**Shortcode:**
+- `[def_chat_button]` — Render the Customer Chat button at a specific location
+
+**Hooks:**
+- `def_core_chat_button` — Action to render the chat button in theme templates
+- `def_core_register_tools` — Register additional API tools
+- `def_core_token_expiration` — Filter JWT token lifetime (default: 5 minutes)
+- `def_core_chat_strings` — Filter Customer Chat UI strings for i18n
+
+## REST API
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/wp-json/a3-ai/v1/jwks` | GET | Public | JWKS public keys for JWT verification |
+| `/wp-json/a3-ai/v1/context-token` | GET | WP Auth | Issue signed context token |
+| `/wp-json/def-core/v1/content/export` | GET | API Key | Bulk content export for knowledge indexing |
+| `/wp-json/def-core/v1/products/export` | GET | API Key | WooCommerce product export |
+| `/wp-json/def-core/v1/connection-status` | GET | Public | Connection health check |
+
+Tool endpoints (product search, cart operations, order lookup) are registered dynamically via the API registry.
 
 ## Security
 
-- RSA-256 signed JWT tokens
+- RSA-256 signed JWT tokens (5-minute expiry)
 - All authority enforced server-side by the framework
-- No secrets hard-coded — all credentials in WordPress options
+- No secrets hard-coded — credentials stored in WordPress options
 - Bearer token authentication for API endpoints
 - Origin validation for cross-domain requests
-- AI disclosure notice for transparency compliance
+- AI disclosure notice for visitor transparency
+- WordPress nonce + cookie auth for admin endpoints
+
+## External Services
+
+This plugin connects to the Digital Employee Framework (DEF) API to power its AI features. Chat messages and user context are sent to the configured DEF server only when a user actively sends a message. No data is transmitted when chat features are not in use. See the [DEFHO Privacy Policy](https://defho.ai/privacy) and [Terms of Service](https://defho.ai/terms).
 
 ## Contributing
 
