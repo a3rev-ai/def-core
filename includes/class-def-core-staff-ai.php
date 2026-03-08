@@ -235,7 +235,7 @@ final class DEF_Core_Staff_AI
 		if (! is_user_logged_in()) {
 			return new \WP_Error(
 				'rest_not_logged_in',
-				__('Authentication required.', 'def-core'),
+				__('Authentication required.', 'digital-employees'),
 				array('status' => 401)
 			);
 		}
@@ -244,7 +244,7 @@ final class DEF_Core_Staff_AI
 		if (! self::user_has_staff_ai_access()) {
 			return new \WP_Error(
 				'rest_forbidden',
-				__('You do not have permission to access Staff AI.', 'def-core'),
+				__('You do not have permission to access Staff AI.', 'digital-employees'),
 				array('status' => 403)
 			);
 		}
@@ -279,7 +279,7 @@ final class DEF_Core_Staff_AI
 		if (! $base_url) {
 			return new \WP_Error(
 				'staff_ai_not_configured',
-				__('Staff AI backend URL is not configured. Go to Settings > Digital Employees to set the Staff AI API URL.', 'def-core'),
+				__('Staff AI backend URL is not configured. Go to Settings > Digital Employees to set the Staff AI API URL.', 'digital-employees'),
 				array('status' => 503)
 			);
 		}
@@ -291,7 +291,7 @@ final class DEF_Core_Staff_AI
 		if (! $user || 0 === $user->ID) {
 			return new \WP_Error(
 				'staff_ai_not_authenticated',
-				__('User not authenticated.', 'def-core'),
+				__('User not authenticated.', 'digital-employees'),
 				array('status' => 401)
 			);
 		}
@@ -317,7 +317,7 @@ final class DEF_Core_Staff_AI
 		if (empty($token)) {
 			return new \WP_Error(
 				'staff_ai_token_error',
-				__('Failed to generate authentication token.', 'def-core'),
+				__('Failed to generate authentication token.', 'digital-employees'),
 				array('status' => 500)
 			);
 		}
@@ -342,7 +342,7 @@ final class DEF_Core_Staff_AI
 		if (is_wp_error($response)) {
 			return new \WP_Error(
 				'staff_ai_request_failed',
-				__('Failed to connect to Staff AI backend.', 'def-core'),
+				__('Failed to connect to Staff AI backend.', 'digital-employees'),
 				array('status' => 502)
 			);
 		}
@@ -357,7 +357,7 @@ final class DEF_Core_Staff_AI
 				'staff_ai_network_error',
 				sprintf(
 					/* translators: 1: URL being called */
-					__('Network error: Could not connect to backend at %1$s. Check if the URL is correct and the server is reachable.', 'def-core'),
+					__('Network error: Could not connect to backend at %1$s. Check if the URL is correct and the server is reachable.', 'digital-employees'),
 					$url
 				),
 				array('status' => 502)
@@ -373,7 +373,7 @@ final class DEF_Core_Staff_AI
 				$error_code    = 'staff_ai_auth_failed';
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code, 2: backend error detail */
-					__('Backend auth failed (HTTP %1$d). The backend may need JWKS configuration. Detail: %2$s', 'def-core'),
+					__('Backend auth failed (HTTP %1$d). The backend may need JWKS configuration. Detail: %2$s', 'digital-employees'),
 					$status,
 					$backend_detail ? $backend_detail : 'none'
 				);
@@ -381,7 +381,7 @@ final class DEF_Core_Staff_AI
 				$error_code    = 'staff_ai_not_found';
 				$error_message = sprintf(
 					/* translators: 1: API endpoint path, 2: full URL */
-					__('Backend endpoint not found (HTTP 404): %1$s. Full URL: %2$s - Please verify the backend API supports this endpoint.', 'def-core'),
+					__('Backend endpoint not found (HTTP 404): %1$s. Full URL: %2$s - Please verify the backend API supports this endpoint.', 'digital-employees'),
 					$endpoint,
 					$url
 				);
@@ -389,7 +389,7 @@ final class DEF_Core_Staff_AI
 				$error_code    = 'staff_ai_service_error';
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code */
-					__('Backend service error (HTTP %1$d). The service may be temporarily unavailable.', 'def-core'),
+					__('Backend service error (HTTP %1$d). The service may be temporarily unavailable.', 'digital-employees'),
 					$status
 				);
 			} else {
@@ -397,9 +397,9 @@ final class DEF_Core_Staff_AI
 				$error_code    = 'staff_ai_http_' . $status;
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code, 2: backend error detail, 3: full URL */
-					__('Backend error (HTTP %1$d) calling %3$s: %2$s', 'def-core'),
+					__('Backend error (HTTP %1$d) calling %3$s: %2$s', 'digital-employees'),
 					$status,
-					$backend_detail ? $backend_detail : __('Unknown error', 'def-core'),
+					$backend_detail ? $backend_detail : __('Unknown error', 'digital-employees'),
 					$url
 				);
 			}
@@ -450,7 +450,7 @@ final class DEF_Core_Staff_AI
 			foreach ($result['threads'] as $thread) {
 				$conversations[] = array(
 					'id'         => $thread['id'] ?? '',
-					'title'      => $thread['title'] ?? __('New conversation', 'def-core'),
+					'title'      => $thread['title'] ?? __('New conversation', 'digital-employees'),
 					'updated_at' => $thread['updatedAt'] ?? $thread['createdAt'] ?? '',
 					'is_shared'  => false, // Backend doesn't support sharing yet.
 				);
@@ -562,7 +562,7 @@ final class DEF_Core_Staff_AI
 		// Validate filename.
 		if (empty($filename)) {
 			error_log('[DEF Upload] Rejected: empty filename from user ' . get_current_user_id());
-			return new \WP_Error('invalid_filename', __('Filename is required.', 'def-core'), array('status' => 400));
+			return new \WP_Error('invalid_filename', __('Filename is required.', 'digital-employees'), array('status' => 400));
 		}
 
 		// Validate MIME type against allowlist (UX filtering — backend validates authoritatively).
@@ -570,7 +570,7 @@ final class DEF_Core_Staff_AI
 			error_log('[DEF Upload] Rejected MIME type: ' . $mime_type . ' for file: ' . $filename . ' from user ' . get_current_user_id());
 			return new \WP_Error(
 				'unsupported_media_type',
-				__('File type not supported.', 'def-core'),
+				__('File type not supported.', 'digital-employees'),
 				array('status' => 415)
 			);
 		}
@@ -580,7 +580,7 @@ final class DEF_Core_Staff_AI
 			error_log('[DEF Upload] Rejected file size: ' . $size . ' bytes for file: ' . $filename . ' from user ' . get_current_user_id());
 			return new \WP_Error(
 				'payload_too_large',
-				__('File exceeds maximum size of 10MB.', 'def-core'),
+				__('File exceeds maximum size of 10MB.', 'digital-employees'),
 				array('status' => 413)
 			);
 		}
@@ -608,7 +608,7 @@ final class DEF_Core_Staff_AI
 
 		if (empty($file_id) || ! preg_match('/^upload_[a-f0-9]+$/', $file_id)) {
 			error_log('[DEF Upload] Rejected invalid file_id: ' . $file_id . ' from user ' . get_current_user_id());
-			return new \WP_Error('invalid_file_id', __('Invalid file ID.', 'def-core'), array('status' => 400));
+			return new \WP_Error('invalid_file_id', __('Invalid file ID.', 'digital-employees'), array('status' => 400));
 		}
 
 		return self::backend_request('POST', '/api/staff_ai/uploads/commit', array(
@@ -637,7 +637,7 @@ final class DEF_Core_Staff_AI
 		if (empty($message) && empty($validated_file_ids)) {
 			return new \WP_Error(
 				'invalid_message',
-				__('Message cannot be empty.', 'def-core'),
+				__('Message cannot be empty.', 'digital-employees'),
 				array('status' => 400)
 			);
 		}
@@ -764,7 +764,7 @@ final class DEF_Core_Staff_AI
 			return new \WP_REST_Response(
 				array(
 					'success'          => true,
-					'suggested_subject' => __('Staff AI Conversation', 'def-core'),
+					'suggested_subject' => __('Staff AI Conversation', 'digital-employees'),
 					'summary'          => '',
 					'summary_fallback' => true,
 				),
@@ -1041,7 +1041,7 @@ final class DEF_Core_Staff_AI
 		if (empty($tenant) || empty($filename)) {
 			return new \WP_Error(
 				'invalid_params',
-				__('Invalid file path.', 'def-core'),
+				__('Invalid file path.', 'digital-employees'),
 				array('status' => 400)
 			);
 		}
@@ -1051,7 +1051,7 @@ final class DEF_Core_Staff_AI
 		if (! $base_url) {
 			return new \WP_Error(
 				'staff_ai_not_configured',
-				__('Staff AI backend URL is not configured.', 'def-core'),
+				__('Staff AI backend URL is not configured.', 'digital-employees'),
 				array('status' => 503)
 			);
 		}
@@ -1063,7 +1063,7 @@ final class DEF_Core_Staff_AI
 		if (! $user || 0 === $user->ID) {
 			return new \WP_Error(
 				'staff_ai_not_authenticated',
-				__('User not authenticated.', 'def-core'),
+				__('User not authenticated.', 'digital-employees'),
 				array('status' => 401)
 			);
 		}
@@ -1089,7 +1089,7 @@ final class DEF_Core_Staff_AI
 		if (empty($token)) {
 			return new \WP_Error(
 				'staff_ai_token_error',
-				__('Failed to generate authentication token.', 'def-core'),
+				__('Failed to generate authentication token.', 'digital-employees'),
 				array('status' => 500)
 			);
 		}
@@ -1108,7 +1108,7 @@ final class DEF_Core_Staff_AI
 		if (is_wp_error($response)) {
 			return new \WP_Error(
 				'download_failed',
-				__('Failed to download file from backend.', 'def-core'),
+				__('Failed to download file from backend.', 'digital-employees'),
 				array('status' => 500)
 			);
 		}
@@ -1117,7 +1117,7 @@ final class DEF_Core_Staff_AI
 		if ($status_code !== 200) {
 			return new \WP_Error(
 				'file_not_found',
-				__('File not found or access denied.', 'def-core'),
+				__('File not found or access denied.', 'digital-employees'),
 				array('status' => $status_code)
 			);
 		}
@@ -1259,23 +1259,23 @@ final class DEF_Core_Staff_AI
 		$tenant   = urldecode($tenant);
 
 		if (empty($tenant) || empty($filename)) {
-			wp_die(__('Invalid file path.', 'def-core'), __('Error', 'def-core'), array('response' => 400));
+			wp_die(__('Invalid file path.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 400));
 		}
 
 		// Authentication gate.
 		if (! is_user_logged_in()) {
-			wp_die(__('Authentication required.', 'def-core'), __('Unauthorized', 'def-core'), array('response' => 401));
+			wp_die(__('Authentication required.', 'digital-employees'), __('Unauthorized', 'digital-employees'), array('response' => 401));
 		}
 
 		// Capability gate.
 		if (! self::user_has_staff_ai_access()) {
-			wp_die(__('Access denied. You need Staff AI access.', 'def-core'), __('Forbidden', 'def-core'), array('response' => 403));
+			wp_die(__('Access denied. You need Staff AI access.', 'digital-employees'), __('Forbidden', 'digital-employees'), array('response' => 403));
 		}
 
 		// Get backend URL.
 		$base_url = self::get_api_base_url();
 		if (! $base_url) {
-			wp_die(__('Staff AI backend not configured.', 'def-core'), __('Error', 'def-core'), array('response' => 503));
+			wp_die(__('Staff AI backend not configured.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
 		}
 
 		// Build the file URL - rawurlencode to handle spaces and special chars
@@ -1309,7 +1309,7 @@ final class DEF_Core_Staff_AI
 
 		$token = DEF_Core_JWT::issue_token($claims, 300);
 		if (empty($token)) {
-			wp_die(__('Failed to generate token.', 'def-core'), __('Error', 'def-core'), array('response' => 500));
+			wp_die(__('Failed to generate token.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 500));
 		}
 
 		// Fetch file from backend.
@@ -1324,18 +1324,18 @@ final class DEF_Core_Staff_AI
 		);
 
 		if (is_wp_error($response)) {
-			wp_die(__('Failed to download file.', 'def-core'), __('Error', 'def-core'), array('response' => 500));
+			wp_die(__('Failed to download file.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 500));
 		}
 
 		$status_code = wp_remote_retrieve_response_code($response);
 		if ($status_code !== 200) {
 			$error_body = wp_remote_retrieve_body($response);
-			$error_msg  = __('File not found or access denied.', 'def-core');
+			$error_msg  = __('File not found or access denied.', 'digital-employees');
 			// Add debug info in development
 			if (defined('WP_DEBUG') && WP_DEBUG) {
 				$error_msg .= ' (HTTP ' . intval( $status_code ) . ': ' . esc_html( substr( $error_body, 0, 200 ) ) . ')';
 			}
-			wp_die($error_msg, __('Error', 'def-core'), array('response' => $status_code));
+			wp_die($error_msg, __('Error', 'digital-employees'), array('response' => $status_code));
 		}
 
 		$body         = wp_remote_retrieve_body($response);
@@ -1464,7 +1464,7 @@ final class DEF_Core_Staff_AI
 		<head>
 			<meta charset="<?php bloginfo('charset'); ?>">
 			<meta name="viewport" content="width=device-width, initial-scale=1">
-			<title><?php echo esc_html__('Access Denied', 'def-core'); ?> - <?php bloginfo('name'); ?></title>
+			<title><?php echo esc_html__('Access Denied', 'digital-employees'); ?> - <?php bloginfo('name'); ?></title>
 			<style>
 				* {
 					margin: 0;
@@ -1508,8 +1508,8 @@ final class DEF_Core_Staff_AI
 
 		<body>
 			<div class="access-denied">
-				<h1><?php echo esc_html__('Access Denied', 'def-core'); ?></h1>
-				<p><?php echo esc_html__('You do not have permission to access Staff AI.', 'def-core'); ?></p>
+				<h1><?php echo esc_html__('Access Denied', 'digital-employees'); ?></h1>
+				<p><?php echo esc_html__('You do not have permission to access Staff AI.', 'digital-employees'); ?></p>
 			</div>
 		</body>
 
@@ -1552,7 +1552,7 @@ final class DEF_Core_Staff_AI
 		if (empty($display_name)) {
 			$display_name = get_bloginfo('name');
 		}
-		$app_name = __('Staff AI', 'def-core');
+		$app_name = __('Staff AI', 'digital-employees');
 
 		// Icon priority: 1. Uploaded app icon, 2. WordPress site icon, 3. Generated SVG.
 		$icons = array();
@@ -1593,10 +1593,10 @@ final class DEF_Core_Staff_AI
 
 		$manifest = array(
 			'name'             => $app_name,
-			'short_name'       => __('Staff AI', 'def-core'),
+			'short_name'       => __('Staff AI', 'digital-employees'),
 			'description'      => sprintf(
 				/* translators: %s: site display name */
-				__('%s Staff AI Assistant', 'def-core'),
+				__('%s Staff AI Assistant', 'digital-employees'),
 				$display_name
 			),
 			'start_url'        => home_url('/staff-ai/'),
@@ -1705,8 +1705,8 @@ JS;
 		$template = DEF_CORE_PLUGIN_DIR . 'templates/staff-ai-shell.php';
 		if ( ! file_exists( $template ) ) {
 			wp_die(
-				esc_html__( 'Staff AI template not found. Please reinstall the def-core plugin.', 'def-core' ),
-				esc_html__( 'Template Error', 'def-core' ),
+				esc_html__( 'Staff AI template not found. Please reinstall the def-core plugin.', 'digital-employees' ),
+				esc_html__( 'Template Error', 'digital-employees' ),
 				array( 'response' => 500 )
 			);
 		}

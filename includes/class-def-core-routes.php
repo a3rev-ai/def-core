@@ -100,7 +100,7 @@ final class DEF_Core_Routes {
 		// User profile tool (always available).
 		$registry->register_tool(
 			'/tools/me',
-			__( 'User Profile', 'def-core' ),
+			__( 'User Profile', 'digital-employees' ),
 			array( 'GET' ),
 			array( 'DEF_Core_Tools', 'me' ),
 			array( 'DEF_Core_Tools', 'permission_check' ),
@@ -115,7 +115,7 @@ final class DEF_Core_Routes {
 			// WooCommerce Orders.
 			$registry->register_tool(
 				'/tools/wc/orders',
-				__( 'WooCommerce Orders', 'def-core' ),
+				__( 'WooCommerce Orders', 'digital-employees' ),
 				array( 'GET' ),
 				array( 'DEF_Core_Tools', 'wc_orders' ),
 				array( 'DEF_Core_Tools', 'permission_check' ),
@@ -126,7 +126,7 @@ final class DEF_Core_Routes {
 			// WooCommerce Order Detail.
 			$registry->register_tool(
 				'/tools/wc/orders/(?P<order_id>\d+)',
-				__( 'WooCommerce Order Detail', 'def-core' ),
+				__( 'WooCommerce Order Detail', 'digital-employees' ),
 				array( 'GET' ),
 				array( 'DEF_Core_Tools', 'wc_order_detail' ),
 				array( 'DEF_Core_Tools', 'permission_check' ),
@@ -137,7 +137,7 @@ final class DEF_Core_Routes {
 			// WooCommerce Add to Cart (respects guest checkout settings).
 			$registry->register_tool(
 				'/tools/wc/add-to-cart',
-				__( 'WooCommerce Add to Cart', 'def-core' ),
+				__( 'WooCommerce Add to Cart', 'digital-employees' ),
 				array( 'POST' ),
 				array( 'DEF_Core_Tools', 'wc_add_to_cart' ),
 				array( 'DEF_Core_Tools', 'permission_check_add_to_cart' ), // Custom permission check.
@@ -148,7 +148,7 @@ final class DEF_Core_Routes {
 			// WooCommerce Products (public - no authentication required).
 			$registry->register_tool(
 				'/tools/wc/products',
-				__( 'WooCommerce Products', 'def-core' ),
+				__( 'WooCommerce Products', 'digital-employees' ),
 				array( 'GET' ),
 				array( 'DEF_Core_Tools', 'wc_get_products_list' ),
 				'__return_true',

@@ -5,14 +5,14 @@
  * Version: 1.0.0
  * Author: a3rev
  * Author URI: https://a3rev.com/
- * Text Domain: def-core
+ * Text Domain: digital-employees
  * Domain Path: /languages
  * Requires at least: 6.0
  * Requires PHP: 8.0
- * Update URI: def-core
- * License: This software is under commercial license and copyright to A3 Revolution Software Development team
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
- * @package def-core
+ * @package digital-employees
  */
 
 declare(strict_types=1);
@@ -38,16 +38,6 @@ define( 'DEF_CORE_OPTION_KEYS', 'def_core_keys' );
 define( 'DEF_CORE_OPTION_ALLOWED_ORIGINS', 'def_core_allowed_origins' );
 define( 'DEF_CORE_API_NAME_SPACE', 'a3-ai/v1' );
 define( 'DEF_CORE_AUDIENCE', 'digital-employee-framework' );
-
-// Include upgrade handler (CloudFront-based auto-update like other premium plugins).
-if ( file_exists( __DIR__ . '/upgrade/class-def-core-upgrade.php' ) ) {
-	require_once __DIR__ . '/upgrade/class-def-core-upgrade.php';
-}
-
-// Require a3rev Dashboard requirement (for auto-updates & support).
-if ( ! class_exists( 'a3rev_Dashboard_Plugin_Requirement' ) ) {
-	require_once __DIR__ . '/a3rev-dashboard-requirement.php';
-}
 
 // Main plugin class.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php';

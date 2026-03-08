@@ -100,7 +100,7 @@ final class DEF_Core_Connection_Config {
 		if ( empty( $auth_header ) ) {
 			return new \WP_Error(
 				'rest_forbidden',
-				__( 'Service authentication required.', 'def-core' ),
+				__( 'Service authentication required.', 'digital-employees' ),
 				array( 'status' => 401 )
 			);
 		}
@@ -110,7 +110,7 @@ final class DEF_Core_Connection_Config {
 		if ( empty( $stored_secret ) ) {
 			return new \WP_Error(
 				'rest_forbidden',
-				__( 'Service auth secret not configured.', 'def-core' ),
+				__( 'Service auth secret not configured.', 'digital-employees' ),
 				array( 'status' => 401 )
 			);
 		}
@@ -131,7 +131,7 @@ final class DEF_Core_Connection_Config {
 
 		return new \WP_Error(
 			'rest_forbidden',
-			__( 'Invalid service auth credentials.', 'def-core' ),
+			__( 'Invalid service auth credentials.', 'digital-employees' ),
 			array( 'status' => 401 )
 		);
 	}
