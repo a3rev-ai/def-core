@@ -478,6 +478,25 @@
 	border-bottom-left-radius: 4px;
 }
 
+/* ─── AI Disclosure Notice ─────────────────────────────────────── */
+
+.def-cc-ai-notice {
+	text-align: center;
+	font-size: 11px;
+	color: var(--def-cc-text-muted);
+	padding: 6px 16px;
+	line-height: 1.4;
+}
+
+.def-cc-ai-notice-link {
+	color: var(--def-cc-primary);
+	text-decoration: none;
+}
+
+.def-cc-ai-notice-link:hover {
+	text-decoration: underline;
+}
+
 /* ─── Markdown in Messages ──────────────────────────────────────── */
 
 .def-cc-message-content p {

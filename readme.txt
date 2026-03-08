@@ -167,9 +167,26 @@ Initial release of Digital Employee Framework - Core.
 
 **Security**: Report security issues to security@a3rev.com
 
+== External Services ==
+
+This plugin connects to an external AI service to power the Customer Chat and Staff AI features.
+
+= Digital Employee Framework API =
+
+When the Customer Chat widget or Staff AI panel is used, chat messages are sent to the configured Digital Employee Framework (DEF) API server for processing by AI models. This connection is required for the chat features to function.
+
+* **What is sent:** Chat messages, user display name, and session context.
+* **When:** Only when a user or visitor actively sends a message via the chat interface.
+* **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
+* **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
+* **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)
+* **Privacy Policy:** [https://defho.ai/privacy](https://defho.ai/privacy)
+
+No data is sent to external services when the chat features are not in use. Site administrators can configure a Privacy Policy URL in Chat Settings to display an AI disclosure notice to visitors before they begin chatting.
+
 == Privacy Policy ==
 
-This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design.
+This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design. When chat features are used, messages are processed by the external AI service described in the External Services section above.
 
 == License ==
 

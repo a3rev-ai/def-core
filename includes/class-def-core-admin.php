@@ -87,6 +87,14 @@ final class DEF_Core_Admin {
 				'type'     => 'bool',
 				'sanitize' => 'sanitize_bool_setting',
 			),
+			'def_core_chat_ai_notice' => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
+			'def_core_chat_privacy_url' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_privacy_url',
+			),
 		),
 	);
 
@@ -273,6 +281,10 @@ final class DEF_Core_Admin {
 			'display_mode' => get_option( 'def_core_chat_display_mode', 'modal' ),
 			'drawer_width' => (int) get_option( 'def_core_chat_drawer_width', 400 ),
 		);
+
+		// AI consent notice settings.
+		$chat_settings['ai_notice']   = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
+		$chat_settings['privacy_url'] = get_option( 'def_core_chat_privacy_url', '' );
 
 		// Button appearance settings.
 		$button_settings = array(
@@ -610,6 +622,17 @@ final class DEF_Core_Admin {
 	public static function sanitize_button_label( $value ): string {
 		$value = sanitize_text_field( (string) $value );
 		return in_array( $value, array( 'Chat', 'AI' ), true ) ? $value : 'Chat';
+	}
+
+	/**
+	 * Sanitize privacy policy URL.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Valid URL or empty string.
+	 */
+	public static function sanitize_privacy_url( $value ): string {
+		$value = esc_url_raw( trim( (string) $value ) );
+		return $value;
 	}
 
 	// ─── D-II: Escalation Tab Save ──────────────────────────────────
