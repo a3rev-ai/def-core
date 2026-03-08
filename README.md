@@ -9,11 +9,54 @@ Digital Employees are AI agents that work alongside your team. They understand y
 ### Customer Chat
 A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering.
 
+**Digital Sales Assistant**
+- Product inquiries, pricing, features, and comparisons
+- Personalised product recommendations
+- Add-to-cart and checkout assistance
+- Knowledge base search across your site content
+- File upload and image understanding
+- Escalation to human support
+
+**Digital Support Assistant**
+- Order lookup and status tracking
+- Subscription and license management
+- Support ticket retrieval
+- Refund and cancellation assistance
+- Account and billing inquiries
+- File upload for troubleshooting (screenshots, error logs, documents)
+- Document extraction (PDF, DOCX, XLSX, CSV)
+- Escalation to human support
+
 ### Staff AI
-An internal AI assistant in wp-admin for your team. Helps staff with product lookups, order queries, customer context, and knowledge base searches. Available to users with the appropriate role.
+An internal AI assistant in wp-admin for your team. Available to users with the appropriate role.
+
+**Digital Staff Assistant**
+- Document creation (DOCX, PDF, Markdown)
+- Spreadsheet and data file creation (XLSX, CSV)
+- Image generation from text descriptions
+- General writing, ideation, and research assistance
+- Staff-level knowledge base retrieval
+- File upload and content extraction
+- Cross-chat user memory (remembers context across conversations)
+- Escalation to human support
+- Sub-agent delegation (analyst, researcher, writer)
+
+**Digital Management Assistant**
+- All Staff Assistant capabilities
+- Management-level knowledge base access
+- Access to confidential and management documents
 
 ### Setup Assistant
 An intelligent configuration agent that lives in your wp-admin settings. Guides you through plugin setup conversationally — configures branding, chat settings, user roles, and connection status. Knows the current state of every setting.
+
+- Full setup status overview
+- Read and update any plugin setting
+- Connection testing and troubleshooting
+- User role and capability management (search, assign, remove)
+- Theme color detection for chat button styling
+- Guided setup flow (connection, branding, escalation, user roles, chat settings)
+- File upload and content extraction
+- Escalation to your DEF Partner for hands-on help
 
 ## Requirements
 
