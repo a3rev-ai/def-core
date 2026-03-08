@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: Digital Employee Framework - Core
- * Description: Issues a short-lived Signed Context Token (JWT) for authenticated WP users and securely bridges identity to an external app (e.g., Azure app in an iframe). Also exposes a JWKS endpoint for public key verification. Extensible main plugin that supports modules to register additional API tools.
+ * Plugin Name: Digital Employees
+ * Description: AI-powered Digital Employees for your WordPress site. Customer Chat for visitors, Staff AI for your team, and an intelligent Setup Assistant — all connected to the Digital Employee Framework.
  * Version: 1.0.0
  * Author: a3rev
  * Author URI: https://a3rev.com/

@@ -719,7 +719,7 @@ $first_tab = 'branding';
 				<div class="def-core-manual-connection" id="def-core-manual-connection">
 					<h3><?php esc_html_e( 'Manual Connection', 'digital-employees' ); ?></h3>
 					<p class="description">
-						<?php esc_html_e( 'Enter the API URL and API Key provided by your DEF platform administrator. Once connected via the platform, these fields will be managed automatically.', 'digital-employees' ); ?>
+						<?php esc_html_e( 'To connect please enter the API URL and API Key. You get these from your DEF Partner. Once connected your Setup Assistant will guide you through setting up your Digital Employees.', 'digital-employees' ); ?>
 					</p>
 
 					<div class="def-core-field">
