@@ -1,6 +1,6 @@
 === Digital Employee Framework - Core ===
 Contributors: a3rev
-Tags: jwt, api, authentication, sso, bridge, digital employee, ai
+Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
@@ -8,66 +8,42 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Secure JWT-based authentication bridge connecting WordPress with external Digital Employee Framework applications via REST API.
+AI-powered Digital Employees for WordPress — customer chat, staff assistant, and intelligent setup, all connected to the Digital Employee Framework.
 
 == Description ==
 
-Digital Employee Framework - Core is a powerful authentication and API bridge plugin that enables secure communication between your WordPress site and external Digital Employee Framework applications.
+Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels on your WordPress site.
+
+= Three AI Channels =
+
+* **Customer Chat** — AI chat widget for site visitors. Floating button or shortcode. Real-time streaming responses powered by your site's content and knowledge base.
+* **Staff AI** — Internal AI assistant in wp-admin for your team. Product lookups, order queries, customer context, and knowledge base searches.
+* **Setup Assistant** — Intelligent configuration agent that guides you through plugin setup conversationally. Knows the current state of every setting.
 
 = Key Features =
 
-* **JWT Token Authentication** - Issues short-lived, signed context tokens (JWT) for authenticated WordPress users
-* **JWKS Endpoint** - Exposes public keys for JWT verification via REST API
-* **Session Bridge** - Secure postMessage-based session bridging with configurable allowed origins
-* **Single Sign-On (SSO)** - Support for external JWT authentication from other WordPress sites
-* **Extensible API** - Clean architecture supporting modules to register additional API tools
-* **Cart Synchronization** - WooCommerce cart sync between WordPress and external apps
-* **Security First** - Built with security best practices, strict typing, and comprehensive validation
+* Real-time SSE streaming with word-by-word text rendering
+* WooCommerce integration — product search, cart sync, order lookup (loads only when WooCommerce is active)
+* JWT authentication bridge — secure token-based identity between WordPress and the DEF backend
+* Knowledge export endpoints for AI knowledge base indexing
+* Shadow DOM widget — zero CSS conflicts with your theme
+* Light and dark mode with automatic theme color detection
+* Configurable AI disclosure notice for visitor transparency
+* Drag-and-drop file upload in Customer Chat
+* User memory — Digital Employees remember context across conversations
 
-= Use Cases =
+= How It Works =
 
-* Connect WordPress users to AI-powered Digital Employee applications
-* Implement Single Sign-On across multiple WordPress installations
-* Bridge e-commerce sites with support forums using shared authentication
-* Synchronize WooCommerce cart data with external applications
-* Extend functionality with custom API tools via modules
+This plugin is the bridge between WordPress and the Digital Employee Framework (DEF) backend. All AI logic, tool execution, employee orchestration, and governance enforcement happen server-side. WordPress provides the UI surface and authentication context.
 
-= API Endpoints =
+1. Sign up at [defho.ai](https://defho.ai/) and create a Tenant for your site
+2. Install this plugin on your WordPress site
+3. Connect — push config from DEFHO Tenant Portal or enter credentials manually
+4. The Setup Assistant guides you through the rest
 
-* `/wp-json/a3-ai/v1/jwks` - Public JWKS endpoint for key verification
-* `/wp-json/a3-ai/v1/context-token` - Generate signed context tokens (requires authentication)
-* Extensible API namespace supporting module-registered endpoints
+= WooCommerce =
 
-= Available Modules =
-
-* **bbPress Module** - bbPress forum and topic management API tools
-* **a3rev Licenses Module** - WooCommerce license management integration
-* **WooCommerce Subscriptions Module** - Subscription management API tools
-
-= Security Features =
-
-* RSA-256 signed JWT tokens
-* Configurable token expiration
-* Origin validation for cross-domain security
-* External JWT verification support
-* Nonce-based request validation
-* Comprehensive input sanitization
-
-= Developer Friendly =
-
-* Clean, modern PHP 8.0+ codebase
-* PSR-4 autoloading compatible
-* Strict typing throughout
-* Well-documented code
-* Extensible via WordPress hooks and filters
-* Module development guide included
-
-= Documentation =
-
-Full documentation a module development guide available in the plugin directory:
-* `/README.md` - Main documentation
-* `/MODULE_DEVELOPMENT.md` - Guide for creating custom modules
-* `/examples/` - Example module implementation
+When WooCommerce is active, additional tools load automatically — product search, cart synchronization, order lookup, and product catalog export for knowledge base indexing.
 
 == Installation ==
 
@@ -75,95 +51,99 @@ Full documentation a module development guide available in the plugin directory:
 
 * WordPress 6.0 or greater
 * PHP version 8.0 or greater
-* HTTPS enabled (recommended for production)
+* A [DEFHO](https://defho.ai/) account (Digital Employee Framework platform)
 
-= Automatic Installation =
+= From GitHub =
 
-1. Log in to your WordPress admin panel
-2. Navigate to Plugins > Add New
-3. Upload the plugin zip file
-4. Click "Install Now"
-5. Activate the plugin
+1. Download the latest release from [GitHub Releases](https://github.com/a3rev-ai/def-core/releases)
+2. In WordPress, go to **Plugins > Add New > Upload Plugin**
+3. Upload the .zip file and click **Install Now**
+4. Activate the plugin
+
+The plugin checks GitHub for updates automatically — standard WordPress update notifications appear when a new version is available.
 
 = Manual Installation =
 
 1. Upload the `def-core` folder to `/wp-content/plugins/`
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Configure settings under Settings > Digital Employees
+2. Activate the plugin through the **Plugins** menu in WordPress
 
 = Configuration =
 
-1. Navigate to **Settings > Digital Employees**
-2. Configure **Allowed Origins** for postMessage session bridging
-3. (Optional) Configure **External Authentication** for Single Sign-On
-4. Enable/disable API tools as needed
+1. Go to **Digital Employees** in your wp-admin sidebar
+2. Use the **Setup Assistant** tab to configure your site conversationally, or configure manually:
+3. **Connection** — push from DEFHO Tenant Portal, or enter API URL and API Key manually
+4. **Branding** — set display name, logo, and app icon
+5. **Chat Settings** — configure button position, colors, display mode, and AI disclosure notice
+6. **Escalation** — set email recipients for Customer Chat and Setup Assistant
+7. **User Roles** — assign Staff AI and Management access per user
 
 == Frequently Asked Questions ==
 
 = What is a Digital Employee? =
 
-A Digital Employee is an AI-powered application that can interact with your WordPress site data through secure APIs, providing intelligent automation and assistance.
+A Digital Employee is an AI agent that operates within governance rules set by the platform. Unlike generic chatbots, Digital Employees have defined roles, tool access, and behavioral boundaries. They can search your knowledge base, look up products and orders, and escalate to humans when needed.
 
-= Do I need all the modules? =
+= Do I need a DEFHO account? =
 
-No. Install only the modules you need based on your plugins. For example, only install the bbPress module if you're using bbPress.
+Yes. This plugin is the WordPress connector — the AI intelligence runs on the Digital Employee Framework backend. Sign up at [defho.ai](https://defho.ai/) to create your account and connect your site.
 
-= Is this plugin secure? =
+= Is the Customer Chat visible to all visitors? =
 
-Yes. The plugin uses industry-standard JWT authentication, RSA-256 signatures, origin validation, and follows WordPress security best practices.
+By default, yes. You can configure the display mode (floating button or drawer), position, and appearance in Chat Settings. The AI disclosure notice (configurable in Chat Settings) informs visitors that the chat is AI-powered before they start a conversation.
 
-= Can I use this for Single Sign-On? =
+= Can I control which staff members access Staff AI? =
 
-Yes. Configure the External Authentication settings to accept JWT tokens from another WordPress site.
-
-= How do I create custom API tools? =
-
-See the `/MODULE_DEVELOPMENT.md` file in the plugin directory for a complete guide on creating custom modules.
+Yes. The User Roles tab lets you assign DEF capabilities per user. You can grant Staff-level access (basic tools) or Management-level access (additional tools and permissions).
 
 = Does this work with WooCommerce? =
 
-Yes. The plugin includes WooCommerce cart synchronization, and there are modules available for Licenses and Subscriptions management.
+Yes. When WooCommerce is active, additional tools load automatically — product search, cart synchronization, order lookup, and product catalog export for AI knowledge base indexing.
 
-= What is the JWKS endpoint? =
+= Is this plugin secure? =
 
-JWKS (JSON Web Key Set) is a standard endpoint that exposes public keys used to verify JWT signatures. This allows external applications to validate tokens issued by WordPress.
+Yes. The plugin uses RSA-256 signed JWT tokens, all authority is enforced server-side by the framework, and no secrets are hard-coded. Bearer token authentication, origin validation, and WordPress nonce verification protect all endpoints.
 
-= Can I customize the JWT token expiration? =
+= How do I customize the chat button? =
 
-Yes. Use the `def_core_token_expiration` filter to customize token lifetime (default is 5 minutes).
+Go to **Digital Employees > Chat Settings**. You can set button position (left/right), colors (auto-detected from your theme or custom), icon style, and button label text.
+
+= What data is sent to the AI service? =
+
+Chat messages, user display name, and session context — only when a user actively sends a message. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
-1. Settings page - Configure allowed origins and external authentication
-2. API Tools management - Enable/disable individual API endpoints
-3. Widget integration guide - Instructions for embedding chatbot widget
-4. External authentication setup - Single Sign-On configuration
+1. Customer Chat — AI chat widget on the frontend with real-time streaming
+2. Staff AI — Internal assistant in wp-admin for team members
+3. Setup Assistant — Conversational configuration in the admin settings drawer
+4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
 
-= 1.0.0 - 2026-01-02 =
-* Initial release
-* JWT token generation and validation
-* JWKS endpoint for public key verification
-* Session bridge with postMessage support
-* External JWT authentication (SSO)
-* WooCommerce cart synchronization
-* Extensible API registry for modules
-* Admin settings interface
-* Widget integration documentation
+= 1.0.0 - 2026-03-09 =
+* Initial public release
+* Customer Chat — Shadow DOM widget with floating button, drawer mode, drag-and-drop upload
+* Staff AI — wp-admin assistant with share-to-email feature
+* Setup Assistant — intelligent configuration agent with tool-based settings management
+* JWT authentication bridge with JWKS endpoint
+* WooCommerce integration — product search, cart sync, order lookup
+* Real-time SSE streaming across all three channels
+* Light/dark mode with automatic theme color detection
+* AI disclosure notice with configurable Privacy Policy URL
+* Manual connection fallback form
+* Knowledge export endpoints for content and product indexing
+* GitHub Releases auto-updater for interim distribution
 
 == Upgrade Notice ==
 
 = 1.0.0 =
-Initial release of Digital Employee Framework - Core.
+Initial public release of Digital Employee Framework - Core.
 
 == Additional Info ==
 
-**Support**: For support inquiries, please visit [a3rev.com](https://a3rev.com/)
+**Support**: For support, visit [defho.ai](https://defho.ai/) or open an issue on [GitHub](https://github.com/a3rev-ai/def-core/issues)
 
-**Documentation**: Complete documentation available in plugin directory
-
-**Modules**: Additional functionality available through official modules
+**Documentation**: See the plugin [README on GitHub](https://github.com/a3rev-ai/def-core) for full documentation
 
 **Security**: Report security issues to security@a3rev.com
 
