@@ -36,6 +36,8 @@
 		uploadFailed: 'Upload failed. Please try again.',
 		fileTooLarge: 'File too large — maximum 10MB',
 		fileTypeNotSupported: 'File type not supported',
+		offlineTitle: 'Chat is currently unavailable',
+		offlineMessage: 'This feature is being set up. Please check back soon.',
 		connectionError: 'Unable to connect. Please try again.',
 		connectionLost: 'Connection lost. Retrying...',
 		rateLimited:
@@ -160,6 +162,34 @@
 	var activeAbortControllers = [];
 
 	// ─── 3. DOM CONSTRUCTION ───────────────────────────────────────
+
+	function showOfflineState() {
+		// Replace greeting with offline message and disable composer.
+		if (els.greeting) {
+			els.greeting.style.display = 'none';
+		}
+		if (els.aiNotice) {
+			els.aiNotice.style.display = 'none';
+		}
+
+		var offline = el('div', 'def-cc-offline');
+		var icon = el('div', 'def-cc-offline-icon');
+		icon.innerHTML = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>';
+		offline.appendChild(icon);
+
+		var title = el('div', 'def-cc-offline-title');
+		title.textContent = t('offlineTitle');
+		offline.appendChild(title);
+
+		var msg = el('div', 'def-cc-offline-message');
+		msg.textContent = t('offlineMessage');
+		offline.appendChild(msg);
+
+		els.messages.appendChild(offline);
+
+		// Disable the composer.
+		setComposerDisabled(true);
+	}
 
 	function buildChatUI() {
 		// Remove loading placeholder.
@@ -2784,6 +2814,12 @@
 
 		// Build UI.
 		buildChatUI();
+
+		// Graceful offline state — no API URL configured.
+		if (!config.apiBaseUrl) {
+			showOfflineState();
+			return;
+		}
 
 		// Fetch context token (async — don't block UI).
 		fetchContextToken()
