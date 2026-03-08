@@ -24,6 +24,7 @@
 		initTabs();
 		initSaveButtons();
 		initConnectionTest();
+		initManualConnection();
 		initCopyButtons();
 		initToggleSwitches();
 		autoTestConnection();
@@ -320,6 +321,92 @@
 		if (defCoreAdmin.cachedConnection) {
 			showConnectionResult(resultEl, defCoreAdmin.cachedConnection);
 		}
+	}
+
+	// ─── Manual Connection ────────────────────────────────────────
+
+	function initManualConnection() {
+		var btn = document.getElementById('def-core-save-manual-connection');
+		if (!btn) {
+			return;
+		}
+		btn.addEventListener('click', saveManualConnection);
+	}
+
+	function saveManualConnection() {
+		var btn = document.getElementById('def-core-save-manual-connection');
+		var resultEl = document.getElementById('def-core-manual-conn-result');
+		var apiUrl = document.getElementById('def_core_manual_api_url');
+		var apiKey = document.getElementById('def_core_manual_api_key');
+		var spinner = btn ? btn.parentNode.querySelector('.spinner') : null;
+
+		if (!btn || !apiUrl || !apiKey) {
+			return;
+		}
+
+		if (!apiUrl.value.trim() || !apiKey.value.trim()) {
+			if (resultEl) {
+				resultEl.className = 'def-core-connection-result error';
+				resultEl.innerHTML = '<span class="dashicons dashicons-warning"></span> Both fields are required.';
+			}
+			return;
+		}
+
+		btn.disabled = true;
+		if (spinner) {
+			spinner.classList.add('is-active');
+		}
+		if (resultEl) {
+			resultEl.className = 'def-core-connection-result';
+			resultEl.innerHTML = '';
+		}
+
+		var formData = new FormData();
+		formData.append('action', 'def_core_save_manual_connection');
+		formData.append('nonce', defCoreAdmin.connNonce);
+		formData.append('api_url', apiUrl.value.trim());
+		formData.append('api_key', apiKey.value.trim());
+
+		fetch(defCoreAdmin.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			body: formData,
+		})
+			.then(function (r) {
+				return r.json();
+			})
+			.then(function (data) {
+				btn.disabled = false;
+				if (spinner) {
+					spinner.classList.remove('is-active');
+				}
+				if (data.success) {
+					if (resultEl) {
+						resultEl.className = 'def-core-connection-result ok';
+						resultEl.innerHTML = '<span class="dashicons dashicons-yes-alt"></span> ' + data.data.message;
+					}
+					// Reload page after short delay to show connected state.
+					setTimeout(function () {
+						window.location.hash = '#connection';
+						window.location.reload();
+					}, 1500);
+				} else {
+					if (resultEl) {
+						resultEl.className = 'def-core-connection-result error';
+						resultEl.innerHTML = '<span class="dashicons dashicons-dismiss"></span> ' + (data.data && data.data.message ? data.data.message : 'Save failed.');
+					}
+				}
+			})
+			.catch(function () {
+				btn.disabled = false;
+				if (spinner) {
+					spinner.classList.remove('is-active');
+				}
+				if (resultEl) {
+					resultEl.className = 'def-core-connection-result error';
+					resultEl.innerHTML = '<span class="dashicons dashicons-dismiss"></span> Request failed.';
+				}
+			});
 	}
 
 	// ─── Copy Buttons ─────────────────────────────────────────────
