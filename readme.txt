@@ -5,8 +5,8 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 Stable tag: 1.0.0
-License: Commercial
-License URI: https://a3rev.com/
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Secure JWT-based authentication bridge connecting WordPress with external Digital Employee Framework applications via REST API.
 
@@ -173,4 +173,4 @@ This plugin does not collect or store any personal data beyond what WordPress al
 
 == License ==
 
-This software is under commercial license and copyright to A3 Revolution Software Development team.
+This plugin is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or any later version.
