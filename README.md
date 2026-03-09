@@ -2,6 +2,8 @@
 
 AI-powered Digital Employees for your WordPress site. Customer-facing chat, internal staff assistant, and intelligent setup — all connected to the [Digital Employee Framework](https://defho.ai/).
 
+[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v1.0.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v1.0.0/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress 6.0+](https://img.shields.io/badge/WordPress-6.0+-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
+
 ## What Are Digital Employees?
 
 Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels:
@@ -68,7 +70,7 @@ An intelligent configuration agent that lives in your wp-admin settings. Guides 
 
 ### From GitHub Releases
 
-1. Download the latest release .zip from the [Releases page](https://github.com/a3rev-ai/def-core/releases)
+1. Download [digital-employees.zip](https://github.com/a3rev-ai/def-core/releases/latest/download/digital-employees.zip) from the latest release
 2. In WordPress, go to **Plugins > Add New > Upload Plugin**
 3. Upload the .zip and click **Install Now**
 4. Activate the plugin
