@@ -1,0 +1,47 @@
+name: Build Plugin Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        run: |
+          # Create clean build directory
+          mkdir -p build/digital-employees
+
+          # Copy only distributable files (no dev files, tests, CI config)
+          cp def-core.php LICENSE README.md readme.txt changelog.txt build/digital-employees/
+          cp -r assets build/digital-employees/
+          cp -r includes build/digital-employees/
+          cp -r vendor build/digital-employees/
+
+          # Remove dev-only vendor packages if any
+          rm -rf build/digital-employees/vendor/bin
+
+          # Create zip from build directory
+          cd build
+          zip -r ../digital-employees.zip digital-employees/
+
+          # Verify structure
+          echo "=== Zip contents (first 20 entries) ==="
+          unzip -l ../digital-employees.zip | head -25
+          echo "=== Verifying main plugin file ==="
+          unzip -p ../digital-employees.zip digital-employees/def-core.php | head -5
+
+      - name: Upload zip to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            digital-employees.zip \
+            --clobber
