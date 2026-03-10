@@ -1,6 +1,46 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-07 (Connection Config Migration — Sub-PR C)
+## Latest Session: 2026-03-09 (Phase B: GitHub Distribution — COMPLETE)
+
+### Status
+- **PR #52** (MERGED): Phase B — GitHub Releases auto-updater + README rewrites
+- **Repo is now PUBLIC**: https://github.com/a3rev-ai/def-core
+- **Release v1.0.0 published**: https://github.com/a3rev-ai/def-core/releases/tag/v1.0.0
+
+### What Was Done
+- Added **plugin-update-checker v5.6** (GPL v2) to `vendor/plugin-update-checker/`
+- Added updater initialization to `def-core.php` (~10 lines, points to `a3rev-ai/def-core` GitHub)
+- Aligned `DEF_CORE_VERSION` constant to `1.0.0` (was `1.1.0`)
+- Updated `.gitignore` — `vendor/*` with `!vendor/plugin-update-checker/` exception
+- Rewrote **README.md** — public-facing docs: 3 AI channels, getting started, admin settings, WooCommerce
+- Rewrote **readme.txt** — removed obsolete module refs (bbPress, a3rev Licenses, WooCommerce Subscriptions), fixed FAQ, updated changelog
+- Made `a3rev-ai/def-core` repo **public** on GitHub
+- Deleted old v1.0.0 tag (pointed to ancient PR #7), re-tagged on current main
+- Created GitHub Release v1.0.0 with release notes + clean distribution .zip (158 files, no dev files)
+
+### Testing
+- PHP syntax check: PASS (def-core.php + all PUC library files)
+- Plugin activation on wp-env: PASS (no errors, no debug log entries)
+- PUC class loaded: PASS (`PucFactory` class exists after activation)
+- Release .zip structure: PASS (clean, no .git/.claude/tests/node_modules)
+
+### Phase B Checklist
+- [x] Add plugin-update-checker library
+- [x] Add updater init code to def-core.php
+- [x] Make repo public
+- [x] Tag v1.0.0
+- [x] Create GitHub Release with release notes + clean .zip
+- [x] Test: plugin activates without errors
+- [x] Test: update checker initializes
+- [ ] Test: auto-update notification (needs v1.0.1 tag — deferred to real next release)
+
+### Next Steps
+- **Phase C**: WordPress.org submission (design assets, submit, monitor reviewer email)
+- **Phase D**: DEF backend go-live (Azure Container Apps)
+
+---
+
+## Previous Session: 2026-03-07 (Connection Config Migration — Sub-PR C)
 
 ### Status
 - **Branch:** `feature/connection-config-sub-pr-c`
