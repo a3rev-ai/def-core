@@ -23,6 +23,8 @@ jobs:
           cp def-core.php LICENSE README.md readme.txt changelog.txt build/digital-employees/
           cp -r assets build/digital-employees/
           cp -r includes build/digital-employees/
+          cp -r languages build/digital-employees/
+          cp -r templates build/digital-employees/
           cp -r vendor build/digital-employees/
 
           # Remove dev-only vendor packages if any
