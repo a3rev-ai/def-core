@@ -83,6 +83,17 @@ final class DEF_Core_Connection_Config {
 				'callback'            => array( __CLASS__, 'get_connection_status' ),
 			)
 		);
+
+		// GET /wp-json/def-core/v1/status — alias for DEFHO platform health checks
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/status',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true',
+				'callback'            => array( __CLASS__, 'get_connection_status' ),
+			)
+		);
 	}
 
 	/**
