@@ -236,13 +236,6 @@ final class DEF_Core_Setup_Assistant {
 			'callback'            => array( $this, 'rest_update_user_role' ),
 		) );
 
-		// POST /setup/chat (Mode A only)
-		register_rest_route( self::REST_NAMESPACE, '/setup/chat', array(
-			'methods'             => 'POST',
-			'permission_callback' => array( $this, 'permission_check_browser_only' ),
-			'callback'            => array( $this, 'rest_proxy_chat' ),
-		) );
-
 		// GET /setup/thread
 		register_rest_route( self::REST_NAMESPACE, '/setup/thread', array(
 			'methods'             => 'GET',
@@ -323,36 +316,6 @@ final class DEF_Core_Setup_Assistant {
 			'Authentication required.',
 			array( 'status' => 401 )
 		);
-	}
-
-	/**
-	 * Browser-only permission check (Mode A only, for chat proxy).
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return bool|\WP_Error True if authorized, WP_Error otherwise.
-	 * @since 2.0.0
-	 */
-	public function permission_check_browser_only( \WP_REST_Request $request ) {
-		$has_nonce = ! empty( $_SERVER['HTTP_X_WP_NONCE'] );
-		$has_hmac  = ! empty( $_SERVER['HTTP_X_DEF_SIGNATURE'] );
-
-		if ( $has_hmac ) {
-			return new \WP_Error(
-				'HMAC_NOT_SUPPORTED',
-				'This endpoint only supports browser authentication.',
-				array( 'status' => 403 )
-			);
-		}
-
-		if ( ! $has_nonce ) {
-			return new \WP_Error(
-				'UNAUTHORIZED',
-				'Browser authentication required.',
-				array( 'status' => 401 )
-			);
-		}
-
-		return $this->check_nonce_auth();
 	}
 
 	/**
@@ -1097,62 +1060,6 @@ final class DEF_Core_Setup_Assistant {
 			'action'     => $action,
 			'applied'    => true,
 		), $ui_actions );
-	}
-
-	// ─── POST /setup/chat ───────────────────────────────────────────────
-
-	/**
-	 * Proxy chat messages to the DEF backend Setup Assistant endpoint.
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return \WP_REST_Response
-	 * @since 2.0.0
-	 */
-	public function rest_proxy_chat( \WP_REST_Request $request ): \WP_REST_Response {
-		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
-		$api_key = get_option( 'def_core_api_key', '' );
-
-		if ( empty( $api_url ) || empty( $api_key ) ) {
-			return $this->error_response(
-				'NOT_CONFIGURED',
-				'API URL and API Key must be configured before using Setup Assistant chat.',
-				400
-			);
-		}
-
-		$user_id = get_current_user_id();
-		$body    = $request->get_json_params();
-
-		$response = wp_remote_post(
-			rtrim( $api_url, '/' ) . '/api/setup_assistant/chat',
-			array(
-				'headers' => array(
-					'Content-Type'  => 'application/json',
-					'Authorization' => 'Bearer ' . $api_key,
-					'X-WP-User-ID'  => (string) $user_id,
-				),
-				'body'    => wp_json_encode( $body ),
-				'timeout' => 60,
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return $this->error_response(
-				'BACKEND_ERROR',
-				'Failed to reach DEF backend: ' . sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) ),
-				502
-			);
-		}
-
-		$http_code     = wp_remote_retrieve_response_code( $response );
-		$response_body = wp_remote_retrieve_body( $response );
-		$decoded       = json_decode( $response_body, true );
-
-		if ( ! is_array( $decoded ) ) {
-			$decoded = array( 'raw' => $response_body );
-		}
-
-		return new \WP_REST_Response( $decoded, $http_code );
 	}
 
 	// ─── Thread CRUD ────────────────────────────────────────────────────

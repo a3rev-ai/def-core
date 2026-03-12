@@ -316,79 +316,15 @@
 	};
 
 	SetupAssistantDrawer.prototype.sendMessage = function (text) {
-		// Feature detection: use streaming if apiBaseUrl configured and ReadableStream available.
-		if (this.apiBaseUrl && typeof ReadableStream !== 'undefined') {
-			this.sendMessageStreaming(text);
-		} else {
-			this.sendMessageSync(text);
+		if (!this.apiBaseUrl) {
+			this.renderError('Setup Assistant requires API URL configuration. Please check your connection settings.');
+			return;
 		}
-	};
-
-	// ─── Sync Chat (original path via PHP proxy) ─────────────────
-
-	SetupAssistantDrawer.prototype.sendMessageSync = function (text) {
-		var self = this;
-		this.isSending = true;
-		this.sendEl.disabled = true;
-
-		// Render user message immediately.
-		this.renderMessage({ role: 'user', content: text });
-
-		// Show typing indicator.
-		this.showTypingIndicator();
-
-		// Build request body.
-		var body = {
-			message: text
-		};
-		if (this.threadId) {
-			body.thread_id = this.threadId;
+		if (typeof ReadableStream === 'undefined') {
+			this.renderError('Your browser does not support streaming. Please use a modern browser.');
+			return;
 		}
-		var dirtyContext = this.getDirtyContext();
-		if (dirtyContext.dirty_fields) {
-			body.context = dirtyContext;
-		}
-
-		this.apiRequest('setup/chat', 'POST', body)
-			.then(function (data) {
-				self.hideTypingIndicator();
-
-				// Extract reply text.
-				var reply = '';
-				if (data && data.reply) {
-					reply = data.reply;
-				} else if (data && data.data && data.data.reply) {
-					reply = data.data.reply;
-				} else if (data && data.message) {
-					reply = data.message;
-				}
-
-				if (reply) {
-					self.renderMessage({ role: 'assistant', content: reply });
-				}
-
-				// Process tool_outputs if present.
-				var toolOutputs = data.tool_outputs || (data.data && data.data.tool_outputs) || [];
-				if (toolOutputs.length) {
-					self.processToolOutputs(toolOutputs);
-				}
-
-				// Save thread ID if returned.
-				var returnedThread = data.thread_id || (data.data && data.data.thread_id);
-				if (returnedThread && !self.threadId) {
-					self.threadId = returnedThread;
-					self.saveThread(returnedThread);
-				}
-
-				self.isSending = false;
-				self.sendEl.disabled = false;
-			})
-			.catch(function (err) {
-				self.hideTypingIndicator();
-				self.renderError(err.message || 'Failed to send message. Please try again.');
-				self.isSending = false;
-				self.sendEl.disabled = false;
-			});
+		this.sendMessageStreaming(text);
 	};
 
 	// ─── JWT Token Fetch ─────────────────────────────────────────
