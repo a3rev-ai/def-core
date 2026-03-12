@@ -479,7 +479,6 @@ $expected_routes = array(
 	'def-core/v1/setup/test-connection::GET',
 	'def-core/v1/setup/users::GET',
 	'def-core/v1/setup/user-role::POST',
-	'def-core/v1/setup/chat::POST',
 	'def-core/v1/setup/thread::GET',
 	'def-core/v1/setup/thread::POST',
 	'def-core/v1/setup/thread::DELETE',
@@ -683,15 +682,6 @@ $request = new WP_REST_Request( $method, $path );
 $result  = $sa->permission_check( $request );
 assert_true( is_wp_error( $result ), 'user without admin returns WP_Error' );
 assert_equals( 'FORBIDDEN', $result->get_error_code(), 'error code is FORBIDDEN' );
-
-// ── 14. Chat proxy: browser-only permission ─────────────────────────────
-echo "\n[14] Chat proxy: HMAC rejected\n";
-reset_test_state();
-$_SERVER['HTTP_X_DEF_SIGNATURE'] = 'some_sig';
-$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/chat' );
-$result  = $sa->permission_check_browser_only( $request );
-assert_true( is_wp_error( $result ), 'HMAC on chat returns WP_Error' );
-assert_equals( 'HMAC_NOT_SUPPORTED', $result->get_error_code(), 'error code is HMAC_NOT_SUPPORTED' );
 
 // ── 15. GET /setup/status — all checkpoints ─────────────────────────────
 echo "\n[15] GET /setup/status — empty config (0%)\n";
@@ -953,58 +943,6 @@ $data     = $response->get_data();
 
 assert_equals( 200, $response->get_status(), 'returns 200' );
 assert_true( count( $data['data']['users'] ) >= 2, 'at least 2 DEF users returned' );
-
-// ── 28. Chat proxy: not configured ──────────────────────────────────────
-echo "\n[28] POST /setup/chat — not configured\n";
-reset_test_state();
-setup_admin_user();
-
-$request  = new WP_REST_Request( 'POST', '/def-core/v1/setup/chat' );
-$request->set_body_params( array( 'message' => 'hello' ) );
-$response = $sa->rest_proxy_chat( $request );
-$data     = $response->get_data();
-
-assert_equals( 400, $response->get_status(), 'returns 400 when not configured' );
-assert_equals( 'NOT_CONFIGURED', $data['error']['code'], 'error code is NOT_CONFIGURED' );
-
-// ── 29. Chat proxy: successful forward ──────────────────────────────────
-echo "\n[29] POST /setup/chat — successful forward\n";
-reset_test_state();
-setup_admin_user();
-update_option( 'def_core_staff_ai_api_url', 'https://api.example.com' );
-update_option( 'def_core_api_key', 'key123' );
-
-$_wp_test_remote_responses[] = array(
-	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'reply' => 'I can help with setup!' ) ),
-);
-
-$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/chat' );
-$request->set_body_params( array( 'message' => 'How do I configure?' ) );
-$response = $sa->rest_proxy_chat( $request );
-
-assert_equals( 200, $response->get_status(), 'proxied response is 200' );
-assert_equals( 1, count( $_wp_test_remote_calls ), 'one HTTP call made' );
-assert_true(
-	strpos( $_wp_test_remote_calls[0]['url'], '/api/setup_assistant/chat' ) !== false,
-	'called correct backend URL'
-);
-
-// ── 30. Chat proxy: backend error ───────────────────────────────────────
-echo "\n[30] POST /setup/chat — backend error\n";
-reset_test_state();
-setup_admin_user();
-update_option( 'def_core_staff_ai_api_url', 'https://api.example.com' );
-update_option( 'def_core_api_key', 'key123' );
-// No remote responses queued → WP_Error returned.
-
-$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/chat' );
-$request->set_body_params( array( 'message' => 'hello' ) );
-$response = $sa->rest_proxy_chat( $request );
-$data     = $response->get_data();
-
-assert_equals( 502, $response->get_status(), 'returns 502 on backend failure' );
-assert_equals( 'BACKEND_ERROR', $data['error']['code'], 'error code is BACKEND_ERROR' );
 
 // ── 31. GET /setup/test-connection — success ────────────────────────────
 echo "\n[31] GET /setup/test-connection — success\n";
