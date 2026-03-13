@@ -445,7 +445,7 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
-		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
+		$api_url = DEF_Core::get_def_api_url();
 		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		if ( empty( $api_url ) ) {

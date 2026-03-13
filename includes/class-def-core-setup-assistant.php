@@ -771,7 +771,7 @@ final class DEF_Core_Setup_Assistant {
 	 * @since 2.0.0
 	 */
 	public function rest_test_connection( \WP_REST_Request $request ): \WP_REST_Response {
-		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
+		$api_url = DEF_Core::get_def_api_url();
 		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		if ( empty( $api_url ) ) {
