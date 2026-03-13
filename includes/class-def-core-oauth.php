@@ -27,9 +27,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class DEF_Core_OAuth {
 
 	/**
-	 * DEFHO authorize URL (overridable via DEF_DEFHO_URL constant in wp-config.php).
+	 * DEFHO frontend URL — used for browser redirects (consent screen).
+	 * Overridable via DEF_DEFHO_URL constant in wp-config.php.
 	 */
 	private const DEFAULT_DEFHO_URL = 'https://defho.ai';
+
+	/**
+	 * DEFHO API URL — used for server-to-server calls (token exchange).
+	 * Overridable via DEF_DEFHO_API_URL constant in wp-config.php.
+	 */
+	private const DEFAULT_DEFHO_API_URL = 'https://api.defho.ai';
 
 	/**
 	 * Transient prefix for PKCE state storage.
@@ -72,15 +79,30 @@ final class DEF_Core_OAuth {
 	}
 
 	/**
-	 * Get the DEFHO base URL.
+	 * Get the DEFHO frontend URL (browser redirects — consent screen).
 	 *
-	 * @return string DEFHO base URL (no trailing slash).
+	 * @return string DEFHO frontend URL (no trailing slash).
 	 */
 	public static function get_defho_url(): string {
 		if ( defined( 'DEF_DEFHO_URL' ) && DEF_DEFHO_URL ) {
 			return rtrim( DEF_DEFHO_URL, '/' );
 		}
 		return self::DEFAULT_DEFHO_URL;
+	}
+
+	/**
+	 * Get the DEFHO API URL (server-to-server calls — token exchange).
+	 *
+	 * In production: frontend is defho.ai, API is api.defho.ai.
+	 * In dev: both may be on the same host (override via DEF_DEFHO_API_URL).
+	 *
+	 * @return string DEFHO API URL (no trailing slash).
+	 */
+	public static function get_defho_api_url(): string {
+		if ( defined( 'DEF_DEFHO_API_URL' ) && DEF_DEFHO_API_URL ) {
+			return rtrim( DEF_DEFHO_API_URL, '/' );
+		}
+		return self::DEFAULT_DEFHO_API_URL;
 	}
 
 	/**
@@ -282,8 +304,7 @@ final class DEF_Core_OAuth {
 	 * @return array|\WP_Error Connection config array or WP_Error.
 	 */
 	private static function exchange_code( string $code, string $code_verifier, string $state ) {
-		$defho_url = self::get_defho_url();
-		$token_url = $defho_url . '/oauth/token';
+		$token_url = self::get_defho_api_url() . '/oauth/token';
 
 		$response = wp_remote_post( $token_url, array(
 			'timeout' => 30,
