@@ -140,7 +140,7 @@ final class DEF_Core_Escalation {
 	 * @version 1.2.1
 	 */
 	public static function get_service_secret( bool $force_regenerate = false ): string {
-		$secret = get_option( self::SERVICE_SECRET_OPTION, '' );
+		$secret = DEF_Core_Encryption::get_secret( self::SERVICE_SECRET_OPTION );
 
 		if ( empty( $secret ) || $force_regenerate ) {
 			// Generate a strong random secret using hex characters only.
@@ -148,7 +148,7 @@ final class DEF_Core_Escalation {
 			// This avoids issues with special characters being altered by
 			// sanitize_text_field() or wp_unslash() during validation.
 			$secret = bin2hex( random_bytes( 32 ) );
-			update_option( self::SERVICE_SECRET_OPTION, $secret, false );
+			DEF_Core_Encryption::set_secret( self::SERVICE_SECRET_OPTION, $secret );
 		}
 
 		return $secret;
@@ -176,8 +176,8 @@ final class DEF_Core_Escalation {
 			return false;
 		}
 
-		// Get stored secret.
-		$stored_secret = get_option( self::SERVICE_SECRET_OPTION, '' );
+		// Get stored secret (decrypted).
+		$stored_secret = DEF_Core_Encryption::get_secret( self::SERVICE_SECRET_OPTION );
 
 		// Secret not configured.
 		if ( empty( $stored_secret ) ) {

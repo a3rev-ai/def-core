@@ -412,7 +412,7 @@ final class DEF_Core_Setup_Assistant {
 		}
 
 		// Get API key for signature verification.
-		$api_key = get_option( 'def_core_api_key', '' );
+		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 		if ( empty( $api_key ) ) {
 			return new \WP_Error(
 				'HMAC_NO_KEY',
@@ -541,7 +541,7 @@ final class DEF_Core_Setup_Assistant {
 		);
 
 		// 2. API Key configured.
-		$api_key = get_option( 'def_core_api_key', '' );
+		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 		$checkpoints['api_key'] = array(
 			'label'  => 'API Key configured',
 			'passed' => ! empty( $api_key ),
@@ -772,7 +772,7 @@ final class DEF_Core_Setup_Assistant {
 	 */
 	public function rest_test_connection( \WP_REST_Request $request ): \WP_REST_Response {
 		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
-		$api_key = get_option( 'def_core_api_key', '' );
+		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		if ( empty( $api_url ) ) {
 			$result = array(

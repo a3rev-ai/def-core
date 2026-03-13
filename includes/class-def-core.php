@@ -91,6 +91,7 @@ final class DEF_Core {
 	private function load_dependencies(): void {
 		// Main plugin class (this file).
 		// Core classes.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-encryption.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-cache.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
@@ -574,9 +575,15 @@ final class DEF_Core {
 	 * @return string API base URL or empty string.
 	 */
 	public static function get_def_api_url(): string {
+		// Environment-aware: wp-config.php define takes priority,
+		// then stored option, then default production URL.
+		if ( defined( 'DEF_API_URL' ) && DEF_API_URL ) {
+			return rtrim( DEF_API_URL, '/' );
+		}
+
 		$url = get_option( 'def_core_staff_ai_api_url', '' );
 		if ( empty( $url ) ) {
-			return '';
+			return 'https://api.defho.ai';
 		}
 
 		$url = rtrim( $url, '/' );

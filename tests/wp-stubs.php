@@ -287,3 +287,28 @@ if ( ! function_exists( 'get_file_data' ) ) {
 		return $result;
 	}
 }
+
+// ── Encryption stubs ─────────────────────────────────────────────────────
+
+// Controllable salt for testing (e.g. salt rotation tests can override).
+global $_wp_test_salts;
+if ( ! isset( $_wp_test_salts ) ) {
+	$_wp_test_salts = array(
+		'auth'        => 'test-auth-salt-abcdef1234567890',
+		'secure_auth' => 'test-secure-auth-salt-1234567890abcdef',
+	);
+}
+
+if ( ! function_exists( 'wp_salt' ) ) {
+	function wp_salt( string $scheme = 'auth' ): string {
+		global $_wp_test_salts;
+		return $_wp_test_salts[ $scheme ] ?? 'default-salt-' . $scheme;
+	}
+}
+
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+	define( 'DAY_IN_SECONDS', 86400 );
+}
+
+// Load encryption class — plugin-level infrastructure used by all secret-reading classes.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-encryption.php';

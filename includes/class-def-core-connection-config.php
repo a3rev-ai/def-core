@@ -116,7 +116,7 @@ final class DEF_Core_Connection_Config {
 			);
 		}
 
-		$stored_secret = get_option( 'def_service_auth_secret', '' );
+		$stored_secret = DEF_Core_Encryption::get_secret( 'def_service_auth_secret' );
 
 		if ( empty( $stored_secret ) ) {
 			return new \WP_Error(
@@ -134,7 +134,7 @@ final class DEF_Core_Connection_Config {
 		// Check previous secret during dual-key rotation window.
 		$rotation_expires = (int) get_option( self::OPTION_ROTATION_EXPIRES, 0 );
 		if ( $rotation_expires > time() ) {
-			$previous_secret = get_option( self::OPTION_PREVIOUS_SECRET, '' );
+			$previous_secret = DEF_Core_Encryption::get_secret( self::OPTION_PREVIOUS_SECRET );
 			if ( ! empty( $previous_secret ) && hash_equals( $previous_secret, $auth_header ) ) {
 				return true;
 			}
@@ -216,7 +216,7 @@ final class DEF_Core_Connection_Config {
 			update_option( 'def_core_staff_ai_api_url', esc_url_raw( $body['api_url'] ) );
 		}
 
-		update_option( 'def_core_api_key', sanitize_text_field( $body['api_key'] ), false );
+		DEF_Core_Encryption::set_secret( 'def_core_api_key', sanitize_text_field( $body['api_key'] ) );
 
 		if ( isset( $body['allowed_origins'] ) && is_array( $body['allowed_origins'] ) ) {
 			$origins = array();
@@ -241,20 +241,20 @@ final class DEF_Core_Connection_Config {
 		}
 
 		// Handle service auth secret update.
-		$current_secret = get_option( 'def_service_auth_secret', '' );
+		$current_secret = DEF_Core_Encryption::get_secret( 'def_service_auth_secret' );
 		$new_secret     = sanitize_text_field( $body['service_auth_secret'] );
 		if ( $new_secret !== $current_secret ) {
 			// Store previous secret for dual-key rotation window.
 			if ( ! empty( $current_secret ) ) {
-				update_option( self::OPTION_PREVIOUS_SECRET, $current_secret, false );
+				DEF_Core_Encryption::set_secret( self::OPTION_PREVIOUS_SECRET, $current_secret );
 				update_option( self::OPTION_ROTATION_EXPIRES, time() + self::ROTATION_WINDOW_SECONDS, false );
 			}
-			update_option( 'def_service_auth_secret', $new_secret, false );
+			DEF_Core_Encryption::set_secret( 'def_service_auth_secret', $new_secret );
 		}
 
 		// Handle previous API key for dual-key rotation.
 		if ( ! empty( $body['previous_api_key'] ) ) {
-			update_option( self::OPTION_PREVIOUS_API_KEY, sanitize_text_field( $body['previous_api_key'] ), false );
+			DEF_Core_Encryption::set_secret( self::OPTION_PREVIOUS_API_KEY, sanitize_text_field( $body['previous_api_key'] ) );
 			// Set rotation expiry if not already set by secret rotation.
 			$rotation_expires = (int) get_option( self::OPTION_ROTATION_EXPIRES, 0 );
 			if ( $rotation_expires < time() ) {
@@ -264,7 +264,7 @@ final class DEF_Core_Connection_Config {
 
 		// Handle previous service auth secret for dual-key rotation.
 		if ( ! empty( $body['previous_service_auth_secret'] ) ) {
-			update_option( self::OPTION_PREVIOUS_SECRET, sanitize_text_field( $body['previous_service_auth_secret'] ), false );
+			DEF_Core_Encryption::set_secret( self::OPTION_PREVIOUS_SECRET, sanitize_text_field( $body['previous_service_auth_secret'] ) );
 			$rotation_expires = (int) get_option( self::OPTION_ROTATION_EXPIRES, 0 );
 			if ( $rotation_expires < time() ) {
 				update_option( self::OPTION_ROTATION_EXPIRES, time() + self::ROTATION_WINDOW_SECONDS, false );
@@ -298,7 +298,7 @@ final class DEF_Core_Connection_Config {
 	 */
 	public static function get_connection_status( \WP_REST_Request $request ): \WP_REST_Response {
 		$api_url         = get_option( 'def_core_staff_ai_api_url', '' );
-		$api_key         = get_option( 'def_core_api_key', '' );
+		$api_key         = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 		$config_revision = (int) get_option( self::OPTION_REVISION, 0 );
 		$last_sync       = get_option( self::OPTION_LAST_SYNC, '' );
 
