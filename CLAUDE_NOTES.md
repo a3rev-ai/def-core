@@ -1,6 +1,106 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-09 (Phase B: GitHub Distribution — COMPLETE)
+## Latest Session: 2026-03-13 (Sub-PR E: OAuth One-Click Connect — IN PROGRESS)
+
+### Status
+- **Branch**: `feature/sub-pr-e-oauth-client` — OAuth 2.0 client for one-click DEFHO connection
+- **DEFHO PR #50**: Already pushed (authorization server side)
+
+### What Was Done
+
+**def-core OAuth Client (5 modified files, 1 new file):**
+- New `includes/class-def-core-oauth.php` — DEF_Core_OAuth class:
+  - PKCE S256 generation (48-byte verifier, SHA256 challenge, base64url)
+  - AJAX handler `def_core_oauth_start` — generates state + verifier, stores in transient (5-min TTL), returns DEFHO authorize URL
+  - REST callback `GET /wp-json/a3-ai/v1/oauth/callback` — receives code+state from DEFHO redirect
+  - Code exchange via `POST /oauth/token` to DEFHO (sends code + verifier)
+  - `apply_connection_config()` — stores api_key, service_auth_secret, allowed_origins, JWKS URL, issuer, revision via DEF_Core_Encryption
+  - Disconnect AJAX handler — clears local config, best-effort POST to DEFHO /api/oauth/disconnect
+  - `DEF_DEFHO_URL` constant override for dev environments (default: https://defho.ai)
+- Modified `includes/class-def-core.php` — require_once + init() for DEF_Core_OAuth
+- Modified `includes/class-def-core-admin.php`:
+  - Added OAuth nonces (oauthStartNonce, oauthDisconnectNonce, defhoUrl) to localized script data
+  - Added `maybe_show_oauth_notice()` — displays success/error admin notices after OAuth redirect
+- Modified `templates/admin-settings.php`:
+  - Connection tab redesigned: "Connect to DEFHO" hero button (primary action)
+  - Manual connection moved to `<details>` accordion (fallback)
+  - Connected state shows "Disconnect" button
+  - Test Connection only shown when connected
+- Modified `assets/js/def-core-admin.js`:
+  - `initOAuth()` — binds start + disconnect buttons
+  - `startOAuth()` — AJAX call, redirects to DEFHO authorize URL
+  - `disconnectOAuth()` — confirmation dialog, AJAX call, page reload
+  - Fixed `saveManualConnection()` — removed API URL field reference (only API key needed)
+
+### Next Steps
+- Commit and push to PR
+- Testing once DEFHO PR #50 is also deployed
+
+---
+
+## Previous Session: 2026-03-13 (Sub-PR D: Secure Key Storage — PRs CREATED)
+
+### Status
+- **def-core PR #61**: `feature/sub-pr-d-secure-key-storage` — Secure key storage in def-core
+- **DEF PR #81**: `feature/sub-pr-d-wp-site-url` — Add wp_site_url to connection config push schema
+- **DEFHO PR #49**: `feature/sub-pr-d-wp-site-url` — Include wp_site_url in push payload
+
+### What Was Done
+
+**def-core (12 files, 1004 insertions):**
+- New `includes/class-def-core-encryption.php` — DEF_Core_Encryption class:
+  - sodium_crypto_secretbox (XSalsa20-Poly1305) primary, AES-256-GCM fallback
+  - HKDF-SHA256 key derivation from `wp_salt('auth') . wp_salt('secure_auth')`
+  - `get_secret()` — auto-encrypts legacy plaintext on first read
+  - `set_secret()` — encrypt and store
+  - Salt rotation detection → sets error transient
+- Updated 5 includes files to use `DEF_Core_Encryption::get_secret()`/`set_secret()`:
+  - `class-def-core-connection-config.php` — permission_check, receive_connection_config, get_connection_status
+  - `class-def-core-escalation.php` — get_service_secret, validate_service_auth
+  - `class-def-core-setup-assistant.php` — HMAC verification, health check, connection test
+  - `class-def-core-export.php` — Bearer token permission check
+  - `class-def-core-admin.php` — connection test, manual save, encryption error admin notice
+- Updated `class-def-core.php` — require_once encryption class, environment-aware `get_def_api_url()`
+- Updated `templates/admin-settings.php` — removed manual API URL input, added masked credential status
+- New `uninstall.php` — complete cleanup (options, transients, capabilities)
+- New `tests/test-encryption.php` — 35 tests
+- Updated `tests/test-connection-config.php` — assertions use encryption-aware reads
+- Updated `tests/wp-stubs.php` — wp_salt, DAY_IN_SECONDS, encryption class loading
+
+**DEF (3 files):**
+- `internal_schemas.py` — added `wp_site_url: Optional[str]` to ConnectionConfigPush
+- `internal_routes.py` — `config.conn_wp_site_url = body.wp_site_url or body.api_url` (backwards-compat)
+- `test_connection_config_internal.py` — wp_site_url in payload + assertion
+
+**DEFHO (2 files):**
+- `connection_config.py` — `build_push_payload()` includes `tenant.conn_wp_site_url`
+- `test_connection_config.py` — asserts wp_site_url in payload
+
+### Test Results
+- def-core: 273 passed, 1 pre-existing failure (test-cache.php)
+- DEF: 11 passed (connection config internal)
+- DEFHO: 38 passed (connection config)
+
+### Deployment Order
+1. DEF first (accepts new field, backwards-compatible)
+2. DEFHO second (sends new field)
+3. def-core third (encrypts on next config push)
+4. Re-push config from DEFHO portal
+
+### Flagged: Sub-PR D.1
+- Rename `class-def-core-setup-assistant.php` → `class-def-core-admin-api.php` (or similar)
+- This class is the wp-admin settings REST API controller, NOT an employee
+- Do as separate PR after D merges for clean breakage visibility
+
+### Next Steps
+- Review and merge all 3 PRs
+- Deploy in order (DEF → DEFHO → def-core)
+- Re-push config from DEFHO portal to trigger encryption
+- Verify encrypted secrets in wp_options
+
+---
+
+## Previous Session: 2026-03-09 (Phase B: GitHub Distribution — COMPLETE)
 
 ### Status
 - **PR #52** (MERGED): Phase B — GitHub Releases auto-updater + README rewrites
