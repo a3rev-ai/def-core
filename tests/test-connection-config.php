@@ -550,7 +550,7 @@ if ( ! function_exists( 'current_user_can' ) ) {
 }
 
 // Verify the allowlist has readonly flag (by reading class source directly).
-$source = file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-setup-assistant.php' );
+$source = file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php' );
 assert_true(
 	strpos( $source, "'def_core_staff_ai_api_url' => array(" ) !== false
 	&& strpos( $source, "'readonly'  => true," ) !== false,

@@ -1,6 +1,6 @@
 <?php
 /**
- * Setup Assistant endpoint tests.
+ * Admin API endpoint tests.
  *
  * Verifies:
  * - Route registration (all 12 endpoints)
@@ -356,7 +356,7 @@ if ( ! defined( 'WP_DEBUG' ) ) {
 }
 
 // Load the class under test.
-require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-setup-assistant.php';
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
 // ── Test helpers ────────────────────────────────────────────────────────
 
@@ -462,9 +462,9 @@ function setup_admin_user( int $user_id = 1 ): WP_User {
 	return $user;
 }
 
-echo "=== Setup Assistant Tests ===\n";
+echo "=== Admin API Tests ===\n";
 
-$sa = new DEF_Core_Setup_Assistant();
+$sa = new DEF_Core_Admin_API();
 
 // ── 1. Route registration ───────────────────────────────────────────────
 echo "\n[1] REST route registration\n";
@@ -1129,7 +1129,7 @@ assert_equals( 'test_entry_1', $oldest['action'], 'oldest entry (entry_0) was ev
 
 // ── 39. Setting allowlist coverage ──────────────────────────────────────
 echo "\n[39] Setting allowlist coverage\n";
-$allowlist = DEF_Core_Setup_Assistant::get_setting_allowlist();
+$allowlist = DEF_Core_Admin_API::get_setting_allowlist();
 assert_equals( 9, count( $allowlist ), 'exactly 9 settings in allowlist' );
 
 $expected_keys = array(
