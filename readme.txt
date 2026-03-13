@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,19 @@ Chat messages, user display name, and session context — only when a user activ
 
 == Changelog ==
 
+= 1.1.0 - 2026-03-13 =
+* Security: Encrypted storage for connection secrets (API key, service auth secret)
+* Security: Authenticated encryption at rest using sodium (XSalsa20-Poly1305) with AES-256-GCM fallback
+* Security: Automatic migration of existing plaintext secrets on first read
+* Security: Salt rotation detection with admin notice for recovery
+* New: Environment-aware API URL resolution (wp-config.php constant, stored option, or platform default)
+* New: Complete plugin cleanup on uninstall (all options, transients, and capabilities removed)
+* Improved: Admin connection panel shows masked credential status instead of raw values
+* Improved: Removed manual API URL input field (managed by platform connection push)
+* Improved: Connection config push now stores WordPress site URL correctly
+* Refactor: Renamed internal admin API controller class for architectural clarity
+* Tests: 35 new encryption tests covering round-trip, auto-migration, malformed data, and salt rotation
+
 = 1.0.0 - 2026-03-09 =
 * Initial public release
 * Customer Chat — Shadow DOM widget with floating button, drawer mode, drag-and-drop upload
@@ -135,6 +148,9 @@ Chat messages, user display name, and session context — only when a user activ
 * GitHub Releases auto-updater for interim distribution
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Security update: Connection secrets are now encrypted at rest. Existing plaintext secrets are automatically migrated on first use. No action required — update and re-push connection config from DEFHO portal.
 
 = 1.0.0 =
 Initial public release of Digital Employee Framework - Core.
