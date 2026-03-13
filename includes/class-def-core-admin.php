@@ -102,6 +102,7 @@ final class DEF_Core_Admin {
 	 * Initialize the admin functionality.
 	 */
 	public static function init(): void {
+		add_filter( 'map_meta_cap', array( __CLASS__, 'map_def_capabilities' ), 10, 4 );
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_show_encryption_notice' ) );
@@ -149,6 +150,37 @@ final class DEF_Core_Admin {
 
 		// Redirect the Staff AI submenu slug to the actual /staff-ai frontend URL.
 		add_action( 'admin_footer', array( __CLASS__, 'staff_ai_submenu_redirect' ) );
+	}
+
+	/**
+	 * Any DEF role can see the Staff AI menu link.
+	 *
+	 * When WordPress checks def_staff_access, users with def_management_access
+	 * or def_admin_access also pass. This ensures the Staff AI menu link is
+	 * visible to anyone with any DEF capability.
+	 *
+	 * @param string[] $caps    Required primitive capabilities.
+	 * @param string   $cap     The capability being checked.
+	 * @param int      $user_id The user ID.
+	 * @param mixed[]  $args    Additional arguments.
+	 * @return string[] Mapped capabilities.
+	 */
+	public static function map_def_capabilities( array $caps, string $cap, int $user_id, array $args ): array {
+		if ( 'def_staff_access' !== $cap ) {
+			return $caps;
+		}
+
+		$user = get_userdata( $user_id );
+		if ( ! $user ) {
+			return $caps;
+		}
+
+		// Management and admin users also see the Staff AI menu link.
+		if ( $user->has_cap( 'def_management_access' ) || $user->has_cap( 'def_admin_access' ) ) {
+			return array( 'exist' );
+		}
+
+		return $caps;
 	}
 
 	/**
