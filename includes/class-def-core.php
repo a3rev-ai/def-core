@@ -62,7 +62,7 @@ final class DEF_Core {
 		DEF_Core_Escalation::init();
 		DEF_Core_Connection_Config::init();
 		DEF_Core_Export::init();
-		DEF_Core_Setup_Assistant::init();
+		DEF_Core_Admin_API::init();
 
 		// Register [def_chat_button] shortcode and action hook.
 		add_shortcode( 'def_chat_button', array( $this, 'shortcode_chat_button' ) );
@@ -118,8 +118,8 @@ final class DEF_Core {
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
 
-		// Setup Assistant REST endpoints.
-		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-setup-assistant.php';
+		// Admin REST API (settings, users, connection, chat proxy).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';

@@ -1,10 +1,10 @@
 <?php
 /**
- * Class DEF_Core_Setup_Assistant
+ * Class DEF_Core_Admin_API
  *
- * REST API endpoints for the Setup Assistant drawer.
+ * REST API controller for the wp-admin settings panel.
  * Provides settings read/write, user management, connection testing,
- * chat proxy, and thread persistence for the Setup Assistant UI.
+ * chat proxy, and thread persistence for the admin drawer UI.
  *
  * Endpoints use the 'def-core/v1' namespace (plugin management, not tool API).
  *
@@ -24,12 +24,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Setup Assistant REST API controller.
+ * Admin REST API controller (settings, users, connection, chat proxy).
  *
  * @package def-core
  * @since 2.0.0
  */
-final class DEF_Core_Setup_Assistant {
+final class DEF_Core_Admin_API {
 
 	/**
 	 * REST namespace for Setup Assistant endpoints.

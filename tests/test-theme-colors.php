@@ -226,8 +226,8 @@ if ( ! function_exists( 'get_avatar_url' ) ) {
 // Load the standalone theme colors class (no plugin bootstrap needed).
 require_once dirname( __DIR__ ) . '/includes/class-def-core-theme-colors.php';
 
-// Load Setup Assistant (for REST endpoint + validation tests).
-require_once dirname( __DIR__ ) . '/includes/class-def-core-setup-assistant.php';
+// Load Admin API (for REST endpoint + validation tests).
+require_once dirname( __DIR__ ) . '/includes/class-def-core-admin-api.php';
 
 // ── Test infrastructure ─────────────────────────────────────────────────
 
@@ -491,7 +491,7 @@ $_wp_test_global_styles = array(
 update_option( 'def_core_chat_button_color', '#111827' );
 update_option( 'def_core_chat_button_hover_color', '' );
 
-$sa       = new DEF_Core_Setup_Assistant();
+$sa       = new DEF_Core_Admin_API();
 $request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/detect-theme-colors' );
 $response = $sa->rest_detect_theme_colors( $request );
 $data     = $response->get_data();
@@ -510,7 +510,7 @@ echo "\n[10] Hex color validation — valid values\n";
 reset_theme_state();
 setup_admin();
 
-$sa      = new DEF_Core_Setup_Assistant();
+$sa      = new DEF_Core_Admin_API();
 
 // 6-digit hex.
 $request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_button_color' );
@@ -539,7 +539,7 @@ assert_equals( 200, $response->get_status(), 'accepts empty value to clear color
 echo "\n[11] Hex color validation — invalid values\n";
 reset_theme_state();
 setup_admin();
-$sa = new DEF_Core_Setup_Assistant();
+$sa = new DEF_Core_Admin_API();
 
 // Named color.
 $request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_button_color' );
@@ -628,7 +628,7 @@ reset_theme_state();
 setup_admin();
 update_option( 'def_core_chat_button_color', '#FF5733' );
 
-$sa      = new DEF_Core_Setup_Assistant();
+$sa      = new DEF_Core_Admin_API();
 $request = new WP_REST_Request( 'GET', '/def-core/v1/setup/setting/def_core_chat_button_color' );
 $request->set_param( 'key', 'def_core_chat_button_color' );
 $response = $sa->rest_get_setting( $request );
