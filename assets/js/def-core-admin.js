@@ -34,6 +34,7 @@
 		initTestEmail();
 		initChatMode();
 		initButtonAppearance();
+		initOAuth();
 
 		// Bridge for Setup Assistant drawer — must be after initUserRoles()
 		// so _addUserRowFn is set.
@@ -336,18 +337,17 @@
 	function saveManualConnection() {
 		var btn = document.getElementById('def-core-save-manual-connection');
 		var resultEl = document.getElementById('def-core-manual-conn-result');
-		var apiUrl = document.getElementById('def_core_manual_api_url');
 		var apiKey = document.getElementById('def_core_manual_api_key');
 		var spinner = btn ? btn.parentNode.querySelector('.spinner') : null;
 
-		if (!btn || !apiUrl || !apiKey) {
+		if (!btn || !apiKey) {
 			return;
 		}
 
-		if (!apiUrl.value.trim() || !apiKey.value.trim()) {
+		if (!apiKey.value.trim()) {
 			if (resultEl) {
 				resultEl.className = 'def-core-connection-result error';
-				resultEl.innerHTML = '<span class="dashicons dashicons-warning"></span> Both fields are required.';
+				resultEl.innerHTML = '<span class="dashicons dashicons-warning"></span> API Key is required.';
 			}
 			return;
 		}
@@ -364,7 +364,6 @@
 		var formData = new FormData();
 		formData.append('action', 'def_core_save_manual_connection');
 		formData.append('nonce', defCoreAdmin.connNonce);
-		formData.append('api_url', apiUrl.value.trim());
 		formData.append('api_key', apiKey.value.trim());
 
 		fetch(defCoreAdmin.ajaxUrl, {
@@ -1132,6 +1131,133 @@
 				}
 			});
 		});
+	}
+
+	// ─── OAuth Connect / Disconnect ──────────────────────────────
+
+	function initOAuth() {
+		var startBtn = document.getElementById('def-core-oauth-start-btn');
+		var disconnectBtn = document.getElementById('def-core-disconnect-btn');
+
+		if (startBtn) {
+			startBtn.addEventListener('click', startOAuth);
+		}
+		if (disconnectBtn) {
+			disconnectBtn.addEventListener('click', disconnectOAuth);
+		}
+	}
+
+	function startOAuth() {
+		var btn = document.getElementById('def-core-oauth-start-btn');
+		var resultEl = document.getElementById('def-core-oauth-result');
+
+		if (!btn || !defCoreAdmin) {
+			return;
+		}
+
+		btn.disabled = true;
+		btn.textContent = 'Connecting...';
+		if (resultEl) {
+			resultEl.className = 'def-core-connection-result';
+			resultEl.innerHTML = '';
+		}
+
+		var formData = new FormData();
+		formData.append('action', 'def_core_oauth_start');
+		formData.append('nonce', defCoreAdmin.oauthStartNonce);
+
+		fetch(defCoreAdmin.ajaxUrl, {
+			method: 'POST',
+			body: formData,
+			credentials: 'same-origin',
+		})
+			.then(function (res) {
+				return res.json();
+			})
+			.then(function (data) {
+				if (data.success && data.data.redirect_url) {
+					// Redirect to DEFHO authorization page.
+					window.location.href = data.data.redirect_url;
+				} else {
+					btn.disabled = false;
+					btn.textContent = 'Connect to DEFHO';
+					if (resultEl) {
+						resultEl.className = 'def-core-connection-result error';
+						resultEl.innerHTML =
+							'<span class="dashicons dashicons-dismiss"></span> ' +
+							escapeHtml(
+								(data.data && data.data.message) ||
+									'Failed to start connection.'
+							);
+					}
+				}
+			})
+			.catch(function () {
+				btn.disabled = false;
+				btn.textContent = 'Connect to DEFHO';
+				if (resultEl) {
+					resultEl.className = 'def-core-connection-result error';
+					resultEl.innerHTML =
+						'<span class="dashicons dashicons-dismiss"></span> Network error. Please try again.';
+				}
+			});
+	}
+
+	function disconnectOAuth() {
+		var btn = document.getElementById('def-core-disconnect-btn');
+		if (!btn || !defCoreAdmin) {
+			return;
+		}
+
+		if (
+			!confirm(
+				'Disconnect from DEFHO?\n\nThis will remove all connection credentials. Your Digital Employees will stop working until you reconnect.'
+			)
+		) {
+			return;
+		}
+
+		btn.disabled = true;
+		btn.textContent = 'Disconnecting...';
+
+		var formData = new FormData();
+		formData.append('action', 'def_core_oauth_disconnect');
+		formData.append('nonce', defCoreAdmin.oauthDisconnectNonce);
+
+		fetch(defCoreAdmin.ajaxUrl, {
+			method: 'POST',
+			body: formData,
+			credentials: 'same-origin',
+		})
+			.then(function (res) {
+				return res.json();
+			})
+			.then(function (data) {
+				if (data.success) {
+					showToast(
+						data.data.message || 'Disconnected.',
+						'success'
+					);
+					// Reload page after short delay to show disconnected state.
+					setTimeout(function () {
+						window.location.hash = '#connection';
+						window.location.reload();
+					}, 1500);
+				} else {
+					showToast(
+						(data.data && data.data.message) ||
+							'Disconnect failed.',
+						'error'
+					);
+					btn.disabled = false;
+					btn.textContent = 'Disconnect';
+				}
+			})
+			.catch(function () {
+				showToast('Network error. Please try again.', 'error');
+				btn.disabled = false;
+				btn.textContent = 'Disconnect';
+			});
 	}
 
 	// ─── Toast Notifications ──────────────────────────────────────

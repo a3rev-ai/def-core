@@ -113,6 +113,7 @@ final class DEF_Core_Admin {
 		add_action( 'wp_ajax_def_core_remove_user_roles', array( __CLASS__, 'ajax_remove_user_roles' ) );
 		add_action( 'wp_ajax_def_core_test_escalation_email', array( __CLASS__, 'ajax_test_escalation_email' ) );
 		add_action( 'wp_ajax_def_core_save_manual_connection', array( __CLASS__, 'ajax_save_manual_connection' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_show_oauth_notice' ) );
 	}
 
 	/**
@@ -237,6 +238,41 @@ final class DEF_Core_Admin {
 		<?php
 	}
 
+	/**
+	 * Show admin notice after OAuth redirect (success or error).
+	 */
+	public static function maybe_show_oauth_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $_GET['def_oauth'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$status = sanitize_text_field( wp_unslash( $_GET['def_oauth'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$message = isset( $_GET['def_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['def_msg'] ) ) : '';
+
+		if ( 'success' === $status ) {
+			?>
+			<div class="notice notice-success is-dismissible">
+				<p><strong><?php esc_html_e( 'Connected to DEFHO successfully!', 'digital-employees' ); ?></strong></p>
+			</div>
+			<?php
+		} elseif ( 'error' === $status ) {
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'DEFHO Connection Error:', 'digital-employees' ); ?></strong>
+					<?php echo esc_html( $message ?: __( 'An unknown error occurred.', 'digital-employees' ) ); ?>
+				</p>
+			</div>
+			<?php
+		}
+	}
+
 	// ─── Page Rendering ──────────────────────────────────────────────
 
 	/**
@@ -267,6 +303,9 @@ final class DEF_Core_Admin {
 			'searchUsersNonce' => wp_create_nonce( 'def_core_search_users' ),
 			'testEmailNonce'   => wp_create_nonce( 'def_core_test_escalation_email' ),
 			'connNonce'        => wp_create_nonce( 'def_core_save_manual_connection' ),
+			'oauthStartNonce'  => wp_create_nonce( 'def_core_oauth_start' ),
+			'oauthDisconnectNonce' => wp_create_nonce( 'def_core_oauth_disconnect' ),
+			'defhoUrl'         => DEF_Core_OAuth::get_defho_url(),
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
 		) );
 

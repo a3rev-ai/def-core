@@ -61,6 +61,7 @@ final class DEF_Core {
 		DEF_Core_Staff_AI::init();
 		DEF_Core_Escalation::init();
 		DEF_Core_Connection_Config::init();
+		DEF_Core_OAuth::init();
 		DEF_Core_Export::init();
 		DEF_Core_Admin_API::init();
 
@@ -114,6 +115,9 @@ final class DEF_Core {
 
 		// Connection config (receive pushed config from DEFHO).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-connection-config.php';
+
+		// OAuth client (one-click DEFHO connect).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-oauth.php';
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';

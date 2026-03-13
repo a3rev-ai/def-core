@@ -708,38 +708,60 @@ $first_tab = 'branding';
 				</div>
 
 				<div class="def-core-conn-actions">
-					<button type="button" id="def-core-test-connection" class="button">
-						<?php esc_html_e( 'Test Connection', 'digital-employees' ); ?>
-					</button>
+					<?php if ( $is_connected ) : ?>
+						<button type="button" id="def-core-test-connection" class="button">
+							<?php esc_html_e( 'Test Connection', 'digital-employees' ); ?>
+						</button>
+					<?php endif; ?>
 					<span id="def-core-connection-result" class="def-core-connection-result"></span>
 				</div>
 			</div>
 
 			<?php if ( ! $is_connected ) : ?>
-				<div class="def-core-manual-connection" id="def-core-manual-connection">
-					<h3><?php esc_html_e( 'Manual Connection', 'digital-employees' ); ?></h3>
-					<p class="description">
-						<?php esc_html_e( 'To connect please enter the API Key from your DEF Partner. Once connected your Setup Assistant will guide you through setting up your Digital Employees.', 'digital-employees' ); ?>
-					</p>
-
-					<div class="def-core-field">
-						<label for="def_core_manual_api_key"><?php esc_html_e( 'API Key', 'digital-employees' ); ?></label>
-						<input
-							type="password"
-							id="def_core_manual_api_key"
-							class="regular-text"
-							placeholder="<?php esc_attr_e( 'Enter your API key', 'digital-employees' ); ?>"
-							value=""
-							autocomplete="off"
-						/>
+				<?php // ─── One-Click Connect ──────────────────── ?>
+				<div class="def-core-oauth-connect" id="def-core-oauth-connect">
+					<div class="def-core-oauth-connect-box">
+						<h3><?php esc_html_e( 'Connect to DEFHO', 'digital-employees' ); ?></h3>
+						<p class="description">
+							<?php esc_html_e( 'Click the button below to connect your site to the DEFHO platform. You will be redirected to DEFHO to authorize the connection.', 'digital-employees' ); ?>
+						</p>
+						<p>
+							<button type="button" class="button button-primary button-hero" id="def-core-oauth-start-btn">
+								<?php esc_html_e( 'Connect to DEFHO', 'digital-employees' ); ?>
+							</button>
+						</p>
+						<span id="def-core-oauth-result" class="def-core-connection-result"></span>
 					</div>
 
-					<div class="def-core-save-area">
-						<button type="button" class="button button-primary" id="def-core-save-manual-connection">
-							<?php esc_html_e( 'Save Connection', 'digital-employees' ); ?>
-						</button>
-						<span class="spinner"></span>
-						<span id="def-core-manual-conn-result" class="def-core-connection-result"></span>
+					<div class="def-core-manual-fallback">
+						<details>
+							<summary><?php esc_html_e( 'Manual connection (advanced)', 'digital-employees' ); ?></summary>
+							<div class="def-core-manual-connection" id="def-core-manual-connection">
+								<p class="description">
+									<?php esc_html_e( 'If one-click connect is not available, enter the API Key from your DEF Partner.', 'digital-employees' ); ?>
+								</p>
+
+								<div class="def-core-field">
+									<label for="def_core_manual_api_key"><?php esc_html_e( 'API Key', 'digital-employees' ); ?></label>
+									<input
+										type="password"
+										id="def_core_manual_api_key"
+										class="regular-text"
+										placeholder="<?php esc_attr_e( 'Enter your API key', 'digital-employees' ); ?>"
+										value=""
+										autocomplete="off"
+									/>
+								</div>
+
+								<div class="def-core-save-area">
+									<button type="button" class="button button-primary" id="def-core-save-manual-connection">
+										<?php esc_html_e( 'Save Connection', 'digital-employees' ); ?>
+									</button>
+									<span class="spinner"></span>
+									<span id="def-core-manual-conn-result" class="def-core-connection-result"></span>
+								</div>
+							</div>
+						</details>
 					</div>
 				</div>
 			<?php endif; ?>
@@ -775,6 +797,15 @@ $first_tab = 'branding';
 						<td><?php echo esc_html( $conn_last_sync ); ?> (<?php echo esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) ); ?> ago)</td>
 					</tr>
 				</table>
+
+				<div class="def-core-disconnect-area" style="margin-top: 16px;">
+					<button type="button" class="button" id="def-core-disconnect-btn" style="color: #d63638; border-color: #d63638;">
+						<?php esc_html_e( 'Disconnect', 'digital-employees' ); ?>
+					</button>
+					<p class="description">
+						<?php esc_html_e( 'Disconnecting will remove all connection credentials from this site. You can reconnect at any time.', 'digital-employees' ); ?>
+					</p>
+				</div>
 			<?php endif; ?>
 		</div>
 	</div>
