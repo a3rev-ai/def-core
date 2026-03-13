@@ -47,3 +47,21 @@ jobs:
           gh release upload "${{ github.event.release.tag_name }}" \
             digital-employees.zip \
             --clobber
+
+      - name: Update README download badge
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          # Update badge version and download URL in README.md
+          sed -i "s|Download_Plugin-v[0-9]*\.[0-9]*\.[0-9]*-blue|Download_Plugin-${VERSION}-blue|g" README.md
+          sed -i "s|releases/download/v[0-9]*\.[0-9]*\.[0-9]*/digital-employees.zip|releases/download/${VERSION}/digital-employees.zip|g" README.md
+
+          # Only commit if there are changes
+          if git diff --quiet README.md; then
+            echo "README already up to date"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "Update download badge to ${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
