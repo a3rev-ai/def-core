@@ -249,7 +249,7 @@ final class DEF_Core_OAuth {
 		if ( is_wp_error( $apply_result ) ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
-				'def_msg'   => rawurlencode( $apply_result->get_error_message() ),
+				'def_msg'   => $apply_result->get_error_message(),
 			), $admin_url );
 			return self::redirect_response( $redirect );
 		}
