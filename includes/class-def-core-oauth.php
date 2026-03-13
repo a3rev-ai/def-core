@@ -197,7 +197,19 @@ final class DEF_Core_OAuth {
 		}
 
 		// Verify the callback is being handled by a logged-in admin.
-		if ( ! is_user_logged_in() || ! current_user_can( 'def_admin_access' ) ) {
+		// Note: REST API cookie auth requires a nonce, but this is a browser redirect
+		// from DEFHO so no nonce is present. Validate the auth cookie directly.
+		$cookie_user_id = wp_validate_auth_cookie( '', 'logged_in' );
+		if ( ! $cookie_user_id ) {
+			$redirect = add_query_arg( array(
+				'def_oauth' => 'error',
+				'def_msg'   => 'You must be logged in as a DEF admin to complete the connection.',
+			), $admin_url );
+			return self::redirect_response( $redirect );
+		}
+
+		$cookie_user = get_userdata( $cookie_user_id );
+		if ( ! $cookie_user || ! $cookie_user->has_cap( 'def_admin_access' ) ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
 				'def_msg'   => 'You must be logged in as a DEF admin to complete the connection.',
@@ -218,7 +230,7 @@ final class DEF_Core_OAuth {
 		}
 
 		// Verify the current user is the same admin who initiated the flow.
-		if ( get_current_user_id() !== (int) $pkce_data['user_id'] ) {
+		if ( $cookie_user_id !== (int) $pkce_data['user_id'] ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
 				'def_msg'   => 'OAuth session was started by a different user. Please try again.',
