@@ -182,7 +182,7 @@ final class DEF_Core_OAuth {
 			$error_desc = $request->get_param( 'error_description' ) ?: $error;
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
-				'def_msg'   => rawurlencode( sanitize_text_field( $error_desc ) ),
+				'def_msg'   => sanitize_text_field( $error_desc ),
 			), $admin_url );
 			return self::redirect_response( $redirect );
 		}
@@ -191,7 +191,16 @@ final class DEF_Core_OAuth {
 		if ( empty( $code ) || empty( $state ) ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
-				'def_msg'   => rawurlencode( 'Missing authorization code or state parameter.' ),
+				'def_msg'   => 'Missing authorization code or state parameter.',
+			), $admin_url );
+			return self::redirect_response( $redirect );
+		}
+
+		// Verify the callback is being handled by a logged-in admin.
+		if ( ! is_user_logged_in() || ! current_user_can( 'def_admin_access' ) ) {
+			$redirect = add_query_arg( array(
+				'def_oauth' => 'error',
+				'def_msg'   => 'You must be logged in as a DEF admin to complete the connection.',
 			), $admin_url );
 			return self::redirect_response( $redirect );
 		}
@@ -203,7 +212,16 @@ final class DEF_Core_OAuth {
 		if ( empty( $pkce_data ) || ! is_array( $pkce_data ) ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
-				'def_msg'   => rawurlencode( 'OAuth session expired or invalid. Please try again.' ),
+				'def_msg'   => 'OAuth session expired or invalid. Please try again.',
+			), $admin_url );
+			return self::redirect_response( $redirect );
+		}
+
+		// Verify the current user is the same admin who initiated the flow.
+		if ( get_current_user_id() !== (int) $pkce_data['user_id'] ) {
+			$redirect = add_query_arg( array(
+				'def_oauth' => 'error',
+				'def_msg'   => 'OAuth session was started by a different user. Please try again.',
 			), $admin_url );
 			return self::redirect_response( $redirect );
 		}
@@ -221,7 +239,7 @@ final class DEF_Core_OAuth {
 		if ( is_wp_error( $result ) ) {
 			$redirect = add_query_arg( array(
 				'def_oauth' => 'error',
-				'def_msg'   => rawurlencode( $result->get_error_message() ),
+				'def_msg'   => $result->get_error_message(),
 			), $admin_url );
 			return self::redirect_response( $redirect );
 		}
@@ -366,7 +384,7 @@ final class DEF_Core_OAuth {
 
 	/**
 	 * AJAX handler to disconnect from DEFHO.
-	 * Clears local connection config and makes best-effort revoke call to DEFHO.
+	 * Clears local connection config. Remote revoke is a follow-up feature.
 	 */
 	public static function ajax_disconnect(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_oauth_disconnect' ) ) {
@@ -377,23 +395,8 @@ final class DEF_Core_OAuth {
 			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
-		// Best-effort: notify DEFHO about disconnect (fire-and-forget).
-		$defho_url = get_option( self::OPTION_DEFHO_SITE_URL, '' );
-		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
-
-		if ( ! empty( $defho_url ) && ! empty( $api_key ) ) {
-			wp_remote_post( $defho_url . '/api/oauth/disconnect', array(
-				'timeout'  => 5,
-				'blocking' => false,
-				'headers'  => array(
-					'Content-Type'  => 'application/json',
-					'Authorization' => 'Bearer ' . $api_key,
-				),
-				'body' => wp_json_encode( array(
-					'client_id' => home_url(),
-				) ),
-			) );
-		}
+		// Disconnect is local-only in this release.
+		// TODO: Add remote revoke call when DEFHO /api/oauth/disconnect endpoint is implemented.
 
 		// Clear local connection config.
 		delete_option( 'def_core_staff_ai_api_url' );
