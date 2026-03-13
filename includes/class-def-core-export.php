@@ -108,7 +108,7 @@ final class DEF_Core_Export {
 		}
 
 		$token      = trim( substr( $auth, 7 ) );
-		$stored_key = get_option( 'def_core_api_key', '' );
+		$stored_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		if ( empty( $stored_key ) || ! hash_equals( $stored_key, $token ) ) {
 			return new \WP_Error(

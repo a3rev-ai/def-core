@@ -135,6 +135,7 @@ if ( ! function_exists( '__' ) ) {
 }
 
 // ── Load the class under test ────────────────────────────────────────────
+// Encryption class already loaded via wp-stubs.php.
 
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-connection-config.php';
 
@@ -276,11 +277,11 @@ assert_eq( 1, $response->get_data()['config_revision'], '3c. Revision returned' 
 
 // Verify options were written.
 assert_eq( 'https://def-api.example.com', get_option( 'def_core_staff_ai_api_url' ), '3d. API URL stored' );
-assert_eq( 'test-api-key-12345', get_option( 'def_core_api_key' ), '3e. API key stored' );
+assert_eq( 'test-api-key-12345', DEF_Core_Encryption::get_secret( 'def_core_api_key' ), '3e. API key stored (encrypted)' );
 assert_eq( array( 'https://tenant.example.com' ), get_option( DEF_CORE_OPTION_ALLOWED_ORIGINS ), '3f. Origins stored' );
 assert_eq( 'https://tenant.example.com/wp-json/a3-ai/v1/jwks', get_option( 'def_core_external_jwks_url' ), '3g. JWKS URL stored' );
 assert_eq( 'https://tenant.example.com', get_option( 'def_core_external_issuer' ), '3h. Issuer stored' );
-assert_eq( 'test-service-secret', get_option( 'def_service_auth_secret' ), '3i. Service secret stored' );
+assert_eq( 'test-service-secret', DEF_Core_Encryption::get_secret( 'def_service_auth_secret' ), '3i. Service secret stored (encrypted)' );
 assert_eq( 1, get_option( 'def_core_conn_config_revision' ), '3j. Revision stored' );
 assert_true( ! empty( get_option( 'def_core_conn_last_sync_at' ) ), '3k. Last sync timestamp set' );
 
@@ -396,7 +397,7 @@ $response2 = DEF_Core_Connection_Config::receive_connection_config( $request2 );
 assert_eq( 200, $response2->get_status(), '7c. Push rev 2 → 200' );
 assert_eq( 2, $response2->get_data()['config_revision'], '7d. Revision 2 returned' );
 assert_eq( 'https://v2.example.com', get_option( 'def_core_staff_ai_api_url' ), '7e. API URL updated to v2' );
-assert_eq( 'key-v2', get_option( 'def_core_api_key' ), '7f. API key updated to v2' );
+assert_eq( 'key-v2', DEF_Core_Encryption::get_secret( 'def_core_api_key' ), '7f. API key updated to v2 (encrypted)' );
 assert_eq( 2, get_option( 'def_core_conn_config_revision' ), '7g. Stored revision is 2' );
 
 // =========================================================================
@@ -416,8 +417,8 @@ $request->set_body_params( array(
 ) );
 $response = DEF_Core_Connection_Config::receive_connection_config( $request );
 assert_eq( 200, $response->get_status(), '8a. Push with secret rotation → 200' );
-assert_eq( 'new-secret', get_option( 'def_service_auth_secret' ), '8b. New secret stored' );
-assert_eq( 'old-secret', get_option( 'def_core_conn_previous_service_secret' ), '8c. Old secret stored as previous' );
+assert_eq( 'new-secret', DEF_Core_Encryption::get_secret( 'def_service_auth_secret' ), '8b. New secret stored (encrypted)' );
+assert_eq( 'old-secret', DEF_Core_Encryption::get_secret( 'def_core_conn_previous_service_secret' ), '8c. Old secret stored as previous (encrypted)' );
 assert_true( get_option( 'def_core_conn_rotation_expires' ) > time(), '8d. Rotation expiry set in future' );
 
 // =========================================================================
@@ -437,8 +438,8 @@ $request->set_body_params( array(
 ) );
 $response = DEF_Core_Connection_Config::receive_connection_config( $request );
 assert_eq( 200, $response->get_status(), '9a. Push with previous fields → 200' );
-assert_eq( 'old-key', get_option( 'def_core_conn_previous_api_key' ), '9b. Previous API key stored' );
-assert_eq( 'old-svc-secret', get_option( 'def_core_conn_previous_service_secret' ), '9c. Previous service secret stored' );
+assert_eq( 'old-key', DEF_Core_Encryption::get_secret( 'def_core_conn_previous_api_key' ), '9b. Previous API key stored (encrypted)' );
+assert_eq( 'old-svc-secret', DEF_Core_Encryption::get_secret( 'def_core_conn_previous_service_secret' ), '9c. Previous service secret stored (encrypted)' );
 
 // =========================================================================
 // 10. Empty Allowed Origins

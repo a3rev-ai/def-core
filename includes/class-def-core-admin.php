@@ -104,6 +104,7 @@ final class DEF_Core_Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_show_encryption_notice' ) );
 		add_action( 'wp_ajax_def_core_save_settings', array( __CLASS__, 'ajax_save_settings' ) );
 		add_action( 'wp_ajax_def_core_test_connection', array( __CLASS__, 'ajax_test_connection' ) );
 		add_action( 'wp_ajax_def_core_save_user_roles', array( __CLASS__, 'ajax_save_user_roles' ) );
@@ -180,6 +181,28 @@ final class DEF_Core_Admin {
 			'default'           => array(),
 			'show_in_rest'      => false,
 		) );
+	}
+
+	// ─── Salt Rotation Recovery Notice ──────────────────────────────
+
+	/**
+	 * Show admin notice if encryption keys have changed (salt rotation).
+	 */
+	public static function maybe_show_encryption_notice(): void {
+		if ( ! get_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'def_admin_access' ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php esc_html_e( 'Digital Employees — Connection Credentials Error', 'digital-employees' ); ?></strong><br />
+				<?php esc_html_e( 'Your WordPress security keys have changed. Connection credentials could not be decrypted. Please re-enter your API Key and Service Secret from the DEFHO tenant portal, or use the Re-push Config button in DEFHO to re-push credentials.', 'digital-employees' ); ?>
+			</p>
+		</div>
+		<?php
 	}
 
 	// ─── Page Rendering ──────────────────────────────────────────────
@@ -422,8 +445,8 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Permission denied. DEF Admin access required.', 'digital-employees' ) ), 403 );
 		}
 
-		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
-		$api_key = get_option( 'def_core_api_key', '' );
+		$api_url = DEF_Core::get_def_api_url();
+		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		if ( empty( $api_url ) ) {
 			$result = array(
@@ -505,21 +528,21 @@ final class DEF_Core_Admin {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'digital-employees' ) ), 403 );
 		}
 
-		$api_url = isset( $_POST['api_url'] ) ? esc_url_raw( wp_unslash( $_POST['api_url'] ) ) : '';
 		$api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 
-		if ( empty( $api_url ) || empty( $api_key ) ) {
-			wp_send_json_error( array( 'message' => __( 'Both API URL and API Key are required.', 'digital-employees' ) ) );
+		if ( empty( $api_key ) ) {
+			wp_send_json_error( array( 'message' => __( 'API Key is required.', 'digital-employees' ) ) );
 		}
 
-		// Validate URL format.
-		if ( ! filter_var( $api_url, FILTER_VALIDATE_URL ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid API URL format.', 'digital-employees' ) ) );
+		// Use environment-aware API URL (default: https://api.defho.ai).
+		$api_url = DEF_Core::get_def_api_url();
+		if ( empty( $api_url ) ) {
+			$api_url = 'https://api.defho.ai';
 		}
 
 		// Save connection config (same options as push mechanism).
 		update_option( 'def_core_staff_ai_api_url', $api_url );
-		update_option( 'def_core_api_key', $api_key, false );
+		DEF_Core_Encryption::set_secret( 'def_core_api_key', $api_key );
 
 		// Set revision to 1 so $is_connected logic works.
 		$current_revision = (int) get_option( 'def_core_conn_config_revision', 0 );

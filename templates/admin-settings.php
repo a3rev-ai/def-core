@@ -719,19 +719,8 @@ $first_tab = 'branding';
 				<div class="def-core-manual-connection" id="def-core-manual-connection">
 					<h3><?php esc_html_e( 'Manual Connection', 'digital-employees' ); ?></h3>
 					<p class="description">
-						<?php esc_html_e( 'To connect please enter the API URL and API Key. You get these from your DEF Partner. Once connected your Setup Assistant will guide you through setting up your Digital Employees.', 'digital-employees' ); ?>
+						<?php esc_html_e( 'To connect please enter the API Key from your DEF Partner. Once connected your Setup Assistant will guide you through setting up your Digital Employees.', 'digital-employees' ); ?>
 					</p>
-
-					<div class="def-core-field">
-						<label for="def_core_manual_api_url"><?php esc_html_e( 'API URL', 'digital-employees' ); ?></label>
-						<input
-							type="url"
-							id="def_core_manual_api_url"
-							class="regular-text"
-							placeholder="https://api.defho.ai"
-							value=""
-						/>
-					</div>
 
 					<div class="def-core-field">
 						<label for="def_core_manual_api_key"><?php esc_html_e( 'API Key', 'digital-employees' ); ?></label>
@@ -756,10 +745,26 @@ $first_tab = 'branding';
 			<?php endif; ?>
 
 			<?php if ( $is_connected ) : ?>
+				<?php
+				// Resolve API URL (environment-aware).
+				$resolved_api_url = DEF_Core::get_def_api_url();
+
+				// Masked credential status.
+				$has_api_key        = null !== DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+				$has_service_secret = null !== DEF_Core_Encryption::get_secret( 'def_service_auth_secret' );
+				?>
 				<table class="def-core-conn-details">
 					<tr>
 						<th><?php esc_html_e( 'API URL', 'digital-employees' ); ?></th>
-						<td><code><?php echo esc_html( $conn_api_url ); ?></code></td>
+						<td><code><?php echo esc_html( $resolved_api_url ); ?></code></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'API Key', 'digital-employees' ); ?></th>
+						<td><?php echo $has_api_key ? esc_html__( 'Configured', 'digital-employees' ) : '<span style="color: #d63638;">' . esc_html__( 'Not configured', 'digital-employees' ) . '</span>'; ?></td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Service Secret', 'digital-employees' ); ?></th>
+						<td><?php echo $has_service_secret ? esc_html__( 'Configured', 'digital-employees' ) : '<span style="color: #d63638;">' . esc_html__( 'Not configured', 'digital-employees' ) . '</span>'; ?></td>
 					</tr>
 					<tr>
 						<th><?php esc_html_e( 'Config Revision', 'digital-employees' ); ?></th>
