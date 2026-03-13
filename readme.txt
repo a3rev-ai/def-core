@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,17 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 1.2.0 - 2026-03-13 =
+* New: One-Click Connect — OAuth 2.0 Authorization Code + PKCE (S256) flow for zero-manual-entry DEFHO connection
+* New: DEF_Core_OAuth class — PKCE verifier/challenge generation, transient-based state storage, REST callback endpoint
+* New: "Connect to DEFHO" hero button on Connection tab with manual connection as accordion fallback
+* Security: OAuth callback session-bound — verifies logged-in admin with def_admin_access matches the initiating user
+* Security: PKCE verifier stored server-side in WordPress transient (5-min TTL), consumed immediately on use
+* Security: Authorization code exchanged server-side — no secrets exposed to browser
+* Improved: Connection tab UI redesign — primary one-click action, manual entry as fallback
+* Improved: Success/error admin notices after OAuth redirect
+* Fix: Staff AI menu now visible to all DEF roles (management and admin, not just staff)
 
 = 1.1.0 - 2026-03-13 =
 * Security: Encrypted storage for connection secrets (API key, service auth secret)
