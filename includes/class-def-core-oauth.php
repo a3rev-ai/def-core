@@ -36,7 +36,7 @@ final class DEF_Core_OAuth {
 	 * DEFHO API URL — used for server-to-server calls (token exchange).
 	 * Overridable via DEF_DEFHO_API_URL constant in wp-config.php.
 	 */
-	private const DEFAULT_DEFHO_API_URL = 'https://api.defho.ai';
+	private const DEFAULT_DEFHO_API_URL = 'https://platform-api.defho.ai';
 
 	/**
 	 * Transient prefix for PKCE state storage.
