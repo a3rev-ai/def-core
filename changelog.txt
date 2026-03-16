@@ -1,5 +1,18 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.3 - 2026/03/16 =
+* Diagnostic: OAuth flow instrumentation — SHA256 hash tracing across all 6 state hops
+* Diagnostic: Transient storage verification — immediate readback test after set_transient()
+* Diagnostic: Callback logging — transient lookup result, ext object cache status, blog_id, cookie user
+* Note: All diagnostic logging is flag-guarded behind DEF_OAUTH_DEBUG constant (zero overhead when disabled)
+* Note: No behavioral changes — diagnostic-only release for OAuth connection troubleshooting
+
+= 1.2.2 - 2026/03/14 =
+* Fix: OAuth token exchange URL corrected to use DEFHO platform API endpoint
+
+= 1.2.1 - 2026/03/14 =
+* Fix: OAuth callback URL encoding — removed redundant rawurldecode (WP_REST_Request already decodes)
+
 = 1.2.0 - 2026/03/13 =
 * New: One-Click Connect — OAuth 2.0 Authorization Code + PKCE (S256) flow for zero-manual-entry DEFHO connection
 * New: DEF_Core_OAuth class — PKCE verifier/challenge generation, transient-based state storage, REST callback endpoint
