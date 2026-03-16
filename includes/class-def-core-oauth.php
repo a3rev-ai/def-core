@@ -136,6 +136,42 @@ final class DEF_Core_OAuth {
 		return rtrim( strtr( base64_encode( $hash ), '+/', '-_' ), '=' );
 	}
 
+	/**
+	 * SHA256 helper for correlation-safe logging.
+	 *
+	 * @param string $value Value to hash.
+	 * @return string Hex digest.
+	 */
+	private static function sha256_for_log( string $value ): string {
+		return hash( 'sha256', $value );
+	}
+
+	/**
+	 * Debug logging for OAuth correlation.
+	 *
+	 * Enabled when DEF_OAUTH_DEBUG is true.
+	 *
+	 * @param string $event   Event name.
+	 * @param array  $context Structured context.
+	 * @return void
+	 */
+	private static function oauth_debug_log( string $event, array $context = array() ): void {
+		if ( ! ( defined( 'DEF_OAUTH_DEBUG' ) && DEF_OAUTH_DEBUG ) ) {
+			return;
+		}
+
+		$payload = array_merge(
+			array(
+				'component' => 'def-core-oauth',
+				'event'     => $event,
+				'ts'        => gmdate( 'c' ),
+			),
+			$context
+		);
+
+		error_log( 'DEF_OAUTH ' . wp_json_encode( $payload ) );
+	}
+
 	// ─── AJAX: Start OAuth Flow ─────────────────────────────────────
 
 	/**
@@ -158,11 +194,29 @@ final class DEF_Core_OAuth {
 
 		// Store verifier + metadata in transient, keyed by state.
 		$transient_key = self::TRANSIENT_PREFIX . hash( 'sha256', $state );
-		set_transient( $transient_key, array(
+		$transient_payload = array(
 			'code_verifier' => $code_verifier,
 			'user_id'       => get_current_user_id(),
 			'created_at'    => time(),
-		), self::PKCE_TTL );
+		);
+		$set_ok = set_transient( $transient_key, $transient_payload, self::PKCE_TTL );
+		$immediate_readback = get_transient( $transient_key );
+
+		self::oauth_debug_log(
+			'oauth.start.transient_written',
+			array(
+				'state_len'                  => strlen( $state ),
+				'state_sha256'               => self::sha256_for_log( $state ),
+				'transient_key'              => $transient_key,
+				'using_ext_object_cache'     => wp_using_ext_object_cache(),
+				'blog_id'                    => get_current_blog_id(),
+				'user_id'                    => get_current_user_id(),
+				'set_transient_result'       => (bool) $set_ok,
+				'immediate_readback_hit'     => ! empty( $immediate_readback ) && is_array( $immediate_readback ),
+				'immediate_readback_user_id' => ( ! empty( $immediate_readback ) && is_array( $immediate_readback ) && isset( $immediate_readback['user_id'] ) ) ? (int) $immediate_readback['user_id'] : null,
+				'ttl'                        => self::PKCE_TTL,
+			)
+		);
 
 		// Build DEFHO authorization URL.
 		$defho_url = self::get_defho_url();
@@ -239,9 +293,38 @@ final class DEF_Core_OAuth {
 			return self::redirect_response( $redirect );
 		}
 
+		// Compute transient key (moved earlier for diagnostic logging).
+		$transient_key = self::TRANSIENT_PREFIX . hash( 'sha256', (string) $state );
+
+		self::oauth_debug_log(
+			'oauth.callback.received',
+			array(
+				'code_present'   => ! empty( $code ),
+				'state_present'  => ! empty( $state ),
+				'state_len'      => strlen( (string) $state ),
+				'state_sha256'   => self::sha256_for_log( (string) $state ),
+				'transient_key'  => $transient_key,
+				'callback_keys'  => array_keys( $request->get_query_params() ),
+			)
+		);
+
 		// Look up stored PKCE data by state.
-		$transient_key = self::TRANSIENT_PREFIX . hash( 'sha256', $state );
 		$pkce_data = get_transient( $transient_key );
+
+		self::oauth_debug_log(
+			'oauth.callback.transient_lookup',
+			array(
+				'cookie_user_id'         => (int) $cookie_user_id,
+				'state_len'              => strlen( (string) $state ),
+				'state_sha256'           => self::sha256_for_log( (string) $state ),
+				'transient_key'          => $transient_key,
+				'using_ext_object_cache' => wp_using_ext_object_cache(),
+				'blog_id'                => get_current_blog_id(),
+				'transient_hit'          => ! empty( $pkce_data ) && is_array( $pkce_data ),
+				'stored_user_id'         => ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['user_id'] ) ) ? (int) $pkce_data['user_id'] : null,
+				'stored_created_at'      => ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['created_at'] ) ) ? (int) $pkce_data['created_at'] : null,
+			)
+		);
 
 		if ( empty( $pkce_data ) || ! is_array( $pkce_data ) ) {
 			$redirect = add_query_arg( array(
