@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 1.2.4 - 2026-03-16 =
+* Fix: OAuth PKCE storage — replace set_transient() with update_option() to fix silent write failure in AJAX context
+* Fix: Fail-closed expiry check — reject PKCE data immediately if expires_at is missing, malformed, or expired
+* New: Daily WP-Cron cleanup for abandoned PKCE options (def_core_cleanup_pkce)
 
 = 1.2.0 - 2026-03-13 =
 * New: One-Click Connect — OAuth 2.0 Authorization Code + PKCE (S256) flow for zero-manual-entry DEFHO connection
