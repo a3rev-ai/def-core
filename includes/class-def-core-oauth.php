@@ -6,7 +6,7 @@
  * Implements Authorization Code + PKCE (S256) flow.
  *
  * Flow:
- * 1. Admin clicks "Connect to DEFHO" → generates PKCE verifier + state, stores in transient
+ * 1. Admin clicks "Connect to DEFHO" → generates PKCE verifier + state, stores in wp_options
  * 2. Redirects to DEFHO /oauth/authorize with client_id=site_url, PKCE challenge, state
  * 3. Partner authorizes on DEFHO consent screen → DEFHO redirects to /wp-json/a3-ai/v1/oauth/callback
  * 4. Callback exchanges authorization code for connection config via /oauth/token
@@ -39,9 +39,11 @@ final class DEF_Core_OAuth {
 	private const DEFAULT_DEFHO_API_URL = 'https://platform-api.defho.ai';
 
 	/**
-	 * Transient prefix for PKCE state storage.
+	 * Option prefix for PKCE state storage.
+	 * Uses update_option() instead of set_transient() because set_transient()
+	 * silently fails in AJAX context on some hosting configurations.
 	 */
-	private const TRANSIENT_PREFIX = 'def_oauth_pkce_';
+	private const PKCE_OPTION_PREFIX = '_def_oauth_pkce_';
 
 	/**
 	 * PKCE verifier + state TTL in seconds (5 minutes).
@@ -60,6 +62,12 @@ final class DEF_Core_OAuth {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 		add_action( 'wp_ajax_def_core_oauth_start', array( __CLASS__, 'ajax_start_oauth' ) );
 		add_action( 'wp_ajax_def_core_oauth_disconnect', array( __CLASS__, 'ajax_disconnect' ) );
+		add_action( 'def_core_cleanup_pkce', array( __CLASS__, 'cleanup_expired_pkce' ) );
+
+		// Schedule daily cleanup if not already scheduled.
+		if ( ! wp_next_scheduled( 'def_core_cleanup_pkce' ) ) {
+			wp_schedule_event( time(), 'daily', 'def_core_cleanup_pkce' );
+		}
 	}
 
 	/**
@@ -176,7 +184,7 @@ final class DEF_Core_OAuth {
 
 	/**
 	 * AJAX handler to initiate the OAuth flow.
-	 * Generates PKCE verifier + state, stores in transient, returns redirect URL.
+	 * Generates PKCE verifier + state, stores in wp_options, returns redirect URL.
 	 */
 	public static function ajax_start_oauth(): void {
 		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'def_core_oauth_start' ) ) {
@@ -192,28 +200,27 @@ final class DEF_Core_OAuth {
 		$code_challenge = self::generate_code_challenge( $code_verifier );
 		$state = self::generate_random_string( 32 );
 
-		// Store verifier + metadata in transient, keyed by state.
-		$transient_key = self::TRANSIENT_PREFIX . hash( 'sha256', $state );
-		$transient_payload = array(
+		// Store verifier + metadata as option, keyed by state hash.
+		$option_key = self::PKCE_OPTION_PREFIX . hash( 'sha256', $state );
+		$pkce_payload = array(
 			'code_verifier' => $code_verifier,
 			'user_id'       => get_current_user_id(),
 			'created_at'    => time(),
+			'expires_at'    => time() + self::PKCE_TTL,
 		);
-		$set_ok = set_transient( $transient_key, $transient_payload, self::PKCE_TTL );
+		$set_ok = update_option( $option_key, $pkce_payload, false );
 
 		if ( defined( 'DEF_OAUTH_DEBUG' ) && DEF_OAUTH_DEBUG ) {
-			$immediate_readback = get_transient( $transient_key );
+			$immediate_readback = get_option( $option_key, false );
 
 			self::oauth_debug_log(
-				'oauth.start.transient_written',
+				'oauth.start.pkce_written',
 				array(
 					'state_len'                  => strlen( $state ),
 					'state_sha256'               => self::sha256_for_log( $state ),
-					'transient_key'              => $transient_key,
-					'using_ext_object_cache'     => wp_using_ext_object_cache(),
-					'blog_id'                    => get_current_blog_id(),
+					'option_key'                 => $option_key,
 					'user_id'                    => get_current_user_id(),
-					'set_transient_result'       => (bool) $set_ok,
+					'update_option_result'       => (bool) $set_ok,
 					'immediate_readback_hit'     => ! empty( $immediate_readback ) && is_array( $immediate_readback ),
 					'immediate_readback_user_id' => ( ! empty( $immediate_readback ) && is_array( $immediate_readback ) && isset( $immediate_readback['user_id'] ) ) ? (int) $immediate_readback['user_id'] : null,
 					'ttl'                        => self::PKCE_TTL,
@@ -296,8 +303,8 @@ final class DEF_Core_OAuth {
 			return self::redirect_response( $redirect );
 		}
 
-		// Compute transient key (moved earlier for diagnostic logging).
-		$transient_key = self::TRANSIENT_PREFIX . hash( 'sha256', (string) $state );
+		// Compute option key for PKCE lookup.
+		$option_key = self::PKCE_OPTION_PREFIX . hash( 'sha256', (string) $state );
 
 		self::oauth_debug_log(
 			'oauth.callback.received',
@@ -306,24 +313,28 @@ final class DEF_Core_OAuth {
 				'state_present'  => ! empty( $state ),
 				'state_len'      => strlen( (string) $state ),
 				'state_sha256'   => self::sha256_for_log( (string) $state ),
-				'transient_key'  => $transient_key,
+				'option_key'     => $option_key,
 				'callback_keys'  => array_keys( $request->get_query_params() ),
 			)
 		);
 
 		// Look up stored PKCE data by state.
-		$pkce_data = get_transient( $transient_key );
+		$pkce_data = get_option( $option_key, false );
+
+		// Check manual expiry.
+		if ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['expires_at'] ) && $pkce_data['expires_at'] < time() ) {
+			delete_option( $option_key );
+			$pkce_data = false;
+		}
 
 		self::oauth_debug_log(
-			'oauth.callback.transient_lookup',
+			'oauth.callback.pkce_lookup',
 			array(
 				'cookie_user_id'         => (int) $cookie_user_id,
 				'state_len'              => strlen( (string) $state ),
 				'state_sha256'           => self::sha256_for_log( (string) $state ),
-				'transient_key'          => $transient_key,
-				'using_ext_object_cache' => wp_using_ext_object_cache(),
-				'blog_id'                => get_current_blog_id(),
-				'transient_hit'          => ! empty( $pkce_data ) && is_array( $pkce_data ),
+				'option_key'             => $option_key,
+				'pkce_hit'               => ! empty( $pkce_data ) && is_array( $pkce_data ),
 				'stored_user_id'         => ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['user_id'] ) ) ? (int) $pkce_data['user_id'] : null,
 				'stored_created_at'      => ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['created_at'] ) ) ? (int) $pkce_data['created_at'] : null,
 			)
@@ -346,8 +357,8 @@ final class DEF_Core_OAuth {
 			return self::redirect_response( $redirect );
 		}
 
-		// Consume the transient immediately (single-use).
-		delete_transient( $transient_key );
+		// Consume the PKCE data immediately (single-use).
+		delete_option( $option_key );
 
 		// Exchange the authorization code for connection config.
 		$result = self::exchange_code(
@@ -558,5 +569,34 @@ final class DEF_Core_OAuth {
 	 */
 	public static function is_oauth_connected(): bool {
 		return ! empty( get_option( self::OPTION_DEFHO_SITE_URL, '' ) );
+	}
+
+	/**
+	 * Clean up expired PKCE options from the database.
+	 * Runs daily via WP-Cron. Deletes any _def_oauth_pkce_* options past their expires_at.
+	 */
+	public static function cleanup_expired_pkce(): void {
+		global $wpdb;
+
+		$prefix = self::PKCE_OPTION_PREFIX;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
+				$wpdb->esc_like( $prefix ) . '%'
+			)
+		);
+
+		if ( empty( $rows ) ) {
+			return;
+		}
+
+		$now = time();
+		foreach ( $rows as $row ) {
+			$data = maybe_unserialize( $row->option_value );
+			if ( ! is_array( $data ) || ! isset( $data['expires_at'] ) || $data['expires_at'] < $now ) {
+				delete_option( $row->option_name );
+			}
+		}
 	}
 }
