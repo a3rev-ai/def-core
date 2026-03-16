@@ -321,10 +321,17 @@ final class DEF_Core_OAuth {
 		// Look up stored PKCE data by state.
 		$pkce_data = get_option( $option_key, false );
 
-		// Check manual expiry.
-		if ( ! empty( $pkce_data ) && is_array( $pkce_data ) && isset( $pkce_data['expires_at'] ) && $pkce_data['expires_at'] < time() ) {
-			delete_option( $option_key );
-			$pkce_data = false;
+		// Fail closed: reject if malformed, missing expiry, or expired.
+		if ( ! empty( $pkce_data ) ) {
+			if (
+				! is_array( $pkce_data ) ||
+				! isset( $pkce_data['expires_at'] ) ||
+				! is_numeric( $pkce_data['expires_at'] ) ||
+				(int) $pkce_data['expires_at'] < time()
+			) {
+				delete_option( $option_key );
+				$pkce_data = false;
+			}
 		}
 
 		self::oauth_debug_log(
