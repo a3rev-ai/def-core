@@ -1,10 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
 = 1.2.3 - 2026/03/16 =
-* Diagnostic: OAuth flow instrumentation — SHA256 hash tracing across all 6 state hops
+* Diagnostic: WP-side OAuth instrumentation — SHA256 hash tracing for transient write, readback, and callback lookup
 * Diagnostic: Transient storage verification — immediate readback test after set_transient()
 * Diagnostic: Callback logging — transient lookup result, ext object cache status, blog_id, cookie user
-* Note: All diagnostic logging is flag-guarded behind DEF_OAUTH_DEBUG constant (zero overhead when disabled)
+* Note: All diagnostic work fully gated behind DEF_OAUTH_DEBUG constant (true no-op when disabled)
 * Note: No behavioral changes — diagnostic-only release for OAuth connection troubleshooting
 
 = 1.2.2 - 2026/03/14 =
