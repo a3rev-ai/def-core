@@ -590,7 +590,9 @@ function t(key, fallback) {
 				}
 
 				// File indicators for uploaded files.
-				if (msg.fileNames && msg.fileNames.length > 0) {
+				if (msg.fileAttachments && msg.fileAttachments.length > 0) {
+					appendFileAttachments(content, msg.fileAttachments);
+				} else if (msg.fileNames && msg.fileNames.length > 0) {
 					appendFileIndicators(content, msg.fileNames);
 				}
 			}
@@ -732,6 +734,12 @@ function t(key, fallback) {
 		stagedFiles.push(entry);
 		renderStagedFiles();
 		updateSendButton();
+
+		// Start upload immediately in background (not on send).
+		// By the time user hits Send, file_id is already ready.
+		if (!error) {
+			uploadSingleFile(entry);
+		}
 	}
 
 	function removeStagedFile(localId) {
@@ -876,14 +884,22 @@ function t(key, fallback) {
 	}
 
 	async function uploadAllStagedFiles() {
+		// Upload any files still in 'staged' state (e.g., if stageFile upload hasn't started yet).
 		var toUpload = stagedFiles.filter(function(f) { return f.status === 'staged'; });
-		if (toUpload.length === 0) return { success: true, fileIds: [] };
+		if (toUpload.length > 0) {
+			await Promise.all(toUpload.map(function(f) { return uploadSingleFile(f); }));
+		}
 
-		// Upload all in parallel.
-		// Note: maxFiles is capped at 5. If this ever increases beyond 5,
-		// add a concurrency cap (e.g., 2-3 parallel uploads) to avoid
-		// Azure throttling. (V1.1: C5)
-		await Promise.all(toUpload.map(function(f) { return uploadSingleFile(f); }));
+		// Wait for any files still uploading (started by stageFile in background).
+		var maxWaitMs = 30000;
+		var pollIntervalMs = 200;
+		var waited = 0;
+		while (waited < maxWaitMs) {
+			var stillUploading = stagedFiles.filter(function(f) { return f.status === 'uploading'; });
+			if (stillUploading.length === 0) break;
+			await new Promise(function(resolve) { setTimeout(resolve, pollIntervalMs); });
+			waited += pollIntervalMs;
+		}
 
 		var uploaded = stagedFiles.filter(function(f) { return f.status === 'uploaded'; });
 		var failed   = stagedFiles.filter(function(f) { return f.status === 'failed'; });
@@ -903,6 +919,36 @@ function t(key, fallback) {
 				+ '<polyline points="14 2 14 8 20 8"/></svg> '
 				+ escapeHtml(name);
 			container.appendChild(indicator);
+		});
+	}
+
+	function appendFileAttachments(container, attachments) {
+		attachments.forEach(function(att) {
+			var isImage = att.type && att.type.startsWith('image/') && att.thumbnailUrl;
+
+			if (isImage) {
+				// Image preview: 384px max-width, click to open full size
+				var wrapper = document.createElement('div');
+				wrapper.className = 'message-image-preview';
+				var img = document.createElement('img');
+				img.src = att.thumbnailUrl;
+				img.alt = escapeHtml(att.name);
+				img.className = 'message-image-thumb';
+				img.addEventListener('click', function() {
+					window.open(att.thumbnailUrl, '_blank');
+				});
+				wrapper.appendChild(img);
+				container.appendChild(wrapper);
+			} else {
+				// Non-image file: show file indicator chip
+				var indicator = document.createElement('div');
+				indicator.className = 'message-file-indicator';
+				indicator.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+					+ '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+					+ '<polyline points="14 2 14 8 20 8"/></svg> '
+					+ escapeHtml(att.name);
+				container.appendChild(indicator);
+			}
 		});
 	}
 
@@ -1014,10 +1060,23 @@ function t(key, fallback) {
 
 		// Build user message display content.
 		var displayText = text || (fileIds.length > 0 ? t('analyzeFiles', 'Please analyze the attached file(s).') : '');
+		var fileAttachments = null;
+		if (fileIds.length > 0) {
+			fileAttachments = stagedFiles
+				.filter(function(f) { return f.status === 'uploaded'; })
+				.map(function(f) {
+					return {
+						name: f.file.name,
+						type: f.file.type || '',
+						thumbnailUrl: f.thumbnailUrl || null,
+					};
+				});
+		}
 		messages.push({
 			role: 'user',
 			content: displayText,
-			fileNames: fileIds.length > 0 ? stagedFiles.filter(function(f) { return f.status === 'uploaded'; }).map(function(f) { return f.file.name; }) : null
+			fileNames: fileAttachments ? fileAttachments.map(function(f) { return f.name; }) : null,
+			fileAttachments: fileAttachments,
 		});
 		renderMessages();
 
