@@ -901,6 +901,14 @@ function t(key, fallback) {
 			waited += pollIntervalMs;
 		}
 
+		// Treat any files still stuck in 'uploading' after timeout as failed
+		stagedFiles.forEach(function(f) {
+			if (f.status === 'uploading') {
+				f.status = 'failed';
+				f.error = t('uploadTimeout', 'Upload timed out. Please try again.');
+			}
+		});
+
 		var uploaded = stagedFiles.filter(function(f) { return f.status === 'uploaded'; });
 		var failed   = stagedFiles.filter(function(f) { return f.status === 'failed'; });
 
@@ -924,7 +932,8 @@ function t(key, fallback) {
 
 	function appendFileAttachments(container, attachments) {
 		attachments.forEach(function(att) {
-			var isImage = att.type && att.type.startsWith('image/') && att.thumbnailUrl;
+			var isImage = att.type && att.type.startsWith('image/')
+				&& att.thumbnailUrl && att.thumbnailUrl.startsWith('data:image/');
 
 			if (isImage) {
 				// Image preview: 384px max-width, click to open full size
