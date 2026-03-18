@@ -1,5 +1,16 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.5 - 2026/03/19 =
+* Improved: Staff AI file uploads now start immediately on attach (not on Send) — eliminates 3-4 second hang time
+* Improved: Uploaded images show as 384px inline previews in chat thread (click to open full size)
+* Improved: Upload timeout handling — files stuck uploading after 30s marked as failed with user-facing error
+* Security: Image thumbnail URLs validated with data:image/ prefix check before rendering
+* Tweak: Non-image files retain existing file indicator chip (no regression)
+
+= 1.2.4 - 2026/03/17 =
+* Fix: OAuth PKCE storage — replaced set_transient() with update_option() for reliable PKCE verifier storage
+* Security: Hardened PKCE expiry check — fail closed on missing or malformed expires_at
+
 = 1.2.3 - 2026/03/16 =
 * Diagnostic: WP-side OAuth instrumentation — SHA256 hash tracing for transient write, readback, and callback lookup
 * Diagnostic: Transient storage verification — immediate readback test after set_transient()
