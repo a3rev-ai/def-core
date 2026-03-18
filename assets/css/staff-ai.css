@@ -1465,3 +1465,20 @@ html {
 	width: 12px;
 	height: 12px;
 }
+
+.message-image-preview {
+	margin-top: 8px;
+}
+
+.message-image-thumb {
+	max-width: 384px;
+	width: 100%;
+	height: auto;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: opacity 0.15s ease;
+}
+
+.message-image-thumb:hover {
+	opacity: 0.85;
+}
