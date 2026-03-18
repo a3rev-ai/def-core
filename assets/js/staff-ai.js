@@ -941,7 +941,7 @@ function t(key, fallback) {
 				wrapper.className = 'message-image-preview';
 				var img = document.createElement('img');
 				img.src = att.thumbnailUrl;
-				img.alt = escapeHtml(att.name);
+				img.alt = att.name;
 				img.className = 'message-image-thumb';
 				img.addEventListener('click', function() {
 					window.open(att.thumbnailUrl, '_blank');
