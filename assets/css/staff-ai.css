@@ -1331,19 +1331,84 @@ html {
 }
 
 /* File chips */
+/* ==============================================
+   STAGED FILES: Layout modes
+   ============================================== */
+.staged-files {
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: flex-end;
+}
+
+/* ==============================================
+   IMAGE TILES (composer staging area)
+   ============================================== */
+.upload-tile {
+	position: relative;
+	border-radius: 10px;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.upload-tile--large {
+	width: 72px;
+	height: 72px;
+}
+
+.upload-tile--compact {
+	width: 56px;
+	height: 56px;
+}
+
+.upload-tile-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.upload-tile-remove {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 20px;
+	height: 20px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	cursor: pointer;
+	font-size: 13px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	transition: background 0.15s;
+	z-index: 2;
+}
+
+.upload-tile-remove:hover {
+	background: rgba(0, 0, 0, 0.85);
+}
+
+/* ==============================================
+   FILE CHIPS (composer staging area)
+   ============================================== */
 .upload-chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	max-width: 220px;
-	padding: 6px 10px;
+	gap: 8px;
+	max-width: 240px;
+	padding: 10px 12px;
 	background: var(--bg-input);
 	border: 1px solid var(--border-light);
-	border-radius: 8px;
+	border-radius: 10px;
 	font-size: 13px;
 	color: var(--text-primary);
 	transition: border-color 0.15s;
 	position: relative;
+	min-height: 56px;
 }
 
 .upload-chip--uploading {
@@ -1359,24 +1424,20 @@ html {
 	background: var(--banner-error-bg);
 }
 
-.upload-chip-thumb {
-	width: 28px;
-	height: 28px;
-	border-radius: 4px;
-	object-fit: cover;
+.upload-chip-icon-wrap {
+	position: relative;
 	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .upload-chip-icon {
-	flex-shrink: 0;
-	width: 16px;
-	height: 16px;
+	width: 28px;
+	height: 28px;
 	color: var(--text-tertiary);
-}
-
-.upload-chip--uploading .upload-chip-icon {
-	color: var(--accent-indigo);
-	animation: upload-pulse 1.5s ease-in-out infinite;
 }
 
 .upload-chip--uploaded .upload-chip-icon {
@@ -1387,32 +1448,33 @@ html {
 	color: var(--share-error-text);
 }
 
-@keyframes upload-pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.4; }
+.upload-chip-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	overflow: hidden;
+	min-width: 0;
 }
 
 .upload-chip-name {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	max-width: 120px;
 }
 
 .upload-chip-size {
 	color: var(--text-tertiary);
 	font-size: 11px;
-	flex-shrink: 0;
 }
 
 .upload-chip-remove {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 18px;
-	height: 18px;
+	width: 20px;
+	height: 20px;
 	border: none;
-	border-radius: 4px;
+	border-radius: 50%;
 	background: transparent;
 	color: var(--text-placeholder);
 	cursor: pointer;
@@ -1446,6 +1508,65 @@ html {
 
 .upload-chip--failed:hover .upload-chip-error {
 	display: block;
+}
+
+/* ==============================================
+   UPLOAD SPINNER (circular progress overlay)
+   ============================================== */
+.upload-spinner {
+	display: none;
+	position: absolute;
+	width: 22px;
+	height: 22px;
+	border: 3px solid rgba(100, 100, 100, 0.25);
+	border-top: 3px solid var(--accent-indigo);
+	border-radius: 50%;
+	animation: upload-spin 0.8s linear infinite;
+	z-index: 1;
+}
+
+/* Show spinner during upload */
+.upload-tile--uploading .upload-spinner,
+.upload-chip--uploading .upload-spinner {
+	display: block;
+}
+
+/* Tile border states */
+.upload-tile--uploaded {
+	box-shadow: 0 0 0 2px var(--accent-green);
+}
+
+.upload-tile--failed {
+	box-shadow: 0 0 0 2px var(--share-error-text);
+}
+
+/* Center spinner on image tiles */
+.upload-tile .upload-spinner {
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+/* Dim image while uploading */
+.upload-tile--uploading .upload-tile-img {
+	opacity: 0.5;
+}
+
+/* Center spinner on file chip icon */
+.upload-chip-icon-wrap .upload-spinner {
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+/* Dim file icon while uploading */
+.upload-chip--uploading .upload-chip-icon {
+	opacity: 0.3;
+}
+
+@keyframes upload-spin {
+	from { transform: translate(-50%, -50%) rotate(0deg); }
+	to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* File indicator in sent messages */

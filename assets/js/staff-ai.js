@@ -780,32 +780,58 @@ function t(key, fallback) {
 			stagedArea.innerHTML = '';
 			return;
 		}
+
+		// Layout rule: single image → large tile, multiple attachments → compact row
+		var activeFiles = stagedFiles.filter(function(f) { return f.status !== 'removed'; });
+		var isSingleImage = activeFiles.length === 1
+			&& activeFiles[0].thumbnailUrl
+			&& activeFiles[0].file.type && activeFiles[0].file.type.startsWith('image/');
+		var layoutClass = isSingleImage ? 'staged-layout-single' : 'staged-layout-compact';
+
 		stagedArea.style.display = 'flex';
-		stagedArea.innerHTML = stagedFiles.map(function(f) {
-			var statusClass = 'upload-chip--' + f.status;
-			var icon = f.thumbnailUrl
-				? '<img class="upload-chip-thumb" src="' + f.thumbnailUrl + '" alt="" />'
-				: '<svg class="upload-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
-				  + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
-				  + '<polyline points="14 2 14 8 20 8"/></svg>';
-			var errorTip = f.error
-				? '<span class="upload-chip-error">' + escapeHtml(f.error) + '</span>'
-				: '';
-			var size = (f.file.size / 1024).toFixed(0) + 'KB';
-			return '<div class="upload-chip ' + statusClass + '" data-id="' + f.localId + '">'
-				+ icon
-				+ '<span class="upload-chip-name" title="' + escapeHtml(f.file.name) + '">' + escapeHtml(f.file.name) + '</span>'
-				+ '<span class="upload-chip-size">' + size + '</span>'
-				+ '<button type="button" class="upload-chip-remove" aria-label="Remove">&times;</button>'
-				+ errorTip
-				+ '</div>';
+		stagedArea.className = 'staged-files ' + layoutClass;
+		stagedArea.innerHTML = activeFiles.map(function(f) {
+			var isImage = f.thumbnailUrl && f.file.type && f.file.type.startsWith('image/');
+			var spinnerHtml = '<div class="upload-spinner"></div>';
+
+			if (isImage) {
+				// Image tile: thumbnail preview with remove button overlay
+				var tileStatus = 'upload-tile--' + f.status;
+				var tileClass = isSingleImage ? 'upload-tile upload-tile--large' : 'upload-tile upload-tile--compact';
+				return '<div class="' + tileClass + ' ' + tileStatus + '" data-id="' + f.localId + '">'
+					+ '<img class="upload-tile-img" src="' + f.thumbnailUrl + '" alt="" />'
+					+ spinnerHtml
+					+ '<button type="button" class="upload-tile-remove" aria-label="Remove">&times;</button>'
+					+ '</div>';
+			} else {
+				// File chip: icon + name + size
+				var chipStatus = 'upload-chip--' + f.status;
+				var errorTip = f.error
+					? '<span class="upload-chip-error">' + escapeHtml(f.error) + '</span>'
+					: '';
+				var size = (f.file.size / 1024).toFixed(0) + 'KB';
+				return '<div class="upload-chip ' + chipStatus + '" data-id="' + f.localId + '">'
+					+ '<div class="upload-chip-icon-wrap">'
+					+ '<svg class="upload-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+					+ '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+					+ '<polyline points="14 2 14 8 20 8"/></svg>'
+					+ spinnerHtml
+					+ '</div>'
+					+ '<div class="upload-chip-text">'
+					+ '<span class="upload-chip-name" title="' + escapeHtml(f.file.name) + '">' + escapeHtml(f.file.name) + '</span>'
+					+ '<span class="upload-chip-size">' + size + '</span>'
+					+ '</div>'
+					+ '<button type="button" class="upload-chip-remove" aria-label="Remove">&times;</button>'
+					+ errorTip
+					+ '</div>';
+			}
 		}).join('');
 
-		// Attach remove handlers.
-		stagedArea.querySelectorAll('.upload-chip-remove').forEach(function(btn) {
+		// Attach remove handlers (tiles and chips).
+		stagedArea.querySelectorAll('.upload-chip-remove, .upload-tile-remove').forEach(function(btn) {
 			btn.addEventListener('click', function() {
-				var chip = btn.closest('.upload-chip');
-				var id = parseInt(chip.dataset.id, 10);
+				var el = btn.closest('.upload-chip') || btn.closest('.upload-tile');
+				var id = parseInt(el.dataset.id, 10);
 				removeStagedFile(id);
 			});
 		});
@@ -930,22 +956,43 @@ function t(key, fallback) {
 		});
 	}
 
+	function dataUrlToBlob(dataUrl) {
+		var parts = dataUrl.split(',');
+		var mime = parts[0].match(/:(.*?);/)[1];
+		var raw = atob(parts[1]);
+		var arr = new Uint8Array(raw.length);
+		for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+		return new Blob([arr], { type: mime });
+	}
+
+	// Safe raster types for click-to-open (no SVG — different security profile)
+	var SAFE_OPEN_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/bmp'];
+
 	function appendFileAttachments(container, attachments) {
 		attachments.forEach(function(att) {
 			var isImage = att.type && att.type.startsWith('image/')
 				&& att.thumbnailUrl && att.thumbnailUrl.startsWith('data:image/');
 
 			if (isImage) {
-				// Image preview: 384px max-width, click to open full size
+				// Image preview: 384px max-width, click to open full size in new tab
 				var wrapper = document.createElement('div');
 				wrapper.className = 'message-image-preview';
 				var img = document.createElement('img');
 				img.src = att.thumbnailUrl;
 				img.alt = att.name;
 				img.className = 'message-image-thumb';
-				img.addEventListener('click', function() {
-					window.open(att.thumbnailUrl, '_blank');
-				});
+				// Only allow click-to-open for safe raster types (not SVG)
+				var canOpen = SAFE_OPEN_TYPES.indexOf(att.type) !== -1;
+				if (canOpen) {
+					img.style.cursor = 'pointer';
+					img.addEventListener('click', function() {
+						var blob = dataUrlToBlob(att.thumbnailUrl);
+						var blobUrl = URL.createObjectURL(blob);
+						window.open(blobUrl, '_blank');
+						// Revoke after new tab has loaded to prevent memory leak
+						setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+					});
+				}
 				wrapper.appendChild(img);
 				container.appendChild(wrapper);
 			} else {
