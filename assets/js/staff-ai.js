@@ -477,12 +477,12 @@ function t(key, fallback) {
 		}
 	});
 
-	// Auto-resize textarea — grows uncapped, .composer wrapper scrolls.
-	var composerBox = composerInput.closest('.composer');
+	// Auto-resize textarea — grows uncapped, .composer-scroll wrapper scrolls.
+	var composerScroll = document.getElementById('composerScroll');
 	function autoResize() {
 		composerInput.style.height = 'auto';
 		composerInput.style.height = composerInput.scrollHeight + 'px';
-		if (composerBox) composerBox.scrollTop = composerBox.scrollHeight;
+		if (composerScroll) composerScroll.scrollTop = composerScroll.scrollHeight;
 	}
 
 	composerInput.addEventListener('input', function() {

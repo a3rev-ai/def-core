@@ -820,15 +820,26 @@ body {
 .composer {
 	flex: 1;
 	display: flex;
-	align-items: flex-end;
+	flex-direction: column;
 	background: var(--bg-input);
 	border: 1px solid var(--border-light);
 	border-radius: 12px;
 	padding: 12px 16px;
-	gap: 12px;
-	max-height: 224px;
+	overflow: hidden;
+}
+
+.composer-scroll {
+	max-height: 200px;
 	overflow-y: auto;
 	overflow-x: hidden;
+	min-height: 0;
+}
+
+.composer-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 8px;
 }
 
 .composer:focus-within {
@@ -836,7 +847,9 @@ body {
 }
 
 .composer-input {
-	flex: 1;
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
 	background: transparent;
 	border: none;
 	color: var(--text-heading);
