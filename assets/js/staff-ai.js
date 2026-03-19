@@ -477,10 +477,12 @@ function t(key, fallback) {
 		}
 	});
 
-	// Auto-resize textarea
+	// Auto-resize textarea — grows uncapped, .composer wrapper scrolls.
+	var composerBox = composerInput.closest('.composer');
 	function autoResize() {
 		composerInput.style.height = 'auto';
-		composerInput.style.height = Math.min(composerInput.scrollHeight, 200) + 'px';
+		composerInput.style.height = composerInput.scrollHeight + 'px';
+		if (composerBox) composerBox.scrollTop = composerBox.scrollHeight;
 	}
 
 	composerInput.addEventListener('input', function() {

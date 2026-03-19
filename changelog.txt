@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.9 - 2026/03/19 =
+* Fix: Composer scroll regression — textarea content past 200px was invisible with no scrollbar
+* Fix: Scrollbar now appears on composer outer edge (next to send button) matching ChatGPT-style layout
+* Tweak: Textarea grows to full content height, .composer wrapper constrains and scrolls
+* Tweak: Auto-scrolls to bottom of composer as user types new lines
+
 = 1.2.8 - 2026/03/19 =
 * Improved: Assistant messages now render markdown — headings, bold, lists, code blocks, tables, links styled correctly
 * Improved: Scrollbar styled thin and theme-aware across all Staff AI scrollable areas (messages, composer, modals)
