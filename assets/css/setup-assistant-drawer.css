@@ -8,10 +8,16 @@
  * @since   2.0.0
  */
 
+/* ─── Page Header ────────────────────────────────────────────── */
+
+.def-core-wrap > h1 {
+	display: inline-block;
+}
+
 /* ─── Trigger Button ──────────────────────────────────────────── */
 
 .def-sa-trigger {
-	display: inline-flex;
+	display: none;           /* hidden until JS adds .def-sa-ready */
 	align-items: center;
 	gap: 6px;
 	padding: 6px 14px;
@@ -26,6 +32,10 @@
 	cursor: pointer;
 	transition: background-color 0.2s ease;
 	vertical-align: middle;
+}
+
+.def-sa-trigger.def-sa-ready {
+	display: inline-flex;    /* revealed once JS initialises */
 }
 
 .def-sa-trigger:hover,

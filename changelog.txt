@@ -1,9 +1,15 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.3.1 - 2026/03/20 =
+* Improved: Connection tab simplified â€” removed technical fields (API URL, API Key, Service Secret, Config Revision, Last Sync) that are managed on DEFHO portal
+* Fix: Setup Assistant button no longer causes layout shift on page load â€” renders inline with title instead of jumping from below tabs
+* Fix: Setup Assistant button hidden until JS initialises, preventing flash of unstyled dashicon elements
+* New: Plugin icon (256x256 + 128x128) now displays on WordPress updates page and plugin details
+
 = 1.3.0 - 2026/03/19 =
-* Improved: Composer restructured to match ChatGPT input pattern — text area scrolls independently, toolbar (attach + send) pinned at bottom
+* Improved: Composer restructured to match ChatGPT input pattern ï¿½ text area scrolls independently, toolbar (attach + send) pinned at bottom
 * Improved: Scrollbar appears on outer edge of composer box, not inside textarea
-* Fix: Composer scroll regression from v1.2.8/v1.2.9 — content was clipped with no scrollbar
+* Fix: Composer scroll regression from v1.2.8/v1.2.9 ï¿½ content was clipped with no scrollbar
 * Tweak: Composer layout changed from single flex row to column (scroll wrapper + toolbar)
 * Tweak: Auto-scroll to bottom of text area as user types new lines
 
