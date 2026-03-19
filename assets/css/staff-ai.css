@@ -828,6 +828,7 @@ body {
 	gap: 12px;
 	max-height: 224px;
 	overflow-y: auto;
+	overflow-x: hidden;
 }
 
 .composer:focus-within {
