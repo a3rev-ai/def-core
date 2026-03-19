@@ -296,11 +296,14 @@ final class DEF_Core_Escalation {
 	 * using WordPress capability__in (WP 5.9+, multisite-safe). Returns both a
 	 * canonical email list (for policy validation) and display objects (for UI).
 	 *
-	 * @param int $exclude_user_id Optional user ID to exclude (e.g., current user).
+	 * @param int  $exclude_user_id    Optional user ID to exclude (e.g., current user).
+	 * @param bool $allow_admin_fallback Whether to fall back to admin_email when no users found.
+	 *                                   Use true for validation paths (always need a recipient list),
+	 *                                   false for UI picker paths (empty list is preferable to self).
 	 * @return array { 'emails' => string[], 'recipients' => array[] }
 	 * @since 1.2.7
 	 */
-	private static function get_staff_management_recipients( int $exclude_user_id = 0 ): array {
+	private static function get_staff_management_recipients( int $exclude_user_id = 0, bool $allow_admin_fallback = true ): array {
 		$args = array(
 			'capability__in' => array( 'def_staff_access', 'def_management_access' ),
 			'fields'         => array( 'ID', 'user_email', 'display_name', 'user_login' ),
@@ -341,7 +344,9 @@ final class DEF_Core_Escalation {
 		}
 
 		// Fallback to admin_email if no staff/management users found.
-		if ( empty( $emails ) ) {
+		// Suppressed for UI picker paths where self-exclusion is active —
+		// an empty list is preferable to reintroducing the excluded user.
+		if ( empty( $emails ) && $allow_admin_fallback ) {
 			$admin_email = strtolower( get_option( 'admin_email' ) );
 			$admin_user  = get_user_by( 'email', get_option( 'admin_email' ) );
 			$emails[]     = $admin_email;
@@ -360,12 +365,13 @@ final class DEF_Core_Escalation {
 	/**
 	 * Public accessor for staff/management recipients (used by Staff AI share).
 	 *
-	 * @param int $exclude_user_id Optional user ID to exclude.
+	 * @param int  $exclude_user_id    Optional user ID to exclude.
+	 * @param bool $allow_admin_fallback Whether to fall back to admin_email when empty.
 	 * @return array { 'emails' => string[], 'recipients' => array[] }
 	 * @since 1.2.7
 	 */
-	public static function get_staff_management_recipients_public( int $exclude_user_id = 0 ): array {
-		return self::get_staff_management_recipients( $exclude_user_id );
+	public static function get_staff_management_recipients_public( int $exclude_user_id = 0, bool $allow_admin_fallback = true ): array {
+		return self::get_staff_management_recipients( $exclude_user_id, $allow_admin_fallback );
 	}
 
 	/**

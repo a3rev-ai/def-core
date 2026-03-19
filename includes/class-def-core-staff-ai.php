@@ -813,8 +813,11 @@ final class DEF_Core_Staff_AI
 
 		if ( empty( $stored['allowed_recipients'] ) ) {
 			// Auto-discovery path: query staff/management users, exclude self.
+			// Suppress admin fallback — empty list is preferable to reintroducing
+			// the excluded user when they're the only staff/management user.
 			$result = \DEF_Core_Escalation::get_staff_management_recipients_public(
-				$current_user_id
+				$current_user_id,
+				false
 			);
 			$data['recipient_options'] = $result['recipients'];
 		} else {
