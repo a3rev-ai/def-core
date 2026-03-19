@@ -1,5 +1,13 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.6 - 2026/03/19 =
+* Improved: Composer staging area redesigned — single image shows as 72px thumbnail tile, multiple attachments show compact 56px tiles + taller file chips
+* Improved: Upload progress spinner — circular CSS spinner overlay on image tiles and file icons during upload, replaces flashing border animation
+* Fix: Click image preview to open full size — now works correctly (converts data URL to blob URL for browser compatibility)
+* Security: Click-to-open restricted to safe raster image types only (PNG, JPEG, GIF, WebP) — SVG excluded
+* Tweak: File chips redesigned — taller layout (56px) with 28px icon, filename and size stacked vertically
+* Tweak: Blob URLs revoked after use to prevent memory leak accumulation
+
 = 1.2.5 - 2026/03/19 =
 * Improved: Staff AI file uploads now start immediately on attach (not on Send) — eliminates 3-4 second hang time
 * Improved: Uploaded images show as 384px inline previews in chat thread (click to open full size)
