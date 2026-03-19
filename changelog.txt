@@ -1,5 +1,14 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.7 - 2026/03/19 =
+* Fix: Staff AI Share recipients dropdown now shows all users with Staff or Management access (was only showing site admin)
+* Fix: Staff AI Share emails now include Reply-To header with the sharing user's email address
+* Security: Share endpoint channel forced server-side — prevents confused-deputy escalation channel switching
+* Security: Token picker DOM rendering switched from innerHTML to textContent/createElement (XSS prevention)
+* Improved: Share recipients show display names — "Name (email)" format in chips and dropdown
+* Improved: Current user excluded from own Share recipient list (self-exclusion)
+* Tweak: Recipient picker data separated — allowed_recipients (policy) vs recipient_options (UI display)
+
 = 1.2.6 - 2026/03/19 =
 * Improved: Composer staging area redesigned — single image shows as 72px thumbnail tile, multiple attachments show compact 56px tiles + taller file chips
 * Improved: Upload progress spinner — circular CSS spinner overlay on image tiles and file icons during upload, replaces flashing border animation
