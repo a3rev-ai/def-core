@@ -795,12 +795,49 @@ final class DEF_Core_Staff_AI
 
 		if ($response instanceof \WP_Error) {
 			return new \WP_REST_Response(
-				array('allowed_recipients' => array()),
+				array(
+					'allowed_recipients' => array(),
+					'recipient_options'  => array(),
+				),
 				200
 			);
 		}
 
-		return $response;
+		// Add recipient_options (with display names) for the token picker UI.
+		// allowed_recipients stays as string[] for policy/validation.
+		$data = $response->get_data();
+		$current_user_id = get_current_user_id();
+
+		$option_key = 'def_core_escalation_staff_ai';
+		$stored     = get_option( $option_key, array() );
+
+		if ( empty( $stored['allowed_recipients'] ) ) {
+			// Auto-discovery path: query staff/management users, exclude self.
+			// Suppress admin fallback — empty list is preferable to reintroducing
+			// the excluded user when they're the only staff/management user.
+			$result = \DEF_Core_Escalation::get_staff_management_recipients_public(
+				$current_user_id,
+				false
+			);
+			$data['recipient_options'] = $result['recipients'];
+		} else {
+			// Stored override path: build recipient_options from the email list.
+			$current_email = strtolower( wp_get_current_user()->user_email ?? '' );
+			$data['recipient_options'] = array();
+			foreach ( (array) $stored['allowed_recipients'] as $email ) {
+				$lower = strtolower( sanitize_email( $email ) );
+				if ( ! is_email( $lower ) || $lower === $current_email ) {
+					continue;
+				}
+				$user = get_user_by( 'email', $email );
+				$data['recipient_options'][] = array(
+					'email' => $lower,
+					'name'  => $user ? ( $user->display_name ?: $user->user_login ) : $lower,
+				);
+			}
+		}
+
+		return new \WP_REST_Response( $data, 200 );
 	}
 
 	/**
@@ -817,13 +854,30 @@ final class DEF_Core_Staff_AI
 	{
 		$body = $request->get_json_params();
 
-		// Whitelist allowed fields — prevent staff users from injecting
+		// Whitelist allowed client fields — prevent staff users from injecting
 		// bcc, sender_email, user_copy_email, or other escalation fields.
-		$allowed_keys = array('channel', 'to', 'subject', 'body');
+		// NOTE: 'channel' is NOT in the whitelist — forced server-side below.
+		$allowed_keys = array('to', 'subject', 'body');
 		$safe_body = array();
 		foreach ($allowed_keys as $key) {
 			if (isset($body[$key])) {
 				$safe_body[$key] = $body[$key];
+			}
+		}
+
+		// Force channel=staff_ai server-side. This endpoint is exclusively
+		// for Staff AI sharing — never allow the client to drive a different
+		// escalation channel through this route (confused-deputy prevention).
+		$safe_body['channel'] = 'staff_ai';
+
+		// Inject current user's email as Reply-To so recipients can reply
+		// to the person who shared. Server-side injection (not from client
+		// input) — safe because auth is already verified via cookie/nonce.
+		$current_user = wp_get_current_user();
+		if ( $current_user && ! empty( $current_user->user_email ) ) {
+			$reply_to = sanitize_email( $current_user->user_email );
+			if ( is_email( $reply_to ) ) {
+				$safe_body['reply_to'] = $reply_to;
 			}
 		}
 

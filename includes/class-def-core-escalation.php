@@ -256,11 +256,15 @@ final class DEF_Core_Escalation {
 			'allowed_recipients' => null,
 		);
 
-		// Staff AI channel has allowed_recipients constraint.
+		// Staff AI channel: allowed_recipients from stored config, or auto-discover
+		// all users with Staff/Management access capabilities.
 		if ( 'staff_ai' === $channel ) {
-			$settings['allowed_recipients'] = ! empty( $stored['allowed_recipients'] )
-				? (array) $stored['allowed_recipients']
-				: array( $admin_email );
+			if ( ! empty( $stored['allowed_recipients'] ) ) {
+				$settings['allowed_recipients'] = (array) $stored['allowed_recipients'];
+			} else {
+				$result = self::get_staff_management_recipients();
+				$settings['allowed_recipients'] = $result['emails'];
+			}
 		}
 
 		return $settings;
@@ -283,6 +287,91 @@ final class DEF_Core_Escalation {
 		}
 
 		return $admin_email;
+	}
+
+	/**
+	 * Get staff/management users for Share recipient picker.
+	 *
+	 * Queries all users with def_staff_access or def_management_access capabilities
+	 * using WordPress capability__in (WP 5.9+, multisite-safe). Returns both a
+	 * canonical email list (for policy validation) and display objects (for UI).
+	 *
+	 * @param int  $exclude_user_id    Optional user ID to exclude (e.g., current user).
+	 * @param bool $allow_admin_fallback Whether to fall back to admin_email when no users found.
+	 *                                   Use true for validation paths (always need a recipient list),
+	 *                                   false for UI picker paths (empty list is preferable to self).
+	 * @return array { 'emails' => string[], 'recipients' => array[] }
+	 * @since 1.2.7
+	 */
+	private static function get_staff_management_recipients( int $exclude_user_id = 0, bool $allow_admin_fallback = true ): array {
+		$args = array(
+			'capability__in' => array( 'def_staff_access', 'def_management_access' ),
+			'fields'         => array( 'ID', 'user_email', 'display_name', 'user_login' ),
+			'orderby'        => 'display_name',
+			'order'          => 'ASC',
+		);
+
+		// Exclude current user from results (self-exclusion for Share UI).
+		if ( $exclude_user_id > 0 ) {
+			$args['exclude'] = array( $exclude_user_id );
+		}
+
+		$users = get_users( $args );
+
+		$emails     = array();
+		$recipients = array();
+		$seen       = array();
+
+		foreach ( $users as $user ) {
+			// Skip users with empty email (rare, but possible with imports).
+			if ( empty( $user->user_email ) ) {
+				continue;
+			}
+
+			$lower = strtolower( $user->user_email );
+
+			// Deduplicate by email (capability__in may return users with both caps).
+			if ( isset( $seen[ $lower ] ) ) {
+				continue;
+			}
+			$seen[ $lower ] = true;
+
+			$emails[] = $lower;
+			$recipients[] = array(
+				'email' => $lower,
+				'name'  => ! empty( $user->display_name ) ? $user->display_name : $user->user_login,
+			);
+		}
+
+		// Fallback to admin_email if no staff/management users found.
+		// Suppressed for UI picker paths where self-exclusion is active —
+		// an empty list is preferable to reintroducing the excluded user.
+		if ( empty( $emails ) && $allow_admin_fallback ) {
+			$admin_email = strtolower( get_option( 'admin_email' ) );
+			$admin_user  = get_user_by( 'email', get_option( 'admin_email' ) );
+			$emails[]     = $admin_email;
+			$recipients[] = array(
+				'email' => $admin_email,
+				'name'  => $admin_user ? ( $admin_user->display_name ?: $admin_user->user_login ) : $admin_email,
+			);
+		}
+
+		return array(
+			'emails'     => $emails,
+			'recipients' => $recipients,
+		);
+	}
+
+	/**
+	 * Public accessor for staff/management recipients (used by Staff AI share).
+	 *
+	 * @param int  $exclude_user_id    Optional user ID to exclude.
+	 * @param bool $allow_admin_fallback Whether to fall back to admin_email when empty.
+	 * @return array { 'emails' => string[], 'recipients' => array[] }
+	 * @since 1.2.7
+	 */
+	public static function get_staff_management_recipients_public( int $exclude_user_id = 0, bool $allow_admin_fallback = true ): array {
+		return self::get_staff_management_recipients( $exclude_user_id, $allow_admin_fallback );
 	}
 
 	/**
