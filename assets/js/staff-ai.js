@@ -965,6 +965,9 @@ function t(key, fallback) {
 		return new Blob([arr], { type: mime });
 	}
 
+	// Safe raster types for click-to-open (no SVG — different security profile)
+	var SAFE_OPEN_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/bmp'];
+
 	function appendFileAttachments(container, attachments) {
 		attachments.forEach(function(att) {
 			var isImage = att.type && att.type.startsWith('image/')
@@ -978,12 +981,18 @@ function t(key, fallback) {
 				img.src = att.thumbnailUrl;
 				img.alt = att.name;
 				img.className = 'message-image-thumb';
-				img.addEventListener('click', function() {
-					// Convert data URL to blob URL — browsers block window.open(dataURL)
-					var blob = dataUrlToBlob(att.thumbnailUrl);
-					var blobUrl = URL.createObjectURL(blob);
-					window.open(blobUrl, '_blank');
-				});
+				// Only allow click-to-open for safe raster types (not SVG)
+				var canOpen = SAFE_OPEN_TYPES.indexOf(att.type) !== -1;
+				if (canOpen) {
+					img.style.cursor = 'pointer';
+					img.addEventListener('click', function() {
+						var blob = dataUrlToBlob(att.thumbnailUrl);
+						var blobUrl = URL.createObjectURL(blob);
+						window.open(blobUrl, '_blank');
+						// Revoke after new tab has loaded to prevent memory leak
+						setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+					});
+				}
 				wrapper.appendChild(img);
 				container.appendChild(wrapper);
 			} else {
