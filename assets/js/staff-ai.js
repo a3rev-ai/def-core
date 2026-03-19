@@ -100,36 +100,32 @@ function t(key, fallback) {
 
 	// Markdown rendering — converts assistant markdown to sanitized HTML.
 	// Uses marked.js + DOMPurify (loaded in staff-ai-shell.php).
-	function normalizeMarkdown(text) {
-		return text
-			.replace(/\r\n/g, '\n')
-			.replace(/\\n/g, '\n')
-			.replace(/\n(#{1,6}\s)/g, '\n\n$1')
-			.replace(/\n([-*]\s)/g, '\n\n$1')
-			.replace(/\n(\d+\.\s)/g, '\n\n$1');
-	}
-
+	// SECURITY: Fails closed — if either library is missing, returns escaped text.
 	function renderMarkdown(text) {
 		if (!text) return '';
-		text = normalizeMarkdown(text);
 
-		var html = '';
-		if (typeof marked !== 'undefined' && marked.parse) {
-			html = marked.parse(text, { gfm: true, breaks: true });
-		} else {
-			// Fallback if marked not loaded.
-			html = escapeHtml(text).replace(/\n/g, '<br>');
+		// Normalize CRLF only — do not mutate content (code, JSON, regex).
+		text = text.replace(/\r\n/g, '\n');
+
+		// Fail closed: BOTH parser and sanitizer must be present.
+		// If either is missing/broken, return safe escaped text.
+		if (typeof marked === 'undefined' || !marked.parse ||
+			typeof DOMPurify === 'undefined' || !DOMPurify.sanitize) {
+			return escapeHtml(text).replace(/\n/g, '<br>');
 		}
 
-		// Sanitize with DOMPurify.
-		if (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) {
-			html = DOMPurify.sanitize(html);
-		}
+		var html = marked.parse(text, { gfm: true, breaks: true });
+		html = DOMPurify.sanitize(html);
 
-		// Add target="_blank" to links.
-		html = html.replace(/<a\s/g, '<a target="_blank" rel="noopener noreferrer" ');
+		// Add target="_blank" to links via DOM manipulation (safer than regex).
+		var temp = document.createElement('div');
+		temp.innerHTML = html;
+		temp.querySelectorAll('a').forEach(function(a) {
+			a.setAttribute('target', '_blank');
+			a.setAttribute('rel', 'noopener noreferrer');
+		});
 
-		return html;
+		return temp.innerHTML;
 	}
 
 	// API helper function
