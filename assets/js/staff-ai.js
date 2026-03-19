@@ -98,6 +98,36 @@ function t(key, fallback) {
 		return div.innerHTML;
 	}
 
+	// Markdown rendering — converts assistant markdown to sanitized HTML.
+	// Uses marked.js + DOMPurify (loaded in staff-ai-shell.php).
+	// SECURITY: Fails closed — if either library is missing, returns escaped text.
+	function renderMarkdown(text) {
+		if (!text) return '';
+
+		// Normalize CRLF only — do not mutate content (code, JSON, regex).
+		text = text.replace(/\r\n/g, '\n');
+
+		// Fail closed: BOTH parser and sanitizer must be present.
+		// If either is missing/broken, return safe escaped text.
+		if (typeof marked === 'undefined' || !marked.parse ||
+			typeof DOMPurify === 'undefined' || !DOMPurify.sanitize) {
+			return escapeHtml(text).replace(/\n/g, '<br>');
+		}
+
+		var html = marked.parse(text, { gfm: true, breaks: true });
+		html = DOMPurify.sanitize(html);
+
+		// Add target="_blank" to links via DOM manipulation (safer than regex).
+		var temp = document.createElement('div');
+		temp.innerHTML = html;
+		temp.querySelectorAll('a').forEach(function(a) {
+			a.setAttribute('target', '_blank');
+			a.setAttribute('rel', 'noopener noreferrer');
+		});
+
+		return temp.innerHTML;
+	}
+
 	// API helper function
 	async function apiRequest(endpoint, options = {}) {
 		const url = apiBase + endpoint;
@@ -580,7 +610,12 @@ function t(key, fallback) {
 				indicator.innerHTML = '<span></span><span></span><span></span>';
 				content.appendChild(indicator);
 			} else {
-				content.textContent = msg.content;
+				// Render markdown for assistant messages, plain text for user messages.
+				if (msg.role === 'assistant') {
+					content.innerHTML = renderMarkdown(msg.content);
+				} else {
+					content.textContent = msg.content;
+				}
 
 				// Render tool outputs if present
 				if (msg.tool_outputs && msg.tool_outputs.length > 0) {
@@ -1373,8 +1408,8 @@ function t(key, fallback) {
 							// Remove streaming cursor class.
 							var streamingMsg = messagesList.querySelector('.message-streaming');
 							if (streamingMsg) streamingMsg.classList.remove('message-streaming');
-							// Final text + tool output cards on existing element.
-							streamEl.textContent = evt.choices[0].message.content;
+							// Final render: convert markdown to styled HTML.
+							streamEl.innerHTML = renderMarkdown(evt.choices[0].message.content);
 							var toolOutputs = evt.choices[0].message.tool_outputs || [];
 							toolOutputs.forEach(function(tool) {
 								streamEl.appendChild(createToolOutputCard(tool));

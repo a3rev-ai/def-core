@@ -1,5 +1,12 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.2.8 - 2026/03/19 =
+* Improved: Assistant messages now render markdown — headings, bold, lists, code blocks, tables, links styled correctly
+* Improved: Scrollbar styled thin and theme-aware across all Staff AI scrollable areas (messages, composer, modals)
+* Improved: Composer scrollbar repositioned to outer edge (next to send button) matching ChatGPT-style layout
+* Tweak: Markdown rendered via marked.js + DOMPurify (same libraries used by Customer Chat)
+* Tweak: Streaming text displays plain during stream, converts to styled markdown on completion
+
 = 1.2.7 - 2026/03/19 =
 * Fix: Staff AI Share recipients dropdown now shows all users with Staff or Management access (was only showing site admin)
 * Fix: Staff AI Share emails now include Reply-To header with the sharing user's email address

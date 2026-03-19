@@ -2,10 +2,15 @@
 
 ## Latest Session: 2026-03-19 (Staff AI Share Bug Fixes)
 
-### Status
-- **Branch**: `fix/staff-ai-share-recipients-reply-to`
-- **PR**: Pending creation
+### PR #80 — Staff AI scrollbar + markdown rendering (v1.2.8)
+- **Scrollbar**: Thin, theme-aware scrollbar on all Staff AI scrollable areas; composer scroll moved from textarea to wrapper (scrollbar at outer edge like ChatGPT)
+- **Markdown**: Assistant messages rendered via marked.js + DOMPurify (same libs as Customer Chat); streaming shows plain text, converts to styled markdown on completion
+- **CSS**: Full markdown styles for assistant messages (headings, code, lists, tables, blockquotes, links, hr)
+
+### PR #79 — Staff AI Share recipients + Reply-To (v1.2.7) — COMPLETE
+- **v1.2.7**: Released, tested, verified — https://github.com/a3rev-ai/def-core/releases/tag/v1.2.7
 - **Spec**: Staff AI Share Bug Report V1.1 (APPROVED by ChatGPT 5.4, Grok, Staff-AI)
+- **Production verified**: Share recipients showing all staff/management users, Reply-To header working correctly
 
 ### What Was Done — Two Share Feature Bugs Fixed
 
