@@ -394,6 +394,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 		}
 	};
 	</script>
+	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js' ); ?>?ver=15.0.12"></script>
+	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js' ); ?>?ver=3.1.6"></script>
 	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/staff-ai.js' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>"></script>
 </body>
 </html>
