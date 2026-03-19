@@ -540,10 +540,11 @@ function t(key, fallback) {
 				const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
 				const dateStr = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 				const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-				el.innerHTML = '<span class="message-share-event-content">' +
-					t('sharedWith', 'Shared with') + ' ' +
-					escapeHtml(msg.content) + ' · ' + escapeHtml(dateStr) + ' ' + escapeHtml(timeStr) +
-					'</span>';
+				const span = document.createElement('span');
+				span.className = 'message-share-event-content';
+				span.textContent = t('sharedWith', 'Shared with') + ' ' +
+					msg.content + ' \u00b7 ' + dateStr + ' ' + timeStr;
+				el.appendChild(span);
 				messagesList.appendChild(el);
 				return;
 			}
@@ -1496,18 +1497,32 @@ function t(key, fallback) {
 		// Show/hide placeholder
 		shareTokenPlaceholder.style.display = shareSelectedRecipients.length > 0 ? 'none' : '';
 
-		// Add chips for selected recipients
-		shareSelectedRecipients.forEach(function(email) {
+		// Add chips for selected recipients — {email, name} objects
+		shareSelectedRecipients.forEach(function(r) {
 			var chip = document.createElement('span');
 			chip.className = 'token-select-chip';
-			chip.innerHTML = escapeHtml(email) + '<span class="token-select-chip-remove" data-email="' + escapeHtml(email) + '">&times;</span>';
+
+			// Label text via textContent (safe — no innerHTML)
+			var label = document.createTextNode(
+				r.name ? r.name + ' (' + r.email + ')' : r.email
+			);
+			chip.appendChild(label);
+
+			// Remove button as separate element
+			var removeBtn = document.createElement('span');
+			removeBtn.className = 'token-select-chip-remove';
+			removeBtn.dataset.email = r.email;
+			removeBtn.textContent = '\u00d7';
+			chip.appendChild(removeBtn);
+
 			shareTokensContainer.insertBefore(chip, shareTokenPlaceholder);
 		});
 
 		// Render dropdown options (only unselected)
 		shareDropdown.innerHTML = '';
-		var unselected = shareAvailableRecipients.filter(function(e) {
-			return shareSelectedRecipients.indexOf(e) === -1;
+		var selectedEmails = shareSelectedRecipients.map(function(r) { return r.email; });
+		var unselected = shareAvailableRecipients.filter(function(r) {
+			return selectedEmails.indexOf(r.email) === -1;
 		});
 		if (unselected.length === 0) {
 			var empty = document.createElement('div');
@@ -1515,11 +1530,11 @@ function t(key, fallback) {
 			empty.textContent = t('allRecipientsSelected', 'All recipients selected');
 			shareDropdown.appendChild(empty);
 		} else {
-			unselected.forEach(function(email) {
+			unselected.forEach(function(r) {
 				var opt = document.createElement('div');
 				opt.className = 'token-select-option';
-				opt.textContent = email;
-				opt.dataset.email = email;
+				opt.textContent = r.name ? r.name + ' (' + r.email + ')' : r.email;
+				opt.dataset.email = r.email;
 				shareDropdown.appendChild(opt);
 			});
 		}
@@ -1530,9 +1545,9 @@ function t(key, fallback) {
 	// Open/close dropdown
 	shareTokensContainer.addEventListener('click', function(e) {
 		if (e.target.classList.contains('token-select-chip-remove')) {
-			// Remove chip
+			// Remove chip — filter by email property
 			var email = e.target.dataset.email;
-			shareSelectedRecipients = shareSelectedRecipients.filter(function(r) { return r !== email; });
+			shareSelectedRecipients = shareSelectedRecipients.filter(function(r) { return r.email !== email; });
 			renderTokenSelect();
 			shareDropdown.classList.add('open');
 			shareTokensContainer.classList.add('active');
@@ -1554,8 +1569,10 @@ function t(key, fallback) {
 		var opt = e.target.closest('.token-select-option');
 		if (!opt) return;
 		var email = opt.dataset.email;
-		if (email && shareSelectedRecipients.indexOf(email) === -1) {
-			shareSelectedRecipients.push(email);
+		// Find the full recipient object by email
+		var recipient = shareAvailableRecipients.find(function(r) { return r.email === email; });
+		if (recipient && !shareSelectedRecipients.some(function(r) { return r.email === email; })) {
+			shareSelectedRecipients.push(recipient);
 			renderTokenSelect();
 			// Keep dropdown open for more selections
 			shareDropdown.classList.add('open');
@@ -1588,8 +1605,8 @@ function t(key, fallback) {
 				})
 			]);
 
-			// Populate token select with recipients
-			shareAvailableRecipients = (settingsResp && settingsResp.allowed_recipients) || [];
+			// Populate token select with recipients (use recipient_options for display)
+			shareAvailableRecipients = (settingsResp && settingsResp.recipient_options) || [];
 			shareSelectedRecipients = [];
 			renderTokenSelect();
 
@@ -1626,18 +1643,22 @@ function t(key, fallback) {
 				});
 			}
 
+			// Extract email strings for the API call.
+			// channel is forced server-side — not sent from client.
 			await apiRequest('/share-send', {
 				method: 'POST',
 				body: JSON.stringify({
-					channel: 'staff_ai',
-					to: selectedRecipients,
+					to: selectedRecipients.map(function(r) { return r.email; }),
 					subject: shareSubject.value,
 					body: bodyText
 				})
 			});
 
 			shareModal.classList.remove('visible');
-			addShareEvent(selectedRecipients);
+			// Pass display-friendly names for the share event banner
+			addShareEvent(selectedRecipients.map(function(r) {
+				return r.name ? r.name + ' (' + r.email + ')' : r.email;
+			}));
 		} catch (err) {
 			const errorMsg = err.message || t('failedToSendShare', 'Failed to send share email.');
 			shareModal.classList.remove('visible');

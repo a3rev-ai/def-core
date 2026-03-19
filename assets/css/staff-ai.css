@@ -1028,6 +1028,9 @@ body {
 	align-items: center;
 	gap: 6px;
 	white-space: nowrap;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .token-select-chip-remove {

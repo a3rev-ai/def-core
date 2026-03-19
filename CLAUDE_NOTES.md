@@ -1,10 +1,52 @@
 # Session Notes - def-core (WordPress Plugin)
 
-## Latest Session: 2026-03-13 (Sub-PR E: OAuth One-Click Connect — IN PROGRESS)
+## Latest Session: 2026-03-19 (Staff AI Share Bug Fixes)
 
 ### Status
-- **Branch**: `feature/sub-pr-e-oauth-client` — OAuth 2.0 client for one-click DEFHO connection
-- **DEFHO PR #50**: Already pushed (authorization server side)
+- **Branch**: `fix/staff-ai-share-recipients-reply-to`
+- **PR**: Pending creation
+- **Spec**: Staff AI Share Bug Report V1.1 (APPROVED by ChatGPT 5.4, Grok, Staff-AI)
+
+### What Was Done — Two Share Feature Bugs Fixed
+
+**Bug 1: Recipients dropdown only showed site admin**
+- Root cause: `get_channel_settings()` fell back to `array($admin_email)` when no stored `allowed_recipients`
+- Fix: New `get_staff_management_recipients()` method using `capability__in` (WP 5.9+, multisite-safe)
+- Queries all users with `def_staff_access` or `def_management_access` capabilities
+- Returns `{emails, recipients}` — emails for policy validation, recipients ({email, name}) for UI
+- Self-exclusion via `exclude` parameter
+- `rest_share_settings()` now returns both `allowed_recipients` (string[], policy) and `recipient_options` ({email, name}[], UI)
+
+**Bug 2: Reply-To set to noreply instead of sharing user's email**
+- Root cause: `rest_share_send()` whitelist stripped `reply_to`; `reply_to_mode` defaulted to `'none'` for staff_ai
+- Fix: Server-side injection of `wp_get_current_user()->user_email` as `reply_to` with `sanitize_email()` + `is_email()`
+- Also forced `channel=staff_ai` server-side (confused-deputy prevention — ChatGPT blocker)
+
+**JS updates:**
+- Token picker now uses `recipient_options` (objects) instead of `allowed_recipients` (strings)
+- Shows "Name (email)" in chips and dropdown
+- `textContent` + `createElement` replaces `innerHTML` (XSS prevention)
+- `channel` removed from client send payload (forced server-side)
+- Share event banners show display names
+
+**CSS:** Added `max-width` + `text-overflow: ellipsis` on chips for longer "Name (email)" labels
+
+### Files Changed
+- `includes/class-def-core-escalation.php` — new `get_staff_management_recipients()` + public accessor, updated `get_channel_settings()` fallback
+- `includes/class-def-core-staff-ai.php` — updated `rest_share_settings()` + `rest_share_send()`
+- `assets/js/staff-ai.js` — token picker objects, textContent DOM, channel removal
+- `assets/css/staff-ai.css` — chip overflow handling
+
+---
+
+## Previous Session: 2026-03-13 (Sub-PR E: OAuth One-Click Connect — COMPLETE, v1.2.0 RELEASED)
+
+### Status
+- **PR #64**: MERGED (Staff AI menu visibility fix)
+- **PR #65**: MERGED (OAuth one-click connect client, 3 commits)
+- **DEFHO PR #50**: MERGED to main
+- **v1.2.0 released**: https://github.com/a3rev-ai/def-core/releases/tag/v1.2.0
+- **a3rev.com**: Update visible but NOT YET INSTALLED — planned for 2026-03-14 morning
 
 ### What Was Done
 
@@ -15,7 +57,7 @@
   - REST callback `GET /wp-json/a3-ai/v1/oauth/callback` — receives code+state from DEFHO redirect
   - Code exchange via `POST /oauth/token` to DEFHO (sends code + verifier)
   - `apply_connection_config()` — stores api_key, service_auth_secret, allowed_origins, JWKS URL, issuer, revision via DEF_Core_Encryption
-  - Disconnect AJAX handler — clears local config, best-effort POST to DEFHO /api/oauth/disconnect
+  - Disconnect AJAX handler — clears local config (local-only, remote revoke is follow-up)
   - `DEF_DEFHO_URL` constant override for dev environments (default: https://defho.ai)
 - Modified `includes/class-def-core.php` — require_once + init() for DEF_Core_OAuth
 - Modified `includes/class-def-core-admin.php`:
@@ -32,9 +74,25 @@
   - `disconnectOAuth()` — confirmation dialog, AJAX call, page reload
   - Fixed `saveManualConnection()` — removed API URL field reference (only API key needed)
 
-### Next Steps
-- Commit and push to PR
-- Testing once DEFHO PR #50 is also deployed
+### Review #1 Fixes (commit 52e29b7)
+- **Blocker 1 FIXED**: Callback now verifies logged-in user with `def_admin_access` + matches stored `user_id`
+- **Blocker 2 FIXED**: Removed non-existent `/api/oauth/disconnect` call — disconnect is local-only
+- **Non-blocking FIXED**: Removed `rawurlencode()` double-encoding on admin notice messages
+
+### Release v1.2.0 (2026-03-13)
+- PR #64 merged (Staff AI menu visibility fix)
+- PR #65 merged (OAuth one-click connect client)
+- Version bumped to 1.2.0 in def-core.php, readme.txt, changelog.txt
+- GitHub release created: https://github.com/a3rev-ai/def-core/releases/tag/v1.2.0
+- Release workflow building zip automatically
+
+### Next Steps (2026-03-14)
+1. Update def-core on a3rev.com to v1.2.0
+2. Deploy DEFHO PR #50 to production (merged, needs container redeploy)
+3. End-to-end test: One-Click Connect flow (a3rev.com → defho.ai → callback → connected)
+4. Sub-PR F — next in V4 auth migration plan
+5. Settings cleanup on DEFHO and def-core
+6. Follow-up: remote revoke endpoint on DEFHO (/api/oauth/disconnect)
 
 ---
 
