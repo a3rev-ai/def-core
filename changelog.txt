@@ -9,6 +9,7 @@
 * Improved: Setup Assistant drawer messages and input font size bumped to 14px
 * Improved: Customer Chat mobile font size bumped to 15px for readability
 * Improved: Customer Chat mobile message width expanded to 95% (was 85%)
+* Fix: Customer Chat greeting flicker — context token callback was overwriting capabilities greeting with old simple text
 
 = 1.4.0 - 2026/03/20 =
 * Improved: Setup Assistant welcome message now shows capabilities and greets user by first name
