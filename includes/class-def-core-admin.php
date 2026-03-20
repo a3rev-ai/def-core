@@ -891,6 +891,12 @@ final class DEF_Core_Admin {
 				continue;
 			}
 
+			// Staff and Management are mutually exclusive.
+			// If both are submitted, keep Management only (higher access level).
+			if ( ! empty( $caps['def_staff_access'] ) && ! empty( $caps['def_management_access'] ) ) {
+				$caps['def_staff_access'] = '0';
+			}
+
 			foreach ( $capabilities as $cap ) {
 				$should_have = ! empty( $caps[ $cap ] );
 				if ( $should_have && ! $user->has_cap( $cap ) ) {
