@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.4.2 - 2026/03/20 =
+* Fix: Staff AI welcome greeting now reflects user access level — "Management Assistant" for management users, "Staff Assistant" for staff users
+* Improved: Management users see additional capability "Access management-level documents and guidance"
+
 = 1.4.1 - 2026/03/20 =
 * Fix: WooCommerce capabilities now correctly shown in Customer Chat greeting when WooCommerce is active
 * Fix: Staff AI welcome message contrast in dark mode — was grey on dark, now matches chat message text colour
