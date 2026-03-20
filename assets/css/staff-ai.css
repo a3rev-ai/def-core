@@ -661,9 +661,11 @@ body {
 }
 
 .welcome-message {
-	text-align: center;
+	text-align: left;
+	max-width: 480px;
+	margin: 0 auto;
 	padding: 60px 20px;
-	color: var(--text-tertiary);
+	color: var(--text-heading);
 }
 
 .welcome-message h2 {

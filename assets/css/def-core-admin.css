@@ -8,6 +8,7 @@
 .def-core-wrap {
 	opacity: 1;       /* overrides inline opacity:0 FOUC guard when this CSS loads */
 	max-width: 900px;
+	font-size: 14px;
 }
 
 .def-core-wrap h1 {
