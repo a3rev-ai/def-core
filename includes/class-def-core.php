@@ -330,6 +330,11 @@ final class DEF_Core {
 			return;
 		}
 
+		$current_user   = wp_get_current_user();
+		$user_first_name = ( $current_user->ID > 0 )
+			? ( $current_user->first_name ?: $current_user->display_name )
+			: '';
+
 		$rest_data = array(
 			// Existing keys.
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
@@ -337,6 +342,8 @@ final class DEF_Core {
 			'siteUrl'        => esc_url_raw( home_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'allowedOrigins' => $this->get_allowed_origins(),
+			// User context.
+			'userFirstName'  => $user_first_name,
 			// Branding.
 			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
 			'logoUrl'        => $this->get_logo_url_for_frontend(),
@@ -352,6 +359,8 @@ final class DEF_Core {
 			'buttonIconUrl'   => $this->get_button_icon_url(),
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
+			// WooCommerce context.
+			'wooActive'       => class_exists( 'WooCommerce' ) || function_exists( 'WC' ),
 			// AI disclosure notice.
 			'aiNoticeEnabled' => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'      => get_option( 'def_core_chat_privacy_url', '' ),
