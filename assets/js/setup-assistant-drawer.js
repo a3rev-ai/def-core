@@ -119,6 +119,9 @@
 		this.inputEl    = this.drawerEl.querySelector('.def-sa-input');
 		this.sendEl     = this.drawerEl.querySelector('.def-sa-send');
 
+		// Remove inline display:none (FOUC guard) — CSS visibility takes over.
+		this.drawerEl.style.display = '';
+
 		// Bind events.
 		this.bindEvents();
 
