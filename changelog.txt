@@ -2,8 +2,8 @@
 
 = 1.3.1 - 2026/03/20 =
 * Improved: Connection tab simplified — removed technical fields (API URL, API Key, Service Secret, Config Revision, Last Sync) that are managed on DEFHO portal
-* Fix: Setup Assistant button no longer causes layout shift on page load — renders inline with title instead of jumping from below tabs
-* Fix: Setup Assistant button hidden until JS initialises, preventing flash of unstyled dashicon elements
+* Fix: Setup Assistant button no longer causes layout shift on page load — renders inline with title instead of JS DOM relocation
+* Fix: Setup Assistant button visible by default (progressive enhancement) — degrades gracefully if JS fails to load
 * New: Plugin icon (256x256 + 128x128) now displays on WordPress updates page and plugin details
 
 = 1.3.0 - 2026/03/19 =
