@@ -360,7 +360,7 @@ final class DEF_Core {
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// WooCommerce context.
-			'wooActive'       => class_exists( 'WooCommerce' ) || function_exists( 'WC' ),
+			'wooActive'       => ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) ? '1' : '',
 			// AI disclosure notice.
 			'aiNoticeEnabled' => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'      => get_option( 'def_core_chat_privacy_url', '' ),

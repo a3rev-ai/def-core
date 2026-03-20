@@ -1,5 +1,16 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.4.1 - 2026/03/20 =
+* Fix: WooCommerce capabilities now correctly shown in Customer Chat greeting when WooCommerce is active
+* Fix: Staff AI welcome message contrast in dark mode — was grey on dark, now matches chat message text colour
+* Fix: Staff AI welcome message left-aligned with centred positioning (bullets no longer misaligned)
+* Fix: Setup Assistant drawer shows welcome message every time it opens empty (not just on first visit)
+* Improved: Admin settings page font size bumped to 14px to match WooCommerce admin
+* Improved: Setup Assistant drawer messages and input font size bumped to 14px
+* Improved: Customer Chat mobile font size bumped to 15px for readability
+* Improved: Customer Chat mobile message width expanded to 95% (was 85%)
+* Fix: Customer Chat greeting flicker — context token callback was overwriting capabilities greeting with old simple text
+
 = 1.4.0 - 2026/03/20 =
 * Improved: Setup Assistant welcome message now shows capabilities and greets user by first name
 * Improved: Customer Chat greeting now shows AI assistant name, capabilities, and greets logged-in users by first name

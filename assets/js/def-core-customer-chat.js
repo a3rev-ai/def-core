@@ -2769,20 +2769,10 @@
 	}
 
 	function updateGreeting() {
-		if (!els.greeting) return;
-		var content = els.greeting.querySelector('.def-cc-message-content');
-		if (!content) return;
-
-		var name =
-			(contextPayload && contextPayload.first_name) ||
-			(contextPayload && contextPayload.display_name) ||
-			'';
-		if (name) {
-			content.textContent =
-				'Hello, ' + name + '! How can I help you today?';
-		} else {
-			content.textContent = t('greeting');
-		}
+		// Intentionally a no-op. The capabilities greeting is rendered at DOM
+		// construction using config.userFirstName. This function previously
+		// overwrote that greeting with plain text, causing a visible flicker.
+		// Do not restore — the greeting template handles personalisation.
 	}
 
 	function escapeHtml(str) {

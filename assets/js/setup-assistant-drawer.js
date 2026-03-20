@@ -221,6 +221,11 @@
 		document.body.classList.add('def-sa-drawer-open');
 		this.isOpen = true;
 
+		// Show welcome if the message area is empty (no thread history loaded).
+		if (!this.messagesEl.hasChildNodes()) {
+			this.showWelcome();
+		}
+
 		// Focus textarea after transition.
 		var self = this;
 		setTimeout(function () {
