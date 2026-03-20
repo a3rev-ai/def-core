@@ -119,9 +119,6 @@
 		this.inputEl    = this.drawerEl.querySelector('.def-sa-input');
 		this.sendEl     = this.drawerEl.querySelector('.def-sa-send');
 
-		// Reveal trigger button (already positioned in the h1 by the template).
-		this.triggerEl.classList.add('def-sa-ready');
-
 		// Bind events.
 		this.bindEvents();
 
