@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.4.1 - 2026/03/20 =
+* Fix: WooCommerce capabilities now correctly shown in Customer Chat greeting when WooCommerce is active
+
 = 1.4.0 - 2026/03/20 =
 * Improved: Setup Assistant welcome message now shows capabilities and greets user by first name
 * Improved: Customer Chat greeting now shows AI assistant name, capabilities, and greets logged-in users by first name
