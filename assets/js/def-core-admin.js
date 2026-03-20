@@ -693,6 +693,44 @@
 			});
 		}
 
+		// ── Staff / Management mutual exclusivity ──
+		// Only one of Staff or Management can be checked at a time.
+		// When one is checked, the other is disabled. Uncheck to switch.
+		if (tbody) {
+			tbody.addEventListener('change', function (e) {
+				var cb = e.target;
+				if (!cb.classList.contains('def-core-role-cb')) return;
+				var cap = cb.dataset.cap;
+				if (cap !== 'def_staff_access' && cap !== 'def_management_access') return;
+
+				var row = cb.closest('tr');
+				var otherCap = cap === 'def_staff_access' ? 'def_management_access' : 'def_staff_access';
+				var otherCb = row.querySelector('input[data-cap="' + otherCap + '"]');
+				if (!otherCb) return;
+
+				otherCb.disabled = cb.checked;
+				if (cb.checked) {
+					otherCb.checked = false;
+				}
+			});
+
+			// Apply initial state for existing rows.
+			// If both are checked (legacy), prefer Management and uncheck Staff.
+			tbody.querySelectorAll('tr').forEach(function (row) {
+				var staffCb = row.querySelector('input[data-cap="def_staff_access"]');
+				var mgmtCb = row.querySelector('input[data-cap="def_management_access"]');
+				if (!staffCb || !mgmtCb) return;
+				if (staffCb.checked && mgmtCb.checked) {
+					staffCb.checked = false;
+					staffCb.disabled = true;
+				} else if (staffCb.checked) {
+					mgmtCb.disabled = true;
+				} else if (mgmtCb.checked) {
+					staffCb.disabled = true;
+				}
+			});
+		}
+
 		function doSearch(term) {
 			var formData = new FormData();
 			formData.append('action', 'def_core_search_users');

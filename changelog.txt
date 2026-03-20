@@ -3,6 +3,7 @@
 = 1.4.2 - 2026/03/20 =
 * Fix: Staff AI welcome greeting now reflects user access level — "Management Assistant" for management users, "Staff Assistant" for staff users
 * Improved: Management users see additional capability "Access management-level documents and guidance"
+* Improved: Staff and Management roles are now mutually exclusive — checking one disables the other. Legacy users with both checked are migrated to Management only.
 
 = 1.4.1 - 2026/03/20 =
 * Fix: WooCommerce capabilities now correctly shown in Customer Chat greeting when WooCommerce is active
