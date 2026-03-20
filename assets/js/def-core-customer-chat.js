@@ -2769,20 +2769,9 @@
 	}
 
 	function updateGreeting() {
-		if (!els.greeting) return;
-		var content = els.greeting.querySelector('.def-cc-message-content');
-		if (!content) return;
-
-		var name =
-			(contextPayload && contextPayload.first_name) ||
-			(contextPayload && contextPayload.display_name) ||
-			'';
-		if (name) {
-			content.textContent =
-				'Hello, ' + name + '! How can I help you today?';
-		} else {
-			content.textContent = t('greeting');
-		}
+		// No-op: capabilities greeting (built at DOM construction) already
+		// includes the user's name via config.userFirstName. The context
+		// token callback no longer needs to overwrite it.
 	}
 
 	function escapeHtml(str) {
