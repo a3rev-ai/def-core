@@ -764,11 +764,21 @@
 	};
 
 	SetupAssistantDrawer.prototype.showWelcome = function () {
+		var name = (window.defSetupAssistant && window.defSetupAssistant.userFirstName) || '';
+		var greeting = name ? 'Hi ' + name + '!' : 'Hi there!';
+
 		var div = document.createElement('div');
 		div.className = 'def-sa-welcome';
-		div.innerHTML = '<strong>Hi! I\'m your Setup Assistant.</strong><br><br>' +
-			'I can help you configure Digital Employee Framework. ' +
-			'Ask me about your connection settings, branding, user roles, or anything else on this page.<br><br>' +
+		div.innerHTML = '<strong>' + greeting + ' I\'m your Setup Assistant.</strong><br><br>' +
+			'Here\'s what I can help you with:<br>' +
+			'<ul>' +
+			'<li>Check your <strong>plugin setup status</strong></li>' +
+			'<li><strong>Test the connection</strong> to the DEF backend</li>' +
+			'<li>Configure <strong>display name, chat mode, colors</strong> and <strong>escalation emails</strong></li>' +
+			'<li>Find users and manage their <strong>DEF access roles</strong></li>' +
+			'<li><strong>Troubleshoot</strong> connection issues or chat widget problems</li>' +
+			'<li>Guide you through the <strong>full setup flow</strong></li>' +
+			'</ul>' +
 			'What would you like help with?';
 		this.messagesEl.appendChild(div);
 		this.scrollToBottom();

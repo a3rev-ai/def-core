@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.4.0 - 2026/03/20 =
+* Improved: Setup Assistant welcome message now shows capabilities and greets user by first name
+* Improved: Customer Chat greeting now shows AI assistant name, capabilities, and greets logged-in users by first name
+* Tweak: User first name passed to frontend JS via wp_localize_script (falls back to display name)
+
 = 1.3.3 - 2026/03/20 =
 * Fix: Settings page no longer flashes unstyled content (FOUC) during load — entire page hidden until CSS ready
 

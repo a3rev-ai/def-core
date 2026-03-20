@@ -188,7 +188,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<div class="messages-container" id="messagesContainer">
 				<div class="messages-list" id="messagesList">
 					<div class="welcome-message" id="welcomeMessage">
-						<p><?php echo esc_html__( 'How can I help you today?', 'digital-employees' ); ?></p>
+						<?php
+						$first_name  = $user->first_name ?: $user->display_name;
+						$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
+						?>
+						<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s Staff AI Assistant.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ) ); ?></strong></p>
+						<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
+						<ul>
+							<?php if ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) : ?>
+							<li><?php esc_html_e( 'Search products and look up details', 'digital-employees' ); ?></li>
+							<li><?php esc_html_e( 'Look up customer orders and order status', 'digital-employees' ); ?></li>
+							<?php endif; ?>
+							<li><?php esc_html_e( 'Answer questions from the knowledge base', 'digital-employees' ); ?></li>
+							<li><?php esc_html_e( 'Create and share documents and spreadsheets', 'digital-employees' ); ?></li>
+							<li><?php esc_html_e( 'Share a conversation with your team via email', 'digital-employees' ); ?></li>
+						</ul>
+						<p><?php esc_html_e( 'What can I help you with?', 'digital-employees' ); ?></p>
 					</div>
 				</div>
 			</div>
