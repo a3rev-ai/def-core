@@ -1015,11 +1015,24 @@ final class DEF_Core_Admin_API {
 			}
 		}
 
+		// Staff and Management are mutually exclusive.
+		// Adding one removes the other server-side.
+		if ( $action === 'add' && 'def_staff_access' === $capability ) {
+			$user->remove_cap( 'def_management_access' );
+		} elseif ( $action === 'add' && 'def_management_access' === $capability ) {
+			$user->remove_cap( 'def_staff_access' );
+		}
+
 		// Apply capability change.
 		if ( $action === 'add' ) {
 			$user->add_cap( $capability );
 		} else {
 			$user->remove_cap( $capability );
+		}
+
+		// Post-mutation guard: ensure Staff/Management exclusivity regardless of execution order.
+		if ( $user->has_cap( 'def_staff_access' ) && $user->has_cap( 'def_management_access' ) ) {
+			$user->remove_cap( 'def_staff_access' );
 		}
 
 		// Audit log entry.

@@ -189,16 +189,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="messages-list" id="messagesList">
 					<div class="welcome-message" id="welcomeMessage">
 						<?php
-						$first_name  = $user->first_name ?: $user->display_name;
+						$first_name   = $user->first_name ?: $user->display_name;
 						$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
+						$role_label   = $user->has_cap( 'def_management_access' )
+							? __( 'Management Assistant', 'digital-employees' )
+							: __( 'Staff Assistant', 'digital-employees' );
 						?>
-						<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s Staff AI Assistant.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ) ); ?></strong></p>
+						<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ), esc_html( $role_label ) ); ?></strong></p>
 						<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
 						<ul>
 							<?php if ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) : ?>
 							<li><?php esc_html_e( 'Search products and look up details', 'digital-employees' ); ?></li>
 							<li><?php esc_html_e( 'Look up customer orders and order status', 'digital-employees' ); ?></li>
 							<?php endif; ?>
+							<?php if ( $user->has_cap( 'def_management_access' ) ) : ?>
+							<li><?php esc_html_e( 'Access management-level documents and guidance', 'digital-employees' ); ?></li>
+						<?php endif; ?>
 							<li><?php esc_html_e( 'Answer questions from the knowledge base', 'digital-employees' ); ?></li>
 							<li><?php esc_html_e( 'Create and share documents and spreadsheets', 'digital-employees' ); ?></li>
 							<li><?php esc_html_e( 'Share a conversation with your team via email', 'digital-employees' ); ?></li>
