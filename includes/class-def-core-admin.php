@@ -103,6 +103,7 @@ final class DEF_Core_Admin {
 	 */
 	public static function init(): void {
 		add_filter( 'map_meta_cap', array( __CLASS__, 'map_def_capabilities' ), 10, 4 );
+		add_action( 'admin_head', array( __CLASS__, 'print_fouc_guard' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_show_encryption_notice' ) );
@@ -274,6 +275,21 @@ final class DEF_Core_Admin {
 	}
 
 	// ─── Page Rendering ──────────────────────────────────────────────
+
+	/**
+	 * Print FOUC guard in <head> — hides settings page until external CSS loads.
+	 *
+	 * Inline <style> in <head> fires before enqueued stylesheets.
+	 * def-core-admin.css sets opacity:1 which wins by cascade order (later = wins).
+	 * Same pattern as WooCommerce admin pages.
+	 */
+	public static function print_fouc_guard(): void {
+		$screen = get_current_screen();
+		if ( ! $screen || 'toplevel_page_def-core' !== $screen->id ) {
+			return;
+		}
+		echo '<style>.def-core-wrap{opacity:0;transition:opacity .25s ease-in-out;}</style>' . "\n";
+	}
 
 	/**
 	 * Render the settings page.
