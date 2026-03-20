@@ -765,21 +765,36 @@
 
 	SetupAssistantDrawer.prototype.showWelcome = function () {
 		var name = (window.defSetupAssistant && window.defSetupAssistant.userFirstName) || '';
-		var greeting = name ? 'Hi ' + name + '!' : 'Hi there!';
 
 		var div = document.createElement('div');
 		div.className = 'def-sa-welcome';
-		div.innerHTML = '<strong>' + greeting + ' I\'m your Setup Assistant.</strong><br><br>' +
-			'Here\'s what I can help you with:<br>' +
-			'<ul>' +
-			'<li>Check your <strong>plugin setup status</strong></li>' +
-			'<li><strong>Test the connection</strong> to the DEF backend</li>' +
-			'<li>Configure <strong>display name, chat mode, colors</strong> and <strong>escalation emails</strong></li>' +
-			'<li>Find users and manage their <strong>DEF access roles</strong></li>' +
-			'<li><strong>Troubleshoot</strong> connection issues or chat widget problems</li>' +
-			'<li>Guide you through the <strong>full setup flow</strong></li>' +
-			'</ul>' +
-			'What would you like help with?';
+
+		var intro = document.createElement('strong');
+		intro.textContent = (name ? 'Hi ' + name + '!' : 'Hi there!') + ' I\'m your Setup Assistant.';
+		div.appendChild(intro);
+
+		div.appendChild(document.createElement('br'));
+		div.appendChild(document.createElement('br'));
+		div.appendChild(document.createTextNode('Here\u2019s what I can help you with:'));
+
+		var ul = document.createElement('ul');
+		var capabilities = [
+			'Check your plugin setup status',
+			'Test the connection to the DEF backend',
+			'Configure display name, chat mode, colors and escalation emails',
+			'Find users and manage their DEF access roles',
+			'Troubleshoot connection issues or chat widget problems',
+			'Guide you through the full setup flow'
+		];
+		for (var i = 0; i < capabilities.length; i++) {
+			var li = document.createElement('li');
+			li.textContent = capabilities[i];
+			ul.appendChild(li);
+		}
+		div.appendChild(ul);
+
+		div.appendChild(document.createTextNode('What would you like help with?'));
+
 		this.messagesEl.appendChild(div);
 		this.scrollToBottom();
 	};
