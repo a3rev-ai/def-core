@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.3.3 - 2026/03/20 =
+* Fix: Settings page no longer flashes unstyled content (FOUC) during load — entire page hidden until CSS ready
+
 = 1.3.2 - 2026/03/20 =
 * Fix: Setup Assistant drawer no longer flashes raw HTML elements (header, textarea, buttons) during page load
 

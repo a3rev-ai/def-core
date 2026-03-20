@@ -29,6 +29,8 @@ $tabs = array(
 
 $first_tab = 'branding';
 ?>
+<!-- FOUC guard: hide content until external CSS loads (same pattern as WooCommerce admin) -->
+<style>.def-core-wrap{opacity:0;transition:opacity .25s ease-in-out;}</style>
 <div class="wrap def-core-wrap">
 	<h1><?php esc_html_e( 'Digital Employees', 'digital-employees' ); ?>
 		<?php if ( current_user_can( 'def_admin_access' ) ) : ?>
