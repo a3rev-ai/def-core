@@ -22,6 +22,7 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 <div
 	id="def-setup-assistant-drawer"
 	class="def-sa-drawer"
+	style="display:none"
 	aria-hidden="true"
 	role="dialog"
 	aria-label="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"

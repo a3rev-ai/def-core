@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.3.2 - 2026/03/20 =
+* Fix: Setup Assistant drawer no longer flashes raw HTML elements (header, textarea, buttons) during page load
+
 = 1.3.1 - 2026/03/20 =
 * Improved: Connection tab simplified — removed technical fields (API URL, API Key, Service Secret, Config Revision, Last Sync) that are managed on DEFHO portal
 * Fix: Setup Assistant button no longer causes layout shift on page load — renders inline with title instead of JS DOM relocation
