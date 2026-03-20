@@ -1030,6 +1030,11 @@ final class DEF_Core_Admin_API {
 			$user->remove_cap( $capability );
 		}
 
+		// Post-mutation guard: ensure Staff/Management exclusivity regardless of execution order.
+		if ( $user->has_cap( 'def_staff_access' ) && $user->has_cap( 'def_management_access' ) ) {
+			$user->remove_cap( 'def_staff_access' );
+		}
+
 		// Audit log entry.
 		$this->write_audit_log(
 			$acting_user_id,
