@@ -18,20 +18,7 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 }
 ?>
 
-<!-- Setup Assistant trigger button -->
-<button
-	type="button"
-	id="def-setup-assistant-trigger"
-	class="def-sa-trigger"
-	aria-expanded="false"
-	aria-controls="def-setup-assistant-drawer"
-	title="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
->
-	<span class="dashicons dashicons-admin-comments"></span>
-	<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
-</button>
-
-<!-- Drawer container -->
+<!-- Drawer container (trigger button is in admin-settings.php next to the h1) -->
 <div
 	id="def-setup-assistant-drawer"
 	class="def-sa-drawer"

@@ -8,6 +8,12 @@
  * @since   2.0.0
  */
 
+/* ─── Page Header ────────────────────────────────────────────── */
+
+.def-core-wrap > h1 {
+	display: inline-block;
+}
+
 /* ─── Trigger Button ──────────────────────────────────────────── */
 
 .def-sa-trigger {

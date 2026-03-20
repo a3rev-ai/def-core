@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digital Employees
  * Description: AI-powered Digital Employees for your WordPress site. Customer Chat for visitors, Staff AI for your team, and an intelligent Setup Assistant — all connected to the Digital Employee Framework.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: a3rev
  * Author URI: https://a3rev.com/
  * Text Domain: digital-employees
@@ -52,6 +52,16 @@ $def_core_update_checker = PucFactory::buildUpdateChecker(
 );
 
 $def_core_update_checker->getVcsApi()->enableReleaseAssets();
+
+// Inject plugin icon into update/plugin-info screens.
+$def_core_update_checker->addResultFilter( function ( $plugin_info ) {
+	$icon_base = plugins_url( 'assets/images/', __FILE__ );
+	$plugin_info->icons = array(
+		'2x' => $icon_base . 'icon-256x256.png',
+		'1x' => $icon_base . 'icon-128x128.png',
+	);
+	return $plugin_info;
+} );
 
 // Main plugin class.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php';

@@ -119,9 +119,6 @@
 		this.inputEl    = this.drawerEl.querySelector('.def-sa-input');
 		this.sendEl     = this.drawerEl.querySelector('.def-sa-send');
 
-		// Position trigger in the page header.
-		this.positionTrigger();
-
 		// Bind events.
 		this.bindEvents();
 
@@ -132,15 +129,6 @@
 		// Thread + first-visit (async, non-blocking).
 		this.getOrCreateThread();
 		this.checkFirstVisit();
-	};
-
-	SetupAssistantDrawer.prototype.positionTrigger = function () {
-		// Insert trigger after the h1 in the settings page.
-		var h1 = document.querySelector('.def-core-wrap > h1');
-		if (h1) {
-			h1.style.display = 'inline-block';
-			h1.parentNode.insertBefore(this.triggerEl, h1.nextSibling);
-		}
 	};
 
 	SetupAssistantDrawer.prototype.bindEvents = function () {

@@ -30,7 +30,22 @@ $tabs = array(
 $first_tab = 'branding';
 ?>
 <div class="wrap def-core-wrap">
-	<h1><?php esc_html_e( 'Digital Employees', 'digital-employees' ); ?></h1>
+	<h1><?php esc_html_e( 'Digital Employees', 'digital-employees' ); ?>
+		<?php if ( current_user_can( 'def_admin_access' ) ) : ?>
+		<!-- Setup Assistant trigger button (inline to prevent layout shift) -->
+		<button
+			type="button"
+			id="def-setup-assistant-trigger"
+			class="def-sa-trigger"
+			aria-expanded="false"
+			aria-controls="def-setup-assistant-drawer"
+			title="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
+		>
+			<span class="dashicons dashicons-admin-comments"></span>
+			<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
+		</button>
+		<?php endif; ?>
+	</h1>
 
 	<!-- Toast container -->
 	<div id="def-core-toast-container" class="def-core-toast-container" aria-live="polite"></div>
@@ -767,37 +782,6 @@ $first_tab = 'branding';
 			<?php endif; ?>
 
 			<?php if ( $is_connected ) : ?>
-				<?php
-				// Resolve API URL (environment-aware).
-				$resolved_api_url = DEF_Core::get_def_api_url();
-
-				// Masked credential status.
-				$has_api_key        = null !== DEF_Core_Encryption::get_secret( 'def_core_api_key' );
-				$has_service_secret = null !== DEF_Core_Encryption::get_secret( 'def_service_auth_secret' );
-				?>
-				<table class="def-core-conn-details">
-					<tr>
-						<th><?php esc_html_e( 'API URL', 'digital-employees' ); ?></th>
-						<td><code><?php echo esc_html( $resolved_api_url ); ?></code></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'API Key', 'digital-employees' ); ?></th>
-						<td><?php echo $has_api_key ? esc_html__( 'Configured', 'digital-employees' ) : '<span style="color: #d63638;">' . esc_html__( 'Not configured', 'digital-employees' ) . '</span>'; ?></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Service Secret', 'digital-employees' ); ?></th>
-						<td><?php echo $has_service_secret ? esc_html__( 'Configured', 'digital-employees' ) : '<span style="color: #d63638;">' . esc_html__( 'Not configured', 'digital-employees' ) . '</span>'; ?></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Config Revision', 'digital-employees' ); ?></th>
-						<td><?php echo esc_html( $conn_revision ); ?></td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Last Sync', 'digital-employees' ); ?></th>
-						<td><?php echo esc_html( $conn_last_sync ); ?> (<?php echo esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) ); ?> ago)</td>
-					</tr>
-				</table>
-
 				<div class="def-core-disconnect-area" style="margin-top: 16px;">
 					<button type="button" class="button" id="def-core-disconnect-btn" style="color: #d63638; border-color: #d63638;">
 						<?php esc_html_e( 'Disconnect', 'digital-employees' ); ?>
