@@ -1,5 +1,14 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.5.0 - 2026/03/24 =
+* Feature: Staff AI welcome message now shows full capability list on first visit only — subsequent new chats show a random "Did you know?" tip
+* Feature: Progressive markdown streaming — AI responses now render formatted text during streaming instead of raw markdown that snaps at the end
+* Feature: Smart scroll — streaming responses only auto-scroll when user is near the bottom; scrolling up to read stays in place
+* Fix: Blank AI bubble no longer appears before the actual response on first message
+* Improved: Expanded Staff AI capability list from 6 to 15 items (capability-filtered for WooCommerce and Management access)
+* Improved: "Did you know?" tips are capability-filtered — users only see tips for features available to them
+* Improved: Streaming render performance — adaptive intervals (120ms base, 200ms for large responses) with minimum delta guard
+
 = 1.4.2 - 2026/03/20 =
 * Fix: Staff AI welcome greeting now reflects user access level — "Management Assistant" for management users, "Staff Assistant" for staff users
 * Improved: Management users see additional capability "Access management-level documents and guidance"

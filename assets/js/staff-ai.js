@@ -550,10 +550,63 @@ function t(key, fallback) {
 		errorBanner.classList.remove('visible');
 	}
 
+	// Smart scroll — only auto-scroll during streaming if user hasn't scrolled up
+	var _isStreaming = false;
+	var _userScrolledUp = false;
+
+	function isNearBottom(threshold) {
+		threshold = threshold || 80;
+		return messagesContainer.scrollHeight - messagesContainer.scrollTop
+			- messagesContainer.clientHeight < threshold;
+	}
+
+	// Single persistent scroll listener — avoids per-message listener accumulation
+	messagesContainer.addEventListener('scroll', function() {
+		if (_isStreaming) {
+			_userScrolledUp = !isNearBottom(80);
+		}
+	});
+
+	// Show full welcome on first visit, random tip on subsequent new chats
+	function showWelcomeOrTip() {
+		var welcomed = false;
+		try { welcomed = localStorage.getItem('staff-ai-welcome-v1'); } catch (e) { /* blocked */ }
+
+		var tips = StaffAIConfig.tips || [];
+		var fullEl = document.getElementById('welcomeFull');
+		var tipEl = document.getElementById('welcomeTip');
+
+		if (!welcomed || tips.length === 0) {
+			// First visit or no tips available: show full welcome
+			try { localStorage.setItem('staff-ai-welcome-v1', '1'); } catch (e) { /* blocked */ }
+			welcomeMessage.style.display = 'block';
+			if (fullEl) fullEl.style.display = '';
+			if (tipEl) tipEl.style.display = 'none';
+		} else {
+			// Returning user: show random tip
+			welcomeMessage.style.display = 'block';
+			if (fullEl) fullEl.style.display = 'none';
+			if (tipEl) {
+				tipEl.textContent = tips[Math.floor(Math.random() * tips.length)];
+				tipEl.style.display = '';
+			}
+		}
+	}
+
+	// Remove typing placeholder from messages array (targeted, not blind pop)
+	function removeTypingMessage() {
+		for (var i = messages.length - 1; i >= 0; i--) {
+			if (messages[i].isTyping) {
+				messages.splice(i, 1);
+				return;
+			}
+		}
+	}
+
 	// Render messages
 	function renderMessages() {
 		if (messages.length === 0) {
-			welcomeMessage.style.display = 'block';
+			showWelcomeOrTip();
 			const msgElements = messagesList.querySelectorAll('.message');
 			msgElements.forEach(el => el.remove());
 			return;
@@ -1217,7 +1270,7 @@ function t(key, fallback) {
 
 			clearStagedFiles();
 
-			messages.pop();
+			removeTypingMessage();
 			messages.push({
 				role: 'assistant',
 				content: result.message?.content || '',
@@ -1232,7 +1285,7 @@ function t(key, fallback) {
 			loadConversations();
 			updateReadOnlyState();
 		} catch (err) {
-			messages.pop();
+			removeTypingMessage();
 			renderMessages();
 			console.error('Failed to send message:', err);
 			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
@@ -1302,7 +1355,7 @@ function t(key, fallback) {
 			if (ct.indexOf('application/json') !== -1) {
 				var jsonResult = await response.json();
 				clearStagedFiles();
-				messages.pop();
+				removeTypingMessage();
 				messages.push({
 					role: 'assistant',
 					content: jsonResult.choices?.[0]?.message?.content || '',
@@ -1325,25 +1378,49 @@ function t(key, fallback) {
 			var eventQueue = [];
 			var processing = false;
 
-			// Progressive text rendering state.
+			// Progressive markdown rendering state.
 			var streamBuffer = '';
 			var streamEl = null;
 			var wordDrainTimer = null;
-			var displayedLen = 0;
+			var lastRenderedLen = 0;
 			var thinkingStatusEl = null;
+			_isStreaming = true;
+			_userScrolledUp = false;
 
-			function drainNextWord() {
-				if (displayedLen >= streamBuffer.length) {
+			// Streaming render constants.
+			var STREAM_RENDER_INTERVAL = 120;
+			var STREAM_RENDER_INTERVAL_LARGE = 200;
+			var STREAM_LARGE_THRESHOLD = 8000;
+			var STREAM_MIN_DELTA = 30;
+
+			function renderStreamChunk() {
+				// Early return if nothing new
+				if (streamBuffer.length === lastRenderedLen) {
 					wordDrainTimer = null;
 					return;
 				}
-				var i = displayedLen;
-				while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
-				while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
-				displayedLen = i;
-				streamEl.textContent = streamBuffer.slice(0, displayedLen);
-				messagesContainer.scrollTop = messagesContainer.scrollHeight;
-				wordDrainTimer = setTimeout(drainNextWord, 30);
+
+				var delta = streamBuffer.length - lastRenderedLen;
+				var hasNewline = streamBuffer.indexOf('\n', lastRenderedLen) !== -1;
+
+				// Only re-render if enough new content or newline received
+				if (delta < STREAM_MIN_DELTA && !hasNewline) {
+					var interval = streamBuffer.length > STREAM_LARGE_THRESHOLD
+						? STREAM_RENDER_INTERVAL_LARGE : STREAM_RENDER_INTERVAL;
+					wordDrainTimer = setTimeout(renderStreamChunk, interval);
+					return;
+				}
+
+				lastRenderedLen = streamBuffer.length;
+				streamEl.innerHTML = renderMarkdown(streamBuffer);
+
+				if (!_userScrolledUp) {
+					messagesContainer.scrollTop = messagesContainer.scrollHeight;
+				}
+
+				var interval = streamBuffer.length > STREAM_LARGE_THRESHOLD
+					? STREAM_RENDER_INTERVAL_LARGE : STREAM_RENDER_INTERVAL;
+				wordDrainTimer = setTimeout(renderStreamChunk, interval);
 			}
 
 			async function processEventQueue() {
@@ -1392,39 +1469,38 @@ function t(key, fallback) {
 						if (streamEl) {
 							streamBuffer += evt.text;
 							if (!wordDrainTimer) {
-								drainNextWord();
+								renderStreamChunk();
 							}
 						}
 					} else if (evt.type === 'done') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						clearStagedFiles();
-						messages.pop();
+						removeTypingMessage();
+
+						// Use done payload content, fall back to streamed buffer
+						var finalMessage = evt?.choices?.[0]?.message || {};
+						var finalContent = (finalMessage.content || streamBuffer || '').trim();
+						if (!finalContent) {
+							finalContent = t('failedToSend', 'Sorry, something went wrong. Please try again.');
+						}
+
 						messages.push({
 							role: 'assistant',
-							content: evt.choices[0].message.content,
-							tool_outputs: evt.choices[0].message.tool_outputs || []
+							content: finalContent,
+							tool_outputs: finalMessage.tool_outputs || []
 						});
 
-						if (streamEl) {
-							// Remove streaming cursor class.
-							var streamingMsg = messagesList.querySelector('.message-streaming');
-							if (streamingMsg) streamingMsg.classList.remove('message-streaming');
-							// Final render: convert markdown to styled HTML.
-							streamEl.innerHTML = renderMarkdown(evt.choices[0].message.content);
-							var toolOutputs = evt.choices[0].message.tool_outputs || [];
-							toolOutputs.forEach(function(tool) {
-								streamEl.appendChild(createToolOutputCard(tool));
-							});
-						} else {
-							renderMessages();
-						}
+						// Always re-render from messages array for DOM/array consistency
+						renderMessages();
 
 						streamBuffer = '';
 						streamEl = null;
 						wordDrainTimer = null;
-						displayedLen = 0;
+						lastRenderedLen = 0;
+						_userScrolledUp = false;
 						thinkingStatusEl = null;
+						_isStreaming = false;
 
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
@@ -1446,8 +1522,10 @@ function t(key, fallback) {
 						streamBuffer = '';
 						streamEl = null;
 						wordDrainTimer = null;
-						displayedLen = 0;
-						messages.pop();
+						lastRenderedLen = 0;
+						_userScrolledUp = false;
+						_isStreaming = false;
+						removeTypingMessage();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');
 					}
@@ -1480,11 +1558,13 @@ function t(key, fallback) {
 		try {
 			await attemptStream();
 		} catch (err) {
-			messages.pop();
+			removeTypingMessage();
 			renderMessages();
 			console.error('[Staff AI] Streaming error:', err);
 			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
 		} finally {
+			_isStreaming = false;
+			_userScrolledUp = false;
 			isLoading = false;
 			updateSendButton();
 		}

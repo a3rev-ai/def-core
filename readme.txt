@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.4.2
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,14 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 1.5.0 - 2026-03-24 =
+* Feature: Staff AI welcome message shows full capability list on first visit only — subsequent new chats show a random "Did you know?" tip
+* Feature: Progressive markdown streaming — AI responses render formatted text during streaming
+* Feature: Smart scroll — auto-scroll only when user is near the bottom
+* Fix: Blank AI bubble no longer appears before the actual response
+* Improved: Expanded capability list from 6 to 15 items (capability-filtered)
+* Improved: Adaptive streaming render intervals for performance
 
 = 1.2.4 - 2026-03-16 =
 * Fix: OAuth PKCE storage — replace set_transient() with update_option() to fix silent write failure in AJAX context
