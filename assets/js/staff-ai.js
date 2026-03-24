@@ -551,11 +551,21 @@ function t(key, fallback) {
 	}
 
 	// Smart scroll — only auto-scroll during streaming if user hasn't scrolled up
+	var _isStreaming = false;
+	var _userScrolledUp = false;
+
 	function isNearBottom(threshold) {
 		threshold = threshold || 80;
 		return messagesContainer.scrollHeight - messagesContainer.scrollTop
 			- messagesContainer.clientHeight < threshold;
 	}
+
+	// Single persistent scroll listener — avoids per-message listener accumulation
+	messagesContainer.addEventListener('scroll', function() {
+		if (_isStreaming) {
+			_userScrolledUp = !isNearBottom(80);
+		}
+	});
 
 	// Show full welcome on first visit, random tip on subsequent new chats
 	function showWelcomeOrTip() {
@@ -1373,8 +1383,9 @@ function t(key, fallback) {
 			var streamEl = null;
 			var wordDrainTimer = null;
 			var lastRenderedLen = 0;
-			var userScrolledUp = false;
 			var thinkingStatusEl = null;
+			_isStreaming = true;
+			_userScrolledUp = false;
 
 			// Streaming render constants.
 			var STREAM_RENDER_INTERVAL = 120;
@@ -1403,7 +1414,7 @@ function t(key, fallback) {
 				lastRenderedLen = streamBuffer.length;
 				streamEl.innerHTML = renderMarkdown(streamBuffer);
 
-				if (!userScrolledUp) {
+				if (!_userScrolledUp) {
 					messagesContainer.scrollTop = messagesContainer.scrollHeight;
 				}
 
@@ -1411,14 +1422,6 @@ function t(key, fallback) {
 					? STREAM_RENDER_INTERVAL_LARGE : STREAM_RENDER_INTERVAL;
 				wordDrainTimer = setTimeout(renderStreamChunk, interval);
 			}
-
-			// Track user scroll during streaming — re-enables auto-scroll if user scrolls back down
-			function onStreamScroll() {
-				if (streamEl) {
-					userScrolledUp = !isNearBottom(80);
-				}
-			}
-			messagesContainer.addEventListener('scroll', onStreamScroll);
 
 			async function processEventQueue() {
 				if (processing) return;
@@ -1476,15 +1479,16 @@ function t(key, fallback) {
 						removeTypingMessage();
 
 						// Use done payload content, fall back to streamed buffer
-						var finalContent = (evt.choices[0].message.content || streamBuffer || '').trim();
+						var finalMessage = evt?.choices?.[0]?.message || {};
+						var finalContent = (finalMessage.content || streamBuffer || '').trim();
 						if (!finalContent) {
-							finalContent = 'Sorry, something went wrong. Please try again.';
+							finalContent = t('failedToSend', 'Sorry, something went wrong. Please try again.');
 						}
 
 						messages.push({
 							role: 'assistant',
 							content: finalContent,
-							tool_outputs: evt.choices[0].message.tool_outputs || []
+							tool_outputs: finalMessage.tool_outputs || []
 						});
 
 						// Always re-render from messages array for DOM/array consistency
@@ -1494,9 +1498,9 @@ function t(key, fallback) {
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
-						userScrolledUp = false;
+						_userScrolledUp = false;
 						thinkingStatusEl = null;
-						messagesContainer.removeEventListener('scroll', onStreamScroll);
+						_isStreaming = false;
 
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
@@ -1519,8 +1523,8 @@ function t(key, fallback) {
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
-						userScrolledUp = false;
-						messagesContainer.removeEventListener('scroll', onStreamScroll);
+						_userScrolledUp = false;
+						_isStreaming = false;
 						removeTypingMessage();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');
