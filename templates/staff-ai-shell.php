@@ -194,22 +194,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 						$role_label   = $user->has_cap( 'def_management_access' )
 							? __( 'Management Assistant', 'digital-employees' )
 							: __( 'Staff Assistant', 'digital-employees' );
+						$woo_active   = class_exists( 'WooCommerce' ) || function_exists( 'WC' );
+						$is_manager   = $user->has_cap( 'def_management_access' );
 						?>
-						<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ), esc_html( $role_label ) ); ?></strong></p>
-						<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
-						<ul>
-							<?php if ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) : ?>
-							<li><?php esc_html_e( 'Search products and look up details', 'digital-employees' ); ?></li>
-							<li><?php esc_html_e( 'Look up customer orders and order status', 'digital-employees' ); ?></li>
-							<?php endif; ?>
-							<?php if ( $user->has_cap( 'def_management_access' ) ) : ?>
-							<li><?php esc_html_e( 'Access management-level documents and guidance', 'digital-employees' ); ?></li>
-						<?php endif; ?>
-							<li><?php esc_html_e( 'Answer questions from the knowledge base', 'digital-employees' ); ?></li>
-							<li><?php esc_html_e( 'Create and share documents and spreadsheets', 'digital-employees' ); ?></li>
-							<li><?php esc_html_e( 'Share a conversation with your team via email', 'digital-employees' ); ?></li>
-						</ul>
-						<p><?php esc_html_e( 'What can I help you with?', 'digital-employees' ); ?></p>
+						<div id="welcomeFull">
+							<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ), esc_html( $role_label ) ); ?></strong></p>
+							<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
+							<ul>
+								<li><?php esc_html_e( 'Answer questions and explain concepts (technical, business, strategy)', 'digital-employees' ); ?></li>
+								<?php if ( $is_manager ) : ?>
+								<li><?php esc_html_e( 'Help with planning, decision-making, and management-level analysis', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Access management-level documents and guidance', 'digital-employees' ); ?></li>
+								<?php endif; ?>
+								<?php if ( $woo_active ) : ?>
+								<li><?php esc_html_e( 'Search products and look up details', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Look up customer orders and order status', 'digital-employees' ); ?></li>
+								<?php endif; ?>
+								<li><?php esc_html_e( 'Answer questions from the knowledge base', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Draft documents such as reports, policies, memos, and proposals', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Create downloadable files (DOCX, PDF, Markdown, spreadsheets, images)', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Summarise documents or extract information from uploaded files', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Help analyse data or structure information for spreadsheets', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Generate images or diagrams from descriptions', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Help write or review code and technical documentation', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Brainstorm ideas, strategies, or solutions', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Keep track of your preferences and project context across conversations', 'digital-employees' ); ?></li>
+								<li><?php esc_html_e( 'Share a conversation with your team via email', 'digital-employees' ); ?></li>
+							</ul>
+							<p><?php esc_html_e( 'What can I help you with?', 'digital-employees' ); ?></p>
+						</div>
+						<p id="welcomeTip" class="welcome-tip" style="display:none;"></p>
 					</div>
 				</div>
 			</div>
@@ -384,6 +398,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
 		defApiUrl: <?php echo wp_json_encode( DEF_Core::get_def_api_url() ); ?>,
 		tokenUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ); ?>,
+		userName: <?php echo wp_json_encode( $first_name ); ?>,
+		tips: <?php
+			$tips = array(
+				__( 'Did you know? I can summarise documents or extract information from uploaded files.', 'digital-employees' ),
+				__( 'Did you know? You can drag and drop files directly into the chat to share them with me.', 'digital-employees' ),
+				__( 'Did you know? I can create professional documents in Word, PDF, or Markdown format.', 'digital-employees' ),
+				__( 'Did you know? I can generate spreadsheets from data you describe or provide.', 'digital-employees' ),
+				__( 'Did you know? I can generate images and diagrams from your descriptions.', 'digital-employees' ),
+				__( 'Did you know? I can help you brainstorm ideas, strategies, or solutions.', 'digital-employees' ),
+				__( 'Did you know? I can help write or review code and technical documentation.', 'digital-employees' ),
+				__( 'Did you know? I remember your preferences and project context across conversations.', 'digital-employees' ),
+				__( 'Did you know? I can search the knowledge base to find answers for you.', 'digital-employees' ),
+				__( 'Did you know? You can share any conversation with your team via email using the Share button.', 'digital-employees' ),
+				__( 'Did you know? I can help structure processes, workflows, and frameworks.', 'digital-employees' ),
+				__( 'Did you know? I can draft reports, policies, memos, and proposals.', 'digital-employees' ),
+				__( 'Did you know? If I can\'t help, I\'ll offer to hand the conversation off to a colleague.', 'digital-employees' ),
+			);
+			if ( $woo_active ) {
+				$tips[] = __( 'Did you know? I can search products and look up details for you.', 'digital-employees' );
+				$tips[] = __( 'Did you know? I can look up customer orders and check order status.', 'digital-employees' );
+			}
+			if ( $is_manager ) {
+				$tips[] = __( 'Did you know? I can access management-level documents and guidance.', 'digital-employees' );
+				$tips[] = __( 'Did you know? I can help with planning, decision-making, and management-level analysis.', 'digital-employees' );
+			}
+			echo wp_json_encode( $tips );
+		?>,
 		upload: {
 			maxFiles: 5,
 			maxSizeBytes: <?php echo DEF_Core_Staff_AI::UPLOAD_MAX_SIZE_BYTES; ?>,
