@@ -1563,6 +1563,8 @@ function t(key, fallback) {
 			console.error('[Staff AI] Streaming error:', err);
 			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
 		} finally {
+			_isStreaming = false;
+			_userScrolledUp = false;
 			isLoading = false;
 			updateSendButton();
 		}
