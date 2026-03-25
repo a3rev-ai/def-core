@@ -58,6 +58,10 @@ final class DEF_Core_Export {
 						'type'    => 'string',
 						'default' => '',
 					),
+					'modified_after' => array(
+						'type'    => 'string',
+						'default' => '',
+					),
 				),
 			)
 		);
@@ -80,6 +84,10 @@ final class DEF_Core_Export {
 						'default' => 50,
 						'minimum' => 1,
 						'maximum' => 100,
+					),
+					'modified_after' => array(
+						'type'    => 'string',
+						'default' => '',
 					),
 				),
 			)
@@ -131,45 +139,79 @@ final class DEF_Core_Export {
 	 * @return \WP_REST_Response The response.
 	 */
 	public static function export_content( \WP_REST_Request $request ): \WP_REST_Response {
-		$page     = $request->get_param( 'page' );
-		$per_page = $request->get_param( 'per_page' );
-		$filter_type = sanitize_text_field( $request->get_param( 'post_type' ) );
+		$page           = $request->get_param( 'page' );
+		$per_page       = $request->get_param( 'per_page' );
+		$filter_type    = sanitize_text_field( $request->get_param( 'post_type' ) );
+		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
 
-		// Get public post types.
-		$post_types = get_post_types( array( 'public' => true ), 'names' );
-		unset( $post_types['attachment'] );
+		// Get exportable post types (excludes system types).
+		$post_types = class_exists( 'DEF_Core_Knowledge_Export' )
+			? DEF_Core_Knowledge_Export::get_exported_post_types()
+			: array_values( array_diff( get_post_types( array( 'public' => true ), 'names' ), array( 'attachment' ) ) );
 
-		if ( ! empty( $filter_type ) && isset( $post_types[ $filter_type ] ) ) {
+		if ( ! empty( $filter_type ) && in_array( $filter_type, $post_types, true ) ) {
 			$post_types = array( $filter_type );
-		} else {
-			$post_types = array_values( $post_types );
 		}
 
-		$query = new \WP_Query( array(
+		$query_args = array(
 			'post_type'      => $post_types,
 			'post_status'    => 'publish',
 			'posts_per_page' => $per_page,
 			'paged'          => $page,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
-		) );
+			'has_password'   => false, // Exclude password-protected posts.
+		);
+
+		// Incremental sync: only fetch content modified after timestamp.
+		if ( ! empty( $modified_after ) ) {
+			$query_args['date_query'] = array(
+				array(
+					'after'  => $modified_after,
+					'column' => 'post_modified_gmt',
+				),
+			);
+		}
+
+		$query = new \WP_Query( $query_args );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
 			$content = wp_strip_all_tags( $post->post_content );
 			$content = preg_replace( '/\s+/', ' ', $content );
 
-			$items[] = array(
+			// Parent page title for hierarchical context.
+			$parent_title = '';
+			if ( $post->post_parent > 0 ) {
+				$parent = get_post( $post->post_parent );
+				if ( $parent ) {
+					$parent_title = $parent->post_title;
+				}
+			}
+
+			$item = array(
 				'id'            => $post->ID,
 				'type'          => $post->post_type,
 				'title'         => $post->post_title,
 				'url'           => get_permalink( $post->ID ),
 				'content'       => trim( $content ),
 				'excerpt'       => wp_strip_all_tags( $post->post_excerpt ),
+				'author'        => get_the_author_meta( 'display_name', $post->post_author ),
+				'date'          => $post->post_date_gmt,
 				'categories'    => wp_get_post_categories( $post->ID, array( 'fields' => 'names' ) ),
 				'tags'          => wp_get_post_tags( $post->ID, array( 'fields' => 'names' ) ),
 				'modified'      => $post->post_modified_gmt,
+				'parent_title'  => $parent_title,
 			);
+
+			// Attachments, meta, and embedded document links.
+			if ( class_exists( 'DEF_Core_Knowledge_Export' ) ) {
+				$item['attachments']             = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
+				$item['meta']                    = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$item['embedded_document_links'] = DEF_Core_Knowledge_Export::get_embedded_document_links( $post->post_content );
+			}
+
+			$items[] = $item;
 		}
 
 		return new \WP_REST_Response( array(
@@ -204,17 +246,30 @@ final class DEF_Core_Export {
 			), 200 );
 		}
 
-		$page     = $request->get_param( 'page' );
-		$per_page = $request->get_param( 'per_page' );
+		$page           = $request->get_param( 'page' );
+		$per_page       = $request->get_param( 'per_page' );
+		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
 
-		$query = new \WP_Query( array(
+		$query_args = array(
 			'post_type'      => 'product',
 			'post_status'    => 'publish',
 			'posts_per_page' => $per_page,
 			'paged'          => $page,
 			'orderby'        => 'modified',
 			'order'          => 'DESC',
-		) );
+			'has_password'   => false,
+		);
+
+		if ( ! empty( $modified_after ) ) {
+			$query_args['date_query'] = array(
+				array(
+					'after'  => $modified_after,
+					'column' => 'post_modified_gmt',
+				),
+			);
+		}
+
+		$query = new \WP_Query( $query_args );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
@@ -237,11 +292,18 @@ final class DEF_Core_Export {
 				'description'     => wp_strip_all_tags( $product->get_description() ),
 				'categories'      => wp_get_post_terms( $post->ID, 'product_cat', array( 'fields' => 'names' ) ),
 				'tags'            => wp_get_post_terms( $post->ID, 'product_tag', array( 'fields' => 'names' ) ),
-				'image_url'       => wp_get_attachment_url( $product->get_image_id() ) ?: '',
 				'modified'        => $post->post_modified_gmt,
 			);
 
-			// Add attributes.
+			// Brand taxonomy (common plugin: Perfect Brands for WooCommerce).
+			$brands = wp_get_post_terms( $post->ID, 'pwb-brand', array( 'fields' => 'names' ) );
+			if ( is_wp_error( $brands ) ) {
+				// Try alternate taxonomy name.
+				$brands = wp_get_post_terms( $post->ID, 'product_brand', array( 'fields' => 'names' ) );
+			}
+			$item['brand'] = ( ! is_wp_error( $brands ) && ! empty( $brands ) ) ? $brands[0] : '';
+
+			// Attributes.
 			$attributes = array();
 			foreach ( $product->get_attributes() as $attr ) {
 				if ( is_a( $attr, 'WC_Product_Attribute' ) ) {
@@ -252,6 +314,43 @@ final class DEF_Core_Export {
 				}
 			}
 			$item['attributes'] = $attributes;
+
+			// Variations (for variable products).
+			$variations = array();
+			if ( $product->is_type( 'variable' ) || $product->is_type( 'variable-subscription' ) ) {
+				$variation_ids = $product->get_children();
+				foreach ( $variation_ids as $var_id ) {
+					$variation = wc_get_product( $var_id );
+					if ( ! $variation || 'publish' !== get_post_status( $var_id ) ) {
+						continue;
+					}
+					$var_attrs = array();
+					foreach ( $variation->get_variation_attributes() as $attr_key => $attr_val ) {
+						$var_attrs[] = array(
+							'name'  => wc_attribute_label( str_replace( 'attribute_', '', $attr_key ) ),
+							'value' => $attr_val,
+						);
+					}
+					$variations[] = array(
+						'id'           => $var_id,
+						'sku'          => $variation->get_sku(),
+						'price'        => $variation->get_price(),
+						'regular_price' => $variation->get_regular_price(),
+						'sale_price'   => $variation->get_sale_price(),
+						'stock_status' => $variation->get_stock_status(),
+						'attributes'   => $var_attrs,
+					);
+				}
+			}
+			$item['variations'] = $variations;
+
+			// Attachments, meta, and embedded document links.
+			if ( class_exists( 'DEF_Core_Knowledge_Export' ) ) {
+				$raw_description = $product->get_description();
+				$item['attachments']             = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
+				$item['meta']                    = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$item['embedded_document_links'] = DEF_Core_Knowledge_Export::get_embedded_document_links( $raw_description );
+			}
 
 			$items[] = $item;
 		}

@@ -63,6 +63,7 @@ final class DEF_Core {
 		DEF_Core_Connection_Config::init();
 		DEF_Core_OAuth::init();
 		DEF_Core_Export::init();
+		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Admin_API::init();
 
 		// Register [def_chat_button] shortcode and action hook.
@@ -121,6 +122,7 @@ final class DEF_Core {
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
 
 		// Admin REST API (settings, users, connection, chat proxy).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';

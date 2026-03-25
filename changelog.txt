@@ -1,5 +1,19 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.6.0 - 2026/03/25 =
+* Feature: Knowledge export endpoints for WordPress Sync Pipeline (Phase 1 Data Ingestion)
+* New: /content/counts — content type counts with CPT discovery and document attachment counts
+* New: /content/deleted — deleted/trashed IDs with status transitions for incremental sync
+* New: /forums/export — bbPress topics + replies with forum context, closed (resolved) topics included
+* New: /attachments/download/{id} — authenticated document file download (PDF, DOCX, DOC, XLSX, CSV, TXT)
+* Improved: /content/export — added modified_after filter, author, date, parent_title, attachments, filtered meta fields
+* Improved: /products/export — added modified_after filter, variations, brand, attachments, filtered meta fields
+* Security: Password-protected posts excluded via WordPress native has_password filter
+* Security: bbPress spam/pending/trash topics and replies excluded from export
+* Security: bbPress private replies (_bbp_reply_is_private) excluded from export
+* Security: Private/hidden bbPress forums excluded with all their content
+* Feature: Post deletion and status transition tracking via WordPress hooks for incremental sync
+
 = 1.5.0 - 2026/03/24 =
 * Feature: Staff AI welcome message now shows full capability list on first visit only — subsequent new chats show a random "Did you know?" tip
 * Feature: Progressive markdown streaming — AI responses now render formatted text during streaming instead of raw markdown that snaps at the end
