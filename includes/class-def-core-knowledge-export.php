@@ -370,7 +370,7 @@ final class DEF_Core_Knowledge_Export {
 			return new \WP_Error( 'not_found', __( 'Attachment not found.', 'digital-employees' ), array( 'status' => 404 ) );
 		}
 
-		// Validate parent post is still publicly visible (ChatGPT R1 blocker).
+		// Validate full parent export eligibility (ChatGPT R1+R2 blockers).
 		$parent_id = (int) $post->post_parent;
 		if ( $parent_id > 0 ) {
 			$parent = get_post( $parent_id );
@@ -384,6 +384,29 @@ final class DEF_Core_Knowledge_Export {
 			// Check parent isn't password-protected.
 			if ( ! empty( $parent->post_password ) ) {
 				return new \WP_Error( 'parent_protected', __( 'Attachment parent is password-protected.', 'digital-employees' ), array( 'status' => 403 ) );
+			}
+			// bbPress: if parent is a topic, verify its forum is public.
+			if ( 'topic' === $parent->post_type && (int) $parent->post_parent > 0 ) {
+				if ( ! self::is_forum_public( (int) $parent->post_parent ) ) {
+					return new \WP_Error( 'forum_not_public', __( 'Attachment belongs to a private forum.', 'digital-employees' ), array( 'status' => 403 ) );
+				}
+			}
+			// bbPress: if parent is a reply, check it's not private.
+			if ( 'reply' === $parent->post_type ) {
+				$is_private = get_post_meta( $parent_id, '_bbp_reply_is_private', true );
+				if ( '1' === $is_private || 'true' === $is_private ) {
+					return new \WP_Error( 'reply_private', __( 'Attachment belongs to a private reply.', 'digital-employees' ), array( 'status' => 403 ) );
+				}
+				// Also check the reply's topic's forum is public.
+				$topic_id = (int) $parent->post_parent;
+				if ( $topic_id > 0 ) {
+					$topic = get_post( $topic_id );
+					if ( $topic && 'topic' === $topic->post_type && (int) $topic->post_parent > 0 ) {
+						if ( ! self::is_forum_public( (int) $topic->post_parent ) ) {
+							return new \WP_Error( 'forum_not_public', __( 'Attachment belongs to a private forum.', 'digital-employees' ), array( 'status' => 403 ) );
+						}
+					}
+				}
 			}
 		}
 
