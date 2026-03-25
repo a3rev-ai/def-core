@@ -204,10 +204,11 @@ final class DEF_Core_Export {
 				'parent_title'  => $parent_title,
 			);
 
-			// Attachments (documents only — no images).
+			// Attachments, meta, and embedded document links.
 			if ( class_exists( 'DEF_Core_Knowledge_Export' ) ) {
-				$item['attachments'] = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
-				$item['meta']        = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$item['attachments']             = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
+				$item['meta']                    = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$item['embedded_document_links'] = DEF_Core_Knowledge_Export::get_embedded_document_links( $post->post_content );
 			}
 
 			$items[] = $item;
@@ -343,10 +344,12 @@ final class DEF_Core_Export {
 			}
 			$item['variations'] = $variations;
 
-			// Attachments and meta (documents only — no images).
+			// Attachments, meta, and embedded document links.
 			if ( class_exists( 'DEF_Core_Knowledge_Export' ) ) {
-				$item['attachments'] = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
-				$item['meta']        = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$raw_description = $product->get_description();
+				$item['attachments']             = DEF_Core_Knowledge_Export::get_post_attachments( $post->ID );
+				$item['meta']                    = DEF_Core_Knowledge_Export::get_post_meta_filtered( $post->ID );
+				$item['embedded_document_links'] = DEF_Core_Knowledge_Export::get_embedded_document_links( $raw_description );
 			}
 
 			$items[] = $item;

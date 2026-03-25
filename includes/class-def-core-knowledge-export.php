@@ -370,6 +370,23 @@ final class DEF_Core_Knowledge_Export {
 			return new \WP_Error( 'not_found', __( 'Attachment not found.', 'digital-employees' ), array( 'status' => 404 ) );
 		}
 
+		// Validate parent post is still publicly visible (ChatGPT R1 blocker).
+		$parent_id = (int) $post->post_parent;
+		if ( $parent_id > 0 ) {
+			$parent = get_post( $parent_id );
+			if ( ! $parent ) {
+				return new \WP_Error( 'parent_not_found', __( 'Attachment parent not found.', 'digital-employees' ), array( 'status' => 404 ) );
+			}
+			$public_statuses = array( 'publish', 'closed', 'inherit' );
+			if ( ! in_array( $parent->post_status, $public_statuses, true ) ) {
+				return new \WP_Error( 'parent_not_public', __( 'Attachment parent is not publicly visible.', 'digital-employees' ), array( 'status' => 403 ) );
+			}
+			// Check parent isn't password-protected.
+			if ( ! empty( $parent->post_password ) ) {
+				return new \WP_Error( 'parent_protected', __( 'Attachment parent is password-protected.', 'digital-employees' ), array( 'status' => 403 ) );
+			}
+		}
+
 		// Validate MIME type — documents only, no images.
 		$allowed_mimes = array(
 			'application/pdf',
@@ -689,6 +706,45 @@ final class DEF_Core_Knowledge_Export {
 		}
 
 		return $filtered;
+	}
+
+	/**
+	 * Extract same-domain document links embedded in HTML content.
+	 *
+	 * Catches brochure/spec-sheet PDFs linked in product descriptions that
+	 * are NOT in the media library (Fieldquip pattern — 62% of products).
+	 *
+	 * Only returns links matching the site domain and document MIME extensions.
+	 *
+	 * @param string $html_content Raw HTML content (before tag stripping).
+	 * @return array List of embedded document link URLs.
+	 */
+	public static function get_embedded_document_links( string $html_content ): array {
+		if ( empty( $html_content ) ) {
+			return array();
+		}
+
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+		if ( empty( $site_host ) ) {
+			return array();
+		}
+
+		// Match URLs ending in document extensions.
+		$pattern = '#https?://[^\s"\'<>]+\.(?:pdf|docx?|xlsx?|csv|txt)#i';
+		if ( ! preg_match_all( $pattern, $html_content, $matches ) ) {
+			return array();
+		}
+
+		$links = array();
+		foreach ( $matches[0] as $url ) {
+			// Only include same-domain links.
+			$url_host = wp_parse_url( $url, PHP_URL_HOST );
+			if ( $url_host && ( $url_host === $site_host || str_ends_with( $url_host, '.' . $site_host ) ) ) {
+				$links[] = $url;
+			}
+		}
+
+		return array_values( array_unique( $links ) );
 	}
 
 	/**
