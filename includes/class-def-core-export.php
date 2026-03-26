@@ -95,38 +95,17 @@ final class DEF_Core_Export {
 	}
 
 	/**
-	 * Permission check — Bearer API key authentication.
+	 * Permission check — HMAC machine-to-machine authentication.
 	 *
+	 * Uses the shared DEF_Core_HMAC_Auth verifier. Same auth contract
+	 * as all other DEF → WordPress machine calls (a3-ai/v1 routes).
+	 *
+	 * @param \WP_REST_Request $request The REST request.
 	 * @return bool|\WP_Error True if authenticated, WP_Error otherwise.
+	 * @since 1.6.1
 	 */
-	public static function permission_check() {
-		$auth = '';
-		if ( isset( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
-			$auth = sanitize_text_field( wp_unslash( $_SERVER['HTTP_AUTHORIZATION'] ) );
-		} elseif ( isset( $_SERVER['Authorization'] ) ) {
-			$auth = sanitize_text_field( wp_unslash( $_SERVER['Authorization'] ) );
-		}
-
-		if ( empty( $auth ) || stripos( $auth, 'bearer ' ) !== 0 ) {
-			return new \WP_Error(
-				'rest_forbidden',
-				__( 'Bearer token required.', 'digital-employees' ),
-				array( 'status' => 401 )
-			);
-		}
-
-		$token      = trim( substr( $auth, 7 ) );
-		$stored_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
-
-		if ( empty( $stored_key ) || ! hash_equals( $stored_key, $token ) ) {
-			return new \WP_Error(
-				'rest_forbidden',
-				__( 'Invalid API key.', 'digital-employees' ),
-				array( 'status' => 401 )
-			);
-		}
-
-		return true;
+	public static function permission_check( \WP_REST_Request $request ) {
+		return \A3Rev\DefCore\DEF_Core_HMAC_Auth::permission_check_machine( $request );
 	}
 
 	/**

@@ -120,6 +120,9 @@ final class DEF_Core {
 		// OAuth client (one-click DEFHO connect).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-oauth.php';
 
+		// Shared HMAC auth (used by export + admin API routes).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
+
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
