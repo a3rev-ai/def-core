@@ -90,7 +90,7 @@ final class DEF_Core_Admin_API {
 	 *
 	 * @var int
 	 */
-	private const HMAC_TIMESTAMP_TOLERANCE = 300;
+	// HMAC_TIMESTAMP_TOLERANCE moved to shared DEF_Core_HMAC_Auth class.
 
 	/**
 	 * Thread ID max length.
@@ -306,9 +306,9 @@ final class DEF_Core_Admin_API {
 			return $this->check_nonce_auth();
 		}
 
-		// Mode B: HMAC server-to-server auth.
+		// Mode B: HMAC server-to-server auth (shared verifier + user validation).
 		if ( $has_hmac ) {
-			return $this->check_hmac_auth( $request );
+			return \A3Rev\DefCore\DEF_Core_HMAC_Auth::permission_check_admin( $request );
 		}
 
 		return new \WP_Error(
@@ -355,108 +355,9 @@ final class DEF_Core_Admin_API {
 		return true;
 	}
 
-	/**
-	 * Validate HMAC server-to-server auth (Mode B).
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return bool|\WP_Error True if valid, WP_Error otherwise.
-	 * @since 2.0.0
-	 */
-	private function check_hmac_auth( \WP_REST_Request $request ) {
-		$signature = isset( $_SERVER['HTTP_X_DEF_SIGNATURE'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_SIGNATURE'] ) )
-			: '';
-		$timestamp = isset( $_SERVER['HTTP_X_DEF_TIMESTAMP'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_TIMESTAMP'] ) )
-			: '';
-		$user_id_header = isset( $_SERVER['HTTP_X_DEF_USER'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_USER'] ) )
-			: '';
-		$body_hash = isset( $_SERVER['HTTP_X_DEF_BODY_HASH'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_BODY_HASH'] ) )
-			: '';
-
-		// All 4 HMAC headers required.
-		if ( empty( $signature ) || empty( $timestamp ) || empty( $user_id_header ) || empty( $body_hash ) ) {
-			return new \WP_Error(
-				'HMAC_MISSING_HEADERS',
-				'Missing required HMAC authentication headers.',
-				array( 'status' => 401 )
-			);
-		}
-
-		// Timestamp freshness.
-		$ts = intval( $timestamp );
-		if ( abs( time() - $ts ) > self::HMAC_TIMESTAMP_TOLERANCE ) {
-			return new \WP_Error(
-				'HMAC_EXPIRED',
-				'HMAC timestamp expired.',
-				array( 'status' => 401 )
-			);
-		}
-
-		// Body hash verification.
-		// DEF sends canonical JSON (sorted keys) as raw body bytes.
-		// We hash php://input (the raw bytes) and compare to X-DEF-Body-Hash.
-		$raw_body = file_get_contents( 'php://input' );
-		if ( $raw_body === false ) {
-			$raw_body = '';
-		}
-		$expected_body_hash = hash( 'sha256', $raw_body );
-		if ( ! hash_equals( $expected_body_hash, $body_hash ) ) {
-			return new \WP_Error(
-				'HMAC_BODY_MISMATCH',
-				'Body hash does not match.',
-				array( 'status' => 401 )
-			);
-		}
-
-		// Get API key for signature verification.
-		$api_key = DEF_Core_Encryption::get_secret( 'def_core_api_key' );
-		if ( empty( $api_key ) ) {
-			return new \WP_Error(
-				'HMAC_NO_KEY',
-				'API key not configured.',
-				array( 'status' => 500 )
-			);
-		}
-
-		// Build canonical payload and verify signature.
-		$method = $request->get_method();
-		$path   = $request->get_route();
-
-		$payload      = "{$method}:{$path}:{$timestamp}:{$user_id_header}:{$body_hash}";
-		$expected_sig = hash_hmac( 'sha256', $payload, $api_key );
-
-		if ( ! hash_equals( $expected_sig, $signature ) ) {
-			return new \WP_Error(
-				'HMAC_INVALID_SIGNATURE',
-				'Invalid HMAC signature.',
-				array( 'status' => 401 )
-			);
-		}
-
-		// Verify user exists and has def_admin_access.
-		$user_id = intval( $user_id_header );
-		$user    = get_user_by( 'id', $user_id );
-		if ( ! $user || ! $user->exists() ) {
-			return new \WP_Error(
-				'HMAC_INVALID_USER',
-				'User specified in HMAC does not exist.',
-				array( 'status' => 401 )
-			);
-		}
-
-		if ( ! $user->has_cap( 'def_admin_access' ) ) {
-			return new \WP_Error(
-				'FORBIDDEN',
-				'DEF Admin access required.',
-				array( 'status' => 403 )
-			);
-		}
-
-		return true;
-	}
+	// HMAC verification is now in the shared DEF_Core_HMAC_Auth class.
+	// Admin routes use permission_check_admin() (HMAC + user validation).
+	// Export routes use permission_check_machine() (HMAC only).
 
 	// ─── Response Helpers ───────────────────────────────────────────────
 
