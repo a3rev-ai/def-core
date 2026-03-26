@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.6.3 - 2026/03/26 =
+* Security: Query params included in HMAC signature for tamper protection
+* Improved: Canonical query string (sorted keys, RFC3986 encoding) matches DEF signing
+
 = 1.6.2 - 2026/03/26 =
 * Security: Unified HMAC authentication for all DEF machine-to-machine endpoints
 * New: Shared DEF_Core_HMAC_Auth class — one verifier for both a3-ai/v1 and def-core/v1 routes

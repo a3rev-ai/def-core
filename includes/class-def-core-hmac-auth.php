@@ -98,10 +98,18 @@ class DEF_Core_HMAC_Auth {
 		}
 
 		// Build canonical payload and verify signature.
+		// Includes sorted query params for tamper protection.
 		$method = $request->get_method();
 		$path   = $request->get_route();
 
-		$payload      = "{$method}:{$path}:{$timestamp}:{$user_id}:{$body_hash}";
+		// Canonicalize query params: sorted key=value, URL-encoded.
+		// Must match DEF's canonical form: urlencode(sorted(params.items()))
+		$query_params = $request->get_query_params();
+		ksort( $query_params );
+		$canonical_qs = http_build_query( $query_params, '', '&', PHP_QUERY_RFC3986 );
+		$signed_route = $canonical_qs ? "{$path}?{$canonical_qs}" : $path;
+
+		$payload      = "{$method}:{$signed_route}:{$timestamp}:{$user_id}:{$body_hash}";
 		$expected_sig = hash_hmac( 'sha256', $payload, $api_key );
 
 		if ( ! hash_equals( $expected_sig, $signature ) ) {
