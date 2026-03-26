@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.6.1 - 2026/03/26 =
+* New: /attachments/resolve endpoint — slug-based attachment lookup proxy for DEF sync pipeline
+* Security: Document-only MIME validation (PDF, DOCX, DOC, XLSX, CSV, TXT) — images excluded
+* Fix: Enables embedded document link resolution through authenticated def-core endpoints
+
 = 1.6.0 - 2026/03/25 =
 * Feature: Knowledge export endpoints for WordPress Sync Pipeline (Phase 1 Data Ingestion)
 * New: /content/counts — content type counts with CPT discovery and document attachment counts

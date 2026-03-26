@@ -126,6 +126,19 @@ final class DEF_Core_Knowledge_Export {
 				),
 			)
 		);
+
+		register_rest_route(
+			'def-core/v1',
+			'/attachments/resolve',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( 'DEF_Core_Export', 'permission_check' ),
+				'callback'            => array( __CLASS__, 'attachment_resolve' ),
+				'args'                => array(
+					'slug' => array( 'type' => 'string', 'required' => true ),
+				),
+			)
+		);
 	}
 
 	// =========================================================================
@@ -450,6 +463,71 @@ final class DEF_Core_Knowledge_Export {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 		readfile( $file_path );
 		exit;
+	}
+
+	// =========================================================================
+	// Endpoint: /attachments/resolve
+	// =========================================================================
+
+	/**
+	 * Resolve an attachment by slug (filename without extension).
+	 *
+	 * Proxies the WordPress core /wp/v2/media lookup through a def-core
+	 * authenticated endpoint so DEF can discover attachment IDs for
+	 * embedded document links without calling core WP REST directly.
+	 *
+	 * @param \WP_REST_Request $request Request with 'slug' parameter.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function attachment_resolve( \WP_REST_Request $request ) {
+		$slug = sanitize_title( $request->get_param( 'slug' ) );
+
+		if ( empty( $slug ) ) {
+			return new \WP_Error(
+				'missing_slug',
+				__( 'Slug parameter is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$attachments = get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'name'           => $slug,
+				'posts_per_page' => 1,
+				'post_status'    => 'inherit',
+			)
+		);
+
+		if ( empty( $attachments ) ) {
+			return new \WP_REST_Response( array( 'id' => null, 'found' => false ), 200 );
+		}
+
+		$attachment = $attachments[0];
+
+		// Validate MIME type — only document attachments, not images.
+		$mime = get_post_mime_type( $attachment->ID );
+		$allowed_mimes = array(
+			'application/pdf',
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'application/msword',
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'text/csv',
+			'text/plain',
+		);
+		if ( ! in_array( $mime, $allowed_mimes, true ) ) {
+			return new \WP_REST_Response( array( 'id' => null, 'found' => false, 'reason' => 'not_document' ), 200 );
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'id'        => $attachment->ID,
+				'found'     => true,
+				'mime_type' => $mime,
+				'title'     => $attachment->post_title,
+			),
+			200
+		);
 	}
 
 	// =========================================================================
