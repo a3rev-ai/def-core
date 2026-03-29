@@ -829,5 +829,30 @@ $first_tab = 'branding';
 				</div>
 			<?php endif; ?>
 		</div>
+
+		<div class="def-core-card" style="margin-top: 20px;">
+			<h2><?php esc_html_e( 'Logging', 'digital-employees' ); ?></h2>
+
+			<div class="def-core-field">
+				<label for="def_core_log_level"><?php esc_html_e( 'Log Level', 'digital-employees' ); ?></label>
+				<?php $current_log_level = get_option( 'def_core_log_level', 'info' ); ?>
+				<select id="def_core_log_level" data-setting="def_core_log_level">
+					<option value="debug" <?php selected( $current_log_level, 'debug' ); ?>><?php esc_html_e( 'Debug', 'digital-employees' ); ?></option>
+					<option value="info" <?php selected( $current_log_level, 'info' ); ?>><?php esc_html_e( 'Info', 'digital-employees' ); ?></option>
+					<option value="warning" <?php selected( $current_log_level, 'warning' ); ?>><?php esc_html_e( 'Warning', 'digital-employees' ); ?></option>
+					<option value="error" <?php selected( $current_log_level, 'error' ); ?>><?php esc_html_e( 'Error', 'digital-employees' ); ?></option>
+				</select>
+				<p class="description">
+					<?php esc_html_e( 'Minimum log level to record. Debug captures all events; Error captures only errors.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-save-area">
+				<button type="button" class="button button-primary def-core-save-btn" data-tab="connection">
+					<?php esc_html_e( 'Save Changes', 'digital-employees' ); ?>
+				</button>
+				<span class="spinner"></span>
+			</div>
+		</div>
 	</div>
 </div>

@@ -122,6 +122,16 @@ final class DEF_Core_Export {
 		$per_page       = $request->get_param( 'per_page' );
 		$filter_type    = sanitize_text_field( $request->get_param( 'post_type' ) );
 		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
+		$request_id     = $request->get_header( 'X-DEF-Request-ID' ) ?: '';
+
+		$content_type = ! empty( $filter_type ) ? $filter_type : 'mixed';
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
+			'content_type'   => $content_type,
+			'page'           => $page,
+			'per_page'       => $per_page,
+			'modified_after' => $modified_after,
+			'request_id'     => $request_id,
+		) );
 
 		// Get exportable post types (excludes system types).
 		$post_types = class_exists( 'DEF_Core_Knowledge_Export' )
@@ -153,6 +163,18 @@ final class DEF_Core_Export {
 		}
 
 		$query = new \WP_Query( $query_args );
+
+		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
+			'content_type'           => $content_type,
+			'requested_per_page'     => $per_page,
+			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
+			'found_posts'            => (int) $query->found_posts,
+			'post_count'             => $query->post_count,
+			'max_num_pages'          => (int) $query->max_num_pages,
+			'sql'                    => substr( $query->request, 0, 2000 ),
+			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
+			'request_id'             => $request_id,
+		) );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
@@ -193,15 +215,33 @@ final class DEF_Core_Export {
 			$items[] = $item;
 		}
 
-		return new \WP_REST_Response( array(
+		$total_items = (int) $query->found_posts;
+		$total_pages = (int) $query->max_num_pages;
+
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+			'content_type'   => $content_type,
+			'items_returned' => count( $items ),
+			'total_items'    => $total_items,
+			'total_pages'    => $total_pages,
+			'page'           => $page,
+			'request_id'     => $request_id,
+		) );
+
+		$response = new \WP_REST_Response( array(
 			'items'       => $items,
 			'page'        => $page,
 			'per_page'    => $per_page,
-			'total'       => (int) $query->found_posts,
-			'total_pages' => (int) $query->max_num_pages,
+			'total'       => $total_items,
+			'total_pages' => $total_pages,
 			'site_name'   => get_bloginfo( 'name' ),
 			'site_url'    => home_url(),
 		), 200 );
+
+		if ( $request_id ) {
+			$response->header( 'X-DEF-Request-ID', $request_id );
+		}
+
+		return $response;
 	}
 
 	/**
@@ -214,6 +254,8 @@ final class DEF_Core_Export {
 	 * @return \WP_REST_Response The response.
 	 */
 	public static function export_products( \WP_REST_Request $request ): \WP_REST_Response {
+		$request_id = $request->get_header( 'X-DEF-Request-ID' ) ?: '';
+
 		if ( ! class_exists( 'WooCommerce' ) && ! function_exists( 'WC' ) ) {
 			return new \WP_REST_Response( array(
 				'items'       => array(),
@@ -228,6 +270,14 @@ final class DEF_Core_Export {
 		$page           = $request->get_param( 'page' );
 		$per_page       = $request->get_param( 'per_page' );
 		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
+
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
+			'content_type'   => 'product',
+			'page'           => $page,
+			'per_page'       => $per_page,
+			'modified_after' => $modified_after,
+			'request_id'     => $request_id,
+		) );
 
 		$query_args = array(
 			'post_type'      => 'product',
@@ -249,6 +299,18 @@ final class DEF_Core_Export {
 		}
 
 		$query = new \WP_Query( $query_args );
+
+		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
+			'content_type'           => 'product',
+			'requested_per_page'     => $per_page,
+			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
+			'found_posts'            => (int) $query->found_posts,
+			'post_count'             => $query->post_count,
+			'max_num_pages'          => (int) $query->max_num_pages,
+			'sql'                    => substr( $query->request, 0, 2000 ),
+			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
+			'request_id'             => $request_id,
+		) );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
@@ -334,13 +396,31 @@ final class DEF_Core_Export {
 			$items[] = $item;
 		}
 
-		return new \WP_REST_Response( array(
+		$total_items = (int) $query->found_posts;
+		$total_pages = (int) $query->max_num_pages;
+
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+			'content_type'   => 'product',
+			'items_returned' => count( $items ),
+			'total_items'    => $total_items,
+			'total_pages'    => $total_pages,
+			'page'           => $page,
+			'request_id'     => $request_id,
+		) );
+
+		$response = new \WP_REST_Response( array(
 			'items'       => $items,
 			'page'        => $page,
 			'per_page'    => $per_page,
-			'total'       => (int) $query->found_posts,
-			'total_pages' => (int) $query->max_num_pages,
+			'total'       => $total_items,
+			'total_pages' => $total_pages,
 			'currency'    => function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : 'USD',
 		), 200 );
+
+		if ( $request_id ) {
+			$response->header( 'X-DEF-Request-ID', $request_id );
+		}
+
+		return $response;
 	}
 }

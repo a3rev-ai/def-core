@@ -1,10 +1,10 @@
 === Digital Employee Framework - Core ===
 Contributors: a3rev
 Tags: ai, chat, digital employee, ai assistant, customer support
-Requires at least: 6.0
+Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.6.3
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 

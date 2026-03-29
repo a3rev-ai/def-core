@@ -66,6 +66,12 @@ final class DEF_Core {
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Admin_API::init();
 
+		// Schedule log cleanup cron.
+		DEF_Core_Logger::schedule_cleanup();
+
+		// Register deactivation hook for logger cleanup.
+		register_deactivation_hook( DEF_CORE_PLUGIN_DIR . 'def-core.php', array( 'DEF_Core_Logger', 'unschedule_cleanup' ) );
+
 		// Register [def_chat_button] shortcode and action hook.
 		add_shortcode( 'def_chat_button', array( $this, 'shortcode_chat_button' ) );
 		add_action( 'def_core_chat_button', array( $this, 'action_chat_button' ) );
@@ -123,6 +129,9 @@ final class DEF_Core {
 		// Shared HMAC auth (used by export + admin API routes).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
 
+		// Structured logger.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logger.php';
+
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
@@ -156,7 +165,10 @@ final class DEF_Core {
 		self::ensure_def_admin_capability();
 		// Set button colors from theme if not already configured.
 		self::maybe_set_theme_button_colors();
-		update_option( 'def_core_db_version', '2.1.0' );
+		// Create log table and schedule cleanup.
+		DEF_Core_Logger::create_table();
+		DEF_Core_Logger::schedule_cleanup();
+		update_option( 'def_core_db_version', '2.2.0' );
 	}
 
 	/**
@@ -167,6 +179,11 @@ final class DEF_Core {
 		if ( version_compare( $current, '2.1.0', '<' ) ) {
 			self::ensure_def_admin_capability();
 			update_option( 'def_core_db_version', '2.1.0' );
+		}
+		if ( version_compare( $current, '2.2.0', '<' ) ) {
+			DEF_Core_Logger::create_table();
+			self::ensure_def_admin_capability();
+			update_option( 'def_core_db_version', '2.2.0' );
 		}
 	}
 
