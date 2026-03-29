@@ -268,6 +268,8 @@ final class DEF_Core_Knowledge_Export {
 	 * @return \WP_REST_Response
 	 */
 	public static function forums_export( \WP_REST_Request $request ): \WP_REST_Response {
+		$request_id = $request->get_header( 'X-DEF-Request-ID' ) ?: '';
+
 		if ( ! class_exists( 'bbPress' ) && ! function_exists( 'bbpress' ) ) {
 			return new \WP_REST_Response( array(
 				'items'       => array(),
@@ -282,6 +284,14 @@ final class DEF_Core_Knowledge_Export {
 		$page           = $request->get_param( 'page' );
 		$per_page        = $request->get_param( 'per_page' );
 		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
+
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
+			'content_type'   => 'topic',
+			'page'           => $page,
+			'per_page'       => $per_page,
+			'modified_after' => $modified_after,
+			'request_id'     => $request_id,
+		) );
 
 		// Get IDs of public forums only.
 		$public_forum_ids = self::get_public_forum_ids();
@@ -314,6 +324,18 @@ final class DEF_Core_Knowledge_Export {
 		}
 
 		$query = new \WP_Query( $query_args );
+
+		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
+			'content_type'           => 'topic',
+			'requested_per_page'     => $per_page,
+			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
+			'found_posts'            => (int) $query->found_posts,
+			'post_count'             => $query->post_count,
+			'max_num_pages'          => (int) $query->max_num_pages,
+			'sql'                    => substr( $query->request, 0, 2000 ),
+			'per_page_modified'      => $per_page !== $query->query_vars['posts_per_page'],
+			'request_id'             => $request_id,
+		) );
 
 		$items = array();
 		foreach ( $query->posts as $topic ) {
@@ -350,13 +372,31 @@ final class DEF_Core_Knowledge_Export {
 			);
 		}
 
-		return new \WP_REST_Response( array(
+		$total_items = (int) $query->found_posts;
+		$total_pages = (int) $query->max_num_pages;
+
+		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+			'content_type'   => 'topic',
+			'items_returned' => count( $items ),
+			'total_items'    => $total_items,
+			'total_pages'    => $total_pages,
+			'page'           => $page,
+			'request_id'     => $request_id,
+		) );
+
+		$response = new \WP_REST_Response( array(
 			'items'       => $items,
 			'page'        => $page,
 			'per_page'    => $per_page,
-			'total'       => (int) $query->found_posts,
-			'total_pages' => (int) $query->max_num_pages,
+			'total'       => $total_items,
+			'total_pages' => $total_pages,
 		), 200 );
+
+		if ( $request_id ) {
+			$response->header( 'X-DEF-Request-ID', $request_id );
+		}
+
+		return $response;
 	}
 
 	// =========================================================================

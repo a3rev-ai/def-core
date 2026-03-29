@@ -50,6 +50,12 @@ final class DEF_Core_Admin {
 				'sanitize' => 'sanitize_logo_id',
 			),
 		),
+		'connection'       => array(
+			'def_core_log_level' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_log_level',
+			),
+		),
 		'chat-settings'    => array(
 			'def_core_chat_display_mode' => array(
 				'type'     => 'string',
@@ -793,6 +799,18 @@ final class DEF_Core_Admin {
 	public static function sanitize_privacy_url( $value ): string {
 		$value = esc_url_raw( trim( (string) $value ) );
 		return $value;
+	}
+
+	/**
+	 * Sanitize log level setting.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Valid log level or 'info'.
+	 */
+	public static function sanitize_log_level( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		$valid = array( 'debug', 'info', 'warning', 'error' );
+		return in_array( $value, $valid, true ) ? $value : 'info';
 	}
 
 	// ─── D-II: Escalation Tab Save ──────────────────────────────────
