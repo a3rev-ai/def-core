@@ -7,7 +7,7 @@
  * Author URI: https://a3rev.com/
  * Text Domain: digital-employees
  * Domain Path: /languages
- * Requires at least: 6.0
+ * Requires at least: 6.2
  * Requires PHP: 8.0
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
