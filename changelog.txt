@@ -1,5 +1,15 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.7.0 - 2026/03/30 =
+* Feature: Connection logging infrastructure — structured, queryable logs for DEF sync pipeline diagnostics
+* New: DEF_Core_Logger class — fail-open design, level filtering, database-backed storage with automatic rotation
+* New: Log Level setting on Connection tab (Debug / Info / Warning / Error, default Info)
+* New: Export endpoint instrumentation — request received, WP_Query executed, response sent logging for content/export, products/export, forums/export
+* New: per_page_modified diagnostic flag — instantly detects when a theme or plugin overrides the WordPress query
+* New: X-DEF-Request-ID header correlation — cross-system request tracing between def-core and DEF backend
+* Improved: Daily wp-cron log rotation (30-day retention, 50K row cap) with emergency probabilistic fallback
+* Security: No content or credentials logged — only connection metadata and item IDs
+
 = 1.6.3 - 2026/03/26 =
 * Security: Query params included in HMAC signature for tamper protection
 * Improved: Canonical query string (sorted keys, RFC3986 encoding) matches DEF signing

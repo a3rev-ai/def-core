@@ -333,7 +333,7 @@ final class DEF_Core_Knowledge_Export {
 			'post_count'             => $query->post_count,
 			'max_num_pages'          => (int) $query->max_num_pages,
 			'sql'                    => substr( $query->request, 0, 2000 ),
-			'per_page_modified'      => $per_page !== $query->query_vars['posts_per_page'],
+			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
 			'request_id'             => $request_id,
 		) );
 

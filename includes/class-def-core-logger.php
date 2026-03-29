@@ -75,10 +75,25 @@ final class DEF_Core_Logger {
 	 * @param string $message Human-readable log message.
 	 * @param array  $context Optional structured context data.
 	 */
+	/**
+	 * Recursion guard — prevents infinite loops if error_log() fallback
+	 * somehow triggers another logger call through WordPress hooks.
+	 *
+	 * @var bool
+	 */
+	private static $in_logger = false;
+
 	public static function log( string $level, string $source, string $message, array $context = [] ): void {
+		// Recursion guard (Staff-AI suggestion).
+		if ( self::$in_logger ) {
+			return;
+		}
+		self::$in_logger = true;
+
 		try {
-			// Check minimum log level.
+			// Check minimum log level (before any encoding work).
 			if ( self::level_priority( $level ) < self::level_priority( self::get_min_level() ) ) {
+				self::$in_logger = false;
 				return;
 			}
 
@@ -96,23 +111,39 @@ final class DEF_Core_Logger {
 				unset( $context['request_id'] );
 			}
 
-			// Truncate SQL strings in context.
-			if ( isset( $context['sql'] ) && is_string( $context['sql'] ) && strlen( $context['sql'] ) > self::MAX_SQL_LENGTH ) {
-				$context['sql'] = substr( $context['sql'], 0, self::MAX_SQL_LENGTH ) . '...[truncated]';
+			// Truncate large string values in context BEFORE encoding
+			// to ensure the final JSON is always valid (ChatGPT + Grok blocker).
+			if ( ! empty( $context ) ) {
+				foreach ( $context as $key => &$value ) {
+					if ( ! is_string( $value ) ) {
+						continue;
+					}
+					// SQL gets its own higher limit.
+					$limit = ( 'sql' === $key ) ? self::MAX_SQL_LENGTH : 512;
+					if ( strlen( $value ) > $limit ) {
+						$value = substr( $value, 0, $limit ) . '...[truncated]';
+					}
+				}
+				unset( $value );
 			}
 
-			// Encode and truncate context JSON.
+			// Encode context to JSON.
 			$context_json = null;
 			if ( ! empty( $context ) ) {
 				$context_json = wp_json_encode( $context );
 				if ( false === $context_json ) {
-					$context_json = '{"_error":"json_encode_failed"}';
+					// Unserializable data (objects, resources) — safe fallback.
+					$context_json = wp_json_encode( array( '_error' => 'json_encode_failed' ) );
 				} elseif ( strlen( $context_json ) > self::MAX_CONTEXT_LENGTH ) {
-					$context_json = substr( $context_json, 0, self::MAX_CONTEXT_LENGTH );
+					// Still over limit after field truncation — re-encode with a note.
+					$context_json = wp_json_encode( array(
+						'_error'  => 'context_too_large',
+						'_length' => strlen( $context_json ),
+					) );
 				}
 			}
 
-			$wpdb->insert(
+			$result = $wpdb->insert(
 				self::get_table_name(),
 				array(
 					'timestamp'  => current_time( 'mysql', true ),
@@ -124,6 +155,19 @@ final class DEF_Core_Logger {
 				),
 				array( '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
+
+			// wpdb::insert() returns false on failure, not an exception
+			// (ChatGPT blocker #3). Explicitly check and fallback.
+			if ( false === $result ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf(
+					'[DEF_Core_Logger] DB insert failed: %s | Original: [%s][%s] %s',
+					$wpdb->last_error,
+					$level,
+					$source,
+					$message
+				) );
+			}
 
 			// Emergency fallback rotation: 1-in-100 probabilistic check.
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.rand_mt_rand
@@ -149,6 +193,8 @@ final class DEF_Core_Logger {
 				$source,
 				$message
 			) );
+		} finally {
+			self::$in_logger = false;
 		}
 	}
 
