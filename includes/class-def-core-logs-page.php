@@ -450,13 +450,34 @@ final class DEF_Core_Logs_Page {
 				$row->timestamp,
 				$row->level,
 				$row->source,
-				$row->message,
-				$row->context,
+				self::sanitize_csv_cell( $row->message ),
+				self::sanitize_csv_cell( $row->context ),
 				$row->request_id,
 			) );
 		}
 
 		fclose( $out );
 		exit;
+	}
+
+	/**
+	 * Sanitize a CSV cell to prevent spreadsheet formula injection.
+	 *
+	 * Cells starting with =, +, -, or @ can be executed as formulas
+	 * when opened in Excel/Google Sheets. Prefix with a single quote
+	 * to neutralize.
+	 *
+	 * @param string|null $value The cell value.
+	 * @return string Sanitized value.
+	 */
+	private static function sanitize_csv_cell( ?string $value ): string {
+		if ( null === $value || '' === $value ) {
+			return '';
+		}
+		$first = $value[0];
+		if ( in_array( $first, array( '=', '+', '-', '@' ), true ) ) {
+			return "'" . $value;
+		}
+		return $value;
 	}
 }
