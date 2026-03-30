@@ -65,6 +65,7 @@ final class DEF_Core {
 		DEF_Core_Export::init();
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Admin_API::init();
+		DEF_Core_Logs_Page::init();
 
 		// Schedule log cleanup cron.
 		DEF_Core_Logger::schedule_cleanup();
@@ -129,8 +130,9 @@ final class DEF_Core {
 		// Shared HMAC auth (used by export + admin API routes).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
 
-		// Structured logger.
+		// Structured logger + logs viewer page.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logger.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logs-page.php';
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';

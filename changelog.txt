@@ -1,5 +1,14 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.7.1 - 2026/03/30 =
+* New: Connection Logs page in wp-admin (Digital Employees > Logs)
+* Feature: Filter logs by level, source, and free-text search
+* Feature: Paginated log viewer (50 entries per page)
+* Feature: Download filtered logs as CSV
+* Feature: Clear all logs with confirmation
+* Feature: Context data displayed inline with color-coded levels
+* Feature: Request ID correlation visible in log entries
+
 = 1.7.0 - 2026/03/30 =
 * Feature: Connection logging infrastructure — structured, queryable logs for DEF sync pipeline diagnostics
 * New: DEF_Core_Logger class — fail-open design, level filtering, database-backed storage with automatic rotation
