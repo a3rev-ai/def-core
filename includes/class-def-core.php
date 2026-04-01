@@ -114,7 +114,6 @@ final class DEF_Core {
 
 		// Built-in conditional tools (auto-register when their plugin is active).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-bbpress-tickets.php';
-		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-wc-subscriptions.php';
 
 		// Staff AI frontend.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-ai.php';
@@ -161,7 +160,6 @@ final class DEF_Core {
 			'plugins_loaded',
 			function () {
 				new DEF_Core_Tool_BbPress_Tickets();
-				new DEF_Core_Tool_WC_Subscriptions();
 			},
 			20
 		);

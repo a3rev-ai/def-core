@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.8.2 - 2026/04/02 =
+* Fix: Removed WooCommerce Subscriptions from built-in tools — WC Subscriptions is a commercial plugin and belongs as a separate module per MODULE_DEVELOPMENT.md guidelines
+* Improved: MODULE_DEVELOPMENT.md now references def-wc-subscriptions as a real-world module example
+
 = 1.8.1 - 2026/04/01 =
 * New: Setup Assistant can now read connection logs directly in conversation
 * New: GET /setup/logs REST endpoint — filtered log retrieval for Setup Assistant diagnostics
