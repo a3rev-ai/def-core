@@ -57,3 +57,8 @@ vendor/*
 package-lock.json
 composer.lock
 .phpunit.result.cache
+
+# Claude Code working files (session-specific, not for public repo)
+CLAUDE.md
+CLAUDE_NOTES.md
+.claude/
