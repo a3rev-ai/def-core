@@ -1,5 +1,14 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.8.0 - 2026/04/01 =
+* New: Built-in bbPress Tickets tool — automatically registers when bbPress is active
+* New: Built-in WooCommerce Subscriptions tool — automatically registers when WooCommerce + WC Subscriptions are active
+* Feature: bbPress tool returns user's topics with replies, forum info, issue/state metadata, and activity dates
+* Feature: WC Subscriptions tool returns user's subscriptions with parent orders, renewal history, and total spend
+* Feature: Cache invalidation for bbPress on topic create/edit/close/open and reply create/edit
+* Feature: Cache invalidation for WC Subscriptions on checkout creation, status changes, renewals, payment failures, and date updates
+* Improved: No separate addon plugins required — conditional tools auto-register via should_register() when dependencies are detected
+
 = 1.7.1 - 2026/03/30 =
 * New: Connection Logs page in wp-admin (Digital Employees > Logs)
 * Feature: Filter logs by level, source, and free-text search
