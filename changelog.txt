@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.8.1 - 2026/04/01 =
+* New: Setup Assistant can now read connection logs directly in conversation
+* New: GET /setup/logs REST endpoint — filtered log retrieval for Setup Assistant diagnostics
+* Feature: Supports level, source, free-text search, and limit filters
+
 = 1.8.0 - 2026/04/01 =
 * New: Built-in bbPress Tickets tool — automatically registers when bbPress is active
 * New: Built-in WooCommerce Subscriptions tool — automatically registers when WooCommerce + WC Subscriptions are active
