@@ -44,6 +44,10 @@ class DEF_Core_Tool_BbPress_Tickets extends DEF_Core_Tool_Base {
 		add_action( 'bbp_edit_topic', array( $this, 'on_ticket_changed' ), 10, 1 );
 		add_action( 'bbp_closed_topic', array( $this, 'on_ticket_changed' ), 10, 1 );
 		add_action( 'bbp_opened_topic', array( $this, 'on_ticket_changed' ), 10, 1 );
+
+		// Invalidate cache when replies change (replies are included in ticket data).
+		add_action( 'bbp_new_reply', array( $this, 'on_reply_changed' ), 10, 2 );
+		add_action( 'bbp_edit_reply', array( $this, 'on_reply_changed' ), 10, 2 );
 	}
 
 	/**
@@ -54,6 +58,22 @@ class DEF_Core_Tool_BbPress_Tickets extends DEF_Core_Tool_Base {
 	 * @version 1.8.0
 	 */
 	public function on_ticket_changed( int $topic_id ): void {
+		$topic = get_post( $topic_id );
+		if ( $topic && $topic->post_author > 0 ) {
+			DEF_Core_Cache::invalidate_user( (int) $topic->post_author, 'bbp_tickets_' );
+		}
+	}
+
+	/**
+	 * Invalidate cache when a bbPress reply is added or edited.
+	 * The topic author's cache is invalidated (they see replies in their ticket data).
+	 *
+	 * @param int $reply_id The reply ID.
+	 * @param int $topic_id The parent topic ID.
+	 * @since 1.8.0
+	 * @version 1.8.0
+	 */
+	public function on_reply_changed( int $reply_id, int $topic_id ): void {
 		$topic = get_post( $topic_id );
 		if ( $topic && $topic->post_author > 0 ) {
 			DEF_Core_Cache::invalidate_user( (int) $topic->post_author, 'bbp_tickets_' );

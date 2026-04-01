@@ -39,6 +39,26 @@ class DEF_Core_Tool_WC_Subscriptions extends DEF_Core_Tool_Base {
 		$this->route   = '/tools/wc/subscriptions';
 		$this->methods = array( 'GET' );
 		$this->module  = 'woocommerce-subscriptions';
+
+		// Invalidate cache on subscription status changes.
+		add_action( 'woocommerce_subscription_status_updated', array( $this, 'on_subscription_changed' ), 10, 1 );
+		add_action( 'woocommerce_subscription_renewal_payment_complete', array( $this, 'on_subscription_changed' ), 10, 1 );
+		add_action( 'woocommerce_subscription_payment_failed', array( $this, 'on_subscription_changed' ), 10, 1 );
+		add_action( 'woocommerce_subscription_date_updated', array( $this, 'on_subscription_changed' ), 10, 1 );
+	}
+
+	/**
+	 * Invalidate cache when a subscription changes state.
+	 *
+	 * @param \WC_Subscription $subscription The subscription object.
+	 * @since 1.8.0
+	 * @version 1.8.0
+	 */
+	public function on_subscription_changed( $subscription ): void {
+		$user_id = $subscription->get_user_id();
+		if ( $user_id > 0 ) {
+			DEF_Core_Cache::invalidate_user( (int) $user_id, 'subscriptions' );
+		}
 	}
 
 	/**
@@ -86,7 +106,7 @@ class DEF_Core_Tool_WC_Subscriptions extends DEF_Core_Tool_Base {
 			function () use ( $user ) {
 				$subs = wcs_get_users_subscriptions( (int) $user->ID );
 				$out  = array();
-				$paid_statuses = array( 'completed', 'processing', 'refunded' );
+				$paid_statuses = array( 'completed', 'processing' );
 
 				foreach ( $subs as $sub ) {
 					/**
