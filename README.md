@@ -164,7 +164,7 @@ This plugin connects to the Digital Employee Framework (DEF) API to power its AI
 
 ## Contributing
 
-Issues and pull requests welcome at [github.com/a3rev-ai/def-core](https://github.com/a3rev-ai/def-core).
+Issues and pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, branch conventions, and PR requirements.
 
 ## License
 
