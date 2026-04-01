@@ -1,6 +1,18 @@
 # Module Development Guide
 
-This guide explains how to create modules for the Digital Employee Framework - Core plugin that can register additional API tools.
+This guide explains how to create **module plugins** for the Digital Employee Framework - Core plugin that register additional API tools.
+
+## When to Build a Module vs a Built-in Tool
+
+def-core includes **built-in tools** that conditionally register when their dependencies are detected (e.g., bbPress, WooCommerce Subscriptions). These are part of the core plugin and require no additional installation.
+
+Build a **separate module plugin** when:
+
+- The integration is **private or custom to your business** (e.g., a proprietary license system, an internal API)
+- The tool depends on **non-public or commercial plugins** that most def-core users won't have
+- You need to **distribute the tool independently** from def-core (e.g., sold separately, different release cycle)
+
+If your integration is for a **widely-used public plugin** (bbPress, WooCommerce extensions, etc.), consider contributing a built-in tool to def-core instead — submit a PR at [github.com/a3rev-ai/def-core](https://github.com/a3rev-ai/def-core). Built-in tools use the same `DEF_Core_Tool_Base` class with `should_register()` for conditional activation.
 
 ## Overview
 

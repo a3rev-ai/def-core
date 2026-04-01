@@ -2,7 +2,14 @@
 /**
  * Example Module for Digital Employee Framework - Core
  *
- * This file demonstrates how to create a module that registers additional API tools.
+ * This file demonstrates how to create a separate module plugin that registers
+ * additional API tools. Use this pattern for private or custom integrations
+ * (e.g., proprietary systems, internal APIs) that don't belong in core.
+ *
+ * For common public plugin integrations (bbPress, WooCommerce extensions, etc.),
+ * consider contributing a built-in tool to def-core instead — see
+ * includes/tools/ for examples and MODULE_DEVELOPMENT.md for guidance.
+ *
  * Follow the naming conventions: def-<integration>
  *
  * @package def-example
