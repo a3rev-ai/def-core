@@ -40,7 +40,8 @@ class DEF_Core_Tool_WC_Subscriptions extends DEF_Core_Tool_Base {
 		$this->methods = array( 'GET' );
 		$this->module  = 'woocommerce-subscriptions';
 
-		// Invalidate cache on subscription status changes.
+		// Invalidate cache on subscription lifecycle events.
+		add_action( 'woocommerce_checkout_subscription_created', array( $this, 'on_subscription_changed' ), 10, 1 );
 		add_action( 'woocommerce_subscription_status_updated', array( $this, 'on_subscription_changed' ), 10, 1 );
 		add_action( 'woocommerce_subscription_renewal_payment_complete', array( $this, 'on_subscription_changed' ), 10, 1 );
 		add_action( 'woocommerce_subscription_payment_failed', array( $this, 'on_subscription_changed' ), 10, 1 );
