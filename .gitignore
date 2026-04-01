@@ -62,3 +62,8 @@ composer.lock
 CLAUDE.md
 CLAUDE_NOTES.md
 .claude/
+
+# Internal development artifacts (not for public repo)
+docs/ai-prompts/prd/
+docs/CATCHUP-*.md
+docs/prd/RALPH-RUNBOOK-*.md
