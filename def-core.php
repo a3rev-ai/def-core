@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digital Employees
  * Description: AI-powered Digital Employees for your WordPress site. Customer Chat for visitors, Staff AI for your team, and an intelligent Setup Assistant — all connected to the Digital Employee Framework.
- * Version: 1.8.0
+ * Version: 1.8.1
  * Author: a3rev
  * Author URI: https://a3rev.com/
  * Text Domain: digital-employees
@@ -29,7 +29,7 @@ if ( ! defined( 'DEF_CORE_KEY' ) ) {
 	define( 'DEF_CORE_KEY', 'def-core' );
 }
 if ( ! defined( 'DEF_CORE_VERSION' ) ) {
-	define( 'DEF_CORE_VERSION', '1.8.0' );
+	define( 'DEF_CORE_VERSION', '1.8.1' );
 }
 
 define( 'DEF_CORE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
