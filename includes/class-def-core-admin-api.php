@@ -277,6 +277,13 @@ final class DEF_Core_Admin_API {
 				'permission_callback' => array( $this, 'permission_check' ),
 			),
 		) );
+
+		// GET /setup/logs — read connection logs for Setup Assistant diagnostics.
+		register_rest_route( self::REST_NAMESPACE, '/setup/logs', array(
+			'methods'             => 'GET',
+			'permission_callback' => array( $this, 'permission_check' ),
+			'callback'            => array( $this, 'rest_get_logs' ),
+		) );
 	}
 
 	// ─── Authentication ─────────────────────────────────────────────────
@@ -1377,5 +1384,121 @@ final class DEF_Core_Admin_API {
 	 */
 	public static function get_setting_allowlist(): array {
 		return self::$setting_allowlist;
+	}
+
+	// ─── GET /setup/logs ────────────────────────────────────────────────
+
+	/**
+	 * Get recent connection logs for Setup Assistant diagnostics.
+	 *
+	 * Supports optional query params:
+	 *   level  — filter by log level (debug, info, warning, error)
+	 *   source — filter by source (sync, auth, connection, tools)
+	 *   search — free-text search across message, context, request_id
+	 *   limit  — max entries to return (default 20, max 100)
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 1.8.0
+	 */
+	public function rest_get_logs( \WP_REST_Request $request ): \WP_REST_Response {
+		global $wpdb;
+
+		$table = DEF_Core_Logger::get_table_name();
+
+		// Check table exists.
+		$table_exists = $wpdb->get_var(
+			$wpdb->prepare( 'SHOW TABLES LIKE %s', $table )
+		);
+		if ( ! $table_exists ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => true,
+					'logs'    => array(),
+					'total'   => 0,
+					'message' => 'No logs table yet — logs will appear after the first connection activity.',
+				),
+				200
+			);
+		}
+
+		// Parse filters.
+		$where  = array();
+		$values = array();
+		$limit  = min( absint( $request->get_param( 'limit' ) ?: 20 ), 100 );
+
+		$level = sanitize_text_field( (string) ( $request->get_param( 'level' ) ?? '' ) );
+		if ( $level && in_array( $level, array( 'debug', 'info', 'warning', 'error' ), true ) ) {
+			$where[]  = 'level = %s';
+			$values[] = $level;
+		}
+
+		$source = sanitize_text_field( (string) ( $request->get_param( 'source' ) ?? '' ) );
+		if ( $source && in_array( $source, array( 'sync', 'auth', 'connection', 'tools' ), true ) ) {
+			$where[]  = 'source = %s';
+			$values[] = $source;
+		}
+
+		$search = sanitize_text_field( (string) ( $request->get_param( 'search' ) ?? '' ) );
+		if ( $search ) {
+			$like     = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[]  = '(message LIKE %s OR context_json LIKE %s OR request_id LIKE %s)';
+			$values[] = $like;
+			$values[] = $like;
+			$values[] = $like;
+		}
+
+		$where_sql = ! empty( $where ) ? 'WHERE ' . implode( ' AND ', $where ) : '';
+
+		// Count total matching.
+		if ( ! empty( $values ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$total = (int) $wpdb->get_var(
+				$wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where_sql}", ...$values )
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		}
+
+		// Fetch rows.
+		$all_values   = array_merge( $values, array( $limit ) );
+		$limit_clause = "ORDER BY id DESC LIMIT %d";
+
+		if ( ! empty( $values ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT * FROM {$table} {$where_sql} {$limit_clause}", ...$all_values )
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT * FROM {$table} {$limit_clause}", $limit )
+			);
+		}
+
+		// Format entries.
+		$logs = array();
+		foreach ( $rows as $row ) {
+			$logs[] = array(
+				'timestamp'  => $row->timestamp,
+				'level'      => $row->level,
+				'source'     => $row->source,
+				'message'    => $row->message,
+				'context'    => $row->context_json ? json_decode( $row->context_json, true ) : null,
+				'request_id' => $row->request_id ?? '',
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'   => true,
+				'logs'      => $logs,
+				'total'     => $total,
+				'returned'  => count( $logs ),
+				'log_level' => get_option( 'def_core_log_level', 'info' ),
+			),
+			200
+		);
 	}
 }
