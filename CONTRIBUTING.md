@@ -136,4 +136,4 @@ Open an issue at [github.com/a3rev-ai/def-core/issues](https://github.com/a3rev-
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [GPLv3](LICENSE.txt).
+By contributing, you agree that your contributions will be licensed under the [GPLv3](LICENSE).
