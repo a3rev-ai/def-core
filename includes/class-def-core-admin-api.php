@@ -1442,7 +1442,7 @@ final class DEF_Core_Admin_API {
 		$search = sanitize_text_field( (string) ( $request->get_param( 'search' ) ?? '' ) );
 		if ( $search ) {
 			$like     = '%' . $wpdb->esc_like( $search ) . '%';
-			$where[]  = '(message LIKE %s OR context_json LIKE %s OR request_id LIKE %s)';
+			$where[]  = '(message LIKE %s OR context LIKE %s OR request_id LIKE %s)';
 			$values[] = $like;
 			$values[] = $like;
 			$values[] = $like;
@@ -1485,7 +1485,7 @@ final class DEF_Core_Admin_API {
 				'level'      => $row->level,
 				'source'     => $row->source,
 				'message'    => $row->message,
-				'context'    => $row->context_json ? json_decode( $row->context_json, true ) : null,
+				'context'    => $row->context ? json_decode( $row->context, true ) : null,
 				'request_id' => $row->request_id ?? '',
 			);
 		}
