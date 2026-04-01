@@ -4,7 +4,7 @@ This guide explains how to create **module plugins** for the Digital Employee Fr
 
 ## When to Build a Module vs a Built-in Tool
 
-def-core includes **built-in tools** that conditionally register when their dependencies are detected (e.g., bbPress). These are part of the core plugin and require no additional installation.
+def-core includes **built-in tools** that conditionally register when their dependencies are detected (e.g., WooCommerce, bbPress). These are part of the core plugin and require no additional installation.
 
 Build a **separate module plugin** when:
 
