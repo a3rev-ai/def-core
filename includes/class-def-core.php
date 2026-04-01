@@ -109,6 +109,9 @@ final class DEF_Core {
 		// API Registry (must be loaded before routes).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-api-registry.php';
 
+		// GitHub-based auto-updater (available to def-core and all module plugins).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-github-updater.php';
+
 		// Tool base class (for modules).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/tools/class-def-core-tool-base.php';
 
@@ -163,6 +166,15 @@ final class DEF_Core {
 			},
 			20
 		);
+
+		// GitHub auto-updater for def-core itself.
+		new DEF_Core_GitHub_Updater( array(
+			'file'    => DEF_CORE_PLUGIN_DIR . 'def-core.php',
+			'repo'    => 'a3rev-ai/def-core',
+			'slug'    => 'def-core',
+			'asset'   => 'digital-employees.zip',
+			'version' => DEF_CORE_VERSION,
+		) );
 	}
 
 	/**

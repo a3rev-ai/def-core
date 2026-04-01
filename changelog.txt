@@ -1,5 +1,12 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.9.0 - 2026/04/02 =
+* New: GitHub-based auto-updater — checks GitHub Releases for new versions
+* Feature: Supports WordPress native auto-update toggle (enable/disable per plugin)
+* Feature: "View details" modal shows release notes from GitHub
+* Feature: DEF_Core_GitHub_Updater class available for all DEF module plugins
+* Improvement: Update checks cached for 12 hours to avoid API rate limits
+
 = 1.8.2 - 2026/04/02 =
 * Fix: Removed WooCommerce Subscriptions from built-in tools — WC Subscriptions is a commercial plugin and belongs as a separate module per MODULE_DEVELOPMENT.md guidelines
 * Improved: MODULE_DEVELOPMENT.md now references def-wc-subscriptions as a real-world module example
