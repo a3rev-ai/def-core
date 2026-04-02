@@ -371,15 +371,4 @@ final class EncryptionTest extends TestCase {
 		$this->assertSame( $special, DEF_Core_Encryption::get_secret( 'test_special' ) );
 	}
 
-	// ── 15. API URL resolution (source check) ───────────────────────────
-
-	public function test_source_contains_def_api_url_constant_check(): void {
-		$source = file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php' );
-		$this->assertStringContainsString( "defined( 'DEF_API_URL' )", $source );
-	}
-
-	public function test_source_contains_default_api_url(): void {
-		$source = file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php' );
-		$this->assertStringContainsString( 'https://api.defho.ai', $source );
-	}
 }
