@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.9.1 - 2026/04/02 =
+* New: PHPUnit test suite — 90 tests covering JWT, cache, encryption, API registry, GitHub updater
+* New: GitHub Actions CI — runs tests on every PR (PHP 8.0 + 8.2)
+* Improved: CONTRIBUTING.md updated with testing instructions and PR gate requirements
+* Dev: `composer test` runs both PHPUnit and standalone test suites
+
 = 1.9.0 - 2026/04/02 =
 * New: GitHub-based auto-updater — checks GitHub Releases for new versions
 * Feature: Supports WordPress native auto-update toggle (enable/disable per plugin)

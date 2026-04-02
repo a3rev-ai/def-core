@@ -38,9 +38,16 @@ Thank you for your interest in contributing to def-core. This guide covers the w
 4. **Run the tests to verify your setup:**
 
    ```bash
-   php tests/run.php          # Unit tests (no Docker needed)
+   composer test              # All tests (PHPUnit + standalone, no Docker needed)
    npm run smoke              # Smoke tests (requires Docker)
    npm run env:stop           # Stop when done
+   ```
+
+   You can also run test suites individually:
+
+   ```bash
+   composer test:unit         # PHPUnit tests only (tests/unit/)
+   composer test:standalone   # Standalone tests only (tests/test-*.php)
    ```
 
 See [docs/TESTING.md](docs/TESTING.md) for the full testing guide.
@@ -84,11 +91,17 @@ Examples: `feature/bulk-export-filter`, `fix/jwt-expiry-edge-case`, `docs/update
 
 ### PR Gate (Must Pass)
 
-Every PR must pass these checks before merging:
+Every PR must pass these automated checks before merging:
 
-1. **Unit tests** — `php tests/run.php` (~170 tests, no Docker)
-2. **Smoke test** — `npm run smoke` (WordPress boots, plugin activates, routes register)
-3. **Secret scanning** — `gitleaks detect` (no secrets in code)
+1. **PHPUnit tests** — `composer test:unit` (90 tests covering JWT, cache, encryption, API registry, GitHub updater)
+2. **Standalone tests** — `composer test:standalone` (183 tests covering admin API, bridge contract, security, theme colors, etc.)
+3. **CI** — GitHub Actions runs both suites on PHP 8.0 + 8.2 automatically on every PR
+
+Run `composer test` locally to execute both suites at once — this matches what CI enforces.
+
+Optional additional checks:
+- **Smoke test** — `npm run smoke` (WordPress boots, plugin activates, routes register)
+- **Secret scanning** — `gitleaks detect` (no secrets in code)
 
 See [docs/TESTING.md](docs/TESTING.md) for details on all test tiers.
 
