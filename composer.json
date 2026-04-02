@@ -20,6 +20,7 @@
     "phpcs": "phpcs",
     "phpstan": "phpstan analyse --no-progress",
     "test:unit": "phpunit --configuration phpunit-unit.xml.dist",
-    "test": ["@test:unit"]
+    "test:standalone": "php tests/run.php",
+    "test": ["@test:unit", "@test:standalone"]
   }
 }
