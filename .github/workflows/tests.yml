@@ -18,7 +18,5 @@ jobs:
           extensions: openssl, json, mbstring
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist
-      - name: PHPUnit tests
-        run: composer test:unit
-      - name: Standalone tests
-        run: php tests/run.php
+      - name: Run tests
+        run: composer test
