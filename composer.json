@@ -18,6 +18,8 @@
   },
   "scripts": {
     "phpcs": "phpcs",
-    "phpstan": "phpstan analyse --no-progress"
+    "phpstan": "phpstan analyse --no-progress",
+    "test:unit": "phpunit --configuration phpunit-unit.xml.dist",
+    "test": ["@test:unit"]
   }
 }

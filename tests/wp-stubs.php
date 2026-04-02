@@ -240,7 +240,10 @@ if ( ! function_exists( 'set_transient' ) ) {
 
 if ( ! function_exists( 'delete_transient' ) ) {
 	function delete_transient( string $key ): bool {
-		global $_wp_test_transients;
+		global $_wp_test_transients, $_wp_test_deleted_transients;
+		if ( is_array( $_wp_test_deleted_transients ) ) {
+			$_wp_test_deleted_transients[] = $key;
+		}
 		unset( $_wp_test_transients[ $key ] );
 		return true;
 	}
