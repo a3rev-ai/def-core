@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 1.9.2 - 2026/04/02 =
+* Fix: Updated Tested up to 6.9.4 — WordPress update page now shows "100% compatible" instead of "Unknown"
+
 = 1.9.1 - 2026/04/02 =
 * New: PHPUnit test suite — 90 tests covering JWT, cache, encryption, API registry, GitHub updater
 * New: GitHub Actions CI — runs tests on every PR (PHP 8.0 + 8.2)
