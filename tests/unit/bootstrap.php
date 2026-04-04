@@ -186,6 +186,14 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 		public function set_status( int $status ): void {
 			$this->status = $status;
 		}
+
+		public function set_headers( array $headers ): void {
+			$this->headers = array_merge( $this->headers, $headers );
+		}
+
+		public function get_headers(): array {
+			return $this->headers;
+		}
 	}
 }
 
@@ -248,3 +256,11 @@ require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-cache.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-api-registry.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-github-updater.php';
+// Stubs needed by DEF_Core_Tools (only anonymous token path tested here).
+if ( ! function_exists( 'is_user_logged_in' ) ) {
+	function is_user_logged_in(): bool { return false; }
+}
+if ( ! function_exists( 'wp_get_current_user' ) ) {
+	function wp_get_current_user() { return (object) array( 'ID' => 0 ); }
+}
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';

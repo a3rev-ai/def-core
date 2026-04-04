@@ -12,6 +12,19 @@
 (function () {
 	'use strict';
 
+	// ─── 0. HELPERS ────────────────────────────────────────────────
+
+	function generateUUIDv4() {
+		var arr = new Uint8Array(16);
+		(crypto || window.crypto).getRandomValues(arr);
+		arr[6] = (arr[6] & 0x0f) | 0x40;
+		arr[8] = (arr[8] & 0x3f) | 0x80;
+		var hex = Array.prototype.map.call(arr, function (b) {
+			return ('0' + b.toString(16)).slice(-2);
+		}).join('');
+		return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+	}
+
 	// ─── 1. DEFAULTS + i18n ────────────────────────────────────────
 
 	var DEFAULT_STRINGS = {
@@ -137,6 +150,8 @@
 	var contextPayload = null;
 	var refreshTimer = null;
 	var refreshPromise = null; // single-flight lock (V1.2)
+	var authGeneration = 0; // Auth transition generation counter.
+	var anonSid = null; // Anonymous session ID (persisted in localStorage).
 
 	// Chat state.
 	var threadId = null;
@@ -439,6 +454,7 @@
 				els.input.classList.remove('def-cc-suggestion-text');
 			}
 			autoResizeInput();
+			updateSendButton();
 		});
 		// Clipboard paste — stage pasted files (images, screenshots).
 		input.addEventListener('paste', function (e) {
@@ -792,9 +808,7 @@
 	// ─── 4. AUTH (JWT-only, direct fetch) ──────────────────────────
 
 	function fetchContextToken() {
-		if (!config.restUrl) {
-			return Promise.resolve(null);
-		}
+		if (!config.restUrl) return Promise.resolve(null); // Offline — no silent downgrade.
 
 		var controller = new AbortController();
 		trackAbort(controller);
@@ -809,19 +823,37 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				if (!res.ok) return null;
+				if (!res.ok) return fetchAnonymousToken();
 				return res.json();
 			})
 			.then(function (data) {
 				if (data && data.token) {
 					return data.token;
 				}
-				return null;
+				return fetchAnonymousToken();
 			})
 			.catch(function () {
 				untrackAbort(controller);
-				return null;
+				return fetchAnonymousToken();
 			});
+	}
+
+	function fetchAnonymousToken() {
+		if (!config.anonTokenUrl) return Promise.resolve(null);
+		var url = config.anonTokenUrl + '?sid=' + encodeURIComponent(anonSid || '');
+		return fetch(url, { method: 'GET' })
+			.then(function (res) { return res.ok ? res.json() : null; })
+			.then(function (data) {
+				if (data && data.token) {
+					if (data.sid) {
+						anonSid = data.sid;
+						try { localStorage.setItem('def_cc_anon_sid', anonSid); } catch (e) {}
+					}
+					return data.token;
+				}
+				return null;
+			})
+			.catch(function () { return null; });
 	}
 
 	function scheduleTokenRefresh(expiresAt) {
@@ -835,8 +867,10 @@
 		var refreshIn = msUntilExpiry - 60000; // 60s before expiry.
 		if (refreshIn < 5000) refreshIn = 5000; // Minimum 5s.
 
+		var gen = authGeneration;
 		refreshTimer = setTimeout(function () {
 			refreshTimer = null;
+			if (gen !== authGeneration) return; // Stale — auth transitioned.
 			getValidToken();
 		}, refreshIn);
 	}
@@ -859,9 +893,11 @@
 			return refreshPromise;
 		}
 
+		var gen = authGeneration;
 		refreshPromise = fetchContextToken()
 			.then(function (token) {
 				refreshPromise = null;
+				if (gen !== authGeneration) return contextToken; // Stale — discard.
 				if (token) {
 					setContextToken(token);
 					return token;
@@ -955,8 +991,15 @@
 		els.loginSpinner.style.display = '';
 		els.loginSubmitBtn.disabled = true;
 
-		var wasAnonymous = !isAuthenticated();
+		// Capture pre-login state for claim flow.
+		var wasAnonymous = !!contextPayload && typeof contextPayload.sub === 'string' && contextPayload.sub.indexOf('anon:') === 0;
 		var currentThreadId = threadId;
+		var claimSid = anonSid;
+
+		// Invalidate anonymous auth state.
+		if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+		refreshPromise = null;
+		authGeneration++;
 
 		// Direct AJAX to WordPress login endpoint.
 		var formData = new FormData();
@@ -980,17 +1023,22 @@
 			})
 			.then(function (result) {
 				if (result.success && result.data && result.data.token) {
-					// Login success — set token directly from response.
+					// Login success — set authenticated token.
 					setContextToken(result.data.token);
 					onAuthChange();
 
+					// Schedule authenticated refresh BEFORE claim (V1.3).
+					scheduleTokenRefresh(contextPayload && contextPayload.exp);
+
 					// Claim anonymous thread if we had one.
-					if (
-						wasAnonymous &&
-						currentThreadId &&
-						currentThreadId !== '_anonymous'
-					) {
-						claimThread(currentThreadId);
+					if (wasAnonymous && currentThreadId && currentThreadId !== '_anonymous') {
+						claimThread(currentThreadId, claimSid);
+					}
+
+					// Clear anonSid if no thread to claim.
+					if (!wasAnonymous || !currentThreadId) {
+						anonSid = null;
+						try { localStorage.removeItem('def_cc_anon_sid'); } catch (e) {}
 					}
 
 					// Load server history.
@@ -2584,7 +2632,7 @@
 		}
 	}
 
-	function claimThread(tid) {
+	function claimThread(tid, principalId) {
 		if (!tid || !contextToken || !config.apiBaseUrl) return;
 
 		var controller = new AbortController();
@@ -2596,15 +2644,21 @@
 				'Content-Type': 'application/json',
 				Authorization: 'Bearer ' + contextToken,
 			},
+			body: JSON.stringify({ anon_principal_id: principalId || null }),
 			signal: controller.signal,
 		})
-			.then(function () {
+			.then(function (res) {
 				untrackAbort(controller);
-				// Claim success — log silently per V1.2 spec.
+				if (res.ok) {
+					// Claim success — clear anonymous identity.
+					anonSid = null;
+					try { localStorage.removeItem('def_cc_anon_sid'); } catch (e) {}
+				}
+				// Claim failure — keep anonSid for debugging.
 			})
 			.catch(function () {
 				untrackAbort(controller);
-				// Claim failure — log silently per V1.2 spec.
+				// Network error — keep anonSid.
 			});
 	}
 
@@ -2838,6 +2892,15 @@
 		config = cfg;
 		destroyed = false;
 
+		// Load or generate anonymous session ID.
+		try { anonSid = localStorage.getItem('def_cc_anon_sid'); } catch (e) {}
+		if (!anonSid) {
+			anonSid = typeof crypto !== 'undefined' && crypto.randomUUID
+				? crypto.randomUUID()
+				: generateUUIDv4();
+			try { localStorage.setItem('def_cc_anon_sid', anonSid); } catch (e) {}
+		}
+
 		// Build UI.
 		buildChatUI();
 
@@ -2923,6 +2986,9 @@
 	function destroy() {
 		destroyed = true;
 
+		// Invalidate all outstanding async work.
+		authGeneration++;
+
 		// Clear refresh timer.
 		if (refreshTimer) {
 			clearTimeout(refreshTimer);
@@ -2944,6 +3010,7 @@
 		contextToken = null;
 		contextPayload = null;
 		refreshPromise = null;
+		anonSid = null;
 		threadId = null;
 		isContinuing = false;
 		isComposerDisabled = false;
