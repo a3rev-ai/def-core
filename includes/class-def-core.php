@@ -386,6 +386,7 @@ final class DEF_Core {
 		$rest_data = array(
 			// Existing keys.
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
+			'anonTokenUrl'   => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token-anonymous' ) ),
 			'loginUrl'       => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 			'siteUrl'        => esc_url_raw( home_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),

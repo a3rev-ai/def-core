@@ -41,6 +41,7 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	 */
 	public function test_core_routes_registered(): void {
 		$this->assertArrayHasKey( '/a3-ai/v1/context-token', $this->routes, 'context-token route missing' );
+		$this->assertArrayHasKey( '/a3-ai/v1/context-token-anonymous', $this->routes, 'context-token-anonymous route missing' );
 		$this->assertArrayHasKey( '/a3-ai/v1/jwks', $this->routes, 'jwks route missing' );
 		$this->assertArrayHasKey( '/a3-ai/v1/tools/me', $this->routes, 'tools/me route missing' );
 	}
