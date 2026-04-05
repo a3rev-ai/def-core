@@ -116,20 +116,19 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Get the client IP address, handling proxies.
+	 * Get the client IP address for rate limiting.
+	 *
+	 * Uses REMOTE_ADDR only — forwarded headers (X-Forwarded-For, X-Real-IP)
+	 * are client-spoofable on public endpoints and must not be trusted for
+	 * rate limiting without a verified trusted-proxy layer.
 	 *
 	 * @return string The client IP address.
 	 */
 	private static function get_client_ip(): string {
-		$headers = array( 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR' );
-		foreach ( $headers as $header ) {
-			if ( ! empty( $_SERVER[ $header ] ) ) {
-				// X-Forwarded-For may contain multiple IPs — use the first.
-				$ip = explode( ',', sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ) );
-				$ip = trim( $ip[0] );
-				if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-					return $ip;
-				}
+		if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
 			}
 		}
 		return '0.0.0.0';

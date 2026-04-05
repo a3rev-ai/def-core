@@ -16,7 +16,8 @@
 
 	function generateUUIDv4() {
 		var arr = new Uint8Array(16);
-		(crypto || window.crypto).getRandomValues(arr);
+		var c = typeof crypto !== 'undefined' ? crypto : window.crypto;
+		c.getRandomValues(arr);
 		arr[6] = (arr[6] & 0x0f) | 0x40;
 		arr[8] = (arr[8] & 0x3f) | 0x80;
 		var hex = Array.prototype.map.call(arr, function (b) {
@@ -823,18 +824,21 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				if (!res.ok) return fetchAnonymousToken();
+				// Only 401 triggers anonymous fallback (V1.3 approved rule).
+				// 500/nonce/other failures → null (don't silently downgrade logged-in user).
+				if (res.status === 401) return fetchAnonymousToken();
+				if (!res.ok) return null;
 				return res.json();
 			})
 			.then(function (data) {
 				if (data && data.token) {
 					return data.token;
 				}
-				return fetchAnonymousToken();
+				return null;
 			})
 			.catch(function () {
 				untrackAbort(controller);
-				return fetchAnonymousToken();
+				return null; // Network error → null (don't silently downgrade to anonymous).
 			});
 	}
 
@@ -2653,8 +2657,12 @@
 					// Claim success — clear anonymous identity.
 					anonSid = null;
 					try { localStorage.removeItem('def_cc_anon_sid'); } catch (e) {}
+				} else {
+					// Claim failure — keep anonSid, log warning per V1.3 spec.
+					if (typeof console !== 'undefined' && console.warn) {
+						console.warn('[DEF] Thread claim failed: status=' + res.status + ' thread=' + tid);
+					}
 				}
-				// Claim failure — keep anonSid for debugging.
 			})
 			.catch(function () {
 				untrackAbort(controller);
