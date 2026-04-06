@@ -74,6 +74,16 @@ final class DEF_Core_Routes {
 
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
+			'/context-token-anonymous',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true',
+				'callback'            => array( 'DEF_Core_Tools', 'rest_issue_anonymous_context_token' ),
+			)
+		);
+
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
 			'/jwks',
 			array(
 				'methods'             => 'GET',
