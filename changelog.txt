@@ -1,5 +1,18 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.0 - 2026/04/06 =
+* Fix: Customer Chat — anonymous visitors can now chat without logging in (Bug #1 Issue A)
+* Fix: Customer Chat — Send button now enables when typing (Bug #1 Issue B)
+* New: Anonymous context token endpoint (GET /context-token-anonymous) — issues channel-scoped JWT for guest users
+* New: Anonymous session ID (SID) lifecycle — persisted in localStorage, validated server-side as UUIDv4
+* New: Widget anonymous token fallback — authenticated endpoint returns 401, widget seamlessly obtains anonymous token
+* New: Auth transition guard (authGeneration counter) — prevents stale anonymous refresh from overwriting authenticated token
+* New: Thread claim flow sends anonymous principal ID for server-side ownership verification
+* Security: IP-based rate limiting on anonymous token endpoint (30 requests per 5 minutes per REMOTE_ADDR)
+* Security: Token fallback restricted to 401 only — 500/network errors do not silently downgrade to anonymous
+* Dev: 11 new PHPUnit tests (61 assertions) for anonymous token endpoint
+* Spec: Fix Spec V5.0, Build Plan V1.3 — reviewed and approved by ChatGPT + Staff AI
+
 = 1.9.2 - 2026/04/02 =
 * Fix: Updated Tested up to 6.9.4 — WordPress update page now shows "100% compatible" instead of "Unknown"
 
