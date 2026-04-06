@@ -828,13 +828,9 @@
 				// 500/nonce/other failures → null (don't silently downgrade logged-in user).
 				if (res.status === 401) return fetchAnonymousToken();
 				if (!res.ok) return null;
-				return res.json();
-			})
-			.then(function (data) {
-				if (data && data.token) {
-					return data.token;
-				}
-				return null;
+				return res.json().then(function (data) {
+					return (data && data.token) ? data.token : null;
+				});
 			})
 			.catch(function () {
 				untrackAbort(controller);
