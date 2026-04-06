@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.1 - 2026/04/06 =
+* Fix: Critical — anonymous token obtained then discarded by Promise chain in fetchContextToken()
+  - fetchAnonymousToken() returned token string but chained .then() expected response object with .token property
+  - Result: anonymous users always got "Unable to connect" despite token being issued correctly
+  - Fix: nested res.json() extraction so anonymous fallback path flows directly to caller
+
 = 2.0.0 - 2026/04/06 =
 * Fix: Customer Chat — anonymous visitors can now chat without logging in (Bug #1 Issue A)
 * Fix: Customer Chat — Send button now enables when typing (Bug #1 Issue B)
