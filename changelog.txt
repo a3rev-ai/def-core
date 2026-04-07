@@ -1,5 +1,16 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.2 - 2026/04/07 =
+* Refactor: Customer Chat — replace anonymous JWT auth with WordPress BFF proxy (Spec V1.3)
+* New: /chat/stream proxy endpoint — WordPress proxies chat requests to DEF with trusted headers
+* New: SSE streaming proxy via curl CURLOPT_WRITEFUNCTION pass-through
+* New: No-silent-downgrade rule — logged-in users with invalid nonce get 403, never anonymous fallback
+* Removed: Anonymous token endpoint (/context-token-anonymous) — no longer needed
+* Removed: fetchAnonymousToken(), authGeneration, anonSid, generateUUIDv4() from widget JS
+* Removed: AnonymousTokenTest.php (188 lines) — replaced by BFF proxy architecture
+* Security: Widget no longer manages tokens for chat — identity resolved server-side by WordPress
+* Net: +90 / -375 lines — major simplification
+
 = 2.0.1 - 2026/04/06 =
 * Fix: Critical — anonymous token obtained then discarded by Promise chain in fetchContextToken()
   - fetchAnonymousToken() returned token string but chained .then() expected response object with .token property
