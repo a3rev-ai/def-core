@@ -62,76 +62,87 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Issue an anonymous context token for unauthenticated Customer Chat users.
+	 * BFF proxy for Customer Chat — proxies chat requests to DEF backend.
+	 * WordPress resolves identity and forwards with trusted headers.
 	 *
-	 * @param \WP_REST_Request $request The REST request (optional ?sid= param).
-	 * @return \WP_REST_Response The response object.
-	 * @since 1.9.2
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return void|\WP_Error
 	 */
-	public static function rest_issue_anonymous_context_token( \WP_REST_Request $request ): \WP_REST_Response {
-		// Rate limiting: 30 requests per 5 minutes per IP.
-		$ip      = self::get_client_ip();
-		$ip_hash = hash( 'sha256', $ip . wp_salt( 'auth' ) );
-		$rl_key  = 'def_anon_rl_' . substr( $ip_hash, 0, 12 );
-		$count   = (int) get_transient( $rl_key );
-		if ( $count >= 30 ) {
-			return new \WP_REST_Response(
-				array(
-					'error'   => 'rate_limited',
-					'message' => 'Too many anonymous token requests. Please try again later.',
-				),
-				429
-			);
-		}
-		set_transient( $rl_key, $count + 1, 300 ); // 5 minute window.
-
-		// Validate or generate SID.
-		$sid     = $request->get_param( 'sid' );
-		$sid     = is_string( $sid ) ? strtolower( trim( $sid ) ) : '';
-		$uuid_re = '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/';
-
-		if ( '' === $sid || strlen( $sid ) > 100 || ! preg_match( $uuid_re, $sid ) ) {
-			// Invalid or missing — generate a fresh UUID v4.
-			$sid = wp_generate_uuid4();
+	public static function rest_proxy_chat_stream( $request ) {
+		// No-silent-downgrade: logged-in user with bad nonce must be rejected
+		if ( is_user_logged_in() ) {
+			$nonce = $request->get_header( 'X-WP-Nonce' );
+			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+				return new \WP_Error(
+					'invalid_nonce',
+					'Authentication required.',
+					array( 'status' => 403 )
+				);
+			}
 		}
 
-		$claims = array(
-			'sub'     => 'anon:' . $sid,
-			'channel' => 'customer_chat',
-			'iss'     => get_site_url(),
-			'aud'     => DEF_CORE_AUDIENCE,
+		// Build trusted headers — API key + user if logged in
+		$headers = array(
+			'Content-Type: application/json',
+			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
 		);
 
-		$jwt      = DEF_Core_JWT::issue_token( $claims, 300 ); // 5 minutes.
-		$response = new \WP_REST_Response(
-			array(
-				'token' => $jwt,
-				'exp'   => time() + 300,
-				'sid'   => $sid,
-			),
-			200
-		);
-		$response->set_headers( array( 'Cache-Control' => 'no-store' ) );
-		return $response;
+		if ( is_user_logged_in() ) {
+			$headers[] = 'X-DEF-User: ' . get_current_user_id();
+		}
+
+		// Proxy to DEF with SSE pass-through
+		$def_url = \DEF_Core::get_def_api_url() . '/api/chat/stream';
+		self::stream_proxy( $def_url, $headers, $request->get_body() );
 	}
 
 	/**
-	 * Get the client IP address for rate limiting.
+	 * SSE streaming proxy — forwards request to DEF and streams response back.
 	 *
-	 * Uses REMOTE_ADDR only — forwarded headers (X-Forwarded-For, X-Real-IP)
-	 * are client-spoofable on public endpoints and must not be trusted for
-	 * rate limiting without a verified trusted-proxy layer.
-	 *
-	 * @return string The client IP address.
+	 * @param string $url     DEF backend URL.
+	 * @param array  $headers HTTP headers for the upstream request.
+	 * @param string $body    Request body.
+	 * @return void
 	 */
-	private static function get_client_ip(): string {
-		if ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
-			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
-			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-				return $ip;
-			}
+	private static function stream_proxy( $url, $headers, $body ) {
+		// Disable all output buffering for real-time streaming
+		while ( ob_get_level() ) {
+			ob_end_clean();
 		}
-		return '0.0.0.0';
+
+		header( 'Content-Type: text/event-stream' );
+		header( 'Cache-Control: no-cache' );
+		header( 'X-Accel-Buffering: no' );
+
+		$ch = curl_init( $url );
+		curl_setopt_array( $ch, array(
+			CURLOPT_POST           => true,
+			CURLOPT_HTTPHEADER     => $headers,
+			CURLOPT_POSTFIELDS     => $body,
+			CURLOPT_TIMEOUT        => 90,
+			CURLOPT_RETURNTRANSFER => false,
+			CURLOPT_WRITEFUNCTION  => function ( $ch, $data ) {
+				echo $data;
+				if ( ob_get_level() ) {
+					ob_flush();
+				}
+				flush();
+				return strlen( $data );
+			},
+		) );
+
+		$result = curl_exec( $ch );
+		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+
+		if ( $result === false ) {
+			$error = curl_error( $ch );
+			curl_close( $ch );
+			echo "data: {\"type\":\"error\",\"message\":\"Backend connection failed.\"}\n\n";
+			flush();
+			return;
+		}
+
+		curl_close( $ch );
 	}
 
 	/**

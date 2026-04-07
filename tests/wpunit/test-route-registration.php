@@ -41,7 +41,7 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	 */
 	public function test_core_routes_registered(): void {
 		$this->assertArrayHasKey( '/a3-ai/v1/context-token', $this->routes, 'context-token route missing' );
-		$this->assertArrayHasKey( '/a3-ai/v1/context-token-anonymous', $this->routes, 'context-token-anonymous route missing' );
+		$this->assertArrayHasKey( '/a3-ai/v1/chat/stream', $this->routes, 'chat/stream proxy route missing' );
 		$this->assertArrayHasKey( '/a3-ai/v1/jwks', $this->routes, 'jwks route missing' );
 		$this->assertArrayHasKey( '/a3-ai/v1/tools/me', $this->routes, 'tools/me route missing' );
 	}
@@ -133,6 +133,7 @@ class Test_Route_Registration extends WP_UnitTestCase {
 
 		// POST-only routes.
 		$post_routes = array(
+			'/a3-ai/v1/chat/stream',
 			'/a3-ai/v1/staff-ai/chat',
 			'/a3-ai/v1/staff-ai/tools/invoke',
 			'/a3-ai/v1/escalation/send-email',
