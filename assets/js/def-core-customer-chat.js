@@ -2808,59 +2808,19 @@
 			return;
 		}
 
-		// Fetch context token (async — don't block UI).
-		fetchContextToken()
-			.then(function (token) {
-				if (destroyed) return;
-				if (token) {
-					setContextToken(token);
-					onAuthChange();
-				}
+		// Load existing thread from localStorage.
+		loadLocalThreads();
+		try {
+			threadId = localStorage.getItem(THREAD_KEY) || null;
+		} catch (e) {}
 
-				// Detect user identity change (e.g. WP logout → login as different user).
-				var newSub = contextPayload && contextPayload.sub;
-				var prevSub = null;
-				try { prevSub = localStorage.getItem(USER_KEY); } catch (e) {}
-				if (prevSub && newSub && prevSub !== String(newSub)) {
-					// Different user — wipe stale conversation.
-					try { localStorage.removeItem(THREAD_KEY); } catch (e) {}
-					try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
-				}
-				if (newSub) {
-					try { localStorage.setItem(USER_KEY, String(newSub)); } catch (e) {}
-				}
+		if (threadId) {
+			isContinuing = true;
+			loadThreadMessages(threadId);
+		}
 
-				// Load existing thread.
-				loadLocalThreads();
-				try {
-					threadId = localStorage.getItem(THREAD_KEY) || null;
-				} catch (e) {}
-
-				if (threadId) {
-					isContinuing = true;
-		loadThreadMessages(threadId);
-				}
-
-				// Load server threads if authenticated.
-				if (isAuthenticated()) {
-					loadServerThreads();
-				}
-
-				// Check upload eligibility.
-				checkUploadEligibility();
-			})
-			.catch(function () {
-				// Auth failed — continue as anonymous.
-				loadLocalThreads();
-				try {
-					threadId = localStorage.getItem(THREAD_KEY) || null;
-				} catch (e) {}
-				if (threadId) {
-					isContinuing = true;
-		loadThreadMessages(threadId);
-				}
-				checkUploadEligibility();
-			});
+		// Check upload eligibility.
+		checkUploadEligibility();
 
 		// Focus input.
 		setTimeout(function () {

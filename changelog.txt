@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.3 - 2026/04/08 =
+* Fix: Remove unnecessary fetchContextToken() call on widget init — eliminates 401 console error for anonymous users
+* The BFF proxy handles identity — JWT token fetch on startup is no longer needed
+
 = 2.0.2 - 2026/04/07 =
 * Refactor: Customer Chat — replace anonymous JWT auth with WordPress BFF proxy (Spec V1.3)
 * New: /chat/stream proxy endpoint — WordPress proxies chat requests to DEF with trusted headers
