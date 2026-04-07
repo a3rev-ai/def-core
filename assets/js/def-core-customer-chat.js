@@ -12,20 +12,6 @@
 (function () {
 	'use strict';
 
-	// ─── 0. HELPERS ────────────────────────────────────────────────
-
-	function generateUUIDv4() {
-		var arr = new Uint8Array(16);
-		var c = typeof crypto !== 'undefined' ? crypto : window.crypto;
-		c.getRandomValues(arr);
-		arr[6] = (arr[6] & 0x0f) | 0x40;
-		arr[8] = (arr[8] & 0x3f) | 0x80;
-		var hex = Array.prototype.map.call(arr, function (b) {
-			return ('0' + b.toString(16)).slice(-2);
-		}).join('');
-		return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
-	}
-
 	// ─── 1. DEFAULTS + i18n ────────────────────────────────────────
 
 	var DEFAULT_STRINGS = {
@@ -151,8 +137,6 @@
 	var contextPayload = null;
 	var refreshTimer = null;
 	var refreshPromise = null; // single-flight lock (V1.2)
-	var authGeneration = 0; // Auth transition generation counter.
-	var anonSid = null; // Anonymous session ID (persisted in localStorage).
 
 	// Chat state.
 	var threadId = null;
@@ -824,9 +808,6 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				// Only 401 triggers anonymous fallback (V1.3 approved rule).
-				// 500/nonce/other failures → null (don't silently downgrade logged-in user).
-				if (res.status === 401) return fetchAnonymousToken();
 				if (!res.ok) return null;
 				return res.json().then(function (data) {
 					return (data && data.token) ? data.token : null;
@@ -836,24 +817,6 @@
 				untrackAbort(controller);
 				return null; // Network error → null (don't silently downgrade to anonymous).
 			});
-	}
-
-	function fetchAnonymousToken() {
-		if (!config.anonTokenUrl) return Promise.resolve(null);
-		var url = config.anonTokenUrl + '?sid=' + encodeURIComponent(anonSid || '');
-		return fetch(url, { method: 'GET' })
-			.then(function (res) { return res.ok ? res.json() : null; })
-			.then(function (data) {
-				if (data && data.token) {
-					if (data.sid) {
-						anonSid = data.sid;
-						try { localStorage.setItem('def_cc_anon_sid', anonSid); } catch (e) {}
-					}
-					return data.token;
-				}
-				return null;
-			})
-			.catch(function () { return null; });
 	}
 
 	function scheduleTokenRefresh(expiresAt) {
@@ -867,10 +830,8 @@
 		var refreshIn = msUntilExpiry - 60000; // 60s before expiry.
 		if (refreshIn < 5000) refreshIn = 5000; // Minimum 5s.
 
-		var gen = authGeneration;
 		refreshTimer = setTimeout(function () {
 			refreshTimer = null;
-			if (gen !== authGeneration) return; // Stale — auth transitioned.
 			getValidToken();
 		}, refreshIn);
 	}
@@ -893,11 +854,9 @@
 			return refreshPromise;
 		}
 
-		var gen = authGeneration;
 		refreshPromise = fetchContextToken()
 			.then(function (token) {
 				refreshPromise = null;
-				if (gen !== authGeneration) return contextToken; // Stale — discard.
 				if (token) {
 					setContextToken(token);
 					return token;
@@ -992,14 +951,11 @@
 		els.loginSubmitBtn.disabled = true;
 
 		// Capture pre-login state for claim flow.
-		var wasAnonymous = !!contextPayload && typeof contextPayload.sub === 'string' && contextPayload.sub.indexOf('anon:') === 0;
 		var currentThreadId = threadId;
-		var claimSid = anonSid;
 
-		// Invalidate anonymous auth state.
+		// Invalidate prior auth state.
 		if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
 		refreshPromise = null;
-		authGeneration++;
 
 		// Direct AJAX to WordPress login endpoint.
 		var formData = new FormData();
@@ -1030,15 +986,9 @@
 					// Schedule authenticated refresh BEFORE claim (V1.3).
 					scheduleTokenRefresh(contextPayload && contextPayload.exp);
 
-					// Claim anonymous thread if we had one.
-					if (wasAnonymous && currentThreadId && currentThreadId !== '_anonymous') {
-						claimThread(currentThreadId, claimSid);
-					}
-
-					// Clear anonSid if no thread to claim.
-					if (!wasAnonymous || !currentThreadId) {
-						anonSid = null;
-						try { localStorage.removeItem('def_cc_anon_sid'); } catch (e) {}
+					// Claim thread if we had one from anonymous session.
+					if (currentThreadId) {
+						claimThread(currentThreadId);
 					}
 
 					// Load server history.
@@ -1284,13 +1234,11 @@
 				}
 				lastSuggestion = null;
 
-				// Headers.
+				// Headers — chat goes through WP proxy (no Authorization needed).
 				var headers = {
 					'Content-Type': 'application/json',
+					'X-WP-Nonce': config.nonce,
 				};
-				if (contextToken) {
-					headers['Authorization'] = 'Bearer ' + contextToken;
-				}
 
 				// Feature detection: stream if ReadableStream supported
 				if (typeof ReadableStream !== 'undefined') {
@@ -1311,32 +1259,15 @@
 		var controller = new AbortController();
 		trackAbort(controller);
 
-		fetch(config.apiBaseUrl + '/api/chat', {
+		fetch(config.chatStreamUrl, {
 			method: 'POST',
+			credentials: 'include',
 			headers: headers,
 			body: JSON.stringify(body),
 			signal: controller.signal,
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				if (res.status === 401 && contextToken) {
-					return getValidToken().then(function (newToken) {
-						if (newToken && newToken !== contextToken) {
-							headers['Authorization'] = 'Bearer ' + newToken;
-						}
-						var controller2 = new AbortController();
-						trackAbort(controller2);
-						return fetch(config.apiBaseUrl + '/api/chat', {
-							method: 'POST',
-							headers: headers,
-							body: JSON.stringify(body),
-							signal: controller2.signal,
-						}).then(function (r) {
-							untrackAbort(controller2);
-							return r;
-						});
-					});
-				}
 				if (res.status === 429) {
 					hideThinking(thinkingEl);
 					appendMessage('assistant', t('rateLimited'));
@@ -1497,37 +1428,15 @@
 			}
 		}
 
-		fetch(config.apiBaseUrl + '/api/chat/stream', {
+		fetch(config.chatStreamUrl, {
 			method: 'POST',
+			credentials: 'include',
 			headers: headers,
 			body: JSON.stringify(body),
 			signal: controller.signal,
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				// V1.1: Conditional 401 retry — only if we have a token
-				if (res.status === 401 && contextToken) {
-					return getValidToken().then(function (newToken) {
-						if (newToken && newToken !== contextToken) {
-							headers['Authorization'] = 'Bearer ' + newToken;
-						}
-						var controller2 = new AbortController();
-						trackAbort(controller2);
-						return fetch(config.apiBaseUrl + '/api/chat/stream', {
-							method: 'POST',
-							headers: headers,
-							body: JSON.stringify(body),
-							signal: controller2.signal,
-						}).then(function (r) {
-							untrackAbort(controller2);
-							return r;
-						});
-					});
-				}
-				if (res.status === 401 && !contextToken) {
-					// Anonymous — no token to refresh, surface error
-					throw { status: 401, message: 'Authentication required' };
-				}
 				return res;
 			})
 			.then(function (res) {
@@ -2632,7 +2541,7 @@
 		}
 	}
 
-	function claimThread(tid, principalId) {
+	function claimThread(tid) {
 		if (!tid || !contextToken || !config.apiBaseUrl) return;
 
 		var controller = new AbortController();
@@ -2644,17 +2553,12 @@
 				'Content-Type': 'application/json',
 				Authorization: 'Bearer ' + contextToken,
 			},
-			body: JSON.stringify({ anon_principal_id: principalId || null }),
+			body: JSON.stringify({}),
 			signal: controller.signal,
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				if (res.ok) {
-					// Claim success — clear anonymous identity.
-					anonSid = null;
-					try { localStorage.removeItem('def_cc_anon_sid'); } catch (e) {}
-				} else {
-					// Claim failure — keep anonSid, log warning per V1.3 spec.
+				if (!res.ok) {
 					if (typeof console !== 'undefined' && console.warn) {
 						console.warn('[DEF] Thread claim failed: status=' + res.status + ' thread=' + tid);
 					}
@@ -2662,7 +2566,6 @@
 			})
 			.catch(function () {
 				untrackAbort(controller);
-				// Network error — keep anonSid.
 			});
 	}
 
@@ -2896,15 +2799,6 @@
 		config = cfg;
 		destroyed = false;
 
-		// Load or generate anonymous session ID.
-		try { anonSid = localStorage.getItem('def_cc_anon_sid'); } catch (e) {}
-		if (!anonSid) {
-			anonSid = typeof crypto !== 'undefined' && crypto.randomUUID
-				? crypto.randomUUID()
-				: generateUUIDv4();
-			try { localStorage.setItem('def_cc_anon_sid', anonSid); } catch (e) {}
-		}
-
 		// Build UI.
 		buildChatUI();
 
@@ -2990,9 +2884,6 @@
 	function destroy() {
 		destroyed = true;
 
-		// Invalidate all outstanding async work.
-		authGeneration++;
-
 		// Clear refresh timer.
 		if (refreshTimer) {
 			clearTimeout(refreshTimer);
@@ -3014,7 +2905,6 @@
 		contextToken = null;
 		contextPayload = null;
 		refreshPromise = null;
-		anonSid = null;
 		threadId = null;
 		isContinuing = false;
 		isComposerDisabled = false;
