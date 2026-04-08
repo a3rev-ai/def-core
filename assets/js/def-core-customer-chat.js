@@ -117,6 +117,7 @@
 	var THREAD_KEY = 'a3rev_thread_id';
 	var HISTORY_KEY = 'a3rev_threads';
 	var USER_KEY = 'def:customer-chat:user';
+	var AUTH_STATE_KEY = 'def:auth_state';
 
 	function t(key) {
 		return (
@@ -981,6 +982,7 @@
 				if (result.success && result.data && result.data.token) {
 					// Login success — set authenticated token.
 					setContextToken(result.data.token);
+					try { localStorage.setItem(AUTH_STATE_KEY, 'logged_in'); } catch (e) {}
 					onAuthChange();
 
 					// Schedule authenticated refresh BEFORE claim (V1.3).
@@ -2514,6 +2516,7 @@
 		// Reset state.
 		try {
 			localStorage.removeItem(THREAD_KEY);
+			localStorage.removeItem('def:session_cookie');
 		} catch (e) {}
 		threadId = null;
 		isContinuing = false;
@@ -2631,6 +2634,7 @@
 		closeMenu();
 		// Clear auth state (memory-only token).
 		setContextToken(null);
+		try { localStorage.setItem(AUTH_STATE_KEY, 'logged_out'); } catch (e) {}
 		onAuthChange();
 		// Clear conversation so the next user doesn't see stale messages.
 		clearConversation();
@@ -2806,6 +2810,20 @@
 		if (!config.apiBaseUrl) {
 			showOfflineState();
 			return;
+		}
+
+		// Detect WordPress auth state change (login/logout outside widget).
+		// If user logged out via wp-admin or session expired, clear stale thread
+		// so the next conversation starts fresh with the correct employee routing.
+		var currentAuthState = config.isLoggedIn ? 'logged_in' : 'logged_out';
+		var storedAuthState = null;
+		try { storedAuthState = localStorage.getItem(AUTH_STATE_KEY); } catch (e) {}
+		try { localStorage.setItem(AUTH_STATE_KEY, currentAuthState); } catch (e) {}
+
+		if (storedAuthState === 'logged_in' && currentAuthState === 'logged_out') {
+			// User logged out outside widget — clear stale authenticated thread
+			// to prevent wrong employee routing and leaking prior session context.
+			clearConversation();
 		}
 
 		// Load existing thread from localStorage.
