@@ -240,19 +240,44 @@ final class DEF_Core_Tools {
 	 * @since 0.1.0
 	 * @version 0.2.0 - Made public for module use
 	 */
-	public static function verify_and_get_user(): ?\WP_User {
+	public static function verify_and_get_user( $request = null ): ?\WP_User {
+		// Path 1: Bearer JWT (Staff AI, Setup Assistant, legacy)
 		$jwt = self::get_bearer_token();
-		if ( ! $jwt ) {
+		if ( $jwt ) {
+			$payload = DEF_Core_JWT::verify_token( $jwt );
+			if ( is_array( $payload ) ) {
+				$user_id = isset( $payload['sub'] ) ? absint( $payload['sub'] ) : 0;
+				if ( $user_id ) {
+					return self::set_and_return_user( $user_id );
+				}
+			}
 			return null;
 		}
-		$payload = DEF_Core_JWT::verify_token( $jwt );
-		if ( ! is_array( $payload ) ) {
-			return null;
+
+		// Path 2: HMAC auth + X-DEF-User header (BFF proxy tool callbacks)
+		if ( $request instanceof \WP_REST_Request ) {
+			$hmac_result = \A3Rev\DefCore\DEF_Core_HMAC_Auth::verify_request( $request );
+			if ( true === $hmac_result ) {
+				$user_id_header = isset( $_SERVER['HTTP_X_DEF_USER'] )
+					? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_DEF_USER'] ) )
+					: '';
+				$user_id = absint( $user_id_header );
+				if ( $user_id ) {
+					return self::set_and_return_user( $user_id );
+				}
+			}
 		}
-		$user_id = isset( $payload['sub'] ) ? absint( $payload['sub'] ) : 0;
-		if ( ! $user_id ) {
-			return null;
-		}
+
+		return null;
+	}
+
+	/**
+	 * Set WordPress current user and return the user object.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return \WP_User|null User object if valid, null otherwise.
+	 */
+	private static function set_and_return_user( int $user_id ): ?\WP_User {
 		$user = get_user_by( 'id', $user_id );
 		if ( ! ( $user instanceof \WP_User ) ) {
 			return null;
@@ -264,14 +289,14 @@ final class DEF_Core_Tools {
 
 	/**
 	 * Permission callback for tool routes.
-	 * Verifies JWT and sets current user context.
+	 * Verifies JWT or HMAC auth and sets current user context.
 	 *
+	 * @param \WP_REST_Request $request The REST request.
 	 * @return bool True if user is authenticated, false otherwise.
 	 * @since 0.1.0
-	 * @version 0.2.0
 	 */
-	public static function permission_check(): bool {
-		$user = self::verify_and_get_user();
+	public static function permission_check( $request = null ): bool {
+		$user = self::verify_and_get_user( $request );
 		return ( $user instanceof \WP_User && $user->exists() );
 	}
 
