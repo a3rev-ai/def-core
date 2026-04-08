@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.0.6 - 2026-04-08 =
+* Fix: Cache-busting on lazy-loaded JS/CSS assets — browser no longer serves stale widget code after plugin updates
+* Fix: Auth state detection call order — load thread before checking, so conversation cleanup works correctly
 
 = 2.0.5 - 2026-04-08 =
 * Fix: Clear stale chat thread on WordPress logout — prevents wrong employee routing when user logs out via wp-admin instead of the chat widget logout button
