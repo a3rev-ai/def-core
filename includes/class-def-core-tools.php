@@ -81,17 +81,7 @@ final class DEF_Core_Tools {
 			}
 		}
 
-		// Build trusted headers — API key + user if logged in
-		$headers = array(
-			'Content-Type: application/json',
-			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
-		);
-
-		if ( is_user_logged_in() ) {
-			$headers[] = 'X-DEF-User: ' . get_current_user_id();
-		}
-
-		// Proxy to DEF with SSE pass-through
+		$headers = self::build_proxy_headers();
 		$def_url = \DEF_Core::get_def_api_url() . '/api/chat/stream';
 		self::stream_proxy( $def_url, $headers, $request->get_body() );
 	}
@@ -143,6 +133,87 @@ final class DEF_Core_Tools {
 		}
 
 		curl_close( $ch );
+	}
+
+	/**
+	 * JSON proxy — forwards a POST request to DEF and returns the JSON response.
+	 *
+	 * Used for upload init/commit endpoints that return JSON (not SSE).
+	 *
+	 * @param string $url     DEF backend URL.
+	 * @param array  $headers HTTP headers for the upstream request.
+	 * @param string $body    Request body.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private static function json_proxy( $url, $headers, $body ) {
+		$ch = curl_init( $url );
+		curl_setopt_array( $ch, array(
+			CURLOPT_POST           => true,
+			CURLOPT_HTTPHEADER     => $headers,
+			CURLOPT_POSTFIELDS     => $body,
+			CURLOPT_TIMEOUT        => 30,
+			CURLOPT_RETURNTRANSFER => true,
+		) );
+
+		$response  = curl_exec( $ch );
+		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+
+		if ( $response === false ) {
+			$error = curl_error( $ch );
+			curl_close( $ch );
+			return new \WP_Error( 'proxy_error', 'Backend connection failed: ' . $error, array( 'status' => 502 ) );
+		}
+
+		curl_close( $ch );
+
+		$data = json_decode( $response, true );
+		if ( null === $data && '' !== $response ) {
+			$data = array( 'raw' => $response );
+		}
+
+		return new \WP_REST_Response( $data ?: array(), $http_code );
+	}
+
+	/**
+	 * Build trusted BFF proxy headers (API key + optional user ID).
+	 *
+	 * @return array HTTP header strings.
+	 */
+	private static function build_proxy_headers() {
+		$headers = array(
+			'Content-Type: application/json',
+			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
+		);
+
+		if ( is_user_logged_in() ) {
+			$headers[] = 'X-DEF-User: ' . get_current_user_id();
+		}
+
+		return $headers;
+	}
+
+	/**
+	 * BFF proxy for Customer Chat upload init.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_upload_init( $request ) {
+		$headers = self::build_proxy_headers();
+		$def_url = \DEF_Core::get_def_api_url() . '/api/customer/uploads/init';
+		return self::json_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
+	 * BFF proxy for Customer Chat upload commit.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_upload_commit( $request ) {
+		$headers = self::build_proxy_headers();
+		$def_url = \DEF_Core::get_def_api_url() . '/api/customer/uploads/commit';
+		return self::json_proxy( $def_url, $headers, $request->get_body() );
 	}
 
 	/**

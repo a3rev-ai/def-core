@@ -93,6 +93,27 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// Customer Chat BFF proxy — upload init/commit (same pattern as chat)
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/uploads/init',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_upload_init' ),
+			)
+		);
+
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/uploads/commit',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_upload_commit' ),
+			)
+		);
+
 		// Register all tools with WordPress REST API.
 		// Tools are already registered in register_tools() on 'init' hook.
 		$registry = DEF_Core_API_Registry::instance();
