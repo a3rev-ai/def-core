@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.4 - 2026/04/08 =
+* Fix: Tool endpoints now accept HMAC auth for BFF proxy tool callbacks (orders, subscriptions, etc.)
+* Removed: JWT minting from proxy — DEF uses HMAC to call WordPress tools directly
+* Per DEF Auth Architecture Policy: platform adapters use server-to-server HMAC, not JWT
+
 = 2.0.3 - 2026/04/08 =
 * Fix: Remove unnecessary fetchContextToken() call on widget init — eliminates 401 console error for anonymous users
 * The BFF proxy handles identity — JWT token fetch on startup is no longer needed
