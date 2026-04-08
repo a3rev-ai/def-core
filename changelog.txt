@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.7 - 2026/04/09 =
+* Fix: Customer Chat uploads now route through WordPress BFF proxy (same pattern as chat — PR #107)
+* New: /uploads/init and /uploads/commit proxy endpoints — WordPress adds X-DEF-API-Key + X-DEF-User
+* Refactor: Extracted build_proxy_headers() shared by chat + upload proxies
+* Security: Upload requests no longer bypass WordPress — no tokens in JavaScript, no direct DEF calls
+
 = 2.0.4 - 2026/04/08 =
 * Fix: Tool endpoints now accept HMAC auth for BFF proxy tool callbacks (orders, subscriptions, etc.)
 * Removed: JWT minting from proxy — DEF uses HMAC to call WordPress tools directly

@@ -387,6 +387,8 @@ final class DEF_Core {
 			// Existing keys.
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
 			'chatStreamUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/chat/stream' ) ),
+			'uploadInitUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/uploads/init' ) ),
+			'uploadCommitUrl' => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/uploads/commit' ) ),
 			'loginUrl'       => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 			'siteUrl'        => esc_url_raw( home_url() ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),

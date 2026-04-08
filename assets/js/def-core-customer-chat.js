@@ -2201,18 +2201,21 @@
 	}
 
 	function uploadSingleFile(staged, conversationId) {
+		// Upload goes through WordPress BFF proxy (same-origin, cookies).
+		// WordPress adds X-DEF-API-Key + X-DEF-User headers.
 		var headers = { 'Content-Type': 'application/json' };
-		if (contextToken) {
-			headers['Authorization'] = 'Bearer ' + contextToken;
+		if (config.nonce) {
+			headers['X-WP-Nonce'] = config.nonce;
 		}
 
-		// Step 1: Init.
+		// Step 1: Init via BFF proxy.
 		var controller1 = new AbortController();
 		trackAbort(controller1);
 
-		return fetch(config.apiBaseUrl + '/api/customer/uploads/init', {
+		return fetch(config.uploadInitUrl, {
 			method: 'POST',
 			headers: headers,
+			credentials: 'same-origin',
 			body: JSON.stringify({
 				filename: staged.file.name,
 				mime_type: getMimeType(staged.file.name),
@@ -2257,10 +2260,11 @@
 				trackAbort(controller3);
 
 				return fetch(
-					config.apiBaseUrl + '/api/customer/uploads/commit',
+					config.uploadCommitUrl,
 					{
 						method: 'POST',
 						headers: headers,
+						credentials: 'same-origin',
 						body: JSON.stringify({ file_id: fileId }),
 						signal: controller3.signal,
 					}
