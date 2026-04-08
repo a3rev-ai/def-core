@@ -2812,25 +2812,22 @@
 			return;
 		}
 
+		// Load existing thread from localStorage FIRST (clearConversation needs threadId).
+		loadLocalThreads();
+		try {
+			threadId = localStorage.getItem(THREAD_KEY) || null;
+		} catch (e) {}
+
 		// Detect WordPress auth state change (login/logout outside widget).
-		// If user logged out via wp-admin or session expired, clear stale thread
-		// so the next conversation starts fresh with the correct employee routing.
 		var currentAuthState = config.isLoggedIn ? 'logged_in' : 'logged_out';
 		var storedAuthState = null;
 		try { storedAuthState = localStorage.getItem(AUTH_STATE_KEY); } catch (e) {}
 		try { localStorage.setItem(AUTH_STATE_KEY, currentAuthState); } catch (e) {}
 
 		if (storedAuthState === 'logged_in' && currentAuthState === 'logged_out') {
-			// User logged out outside widget — clear stale authenticated thread
-			// to prevent wrong employee routing and leaking prior session context.
+			// User logged out outside widget — clear stale authenticated thread.
 			clearConversation();
 		}
-
-		// Load existing thread from localStorage.
-		loadLocalThreads();
-		try {
-			threadId = localStorage.getItem(THREAD_KEY) || null;
-		} catch (e) {}
 
 		if (threadId) {
 			isContinuing = true;

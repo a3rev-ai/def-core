@@ -416,11 +416,11 @@ final class DEF_Core {
 			'privacyUrl'      => get_option( 'def_core_chat_privacy_url', '' ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
-			// Asset URLs for lazy loading.
-			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js',
-			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css',
-			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js',
-			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js',
+			// Asset URLs for lazy loading (versioned for cache-busting).
+			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js?ver=' . DEF_CORE_VERSION,
+			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css?ver=' . DEF_CORE_VERSION,
+			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js?ver=' . DEF_CORE_VERSION,
+			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js?ver=' . DEF_CORE_VERSION,
 			// i18n strings.
 			'strings'         => $this->get_chat_strings(),
 		);
