@@ -392,6 +392,7 @@ final class DEF_Core {
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'allowedOrigins' => $this->get_allowed_origins(),
 			// User context.
+			'isLoggedIn'     => is_user_logged_in() ? '1' : '',
 			'userFirstName'  => $user_first_name,
 			// Branding.
 			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),

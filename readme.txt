@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.0.4
+Stable tag: 2.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.0.5 - 2026-04-08 =
+* Fix: Clear stale chat thread on WordPress logout — prevents wrong employee routing when user logs out via wp-admin instead of the chat widget logout button
+* Fix: Add `isLoggedIn` server-rendered flag to widget config for reliable auth state detection on page load
+* Fix: Clear session cookie from localStorage on conversation reset to prevent stale routing state
 
 = 1.5.0 - 2026-03-24 =
 * Feature: Staff AI welcome message shows full capability list on first visit only — subsequent new chats show a random "Did you know?" tip
