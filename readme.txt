@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.0.8
+Stable tag: 2.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.0.9 - 2026-04-09 =
+* Fix: Staff AI conversations, threads, uploads, and tools endpoints now use BFF proxy auth (API key) instead of JWT — fixes 401 errors after v2.0.8 backend deployment
 
 = 2.0.8 - 2026-04-09 =
 * Feature: Staff AI and Setup Assistant now route through WordPress BFF proxy — browser no longer makes direct API calls or handles JWT tokens

@@ -304,7 +304,7 @@ final class DEF_Core_Tools {
 	 * @param \WP_User $user The user to check.
 	 * @return array List of DEF capability strings the user has.
 	 */
-	private static function get_user_def_capabilities( \WP_User $user ): array {
+	public static function get_user_def_capabilities( \WP_User $user ): array {
 		$all  = array( 'def_admin_access', 'def_staff_access', 'def_management_access' );
 		$caps = array();
 		foreach ( $all as $cap ) {
