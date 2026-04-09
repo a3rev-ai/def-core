@@ -260,8 +260,8 @@ final class DEF_Core_Staff_AI
 	 */
 	private static function get_api_base_url(): ?string
 	{
-		$url = get_option('def_core_staff_ai_api_url', '');
-		return ! empty($url) ? rtrim($url, '/') : null;
+		$url = \DEF_Core::get_def_api_url_internal();
+		return ! empty($url) ? $url : null;
 	}
 
 	/**
@@ -286,7 +286,7 @@ final class DEF_Core_Staff_AI
 
 		$url = $base_url . $endpoint;
 
-		// Build JWT claims for backend auth.
+		// BFF proxy auth: API key + user ID + capabilities (no JWT).
 		$user = wp_get_current_user();
 		if (! $user || 0 === $user->ID) {
 			return new \WP_Error(
@@ -296,40 +296,29 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		$capabilities = array();
-		if ($user->has_cap('def_staff_access')) {
-			$capabilities[] = 'def_staff_access';
-		}
-		if ($user->has_cap('def_management_access')) {
-			$capabilities[] = 'def_management_access';
-		}
-
-		$claims = array(
-			'sub'          => (string) $user->ID,
-			'email'        => $user->user_email,
-			'capabilities' => $capabilities,
-			'channel'      => 'staff_ai',
-			'iss'          => get_site_url(),
-			'aud'          => 'digital-employee-framework',
-		);
-
-		$token = DEF_Core_JWT::issue_token($claims, 300);
-		if (empty($token)) {
+		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		if ( empty( $api_key ) ) {
 			return new \WP_Error(
-				'staff_ai_token_error',
-				__('Failed to generate authentication token.', 'digital-employees'),
-				array('status' => 500)
+				'staff_ai_not_configured',
+				__( 'API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees' ),
+				array( 'status' => 503 )
 			);
 		}
+
+		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
+
+		$headers = array(
+			'X-DEF-API-Key'            => $api_key,
+			'X-DEF-User'               => (string) $user->ID,
+			'X-DEF-User-Capabilities'  => implode( ',', $capabilities ),
+			'Content-Type'             => 'application/json',
+			'Accept'                   => 'application/json',
+		);
 
 		$args = array(
 			'timeout'     => 60,
 			'httpversion' => '1.1',
-			'headers'     => array(
-				'Authorization' => 'Bearer ' . $token,
-				'Content-Type'  => 'application/json',
-				'Accept'        => 'application/json',
-			),
+			'headers'     => $headers,
 		);
 
 		if ('POST' === $method) {
