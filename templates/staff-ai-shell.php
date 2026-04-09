@@ -396,8 +396,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		apiBase: <?php echo wp_json_encode( $api_base ); ?>,
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
-		defApiUrl: <?php echo wp_json_encode( DEF_Core::get_def_api_url() ); ?>,
-		tokenUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ); ?>,
+		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
 		userName: <?php echo wp_json_encode( $first_name ); ?>,
 		tips: <?php
 			$tips = array(

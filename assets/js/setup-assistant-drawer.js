@@ -72,10 +72,7 @@
 	function SetupAssistantDrawer() {
 		this.apiBase       = config.restUrl || '';
 		this.nonce         = config.nonce || '';
-		this.apiBaseUrl    = config.apiBaseUrl || '';
-		this.tokenUrl      = config.tokenUrl || '';
-		this.jwtToken      = null;
-		this.jwtExpiry     = 0;
+		this.chatStreamUrl = config.chatStreamUrl || '';
 		this.threadId      = null;
 		this.messages      = [];
 		this.dirtyFields   = {};
@@ -312,7 +309,7 @@
 	};
 
 	SetupAssistantDrawer.prototype.sendMessage = function (text) {
-		if (!this.apiBaseUrl) {
+		if (!this.chatStreamUrl) {
 			this.renderError('Setup Assistant requires API URL configuration. Please check your connection settings.');
 			return;
 		}
@@ -321,29 +318,6 @@
 			return;
 		}
 		this.sendMessageStreaming(text);
-	};
-
-	// ─── JWT Token Fetch ─────────────────────────────────────────
-
-	SetupAssistantDrawer.prototype.getToken = function () {
-		var self = this;
-		// Return cached token if still valid (30s buffer).
-		if (this.jwtToken && Date.now() / 1000 < this.jwtExpiry - 30) {
-			return Promise.resolve(this.jwtToken);
-		}
-		return fetch(this.tokenUrl, {
-			headers: { 'X-WP-Nonce': this.nonce },
-			credentials: 'same-origin'
-		})
-		.then(function (r) {
-			if (!r.ok) { throw new Error('Token fetch failed: ' + r.status); }
-			return r.json();
-		})
-		.then(function (data) {
-			self.jwtToken  = data.token;
-			self.jwtExpiry = data.exp;
-			return data.token;
-		});
 	};
 
 	// ─── SSE Buffer Parser ───────────────────────────────────────
@@ -580,18 +554,16 @@
 			}
 		}
 
-		// Fetch JWT then start SSE stream.
-		this.getToken()
-			.then(function (token) {
-				return fetch(self.apiBaseUrl + '/api/setup_assistant/chat/stream', {
-					method: 'POST',
-					headers: {
-						'Authorization': 'Bearer ' + token,
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(body)
-				});
-			})
+		// Start SSE stream via WordPress BFF proxy.
+		fetch(self.chatStreamUrl, {
+			method: 'POST',
+			headers: {
+				'X-WP-Nonce': self.nonce,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(body),
+			credentials: 'same-origin'
+		})
 			.then(function (response) {
 				if (!response.ok) {
 					throw new Error('Stream request failed: ' + response.status);

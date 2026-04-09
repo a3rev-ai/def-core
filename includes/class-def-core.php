@@ -684,6 +684,28 @@ final class DEF_Core {
 	}
 
 	/**
+	 * Get the DEF API URL for server-side (PHP) proxy requests.
+	 *
+	 * Unlike get_def_api_url() which rewrites Docker hostnames for browser
+	 * routing, this returns the raw stored URL — suitable for cURL calls
+	 * from WordPress to DEF within the Docker network.
+	 *
+	 * @return string API base URL for server-side requests.
+	 */
+	public static function get_def_api_url_internal(): string {
+		if ( defined( 'DEF_API_URL' ) && DEF_API_URL ) {
+			return rtrim( DEF_API_URL, '/' );
+		}
+
+		$url = get_option( 'def_core_staff_ai_api_url', '' );
+		if ( empty( $url ) ) {
+			return 'https://api.defho.ai';
+		}
+
+		return rtrim( $url, '/' );
+	}
+
+	/**
 	 * Get custom button icon URL from media library.
 	 *
 	 * @return string|null Icon URL or null.
