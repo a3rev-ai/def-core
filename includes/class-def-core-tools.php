@@ -82,7 +82,7 @@ final class DEF_Core_Tools {
 		}
 
 		$headers = self::build_proxy_headers();
-		$def_url = \DEF_Core::get_def_api_url() . '/api/chat/stream';
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/chat/stream';
 		self::stream_proxy( $def_url, $headers, $request->get_body() );
 	}
 
@@ -175,11 +175,12 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Build trusted BFF proxy headers (API key + optional user ID).
+	 * Build trusted BFF proxy headers (API key + optional user ID + capabilities).
 	 *
+	 * @param bool $include_capabilities Whether to include X-DEF-User-Capabilities header.
 	 * @return array HTTP header strings.
 	 */
-	private static function build_proxy_headers() {
+	private static function build_proxy_headers( $include_capabilities = false ) {
 		$headers = array(
 			'Content-Type: application/json',
 			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
@@ -187,6 +188,14 @@ final class DEF_Core_Tools {
 
 		if ( is_user_logged_in() ) {
 			$headers[] = 'X-DEF-User: ' . get_current_user_id();
+
+			if ( $include_capabilities ) {
+				$user = wp_get_current_user();
+				$caps = self::get_user_def_capabilities( $user );
+				if ( ! empty( $caps ) ) {
+					$headers[] = 'X-DEF-User-Capabilities: ' . implode( ',', $caps );
+				}
+			}
 		}
 
 		return $headers;
@@ -200,7 +209,7 @@ final class DEF_Core_Tools {
 	 */
 	public static function rest_proxy_upload_init( $request ) {
 		$headers = self::build_proxy_headers();
-		$def_url = \DEF_Core::get_def_api_url() . '/api/customer/uploads/init';
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/customer/uploads/init';
 		return self::json_proxy( $def_url, $headers, $request->get_body() );
 	}
 
@@ -212,8 +221,81 @@ final class DEF_Core_Tools {
 	 */
 	public static function rest_proxy_upload_commit( $request ) {
 		$headers = self::build_proxy_headers();
-		$def_url = \DEF_Core::get_def_api_url() . '/api/customer/uploads/commit';
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/customer/uploads/commit';
 		return self::json_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
+	 * BFF proxy for Staff AI chat stream.
+	 * Auth: logged-in user with def_staff_access or def_management_access.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return void|\WP_Error
+	 */
+	public static function rest_proxy_staff_ai_stream( $request ) {
+		$headers = self::build_proxy_headers( true );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/staff-ai/chat/stream';
+		self::stream_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
+	 * BFF proxy for Staff AI status check.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_staff_ai_status( $request ) {
+		$headers = self::build_proxy_headers( true );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/staff-ai/status';
+		return self::json_proxy_get( $def_url, $headers );
+	}
+
+	/**
+	 * BFF proxy for Setup Assistant chat stream.
+	 * Auth: logged-in user with def_admin_access.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return void|\WP_Error
+	 */
+	public static function rest_proxy_setup_assistant_stream( $request ) {
+		$headers = self::build_proxy_headers( true );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/setup_assistant/chat/stream';
+		self::stream_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
+	 * JSON proxy for GET requests — forwards to DEF and returns the JSON response.
+	 *
+	 * @param string $url     DEF backend URL.
+	 * @param array  $headers HTTP headers for the upstream request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private static function json_proxy_get( $url, $headers ) {
+		$ch = curl_init( $url );
+		curl_setopt_array( $ch, array(
+			CURLOPT_HTTPGET        => true,
+			CURLOPT_HTTPHEADER     => $headers,
+			CURLOPT_TIMEOUT        => 30,
+			CURLOPT_RETURNTRANSFER => true,
+		) );
+
+		$response  = curl_exec( $ch );
+		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+
+		if ( $response === false ) {
+			$error = curl_error( $ch );
+			curl_close( $ch );
+			return new \WP_Error( 'proxy_error', 'Backend connection failed: ' . $error, array( 'status' => 502 ) );
+		}
+
+		curl_close( $ch );
+
+		$data = json_decode( $response, true );
+		if ( null === $data && '' !== $response ) {
+			$data = array( 'raw' => $response );
+		}
+
+		return new \WP_REST_Response( $data ?: array(), $http_code );
 	}
 
 	/**

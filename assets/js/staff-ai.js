@@ -21,26 +21,8 @@ function t(key, fallback) {
 	const apiBase = StaffAIConfig.apiBase;
 	const nonce = StaffAIConfig.nonce;
 
-	// SSE streaming config (Phase 9 PR 3)
-	const defApiUrl = StaffAIConfig.defApiUrl || '';
-	const tokenUrl = StaffAIConfig.tokenUrl || '';
-	let jwtToken = null;
-	let jwtExpiry = 0;
-
-	// JWT token fetch — cached until expiry minus 30s buffer
-	async function getToken() {
-		if (jwtToken && Date.now() / 1000 < jwtExpiry - 30) {
-			return jwtToken;
-		}
-		const res = await fetch(tokenUrl, {
-			headers: { 'X-WP-Nonce': nonce },
-			credentials: 'same-origin',
-		});
-		const data = await res.json();
-		jwtToken = data.token;
-		jwtExpiry = data.exp;
-		return data.token;
-	}
+	// SSE streaming config — BFF proxy (WordPress handles auth)
+	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -1242,12 +1224,12 @@ function t(key, fallback) {
 		updateSendButton();
 
 		// Feature detection: streaming vs sync fallback (V1.1)
-		if (defApiUrl && typeof ReadableStream !== 'undefined') {
+		if (chatStreamUrl && typeof ReadableStream !== 'undefined') {
 			console.info('[Staff AI] Using streaming path');
 			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore);
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
-				(!defApiUrl ? ' (no defApiUrl)' : ' (no ReadableStream)'));
+				(!chatStreamUrl ? ' (no chatStreamUrl)' : ' (no ReadableStream)'));
 			await sendMessageSync(text, fileIds);
 		}
 	}
@@ -1300,8 +1282,6 @@ function t(key, fallback) {
 		var retried = false;
 
 		async function attemptStream() {
-			var token = await getToken();
-
 			// Build messages array for DEF (full conversation history)
 			var reqMessages = [];
 			for (var i = 0; i < messages.length; i++) {
@@ -1327,22 +1307,15 @@ function t(key, fallback) {
 				requestBody.similarity_score = pendingScore;
 			}
 
-			var response = await fetch(defApiUrl + '/api/staff-ai/chat/stream', {
+			var response = await fetch(chatStreamUrl, {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer ' + token,
+					'X-WP-Nonce': nonce,
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(requestBody),
+				credentials: 'same-origin',
 			});
-
-			// 401 retry: refresh token once
-			if (response.status === 401 && !retried) {
-				retried = true;
-				jwtToken = null;
-				jwtExpiry = 0;
-				return attemptStream();
-			}
 
 			if (!response.ok) {
 				var errText = '';
