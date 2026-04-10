@@ -195,6 +195,28 @@ final class DEF_Core_Tools {
 				if ( ! empty( $caps ) ) {
 					$headers[] = 'X-DEF-User-Capabilities: ' . implode( ',', $caps );
 				}
+
+				// Identity headers — let DEF restore the "## Current authenticated
+				// user" prompt section that JWT auth previously provided. Sent for
+				// staff_ai / setup_assistant only ($include_capabilities = true).
+				// Customer Chat does NOT receive these (privacy boundary).
+				//
+				// Values are URL-encoded so Unicode names/emails survive HTTP
+				// header transport. DEF decodes via urllib.parse.unquote().
+				if ( ! empty( $user->display_name ) ) {
+					$headers[] = 'X-DEF-User-Display-Name: ' . rawurlencode( $user->display_name );
+				}
+				if ( ! empty( $user->user_email ) ) {
+					$headers[] = 'X-DEF-User-Email: ' . rawurlencode( $user->user_email );
+				}
+				if ( ! empty( $user->roles ) && is_array( $user->roles ) ) {
+					// Filter to plain strings (defensive — WP guarantees this but
+					// some plugins inject non-string entries)
+					$roles = array_filter( $user->roles, 'is_string' );
+					if ( ! empty( $roles ) ) {
+						$headers[] = 'X-DEF-User-Roles: ' . implode( ',', $roles );
+					}
+				}
 			}
 		}
 

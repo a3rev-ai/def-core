@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.11 - 2026/04/10 =
+* Fix: Staff AI lost user identity after the BFF proxy migration (PR #114, v2.0.8). DEF was not receiving the user's display name, email, or roles, so the orchestrator's "Current authenticated user" prompt section was silently empty on every Staff AI request — the AI had no idea who it was talking to.
+* New: build_proxy_headers() and class-def-core-staff-ai.php backend_request() now send X-DEF-User-Display-Name, X-DEF-User-Email, X-DEF-User-Roles headers (URL-encoded for Unicode safety). Sent for staff_ai and setup_assistant only — Customer Chat does not receive these (privacy boundary).
+* Note: Skipped version 2.0.10 due to PHP version_compare() segment-comparison bug with "10" segments (project-wide rule).
+* Companion PR: digital-employee-framework #174 (DEF backend reads the new headers in verify_internal_request()). Both must be deployed together for the fix to work end-to-end.
+
 = 2.0.7 - 2026/04/09 =
 * Fix: Customer Chat uploads now route through WordPress BFF proxy (same pattern as chat — PR #107)
 * New: /uploads/init and /uploads/commit proxy endpoints — WordPress adds X-DEF-API-Key + X-DEF-User
