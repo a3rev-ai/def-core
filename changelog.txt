@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.0.12 - 2026/04/10 =
+* Fix: SSE stream proxy timeout strategy — replace fixed 90-second total timeout with stall-based detection (CURLOPT_LOW_SPEED_LIMIT). Long AI responses (e.g. analysing large uploaded documents) no longer cut off with "Backend connection failed" at the 90-second mark. The connection stays open as long as tokens are actively streaming, and only kills if no data flows for 30 seconds.
+
 = 2.0.11 - 2026/04/10 =
 * Fix: Staff AI lost user identity after the BFF proxy migration (PR #114, v2.0.8). DEF was not receiving the user's display name, email, or roles, so the orchestrator's "Current authenticated user" prompt section was silently empty on every Staff AI request — the AI had no idea who it was talking to.
 * New: build_proxy_headers() and class-def-core-staff-ai.php backend_request() now send X-DEF-User-Display-Name, X-DEF-User-Email, X-DEF-User-Roles headers (URL-encoded for Unicode safety). Sent for staff_ai and setup_assistant only — Customer Chat does not receive these (privacy boundary).

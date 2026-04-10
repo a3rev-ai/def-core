@@ -109,7 +109,14 @@ final class DEF_Core_Tools {
 			CURLOPT_POST           => true,
 			CURLOPT_HTTPHEADER     => $headers,
 			CURLOPT_POSTFIELDS     => $body,
-			CURLOPT_TIMEOUT        => 90,
+			// No total timeout — stream as long as tokens are flowing.
+			// Kill only if the connection stalls (no data for 30 seconds).
+			// This prevents legitimate long responses (e.g. analysing a 34KB
+			// spec document) from being cut off at a fixed timeout, while
+			// still catching genuinely stalled connections.
+			CURLOPT_TIMEOUT        => 0,
+			CURLOPT_LOW_SPEED_LIMIT => 1,    // At least 1 byte/sec
+			CURLOPT_LOW_SPEED_TIME  => 30,   // Kill after 30s of no data
 			CURLOPT_RETURNTRANSFER => false,
 			CURLOPT_WRITEFUNCTION  => function ( $ch, $data ) {
 				echo $data;
