@@ -235,6 +235,12 @@ final class DEF_Core_Tools {
 						$headers[] = 'X-DEF-User-Roles: ' . implode( ',', $roles );
 					}
 				}
+
+				// Site name — lets Staff AI reference the site by name in responses.
+				$site_name = get_bloginfo( 'name' );
+				if ( ! empty( $site_name ) ) {
+					$headers[] = 'X-DEF-Site-Name: ' . rawurlencode( $site_name );
+				}
 			}
 		}
 

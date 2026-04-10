@@ -65,6 +65,7 @@ final class DEF_Core {
 		DEF_Core_Export::init();
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Admin_API::init();
+		DEF_Core_Site_Tools::init();
 		DEF_Core_Logs_Page::init();
 
 		// Schedule log cleanup cron.
@@ -146,6 +147,9 @@ final class DEF_Core {
 
 		// Admin REST API (settings, users, connection, chat proxy).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
+
+		// Site Intelligence Tools — REST passthrough for Staff AI.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-site-tools.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
