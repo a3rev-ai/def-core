@@ -175,10 +175,21 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Build trusted BFF proxy headers (API key + optional user ID + capabilities).
+	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
-	 * @param bool $include_capabilities Whether to include X-DEF-User-Capabilities header.
-	 * @return array HTTP header strings.
+	 * Always sends: Content-Type, X-DEF-API-Key, X-DEF-User (if logged in).
+	 *
+	 * When $include_user_context is true (staff_ai / setup_assistant), also sends:
+	 *   - X-DEF-User-Capabilities (comma-separated DEF capabilities)
+	 *   - X-DEF-User-Display-Name (URL-encoded)
+	 *   - X-DEF-User-Email (URL-encoded)
+	 *   - X-DEF-User-Roles (comma-separated WP roles)
+	 *
+	 * Customer Chat calls this with $include_user_context = false — identity
+	 * headers are intentionally NOT sent (privacy boundary).
+	 *
+	 * @param bool $include_capabilities Whether to include capabilities + identity headers.
+	 * @return array HTTP header strings (indexed, not associative).
 	 */
 	private static function build_proxy_headers( $include_capabilities = false ) {
 		$headers = array(
@@ -194,6 +205,28 @@ final class DEF_Core_Tools {
 				$caps = self::get_user_def_capabilities( $user );
 				if ( ! empty( $caps ) ) {
 					$headers[] = 'X-DEF-User-Capabilities: ' . implode( ',', $caps );
+				}
+
+				// Identity headers — let DEF restore the "## Current authenticated
+				// user" prompt section that JWT auth previously provided. Sent for
+				// staff_ai / setup_assistant only ($include_capabilities = true).
+				// Customer Chat does NOT receive these (privacy boundary).
+				//
+				// Values are URL-encoded so Unicode names/emails survive HTTP
+				// header transport. DEF decodes via urllib.parse.unquote().
+				if ( ! empty( $user->display_name ) ) {
+					$headers[] = 'X-DEF-User-Display-Name: ' . rawurlencode( $user->display_name );
+				}
+				if ( ! empty( $user->user_email ) ) {
+					$headers[] = 'X-DEF-User-Email: ' . rawurlencode( $user->user_email );
+				}
+				if ( ! empty( $user->roles ) && is_array( $user->roles ) ) {
+					// Filter to plain strings (defensive — WP guarantees this but
+					// some plugins inject non-string entries)
+					$roles = array_filter( $user->roles, 'is_string' );
+					if ( ! empty( $roles ) ) {
+						$headers[] = 'X-DEF-User-Roles: ' . implode( ',', $roles );
+					}
 				}
 			}
 		}

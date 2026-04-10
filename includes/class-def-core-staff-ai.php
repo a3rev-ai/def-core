@@ -315,6 +315,22 @@ final class DEF_Core_Staff_AI
 			'Accept'                   => 'application/json',
 		);
 
+		// Identity headers — let DEF build the "## Current authenticated user"
+		// prompt section. URL-encoded for Unicode safety; DEF decodes via
+		// urllib.parse.unquote(). See DEF auth.py verify_internal_request().
+		if ( ! empty( $user->display_name ) ) {
+			$headers['X-DEF-User-Display-Name'] = rawurlencode( $user->display_name );
+		}
+		if ( ! empty( $user->user_email ) ) {
+			$headers['X-DEF-User-Email'] = rawurlencode( $user->user_email );
+		}
+		if ( ! empty( $user->roles ) && is_array( $user->roles ) ) {
+			$roles = array_filter( $user->roles, 'is_string' );
+			if ( ! empty( $roles ) ) {
+				$headers['X-DEF-User-Roles'] = implode( ',', $roles );
+			}
+		}
+
 		$args = array(
 			'timeout'     => 60,
 			'httpversion' => '1.1',
