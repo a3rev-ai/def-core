@@ -330,6 +330,10 @@ final class DEF_Core_Staff_AI
 				$headers['X-DEF-User-Roles'] = implode( ',', $roles );
 			}
 		}
+		$site_name = get_bloginfo( 'name' );
+		if ( ! empty( $site_name ) ) {
+			$headers['X-DEF-Site-Name'] = rawurlencode( $site_name );
+		}
 
 		$args = array(
 			'timeout'     => 60,

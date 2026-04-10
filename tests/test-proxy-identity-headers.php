@@ -116,6 +116,15 @@ if ( ! class_exists( 'DEF_Core' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( string $show = '' ): string {
+		if ( $show === 'name' ) {
+			return 'Test Site';
+		}
+		return '';
+	}
+}
+
 // Seed a dummy API key so build_proxy_headers() produces the key header.
 \DEF_Core_Encryption::set_secret( 'def_core_api_key', 'test-api-key-for-proxy-test' );
 
@@ -217,6 +226,10 @@ assert_true( rawurldecode( $email ) === 'steve@a3rev.com', 'email decodes correc
 
 $roles = get_header_value( $headers, 'X-DEF-User-Roles: ' );
 assert_true( $roles === 'administrator', 'roles value correct' );
+
+$site_name = get_header_value( $headers, 'X-DEF-Site-Name: ' );
+assert_true( $site_name === rawurlencode( 'Test Site' ), 'site name value correct (' . $site_name . ')' );
+assert_true( rawurldecode( $site_name ) === 'Test Site', 'site name decodes correctly' );
 
 // ── 4. Unicode display name round-trips correctly ────────────────────────
 echo "\n[4] Unicode display name round-trip\n";

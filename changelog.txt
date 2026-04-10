@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.1.0 - 2026/04/10 =
+* Feature: Site Intelligence Tools — REST passthrough endpoint (POST /wp-json/def-core/v1/site/rest-passthrough). Allows Staff AI to query and interact with WordPress + WooCommerce via the REST API, executing as the authenticated user. HMAC-signed, namespace-allowlisted (wp/v2, wc/v3), with response truncation, pagination metadata, and audit logging. See DEF-SITE-INTELLIGENCE-TOOLS Spec V1.1.
+* New: X-DEF-Site-Name header sent by build_proxy_headers() and backend_request() — lets Staff AI know the WordPress site name (get_bloginfo('name')). Companion to DEF #176 Phase 0.
+* Security: Route character allowlist [a-zA-Z0-9_/-] + path traversal rejection on passthrough.
+* Security: User context save/restore pattern — wp_set_current_user() is restored after dispatch.
+
 = 2.0.12 - 2026/04/10 =
 * Fix: SSE stream proxy timeout strategy — replace fixed 90-second total timeout with stall-based detection (CURLOPT_LOW_SPEED_LIMIT). Long AI responses (e.g. analysing large uploaded documents) no longer cut off with "Backend connection failed" at the 90-second mark. The connection stays open as long as tokens are actively streaming, and only kills if no data flows for 30 seconds.
 
