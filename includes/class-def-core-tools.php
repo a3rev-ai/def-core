@@ -175,10 +175,21 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Build trusted BFF proxy headers (API key + optional user ID + capabilities).
+	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
-	 * @param bool $include_capabilities Whether to include X-DEF-User-Capabilities header.
-	 * @return array HTTP header strings.
+	 * Always sends: Content-Type, X-DEF-API-Key, X-DEF-User (if logged in).
+	 *
+	 * When $include_user_context is true (staff_ai / setup_assistant), also sends:
+	 *   - X-DEF-User-Capabilities (comma-separated DEF capabilities)
+	 *   - X-DEF-User-Display-Name (URL-encoded)
+	 *   - X-DEF-User-Email (URL-encoded)
+	 *   - X-DEF-User-Roles (comma-separated WP roles)
+	 *
+	 * Customer Chat calls this with $include_user_context = false — identity
+	 * headers are intentionally NOT sent (privacy boundary).
+	 *
+	 * @param bool $include_capabilities Whether to include capabilities + identity headers.
+	 * @return array HTTP header strings (indexed, not associative).
 	 */
 	private static function build_proxy_headers( $include_capabilities = false ) {
 		$headers = array(
