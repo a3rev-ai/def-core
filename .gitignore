@@ -50,6 +50,7 @@ wp-config.php
 \.DS_Store
 \._*
 node_modules/
+.next/
 vendor/*
 !vendor/plugin-update-checker/
 !assets/js/vendor/
