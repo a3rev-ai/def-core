@@ -1318,7 +1318,9 @@
 			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
 			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
 			displayedLen = i;
-			streamEl.textContent = streamBuffer.slice(0, displayedLen);
+			// Render as progressive markdown (same pattern as Setup Assistant
+			// and Staff AI). Sanitized via DOMPurify inside renderMarkdown().
+			streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
 			scrollToBottom();
 			wordDrainTimer = setTimeout(drainNextWord, 30);
 		}
