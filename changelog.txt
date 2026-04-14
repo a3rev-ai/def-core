@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.1.3 - 2026/04/15 =
+* Fix: Setup Assistant escalation form now renders when the AI offers to escalate. The tool-output handler in setup-assistant-drawer.js was checking `output.escalation` — a field name that never matched the payload shape the `escalate_to_human` DEF tool actually emits (`{type: "escalation_offer", reason, reason_code}`). As a result, `renderEscalationCard()` was never invoked, even though the tool completed successfully and the function was already fully implemented. One-line condition fix: check `output.type === 'escalation_offer'` and pass `{message: output.reason}` into the card. Companion to Customer Chat's existing working escalation flow.
+
 = 2.1.2 - 2026/04/14 =
 * Fix: Customer Chat now renders progressive markdown during SSE streaming. Bullets, bold, headings, and lists display as formatted HTML as tokens arrive from the backend, instead of showing raw markdown syntax (`**bold**`, `-` bullets) in a single text block until the response completes. One-line change in def-core-customer-chat.js::drainNextWord() — innerHTML + renderMarkdown() replaces textContent. Matches the pattern Setup Assistant and Staff AI already use. renderMarkdown() already sanitizes with DOMPurify, so no new XSS surface.
 
