@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.1.3 - 2026-04-15 =
+* Fix: Setup Assistant escalation form now renders when the AI offers to escalate. The tool-output handler was checking the wrong field name (`output.escalation`) instead of the payload shape the `escalate_to_human` tool actually emits (`output.type === 'escalation_offer'`), so `renderEscalationCard()` was never invoked. The card function itself was already fully implemented. One-line condition fix in setup-assistant-drawer.js.
 
 = 2.1.2 - 2026-04-14 =
 * Fix: Customer Chat now renders progressive markdown during SSE streaming — bullets, bold, and headings display as formatted HTML as tokens arrive, instead of showing raw `**bold**` and `-` text until the response completes. Matches the pattern already used by Staff AI and Setup Assistant.

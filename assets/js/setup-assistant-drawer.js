@@ -513,8 +513,8 @@
 							if (output.ui_actions && output.ui_actions.length) {
 								self.processUiActions(output.ui_actions);
 							}
-							if (output.escalation) {
-								self.renderEscalationCard(output.escalation);
+							if (output.type === 'escalation_offer') {
+								self.renderEscalationCard({ message: output.reason });
 							}
 						}
 					}
