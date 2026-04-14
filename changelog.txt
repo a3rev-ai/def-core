@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.1.2 - 2026/04/14 =
+* Fix: Customer Chat now renders progressive markdown during SSE streaming. Bullets, bold, headings, and lists display as formatted HTML as tokens arrive from the backend, instead of showing raw markdown syntax (`**bold**`, `-` bullets) in a single text block until the response completes. One-line change in def-core-customer-chat.js::drainNextWord() — innerHTML + renderMarkdown() replaces textContent. Matches the pattern Setup Assistant and Staff AI already use. renderMarkdown() already sanitizes with DOMPurify, so no new XSS surface.
+
 = 2.1.0 - 2026/04/10 =
 * Feature: Site Intelligence Tools — REST passthrough endpoint (POST /wp-json/def-core/v1/site/rest-passthrough). Allows Staff AI to query and interact with WordPress + WooCommerce via the REST API, executing as the authenticated user. HMAC-signed, namespace-allowlisted (wp/v2, wc/v3), with response truncation, pagination metadata, and audit logging. See DEF-SITE-INTELLIGENCE-TOOLS Spec V1.1.
 * New: X-DEF-Site-Name header sent by build_proxy_headers() and backend_request() — lets Staff AI know the WordPress site name (get_bloginfo('name')). Companion to DEF #176 Phase 0.
