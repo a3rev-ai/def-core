@@ -106,6 +106,22 @@ final class DEF_Core_Escalation {
 				'callback'            => array( __CLASS__, 'send_escalation_email' ),
 			)
 		);
+
+		// POST /wp-json/a3-ai/v1/customer-chat/send-escalation-email
+		// Direct browser → def-core send path for Customer Chat escalation.
+		// Mirrors the Staff AI /share-send pattern: whitelist subject + body,
+		// force channel=customer server-side, delegate to send_escalation_email.
+		// Auth is the WP REST nonce (same-origin), which works for both
+		// logged-in users and anonymous frontend visitors.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/customer-chat/send-escalation-email',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( __CLASS__, 'rest_customer_chat_send' ),
+			)
+		);
 	}
 
 	/**
@@ -377,6 +393,59 @@ final class DEF_Core_Escalation {
 	/**
 	 * Send escalation email.
 	 *
+	 * Customer Chat browser → def-core escalation send.
+	 *
+	 * Mirrors Staff AI's rest_share_send pattern. Whitelists subject + body
+	 * from the client, forces channel=customer server-side, and delegates
+	 * to send_escalation_email() which handles recipient lookup from the
+	 * def_core_escalation_customer option, wp_mail(), etc.
+	 *
+	 * Auth: WP REST nonce (X-WP-Nonce header), validated via check_ajax_referer.
+	 * This works for both logged-in WordPress users and anonymous frontend
+	 * visitors — the nonce is emitted at page-load time by wp_create_nonce
+	 * and provides same-origin CSRF protection without requiring a login.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response The response object.
+	 * @since 2.1.4
+	 */
+	public static function rest_customer_chat_send( \WP_REST_Request $request ): \WP_REST_Response {
+		// Validate WP REST nonce (CSRF protection).
+		if ( ! wp_verify_nonce( $request->get_header( 'X-WP-Nonce' ), 'wp_rest' ) ) {
+			return new \WP_REST_Response(
+				array( 'error' => 'INVALID_NONCE', 'message' => 'Invalid or missing nonce.' ),
+				403
+			);
+		}
+
+		$body = $request->get_json_params();
+
+		// Whitelist allowed client fields — prevent customers from injecting
+		// bcc, sender_email, user_copy_email, or other escalation fields.
+		$allowed_keys = array( 'subject', 'body', 'reply_to' );
+		$safe_body = array();
+		foreach ( $allowed_keys as $key ) {
+			if ( isset( $body[ $key ] ) ) {
+				$safe_body[ $key ] = $body[ $key ];
+			}
+		}
+
+		// Force channel=customer server-side. Never allow the client to drive
+		// a different escalation channel through this route.
+		$safe_body['channel'] = 'customer';
+
+		// Delegate to the shared escalation send-email handler.
+		$inner_request = new \WP_REST_Request( 'POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email' );
+		$inner_request->set_header( 'Content-Type', 'application/json' );
+		$inner_request->set_body( wp_json_encode( $safe_body ) );
+		foreach ( $safe_body as $key => $value ) {
+			$inner_request->set_param( $key, $value );
+		}
+
+		return self::send_escalation_email( $inner_request );
+	}
+
+	/**
 	 * POST /wp-json/a3-ai/v1/escalation/send-email
 	 *
 	 * @param \WP_REST_Request $request The request object.
