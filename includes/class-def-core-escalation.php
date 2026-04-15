@@ -54,6 +54,20 @@ final class DEF_Core_Escalation {
 	private const SERVICE_SECRET_OPTION = 'def_service_auth_secret';
 
 	/**
+	 * Rate-limit window length in seconds for anonymous escalation endpoints.
+	 *
+	 * @var int
+	 */
+	private const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+	/**
+	 * Maximum escalation send requests allowed per rate-limit window per IP.
+	 *
+	 * @var int
+	 */
+	private const RATE_LIMIT_MAX_REQUESTS = 5;
+
+	/**
 	 * Header name for service auth.
 	 *
 	 * @var string
@@ -230,6 +244,49 @@ final class DEF_Core_Escalation {
 	 */
 	public static function validate_channel( string $channel ): bool {
 		return in_array( $channel, self::VALID_CHANNELS, true );
+	}
+
+	/**
+	 * Resolve the client IP for rate limiting.
+	 *
+	 * REMOTE_ADDR only — X-Forwarded-For is an untrusted client-supplied
+	 * header and honouring it without a known-trusted proxy chain allows
+	 * a spammer to trivially rotate IPs and bypass the rate limit. If the
+	 * site runs behind a reverse proxy, a standard REMOTE_ADDR-rewriting
+	 * plugin or server config should be used so the real client IP lands
+	 * in REMOTE_ADDR before this code runs.
+	 *
+	 * @return string Sanitized client IP, or "unknown" if unavailable.
+	 * @since 2.1.7
+	 */
+	private static function get_client_ip(): string {
+		if ( empty( $_SERVER['REMOTE_ADDR'] ) ) {
+			return 'unknown';
+		}
+		return sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+	}
+
+	/**
+	 * Coarse-grained per-IP rate limit for anonymous escalation endpoints.
+	 *
+	 * Fixed-window counter backed by WordPress transients, hashed so IPs
+	 * are not stored cleartext in wp_options. Not atomic — two near-
+	 * simultaneous requests can both increment past the limit — but this
+	 * is intentional: the goal is to blunt scripted spam, not to enforce
+	 * a precise cap. A small margin of error is acceptable.
+	 *
+	 * @param string $bucket Unique per-endpoint bucket key (e.g. "customer_chat_escalation:1.2.3.4").
+	 * @return bool True if the request is within the limit, false if exceeded.
+	 * @since 2.1.7
+	 */
+	private static function check_rate_limit( string $bucket ): bool {
+		$transient_key = 'def_core_rl_' . md5( $bucket );
+		$count         = (int) get_transient( $transient_key );
+		if ( $count >= self::RATE_LIMIT_MAX_REQUESTS ) {
+			return false;
+		}
+		set_transient( $transient_key, $count + 1, self::RATE_LIMIT_WINDOW_SECONDS );
+		return true;
 	}
 
 	/**
@@ -431,6 +488,23 @@ final class DEF_Core_Escalation {
 			return new \WP_REST_Response(
 				array( 'error' => 'INVALID_NONCE', 'message' => 'Invalid or missing nonce.' ),
 				403
+			);
+		}
+
+		// Per-IP rate limit. The Customer Chat endpoint is intentionally
+		// reachable by anonymous visitors, so the nonce alone isn't enough
+		// to prevent a scripted attacker from scraping one and looping
+		// sends to spam the partner escalation inbox. 5 requests per 60s
+		// per IP is well above any legitimate "user sends a follow-up
+		// correction" pattern but tight enough to blunt sustained abuse.
+		$ip = self::get_client_ip();
+		if ( ! self::check_rate_limit( 'customer_chat_escalation:' . $ip ) ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'RATE_LIMITED',
+					'message' => 'Too many escalation requests. Please wait a minute and try again.',
+				),
+				429
 			);
 		}
 
