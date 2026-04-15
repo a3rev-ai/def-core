@@ -157,6 +157,10 @@
 
 	// Escalation state.
 	var currentEscalationSubject = '';
+	// AbortController for the in-flight escalation POST, if any. Lifted to
+	// module scope so closeEscalation() can abort a pending send when the
+	// user cancels or closes the overlay mid-request.
+	var escalationInflightController = null;
 
 	// Lifecycle.
 	var destroyed = false;
@@ -1751,6 +1755,12 @@
 
 	function closeEscalation() {
 		if (!els.escalationOverlay) return;
+		// Abort any in-flight escalation send so its success handler can't
+		// fire after the user closed the overlay.
+		if (escalationInflightController) {
+			escalationInflightController.abort();
+			escalationInflightController = null;
+		}
 		els.escalationOverlay.classList.remove(
 			'def-cc-escalation-overlay--open'
 		);
@@ -1931,6 +1941,7 @@
 
 		var controller = new AbortController();
 		trackAbort(controller);
+		escalationInflightController = controller;
 
 		fetch(config.wpRestUrl + 'customer-chat/send-escalation-email', {
 			method: 'POST',
@@ -1944,19 +1955,58 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller);
-				return res.json().then(function (data) {
+				if (escalationInflightController === controller) {
+					escalationInflightController = null;
+				}
+				// Read as text first and attempt a defensive JSON parse so a
+				// non-JSON error body (HTML error page, empty response) shows
+				// the error state instead of throwing an opaque parse error.
+				return res.text().then(function (text) {
+					var data = null;
+					if (text) {
+						try { data = JSON.parse(text); } catch (e) { /* ignore */ }
+					}
 					return { ok: res.ok, data: data };
 				});
 			})
 			.then(function (result) {
+				// Bail if the user closed the overlay between the response
+				// arriving and this handler running — don't flip the state
+				// of a hidden overlay or flash a success banner they won't
+				// see. closeEscalation() removes this class as its first
+				// action, so it's a reliable "still visible" signal.
+				if (
+					!els.escalationOverlay ||
+					!els.escalationOverlay.classList.contains(
+						'def-cc-escalation-overlay--open'
+					)
+				) {
+					return;
+				}
 				if (result.ok && result.data && result.data.status === 'sent') {
 					showEscalationState('success');
 				} else {
 					showEscalationState('error');
 				}
 			})
-			.catch(function () {
+			.catch(function (err) {
 				untrackAbort(controller);
+				if (escalationInflightController === controller) {
+					escalationInflightController = null;
+				}
+				// Swallow aborts silently — the user closed the overlay, no
+				// need to flash an error state they won't even see.
+				if (err && err.name === 'AbortError') return;
+				// Also bail if the overlay was closed between the error
+				// arriving and this handler running.
+				if (
+					!els.escalationOverlay ||
+					!els.escalationOverlay.classList.contains(
+						'def-cc-escalation-overlay--open'
+					)
+				) {
+					return;
+				}
 				showEscalationState('error');
 			});
 	}

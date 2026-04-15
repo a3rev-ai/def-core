@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.1.5
+Stable tag: 2.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.1.6 - 2026-04-15 =
+* Fix: Customer Chat escalation — closing or cancelling the form now aborts an in-flight send via AbortController, so an email can't go out after the user explicitly backed out. Previously the `trackAbort` helpers only bookkept the controller list; they did not call `.abort()`, so a mid-flight POST would complete in the background.
+* Fix: Customer Chat escalation — response parsing is now defensive. A non-JSON error body (HTML error page, empty response) surfaces a clean error state instead of throwing `Unexpected token <`.
 
 = 2.1.5 - 2026-04-15 =
 * Fix: Setup Assistant escalation now works end-to-end. Previously the Accept button re-prompted the LLM in an infinite loop and no form ever rendered. Replaced with a real inline form (Subject + Message + Send/Cancel) that posts directly to a new def-core route `/wp-json/a3-ai/v1/setup-assistant/send-escalation-email`, which forces `channel=setup_assistant`, reads the authenticated user's name + email from `wp_get_current_user()` server-side, and calls `wp_mail()` via the existing `send_escalation_email` handler. Recipient comes from the `def_core_escalation_setup_assistant` option (DEF partner email).
