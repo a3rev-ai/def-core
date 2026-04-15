@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.1.4
+Stable tag: 2.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.1.5 - 2026-04-15 =
+* Fix: Setup Assistant escalation now works end-to-end. Previously the Accept button re-prompted the LLM in an infinite loop and no form ever rendered. Replaced with a real inline form (Subject + Message + Send/Cancel) that posts directly to a new def-core route `/wp-json/a3-ai/v1/setup-assistant/send-escalation-email`, which forces `channel=setup_assistant`, reads the authenticated user's name + email from `wp_get_current_user()` server-side, and calls `wp_mail()` via the existing `send_escalation_email` handler. Recipient comes from the `def_core_escalation_setup_assistant` option (DEF partner email).
 
 = 2.1.4 - 2026-04-15 =
 * Fix: Customer Chat escalation emails now send successfully. Previously failed with "Failed to send" because the send was routed through DEF, which couldn't authenticate back to def-core after the BFF proxy migration (logged-in users carry no JWT). Rewritten to mirror Staff AI Share: browser POSTs the final email body directly to a new def-core route (`/customer-chat/send-escalation-email`), which calls `wp_mail()` in-process. No cross-repo auth, no DEF involvement in the send path.

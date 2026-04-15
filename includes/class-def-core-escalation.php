@@ -122,6 +122,22 @@ final class DEF_Core_Escalation {
 				'callback'            => array( __CLASS__, 'rest_customer_chat_send' ),
 			)
 		);
+
+		// POST /wp-json/a3-ai/v1/setup-assistant/send-escalation-email
+		// Direct browser → def-core send path for Setup Assistant escalation.
+		// Same pattern as customer-chat/send-escalation-email but forces
+		// channel=setup_assistant. Setup Assistant only runs in wp-admin, so
+		// the user is always logged in — we read their name + email from
+		// wp_get_current_user() server-side (never trust the client).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/setup-assistant/send-escalation-email',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( __CLASS__, 'rest_setup_assistant_send' ),
+			)
+		);
 	}
 
 	/**
@@ -433,6 +449,72 @@ final class DEF_Core_Escalation {
 		// Force channel=customer server-side. Never allow the client to drive
 		// a different escalation channel through this route.
 		$safe_body['channel'] = 'customer';
+
+		// Delegate to the shared escalation send-email handler.
+		$inner_request = new \WP_REST_Request( 'POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email' );
+		$inner_request->set_header( 'Content-Type', 'application/json' );
+		$inner_request->set_body( wp_json_encode( $safe_body ) );
+		foreach ( $safe_body as $key => $value ) {
+			$inner_request->set_param( $key, $value );
+		}
+
+		return self::send_escalation_email( $inner_request );
+	}
+
+	/**
+	 * Setup Assistant browser → def-core escalation send.
+	 *
+	 * Mirrors rest_customer_chat_send but forces channel=setup_assistant and
+	 * requires the caller to be a logged-in wp-admin user (Setup Assistant
+	 * only runs in wp-admin). User name + email are read from
+	 * wp_get_current_user() server-side and injected into the email body +
+	 * Reply-To header — never trusted from the client.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response The response object.
+	 * @since 2.1.5
+	 */
+	public static function rest_setup_assistant_send( \WP_REST_Request $request ): \WP_REST_Response {
+		// Validate WP REST nonce (CSRF protection).
+		if ( ! wp_verify_nonce( $request->get_header( 'X-WP-Nonce' ), 'wp_rest' ) ) {
+			return new \WP_REST_Response(
+				array( 'error' => 'INVALID_NONCE', 'message' => 'Invalid or missing nonce.' ),
+				403
+			);
+		}
+
+		// Setup Assistant is wp-admin only — require a logged-in user.
+		$current_user = wp_get_current_user();
+		if ( ! $current_user || 0 === $current_user->ID ) {
+			return new \WP_REST_Response(
+				array( 'error' => 'NOT_LOGGED_IN', 'message' => 'Authentication required.' ),
+				401
+			);
+		}
+
+		$body = $request->get_json_params();
+
+		// Whitelist allowed client fields.
+		$subject = isset( $body['subject'] ) ? (string) $body['subject'] : '';
+		$message = isset( $body['body'] ) ? (string) $body['body'] : '';
+
+		// Prepend the authenticated user's identity to the body (server-side,
+		// never client-supplied). This gives the partner recipient a clear
+		// "from whom" line without trusting anything in the POST payload.
+		$display_name = trim( $current_user->display_name ?: ( $current_user->first_name . ' ' . $current_user->last_name ) );
+		if ( '' === $display_name ) {
+			$display_name = $current_user->user_login;
+		}
+		$from_line = 'From: ' . $display_name . ' <' . $current_user->user_email . '>';
+		$site_line = 'Site: ' . home_url();
+		$full_body = $from_line . "\n" . $site_line . "\n\n" . $message;
+
+		$safe_body = array(
+			'subject'  => $subject,
+			'body'     => $full_body,
+			'reply_to' => $current_user->user_email,
+			'channel'  => 'setup_assistant',
+		);
 
 		// Delegate to the shared escalation send-email handler.
 		$inner_request = new \WP_REST_Request( 'POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email' );
