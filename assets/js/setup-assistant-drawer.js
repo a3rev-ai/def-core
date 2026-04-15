@@ -748,7 +748,18 @@
 		cancelBtn.type = 'button';
 		cancelBtn.className = 'def-sa-escalation-decline';
 		cancelBtn.textContent = 'Cancel';
+
+		// AbortController for in-flight sends — lets Cancel interrupt a POST
+		// that's already in progress so the success handler can't fire after
+		// the user clicked Cancel.
+		var inflightController = null;
+		var isCancelled = false;
+
 		cancelBtn.addEventListener('click', function () {
+			isCancelled = true;
+			if (inflightController) {
+				try { inflightController.abort(); } catch (e) {}
+			}
 			card.style.opacity = '0.5';
 			sendBtn.disabled = true;
 			cancelBtn.disabled = true;
@@ -758,7 +769,19 @@
 			status.textContent = 'Escalation cancelled.';
 		});
 
+		// Clear the status line when the user resumes typing after a
+		// validation error, so stale messages don't linger.
+		function clearStatusOnInput() {
+			if (!isCancelled && status.style.display !== 'none') {
+				status.style.display = 'none';
+				status.textContent = '';
+			}
+		}
+		subjectInput.addEventListener('input', clearStatusOnInput);
+		messageInput.addEventListener('input', clearStatusOnInput);
+
 		sendBtn.addEventListener('click', function () {
+			if (isCancelled) return;
 			var subject = (subjectInput.value || '').trim();
 			var message = (messageInput.value || '').trim();
 			if (!subject || !message) {
@@ -772,12 +795,15 @@
 			messageInput.disabled = true;
 			status.style.display = '';
 			status.textContent = 'Sending…';
+			inflightController = new AbortController();
 			self.submitEscalation({
 				subject: subject,
 				message: message,
-			}).then(function () {
+			}, inflightController.signal).then(function () {
+				if (isCancelled) return;
 				status.textContent = '✓ Your request has been sent to your DEF partner.';
 			}).catch(function (err) {
+				if (isCancelled) return;
 				sendBtn.disabled = false;
 				cancelBtn.disabled = false;
 				subjectInput.disabled = false;
@@ -794,7 +820,7 @@
 		this.scrollToBottom();
 	};
 
-	SetupAssistantDrawer.prototype.submitEscalation = function (payload) {
+	SetupAssistantDrawer.prototype.submitEscalation = function (payload, abortSignal) {
 		var self = this;
 		var cfg = window.defSetupAssistant || {};
 		if (!cfg.escalationUrl || !cfg.nonce) {
@@ -802,6 +828,7 @@
 		}
 
 		// Build body text: user's message + recent conversation transcript.
+		// Only include user + assistant turns; skip tool/system/error entries.
 		var bodyParts = [];
 		bodyParts.push(payload.message);
 
@@ -830,8 +857,16 @@
 				body: bodyParts.join('\n'),
 			}),
 			credentials: 'same-origin',
+			signal: abortSignal,
 		}).then(function (res) {
-			return res.json().then(function (data) {
+			// Parse the response body once. If it's not JSON (HTML error
+			// page, empty body, etc.) surface the status code instead of
+			// letting the JSON parse error bubble up opaquely.
+			return res.text().then(function (text) {
+				var data = null;
+				if (text) {
+					try { data = JSON.parse(text); } catch (e) { /* ignore */ }
+				}
 				if (res.ok && data && data.status === 'sent') {
 					return data;
 				}

@@ -483,14 +483,18 @@ final class DEF_Core_Escalation {
 			);
 		}
 
-		// Setup Assistant is wp-admin only — require a logged-in user.
-		$current_user = wp_get_current_user();
-		if ( ! $current_user || 0 === $current_user->ID ) {
+		// Setup Assistant is wp-admin only — require an authenticated user
+		// with DEF admin access. Without this capability check, any logged-in
+		// user (including subscribers) with a valid wp_rest nonce could POST
+		// to this endpoint and spam the partner escalation email.
+		if ( ! current_user_can( 'def_admin_access' ) ) {
 			return new \WP_REST_Response(
-				array( 'error' => 'NOT_LOGGED_IN', 'message' => 'Authentication required.' ),
-				401
+				array( 'error' => 'FORBIDDEN', 'message' => 'DEF admin access required.' ),
+				403
 			);
 		}
+
+		$current_user = wp_get_current_user();
 
 		$body = $request->get_json_params();
 
