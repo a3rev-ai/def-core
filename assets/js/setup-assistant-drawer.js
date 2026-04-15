@@ -700,44 +700,180 @@
 		var card = document.createElement('div');
 		card.className = 'def-sa-escalation-card';
 
-		var msg = document.createElement('p');
-		msg.textContent = data.message || 'This request requires human assistance. Would you like to escalate?';
-		card.appendChild(msg);
+		var intro = document.createElement('p');
+		intro.className = 'def-sa-escalation-intro';
+		intro.textContent = 'Fill in a subject and a brief message. Your request will be emailed to your DEF partner.';
+		card.appendChild(intro);
 
+		// Subject input.
+		var subjectLabel = document.createElement('label');
+		subjectLabel.className = 'def-sa-escalation-label';
+		subjectLabel.textContent = 'Subject';
+		card.appendChild(subjectLabel);
+
+		var subjectInput = document.createElement('input');
+		subjectInput.type = 'text';
+		subjectInput.className = 'def-sa-escalation-input';
+		subjectInput.value = 'Setup Assistant — human help requested';
+		card.appendChild(subjectInput);
+
+		// Message textarea.
+		var messageLabel = document.createElement('label');
+		messageLabel.className = 'def-sa-escalation-label';
+		messageLabel.textContent = 'Message';
+		card.appendChild(messageLabel);
+
+		var messageInput = document.createElement('textarea');
+		messageInput.className = 'def-sa-escalation-textarea';
+		messageInput.rows = 4;
+		messageInput.placeholder = 'Briefly describe what you need help with…';
+		card.appendChild(messageInput);
+
+		// Status line (shown during sending / on error / on success).
+		var status = document.createElement('div');
+		status.className = 'def-sa-escalation-status';
+		status.style.display = 'none';
+		card.appendChild(status);
+
+		// Actions.
 		var actions = document.createElement('div');
 		actions.className = 'def-sa-escalation-actions';
 
-		var accept = document.createElement('button');
-		accept.type = 'button';
-		accept.className = 'def-sa-escalation-accept';
-		accept.textContent = 'Accept';
-		accept.addEventListener('click', function () {
-			accept.disabled = true;
-			decline.disabled = true;
-			self.handleEscalationAccept(data);
-		});
+		var sendBtn = document.createElement('button');
+		sendBtn.type = 'button';
+		sendBtn.className = 'def-sa-escalation-accept';
+		sendBtn.textContent = 'Send';
 
-		var decline = document.createElement('button');
-		decline.type = 'button';
-		decline.className = 'def-sa-escalation-decline';
-		decline.textContent = 'Decline';
-		decline.addEventListener('click', function () {
+		var cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'def-sa-escalation-decline';
+		cancelBtn.textContent = 'Cancel';
+
+		// AbortController for in-flight sends — lets Cancel interrupt a POST
+		// that's already in progress so the success handler can't fire after
+		// the user clicked Cancel.
+		var inflightController = null;
+		var isCancelled = false;
+
+		cancelBtn.addEventListener('click', function () {
+			isCancelled = true;
+			if (inflightController) {
+				try { inflightController.abort(); } catch (e) {}
+			}
 			card.style.opacity = '0.5';
-			accept.disabled = true;
-			decline.disabled = true;
+			sendBtn.disabled = true;
+			cancelBtn.disabled = true;
+			subjectInput.disabled = true;
+			messageInput.disabled = true;
+			status.style.display = '';
+			status.textContent = 'Escalation cancelled.';
 		});
 
-		actions.appendChild(accept);
-		actions.appendChild(decline);
+		// Clear the status line when the user resumes typing after a
+		// validation error, so stale messages don't linger.
+		function clearStatusOnInput() {
+			if (!isCancelled && status.style.display !== 'none') {
+				status.style.display = 'none';
+				status.textContent = '';
+			}
+		}
+		subjectInput.addEventListener('input', clearStatusOnInput);
+		messageInput.addEventListener('input', clearStatusOnInput);
+
+		sendBtn.addEventListener('click', function () {
+			if (isCancelled) return;
+			var subject = (subjectInput.value || '').trim();
+			var message = (messageInput.value || '').trim();
+			if (!subject || !message) {
+				status.style.display = '';
+				status.textContent = 'Please enter a subject and a message.';
+				return;
+			}
+			sendBtn.disabled = true;
+			cancelBtn.disabled = true;
+			subjectInput.disabled = true;
+			messageInput.disabled = true;
+			status.style.display = '';
+			status.textContent = 'Sending…';
+			inflightController = new AbortController();
+			self.submitEscalation({
+				subject: subject,
+				message: message,
+			}, inflightController.signal).then(function () {
+				if (isCancelled) return;
+				status.textContent = '✓ Your request has been sent to your DEF partner.';
+			}).catch(function (err) {
+				if (isCancelled) return;
+				sendBtn.disabled = false;
+				cancelBtn.disabled = false;
+				subjectInput.disabled = false;
+				messageInput.disabled = false;
+				status.textContent = 'Failed to send: ' + (err && err.message ? err.message : 'unknown error') + '. Please try again.';
+			});
+		});
+
+		actions.appendChild(sendBtn);
+		actions.appendChild(cancelBtn);
 		card.appendChild(actions);
 
 		this.messagesEl.appendChild(card);
 		this.scrollToBottom();
 	};
 
-	SetupAssistantDrawer.prototype.handleEscalationAccept = function (data) {
-		// Escalation acceptance: send a follow-up message.
-		this.sendMessage('Yes, please escalate this to a human.');
+	SetupAssistantDrawer.prototype.submitEscalation = function (payload, abortSignal) {
+		var self = this;
+		var cfg = window.defSetupAssistant || {};
+		if (!cfg.escalationUrl || !cfg.nonce) {
+			return Promise.reject(new Error('escalation endpoint not configured'));
+		}
+
+		// Build body text: user's message + recent conversation transcript.
+		// Only include user + assistant turns; skip tool/system/error entries.
+		var bodyParts = [];
+		bodyParts.push(payload.message);
+
+		if (self.messages && self.messages.length > 0) {
+			bodyParts.push('');
+			bodyParts.push('---');
+			bodyParts.push('Conversation Transcript:');
+			bodyParts.push('');
+			for (var i = 0; i < self.messages.length; i++) {
+				var msg = self.messages[i];
+				if (msg.role !== 'user' && msg.role !== 'assistant') continue;
+				var role = msg.role === 'user' ? 'User' : 'Assistant';
+				bodyParts.push(role + ': ' + msg.content);
+				bodyParts.push('');
+			}
+		}
+
+		return fetch(cfg.escalationUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': cfg.nonce,
+			},
+			body: JSON.stringify({
+				subject: payload.subject,
+				body: bodyParts.join('\n'),
+			}),
+			credentials: 'same-origin',
+			signal: abortSignal,
+		}).then(function (res) {
+			// Parse the response body once. If it's not JSON (HTML error
+			// page, empty body, etc.) surface the status code instead of
+			// letting the JSON parse error bubble up opaquely.
+			return res.text().then(function (text) {
+				var data = null;
+				if (text) {
+					try { data = JSON.parse(text); } catch (e) { /* ignore */ }
+				}
+				if (res.ok && data && data.status === 'sent') {
+					return data;
+				}
+				var msg = (data && (data.message || data.error)) || ('HTTP ' + res.status);
+				throw new Error(msg);
+			});
+		});
 	};
 
 	SetupAssistantDrawer.prototype.showWelcome = function () {
