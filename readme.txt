@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.1.6
+Stable tag: 2.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.1.7 - 2026-04-15 =
+* Security: Per-IP rate limit on the anonymous Customer Chat escalation endpoint (`/wp-json/a3-ai/v1/customer-chat/send-escalation-email`). Previously the only gate was the `wp_rest` nonce, which has a 12–24h lifetime — a scripted attacker with a scraped nonce could loop sends to spam `def_core_escalation_customer`. Now capped at 5 requests per 60 seconds per IP, returning HTTP 429 when exceeded. Transient-backed, hashed so IPs aren't stored cleartext in `wp_options`.
 
 = 2.1.6 - 2026-04-15 =
 * Fix: Customer Chat escalation — closing or cancelling the form now aborts an in-flight send via AbortController, so an email can't go out after the user explicitly backed out. Previously the `trackAbort` helpers only bookkept the controller list; they did not call `.abort()`, so a mid-flight POST would complete in the background.
