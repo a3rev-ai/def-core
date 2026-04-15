@@ -1877,57 +1877,79 @@
 
 		showEscalationState('sending');
 
-		var conversationId = threadId || '_anonymous';
-		var payload = {
-			reason: 'User requested human support',
-			subject: els.escalationSubject.value.trim(),
-		};
+		var subject = els.escalationSubject.value.trim();
+		var message = els.escalationMessage.value.trim();
+
+		// Build email body client-side (Staff AI Share pattern). The server
+		// only sees the final text — no cross-repo marshalling, no AI step.
+		var bodyParts = [];
 
 		if (!isAuthenticated()) {
-			payload.first_name = els.escalationFirstName.value.trim();
-			payload.last_name = els.escalationLastName.value.trim();
-			payload.email = els.escalationEmail.value.trim();
-			payload.phone = (els.escalationPhone.value || '').trim();
-			conversationId = '_anonymous';
+			var firstName = els.escalationFirstName.value.trim();
+			var lastName = els.escalationLastName.value.trim();
+			var email = els.escalationEmail.value.trim();
+			var phone = (els.escalationPhone.value || '').trim();
+			bodyParts.push('From: ' + firstName + ' ' + lastName);
+			bodyParts.push('Email: ' + email);
+			if (phone) bodyParts.push('Phone: ' + phone);
+			bodyParts.push('');
 		}
 
-		// Add recent messages as transcript snippet.
+		bodyParts.push(message);
+
+		// Append recent conversation transcript.
 		var recentMsgs = getRecentMessages(10);
-		if (recentMsgs.length > 0) {
-			payload.transcript_snippet = recentMsgs;
+		if (recentMsgs && recentMsgs.length > 0) {
+			bodyParts.push('');
+			bodyParts.push('---');
+			bodyParts.push('Conversation Transcript:');
+			bodyParts.push('');
+			for (var i = 0; i < recentMsgs.length; i++) {
+				var msg = recentMsgs[i];
+				var role = msg.role === 'user' ? 'User' : 'Assistant';
+				bodyParts.push(role + ': ' + msg.content);
+				bodyParts.push('');
+			}
 		}
 
-		// Add the form message content.
-		payload.message = els.escalationMessage.value.trim();
+		var bodyText = bodyParts.join('\n');
 
-		var headers = {
-			'Content-Type': 'application/json',
+		// Reply-To: anonymous users' form email, or empty (logged-in users
+		// have their reply-to set server-side from wp_get_current_user).
+		var replyTo = '';
+		if (!isAuthenticated()) {
+			replyTo = els.escalationEmail.value.trim();
+		}
+
+		var payload = {
+			subject: subject,
+			body: bodyText,
 		};
-		if (contextToken) {
-			headers['Authorization'] = 'Bearer ' + contextToken;
+		if (replyTo) {
+			payload.reply_to = replyTo;
 		}
 
 		var controller = new AbortController();
 		trackAbort(controller);
 
-		fetch(
-			config.apiBaseUrl +
-				'/api/customer/conversations/' +
-				encodeURIComponent(conversationId) +
-				'/escalate',
-			{
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify(payload),
-				signal: controller.signal,
-			}
-		)
+		fetch(config.wpRestUrl + 'customer-chat/send-escalation-email', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': config.wpRestNonce || '',
+			},
+			body: JSON.stringify(payload),
+			signal: controller.signal,
+			credentials: 'same-origin',
+		})
 			.then(function (res) {
 				untrackAbort(controller);
-				return res.json();
+				return res.json().then(function (data) {
+					return { ok: res.ok, data: data };
+				});
 			})
-			.then(function (data) {
-				if (data && !data.error && !data.detail) {
+			.then(function (result) {
+				if (result.ok && result.data && result.data.status === 'sent') {
 					showEscalationState('success');
 				} else {
 					showEscalationState('error');

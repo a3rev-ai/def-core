@@ -422,6 +422,9 @@ final class DEF_Core {
 			'privacyUrl'      => get_option( 'def_core_chat_privacy_url', '' ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
+			// WP REST URL + nonce for same-origin calls (escalation send).
+			'wpRestUrl'       => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/' ) ),
+			'wpRestNonce'     => wp_create_nonce( 'wp_rest' ),
 			// Asset URLs for lazy loading (versioned for cache-busting).
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js?ver=' . DEF_CORE_VERSION,
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css?ver=' . DEF_CORE_VERSION,
