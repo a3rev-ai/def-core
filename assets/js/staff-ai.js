@@ -1402,10 +1402,8 @@ function t(key, fallback) {
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
 					if (evt.type === 'thinking') {
-						var thinkMsg = (evt.message || '').toString().trim();
-						if (!thinkMsg) {
-							// No LLM-authored message — suppress (V1.2)
-						} else if (!thinkingStatusEl) {
+						var thinkMsg = (evt.message || '').toString().trim() || 'Thinking\u2026';
+						if (!thinkingStatusEl) {
 							var div = document.createElement('div');
 							div.className = 'tool-status';
 							div.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
@@ -1424,7 +1422,6 @@ function t(key, fallback) {
 							if (saLabel) saLabel.textContent = thinkMsg;
 						}
 					} else if (evt.type === 'tool_start') {
-						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var el = renderToolStatus(evt.tool);
 						toolStatusElements[evt.tool] = el;
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });

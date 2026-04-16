@@ -1358,10 +1358,7 @@
 			switch (evt.type) {
 				case 'thinking':
 					hideThinking(thinkingEl);
-					var thinkMsg = (evt.message || '').toString().trim();
-					if (!thinkMsg) {
-						break;
-					}
+					var thinkMsg = (evt.message || '').toString().trim() || 'Thinking\u2026';
 					if (!thinkingStatusEl) {
 						var div = el('div', 'cc-tool-status');
 						div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label"></span>';
@@ -1375,7 +1372,6 @@
 					}
 					break;
 				case 'tool_start':
-					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
 					break;
 				case 'tool_done':
