@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.2 - 2026/04/16 =
+* Fix: Visible Thinking — two UX flow improvements:
+  1. Show "Thinking…" with spinner immediately when the orchestrator round starts (before the LLM has authored a status message). Previously the typing dots disappeared and nothing showed until the LLM responded, creating a dead gap.
+  2. The visible-thinking row now persists throughout tool execution instead of being removed by tool_start. This gives continuous feedback: "Thinking…" → LLM-authored status → tool status rows appear below → next round mutates the label again → answer removes the row. No dead gaps at any point in the turn.
+
 = 2.2.1 - 2026/04/16 =
 * Fix: Visible Thinking — removed 700ms fast-turn suppression timer that prevented status messages from appearing. The timer was killed by tool_start events arriving in the same LLM response batch, so the visible-thinking row never rendered. Status messages now appear immediately when received. Affects all 3 channels.
 

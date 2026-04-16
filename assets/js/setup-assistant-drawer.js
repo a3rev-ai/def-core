@@ -448,10 +448,7 @@
 			switch (event.type) {
 				case 'thinking':
 					self.hideTypingIndicator();
-					var saThinkMsg = (event.message || '').toString().trim();
-					if (!saThinkMsg) {
-						break;
-					}
+					var saThinkMsg = (event.message || '').toString().trim() || 'Thinking\u2026';
 					if (!thinkingStatusEl) {
 						var div = document.createElement('div');
 						div.className = 'def-sa-tool-status';
@@ -467,7 +464,6 @@
 					break;
 
 				case 'tool_start':
-					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					// Create a tool status element with spinner.
 					var startEl = self.renderToolStatusForStream(event.tool);
 					toolStatusEls[event.tool] = startEl;
