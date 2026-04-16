@@ -470,10 +470,10 @@
 					break;
 
 				case 'tool_done':
-					// Complete the tool status (spinner → checkmark).
+					// Complete the tool status (spinner → checkmark, or ✗ on failure).
 					var doneEl = toolStatusEls[event.tool];
 					if (doneEl) {
-						self.completeToolStatus(doneEl, event.tool);
+						self.completeToolStatus(doneEl, event.tool, event.status);
 					}
 					break;
 
@@ -971,27 +971,29 @@
 				this.renderEscalationCard(output.escalation);
 			}
 
-			// Mark tool status as complete (replace spinner with checkmark).
-			this.completeToolStatus(statusEl, output.tool_name);
+			// Mark tool status as complete (replace spinner with checkmark, or ✗ on failure).
+			this.completeToolStatus(statusEl, output.tool_name, output.status);
 		}
 	};
 
-	SetupAssistantDrawer.prototype.completeToolStatus = function (statusEl, toolName) {
+	SetupAssistantDrawer.prototype.completeToolStatus = function (statusEl, toolName, status) {
 		if (!statusEl) {
 			return;
 		}
+		var failed = status && status !== 'success';
 		var spinner = statusEl.querySelector('.def-sa-spinner');
 		if (spinner) {
-			spinner.className = 'def-sa-check';
-			spinner.innerHTML = '&#10003;';
+			spinner.className = failed ? 'def-sa-fail' : 'def-sa-check';
+			spinner.innerHTML = failed ? '&#10007;' : '&#10003;';
 		}
-		// Update label to "done" text.
-		var doneLabel = TOOL_DONE_LABELS[toolName] || 'Done';
+		var doneLabel = failed
+			? (TOOL_DONE_LABELS[toolName] || 'Done') + ' (failed)'
+			: (TOOL_DONE_LABELS[toolName] || 'Done');
 		var labelEl = statusEl.querySelector('.def-sa-tool-label');
 		if (labelEl) {
 			labelEl.textContent = doneLabel;
 		}
-		statusEl.classList.add('def-sa-tool-done');
+		statusEl.classList.add(failed ? 'def-sa-tool-failed' : 'def-sa-tool-done');
 	};
 
 	// ─── ui_actions Interpreter ──────────────────────────────────

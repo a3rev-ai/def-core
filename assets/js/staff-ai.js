@@ -1099,11 +1099,15 @@ function t(key, fallback) {
 		return el;
 	}
 
-	function completeToolStatus(el, toolName) {
+	function completeToolStatus(el, toolName, status) {
 		if (!el) return;
-		var doneLabel = TOOL_DONE_LABELS[toolName] || (toolName + ' done');
-		el.classList.add('done');
-		el.innerHTML = '<span class="tool-checkmark">&#10003;</span><span class="tool-label">' + escapeHtml(doneLabel) + '</span>';
+		var failed = status && status !== 'success';
+		var doneLabel = failed
+			? (TOOL_DONE_LABELS[toolName] || (toolName + ' done')) + ' (failed)'
+			: (TOOL_DONE_LABELS[toolName] || (toolName + ' done'));
+		el.classList.add(failed ? 'failed' : 'done');
+		var icon = failed ? '&#10007;' : '&#10003;';
+		el.innerHTML = '<span class="tool-checkmark">' + icon + '</span><span class="tool-label">' + escapeHtml(doneLabel) + '</span>';
 	}
 
 	function updateTypingLabel(text) {
@@ -1426,7 +1430,7 @@ function t(key, fallback) {
 						toolStatusElements[evt.tool] = el;
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'tool_done') {
-						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
+						completeToolStatus(toolStatusElements[evt.tool], evt.tool, evt.status);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'text_delta') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }

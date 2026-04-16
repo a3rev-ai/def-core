@@ -1567,6 +1567,15 @@
 	color: var(--accent-success, #22c55e);
 }
 
+.cc-tool-failed .cc-checkmark {
+	color: var(--accent-error, #ef4444);
+	font-weight: bold;
+}
+
+.cc-tool-failed .cc-tool-label {
+	color: var(--accent-error, #ef4444);
+}
+
 .cc-typing-label {
 	margin-left: 8px;
 	font-size: 12px;

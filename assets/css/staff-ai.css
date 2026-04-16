@@ -749,6 +749,15 @@ body {
 	color: #22c55e;
 }
 
+.tool-status.failed .tool-checkmark {
+	color: #ef4444;
+	font-size: 15px;
+}
+
+.tool-status.failed .tool-label {
+	color: #ef4444;
+}
+
 .typing-label {
 	font-size: 13px;
 	color: var(--text-secondary);

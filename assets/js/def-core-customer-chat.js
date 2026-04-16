@@ -1100,14 +1100,18 @@
 	}
 
 	/**
-	 * Mark a tool status line as complete (spinner → checkmark).
+	 * Mark a tool status line as complete (spinner → checkmark or ✗ on failure).
 	 */
-	function completeToolStatus(statusEl, toolName) {
+	function completeToolStatus(statusEl, toolName, status) {
 		if (!statusEl) return;
-		var label = TOOL_DONE_LABELS[toolName] || 'Done';
-		statusEl.innerHTML = '<span class="cc-checkmark">\u2713</span><span class="cc-tool-label">'
+		var failed = status && status !== 'success';
+		var icon = failed ? '\u2717' : '\u2713';
+		var label = failed
+			? (TOOL_DONE_LABELS[toolName] || 'Done') + ' (failed)'
+			: (TOOL_DONE_LABELS[toolName] || 'Done');
+		statusEl.innerHTML = '<span class="cc-checkmark">' + icon + '</span><span class="cc-tool-label">'
 			+ escapeHtml(label) + '</span>';
-		statusEl.className = 'cc-tool-status cc-tool-done';
+		statusEl.className = failed ? 'cc-tool-status cc-tool-failed' : 'cc-tool-status cc-tool-done';
 	}
 
 	/**
@@ -1375,7 +1379,7 @@
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
 					break;
 				case 'tool_done':
-					completeToolStatus(toolStatusEls[evt.tool], evt.tool);
+					completeToolStatus(toolStatusEls[evt.tool], evt.tool, evt.status);
 					break;
 				case 'text_delta':
 					if (!streamEl) {

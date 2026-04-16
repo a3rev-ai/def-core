@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.3 - 2026/04/17 =
+* Fix: Tool status indicator now shows ✗ in red when a tool call fails, instead of always showing ✓ in green. The tool_done SSE event already carried a status field (success, blocked:pre_gate, etc.) but all three channel frontends ignored it. Now Customer Chat, Staff AI, and Setup Assistant all read the status and render the appropriate icon and color.
+
 = 2.2.2 - 2026/04/16 =
 * Fix: Visible Thinking — two UX flow improvements:
   1. Show "Thinking…" with spinner immediately when the orchestrator round starts (before the LLM has authored a status message). Previously the typing dots disappeared and nothing showed until the LLM responded, creating a dead gap.
