@@ -314,6 +314,20 @@
 	color: #00a32a;
 }
 
+.def-sa-tool-status .def-sa-fail {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	line-height: 14px;
+	text-align: center;
+	color: #d63638;
+	font-weight: bold;
+}
+
+.def-sa-tool-status.def-sa-tool-failed {
+	color: #d63638;
+}
+
 /* Show details toggle */
 .def-sa-tool-details-toggle {
 	background: none;
