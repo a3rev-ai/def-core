@@ -1312,6 +1312,8 @@
 		var wordDrainTimer = null;
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
+		var thinkingDeferTimer = null;
+		var pendingThinkingMessage = null;
 
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
@@ -1358,13 +1360,31 @@
 			switch (evt.type) {
 				case 'thinking':
 					hideThinking(thinkingEl);
-					if (thinkingStatusEl) { thinkingStatusEl.remove(); }
-					thinkingStatusEl = el('div', 'cc-tool-status');
-					thinkingStatusEl.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">Thinking…</span>';
-					els.messages.appendChild(thinkingStatusEl);
-					scrollToBottom();
+					var thinkMsg = (evt.message || '').toString().trim();
+					if (!thinkMsg) {
+						break;
+					}
+					pendingThinkingMessage = thinkMsg;
+					if (!thinkingStatusEl && !thinkingDeferTimer) {
+						thinkingDeferTimer = setTimeout(function() {
+							var div = el('div', 'cc-tool-status');
+							div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label"></span>';
+							div.querySelector('.cc-tool-label').textContent = pendingThinkingMessage;
+							els.messages.appendChild(div);
+							scrollToBottom();
+							thinkingStatusEl = div;
+							thinkingDeferTimer = null;
+						}, 700);
+						break;
+					}
+					if (thinkingDeferTimer) {
+						break;
+					}
+					var ccLabel = thinkingStatusEl.querySelector('.cc-tool-label');
+					if (ccLabel) ccLabel.textContent = thinkMsg;
 					break;
 				case 'tool_start':
+					if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
 					break;
@@ -1374,6 +1394,7 @@
 				case 'text_delta':
 					if (!streamEl) {
 						hideThinking(thinkingEl);
+						if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
 						var icon = createAssistantIcon();
@@ -1390,6 +1411,7 @@
 					break;
 				case 'done':
 					hideThinking(thinkingEl);
+					if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 

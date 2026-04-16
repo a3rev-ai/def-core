@@ -1,5 +1,12 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.0 - 2026/04/16 =
+* Feature: Visible Thinking — AI employees now show natural-language status messages during multi-step turns (e.g. "Checking your recent orders", "Combining the findings now"). Replaces the generic "Thinking…" indicator with LLM-authored descriptions of what the employee is actually doing. Applies to all three channels: Customer Chat, Staff AI, and Setup Assistant.
+* UX: Fast-turn suppression — turns completing in under 700ms show no visible-thinking row at all, preventing a flash of status text that immediately disappears.
+* UX: Single-row label mutation — status messages update in place on one row per turn rather than stacking multiple rows. Spinner stays live until the turn completes, then transitions to a checkmark.
+* Security: LLM-authored status messages are rendered via textContent (never innerHTML) to prevent XSS from user-influenced model output.
+* Companion: Requires DEF backend PR #189 (status_update meta-tool + orchestrator intercept).
+
 = 2.1.7 - 2026/04/15 =
 * Security: Per-IP rate limit on the anonymous Customer Chat escalation endpoint. Previously, `/wp-json/a3-ai/v1/customer-chat/send-escalation-email` was `permission_callback '__return_true'` with only a `wp_rest` nonce as the gate. A `wp_rest` nonce has a 12–24h lifetime and can be scraped from any Customer Chat page load, so a determined attacker could script POSTs and spam the partner escalation inbox at high volume. Flagged as HIGH severity in the Claude security review of PR #128 (v2.1.6) as a pre-existing issue from the v2.1.4 shipped code. Now rate-limited to 5 requests per 60 seconds per IP, returning HTTP 429 when exceeded.
 * Implementation: Fixed-window counter backed by WordPress transients, keyed on `def_core_rl_` + md5 of the IP (so IPs aren't stored cleartext in `wp_options`). IP comes from `REMOTE_ADDR` only — `X-Forwarded-For` is deliberately not honoured because a client-supplied header cannot be trusted without a known-good proxy chain (it would let a spammer trivially rotate IPs). Sites behind a reverse proxy should rewrite `REMOTE_ADDR` server-side the usual way.
