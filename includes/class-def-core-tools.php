@@ -501,34 +501,16 @@ final class DEF_Core_Tools {
 
 	/**
 	 * Permission callback for add-to-cart route.
-	 * Allows guests if WooCommerce guest checkout is enabled.
+	 * Always allowed — any visitor can add items to their cart.
+	 * Guest checkout (recording customer details at payment) is a
+	 * separate concern handled at the checkout page, not here.
 	 *
-	 * @return bool True if allowed (authenticated user OR guest checkout enabled).
+	 * @return bool Always true.
 	 * @since 0.2.0
-	 * @version 0.2.0
+	 * @version 2.2.5
 	 */
 	public static function permission_check_add_to_cart(): bool {
-		// Path 1: JWT/HMAC auth (server-to-server tool callbacks).
-		$user = self::verify_and_get_user();
-		if ( $user instanceof \WP_User && $user->exists() ) {
-			return true;
-		}
-
-		// Path 2: WordPress cookie + nonce auth (browser-direct via wp_rest_call UI action).
-		if ( is_user_logged_in() ) {
-			return true;
-		}
-
-		// Path 3: Guest checkout (anonymous browser-direct).
-		if ( function_exists( 'get_option' ) ) {
-			$guest_checkout_enabled = get_option( 'woocommerce_enable_guest_checkout', 'no' );
-			if ( 'yes' === $guest_checkout_enabled ) {
-				return true;
-			}
-		}
-
-		// Default: deny access.
-		return false;
+		return true;
 	}
 
 	/**
