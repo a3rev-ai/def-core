@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.5 - 2026/04/17 =
+* Fix: Add-to-cart permission callback now always returns true. Adding items to cart does not require authentication — any visitor can add to cart on any WooCommerce store. Guest checkout (collecting payment details) is a separate concern handled at the checkout page. The previous callback incorrectly denied anonymous users on stores without guest checkout enabled, causing a 401 on the browser-side wp_rest_call.
+* Fix: `handleWpRestCall` response check now uses `resp.ok` (HTTP status) instead of only inspecting the response body. WordPress REST errors return `{code, message, data}` — not `{error}` — so 401/403/500 responses were incorrectly treated as success, showing a green success toast when the action actually failed.
+
 = 2.2.4 - 2026/04/17 =
 * Feature: Reusable `wp_rest_call` UI action pattern — DEF tools can now return browser-side WordPress REST calls that execute with cookies and WP nonce. First use: add-to-cart (WooCommerce needs browser session cookies unavailable in BFF proxy architecture). Allowlisted endpoints only (security hardening).
 * Fix: Cart add-to-cart now works in BFF proxy architecture. Previously DEF called WordPress server-to-server via HMAC but WooCommerce cart requires browser session cookies. Now DEF returns a `wp_rest_call` UI action and the browser calls the endpoint directly.

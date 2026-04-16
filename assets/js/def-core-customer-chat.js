@@ -1146,13 +1146,15 @@
 		}
 
 		fetch(url, options)
-			.then(function (resp) { return resp.json(); })
-			.then(function (result) {
-				if (result && result.success !== false && !result.error) {
-					showToast(action.success_message || 'Done');
-				} else {
-					showToast(action.error_message || 'Action failed', 'error');
-				}
+			.then(function (resp) {
+				var ok = resp.ok;
+				return resp.json().then(function (result) {
+					if (ok && result && !result.error) {
+						showToast(action.success_message || 'Done');
+					} else {
+						showToast(action.error_message || 'Action failed', 'error');
+					}
+				});
 			})
 			.catch(function () {
 				showToast(action.error_message || 'Action failed', 'error');
