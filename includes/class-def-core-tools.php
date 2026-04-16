@@ -508,13 +508,18 @@ final class DEF_Core_Tools {
 	 * @version 0.2.0
 	 */
 	public static function permission_check_add_to_cart(): bool {
-		// Check if user is authenticated.
+		// Path 1: JWT/HMAC auth (server-to-server tool callbacks).
 		$user = self::verify_and_get_user();
 		if ( $user instanceof \WP_User && $user->exists() ) {
 			return true;
 		}
 
-		// Check if WooCommerce allows guest checkout.
+		// Path 2: WordPress cookie + nonce auth (browser-direct via wp_rest_call UI action).
+		if ( is_user_logged_in() ) {
+			return true;
+		}
+
+		// Path 3: Guest checkout (anonymous browser-direct).
 		if ( function_exists( 'get_option' ) ) {
 			$guest_checkout_enabled = get_option( 'woocommerce_enable_guest_checkout', 'no' );
 			if ( 'yes' === $guest_checkout_enabled ) {

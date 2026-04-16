@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.4 - 2026/04/17 =
+* Feature: Reusable `wp_rest_call` UI action pattern — DEF tools can now return browser-side WordPress REST calls that execute with cookies and WP nonce. First use: add-to-cart (WooCommerce needs browser session cookies unavailable in BFF proxy architecture). Allowlisted endpoints only (security hardening).
+* Fix: Cart add-to-cart now works in BFF proxy architecture. Previously DEF called WordPress server-to-server via HMAC but WooCommerce cart requires browser session cookies. Now DEF returns a `wp_rest_call` UI action and the browser calls the endpoint directly.
+* Fix: `permission_check_add_to_cart` now supports WordPress cookie + nonce auth (browser-direct) in addition to JWT/HMAC. Logged-in users calling the endpoint from the browser were previously rejected unless guest checkout was enabled.
+* Companion: Requires DEF backend PR #193 (cart tool returns wp_rest_call instead of server-to-server POST).
+
 = 2.2.3 - 2026/04/17 =
 * Fix: Tool status indicator now shows ✗ in red when a tool call fails, instead of always showing ✓ in green. The tool_done SSE event already carried a status field (success, blocked:pre_gate, etc.) but all three channel frontends ignored it. Now Customer Chat, Staff AI, and Setup Assistant all read the status and render the appropriate icon and color.
 
