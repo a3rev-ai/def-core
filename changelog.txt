@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.1 - 2026/04/16 =
+* Fix: Visible Thinking — removed 700ms fast-turn suppression timer that prevented status messages from appearing. The timer was killed by tool_start events arriving in the same LLM response batch, so the visible-thinking row never rendered. Status messages now appear immediately when received. Affects all 3 channels.
+
 = 2.2.0 - 2026/04/16 =
 * Feature: Visible Thinking — AI employees now show natural-language status messages during multi-step turns (e.g. "Checking your recent orders", "Combining the findings now"). Replaces the generic "Thinking…" indicator with LLM-authored descriptions of what the employee is actually doing. Applies to all three channels: Customer Chat, Staff AI, and Setup Assistant.
 * UX: Fast-turn suppression — turns completing in under 700ms show no visible-thinking row at all, preventing a flash of status text that immediately disappears.

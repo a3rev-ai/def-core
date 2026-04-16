@@ -396,8 +396,6 @@
 		var wordDrainTimer = null;
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
-		var thinkingDeferTimer = null;
-		var pendingThinkingMessage = null;
 
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
@@ -454,29 +452,21 @@
 					if (!saThinkMsg) {
 						break;
 					}
-					pendingThinkingMessage = saThinkMsg;
-					if (!thinkingStatusEl && !thinkingDeferTimer) {
-						thinkingDeferTimer = setTimeout(function() {
-							var div = document.createElement('div');
-							div.className = 'def-sa-tool-status';
-							div.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label"></span>';
-							div.querySelector('.def-sa-tool-label').textContent = pendingThinkingMessage;
-							self.messagesEl.appendChild(div);
-							self.scrollToBottom();
-							thinkingStatusEl = div;
-							thinkingDeferTimer = null;
-						}, 700);
-						break;
+					if (!thinkingStatusEl) {
+						var div = document.createElement('div');
+						div.className = 'def-sa-tool-status';
+						div.innerHTML = '<span class="def-sa-spinner"></span><span class="def-sa-tool-label"></span>';
+						div.querySelector('.def-sa-tool-label').textContent = saThinkMsg;
+						self.messagesEl.appendChild(div);
+						self.scrollToBottom();
+						thinkingStatusEl = div;
+					} else {
+						var saLabelEl = thinkingStatusEl.querySelector('.def-sa-tool-label');
+						if (saLabelEl) saLabelEl.textContent = saThinkMsg;
 					}
-					if (thinkingDeferTimer) {
-						break;
-					}
-					var saLabelEl = thinkingStatusEl.querySelector('.def-sa-tool-label');
-					if (saLabelEl) saLabelEl.textContent = saThinkMsg;
 					break;
 
 				case 'tool_start':
-					if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					// Create a tool status element with spinner.
 					var startEl = self.renderToolStatusForStream(event.tool);
@@ -494,7 +484,6 @@
 				case 'text_delta':
 					if (!streamEl) {
 						self.hideTypingIndicator();
-						if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						streamEl = document.createElement('div');
 						streamEl.className = 'def-sa-message def-sa-message-assistant def-sa-message-streaming';
@@ -508,7 +497,6 @@
 
 				case 'done':
 					self.hideTypingIndicator();
-					if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
