@@ -1357,6 +1357,8 @@ function t(key, fallback) {
 			var wordDrainTimer = null;
 			var lastRenderedLen = 0;
 			var thinkingStatusEl = null;
+			var thinkingDeferTimer = null;
+			var pendingThinkingMessage = null;
 			_isStreaming = true;
 			_userScrolledUp = false;
 
@@ -1402,19 +1404,35 @@ function t(key, fallback) {
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
 					if (evt.type === 'thinking') {
-						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
-						thinkingStatusEl = document.createElement('div');
-						thinkingStatusEl.className = 'tool-status';
-						thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label">Thinking…</span>';
-						var thinkTarget = messagesList.querySelector('.message:last-child .message-content');
-						var thinkTyping = thinkTarget ? thinkTarget.querySelector('.typing-indicator') : null;
-						if (thinkTyping) {
-							thinkTyping.style.display = 'none';
-							thinkTarget.insertBefore(thinkingStatusEl, thinkTyping);
+						var thinkMsg = (evt.message || '').toString().trim();
+						if (!thinkMsg) {
+							// No LLM-authored message — suppress (V1.2)
+						} else if (!thinkingStatusEl && !thinkingDeferTimer) {
+							pendingThinkingMessage = thinkMsg;
+							thinkingDeferTimer = setTimeout(function() {
+								var div = document.createElement('div');
+								div.className = 'tool-status';
+								div.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
+								div.querySelector('.tool-label').textContent = pendingThinkingMessage;
+								var target = messagesList.querySelector('.message:last-child .message-content');
+								var typing = target ? target.querySelector('.typing-indicator') : null;
+								if (typing) {
+									typing.style.display = 'none';
+									target.insertBefore(div, typing);
+								}
+								var oldLbl = messagesList.querySelector('.message:last-child .typing-label');
+								if (oldLbl) oldLbl.remove();
+								thinkingStatusEl = div;
+								thinkingDeferTimer = null;
+							}, 700);
+						} else if (thinkingDeferTimer) {
+							pendingThinkingMessage = thinkMsg;
+						} else {
+							var saLabel = thinkingStatusEl.querySelector('.tool-label');
+							if (saLabel) saLabel.textContent = thinkMsg;
 						}
-						var oldLabel = messagesList.querySelector('.message:last-child .typing-label');
-						if (oldLabel) oldLabel.remove();
 					} else if (evt.type === 'tool_start') {
+						if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var el = renderToolStatus(evt.tool);
 						toolStatusElements[evt.tool] = el;
@@ -1423,6 +1441,7 @@ function t(key, fallback) {
 						completeToolStatus(toolStatusElements[evt.tool], evt.tool);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'text_delta') {
+						if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (!streamEl) {
 							// Take over the typing indicator message.
@@ -1446,6 +1465,7 @@ function t(key, fallback) {
 							}
 						}
 					} else if (evt.type === 'done') {
+						if (thinkingDeferTimer) { clearTimeout(thinkingDeferTimer); thinkingDeferTimer = null; }
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						clearStagedFiles();
