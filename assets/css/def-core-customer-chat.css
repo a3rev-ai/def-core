@@ -1576,6 +1576,27 @@
 	color: var(--accent-error, #ef4444);
 }
 
+/* ─── Toast notifications (wp_rest_call feedback) ─────────────── */
+
+.cc-toast {
+	padding: 8px 14px;
+	margin: 6px 0;
+	border-radius: 8px;
+	font-size: 13px;
+	background: var(--accent-success, #22c55e);
+	color: #fff;
+	text-align: center;
+	transition: opacity 0.4s ease;
+}
+
+.cc-toast-error {
+	background: var(--accent-error, #ef4444);
+}
+
+.cc-toast-fade {
+	opacity: 0;
+}
+
 .cc-typing-label {
 	margin-left: 8px;
 	font-size: 12px;

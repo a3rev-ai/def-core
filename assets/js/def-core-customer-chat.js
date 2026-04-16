@@ -82,6 +82,15 @@
 
 	// ─── SSE STREAMING LABELS (Phase 9 PR 2) ──────────────────────
 
+	/**
+	 * Allowed endpoints for wp_rest_call UI actions.
+	 * Security hardening: only endpoints on this list will be executed.
+	 * Add new entries as new tools ship that need browser-side execution.
+	 */
+	var WP_REST_CALL_ALLOWLIST = [
+		'tools/wc/add-to-cart',
+	];
+
 	var TOOL_STATUS_LABELS = {
 		'get_orders':             'Looking up orders...',
 		'get_order_detail':       'Getting order details...',
@@ -1115,6 +1124,57 @@
 	}
 
 	/**
+	 * Execute a WordPress REST call on behalf of a DEF tool (browser-side).
+	 * The browser has cookies/nonce that DEF cannot access in BFF architecture.
+	 */
+	function handleWpRestCall(action) {
+		if (!action.endpoint || WP_REST_CALL_ALLOWLIST.indexOf(action.endpoint) === -1) {
+			return;
+		}
+
+		var url = config.wpRestUrl + action.endpoint;
+		var options = {
+			method: action.method || 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': config.wpRestNonce || '',
+			},
+		};
+		if (action.body) {
+			options.body = JSON.stringify(action.body);
+		}
+
+		fetch(url, options)
+			.then(function (resp) { return resp.json(); })
+			.then(function (result) {
+				if (result && result.success !== false && !result.error) {
+					showToast(action.success_message || 'Done');
+				} else {
+					showToast(action.error_message || 'Action failed', 'error');
+				}
+			})
+			.catch(function () {
+				showToast(action.error_message || 'Action failed', 'error');
+			});
+	}
+
+	/**
+	 * Show a brief toast notification inside the chat widget.
+	 */
+	function showToast(message, type) {
+		if (!els.messages) return;
+		var toast = el('div', 'cc-toast' + (type === 'error' ? ' cc-toast-error' : ''));
+		toast.textContent = message;
+		els.messages.appendChild(toast);
+		scrollToBottom();
+		setTimeout(function () {
+			toast.classList.add('cc-toast-fade');
+			setTimeout(function () { toast.remove(); }, 400);
+		}, 4000);
+	}
+
+	/**
 	 * Update the thinking indicator with step label text.
 	 */
 	function updateTypingLabel(text) {
@@ -1524,12 +1584,14 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Check for escalation offer.
+		// Process tool_outputs (escalation offers, wp_rest_call actions).
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
-				if (data.tool_outputs[i].type === 'escalation_offer') {
-					showEscalation(data.tool_outputs[i].reason);
-					break;
+				var output = data.tool_outputs[i];
+				if (output.type === 'escalation_offer') {
+					showEscalation(output.reason);
+				} else if (output.type === 'wp_rest_call') {
+					handleWpRestCall(output);
 				}
 			}
 		}
@@ -1579,12 +1641,14 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Check for escalation offer.
+		// Process tool_outputs (escalation offers, wp_rest_call actions).
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
-				if (data.tool_outputs[i].type === 'escalation_offer') {
-					showEscalation(data.tool_outputs[i].reason);
-					break;
+				var output = data.tool_outputs[i];
+				if (output.type === 'escalation_offer') {
+					showEscalation(output.reason);
+				} else if (output.type === 'wp_rest_call') {
+					handleWpRestCall(output);
 				}
 			}
 		}
