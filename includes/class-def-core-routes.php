@@ -213,13 +213,13 @@ final class DEF_Core_Routes {
 				'core'
 			);
 
-			// WooCommerce Add to Cart (respects guest checkout settings).
+			// WooCommerce Add to Cart (public — any visitor can add to cart).
 			$registry->register_tool(
 				'/tools/wc/add-to-cart',
 				__( 'WooCommerce Add to Cart', 'digital-employees' ),
 				array( 'POST' ),
 				array( 'DEF_Core_Tools', 'wc_add_to_cart' ),
-				array( 'DEF_Core_Tools', 'permission_check_add_to_cart' ), // Custom permission check.
+				array( 'DEF_Core_Tools', 'permission_check_add_to_cart' ),
 				array(),
 				'core'
 			);

@@ -824,7 +824,7 @@ final class DEF_Core_Tools {
 	 * Add product to cart.
 	 * Accepts product_id (required) and optional variation_id.
 	 * If product is variable and no variation_id provided, uses first available variation.
-	 * Supports both authenticated users and guest checkout (if enabled in WooCommerce).
+	 * Supports both authenticated users and anonymous visitors.
 	 *
 	 * @param \WP_REST_Request $req The request object.
 	 * @return \WP_REST_Response The response object.
@@ -843,24 +843,6 @@ final class DEF_Core_Tools {
 		}
 
 		// Get current user (may be guest).
-		$user     = wp_get_current_user();
-		$is_guest = ( ! $user || 0 === $user->ID );
-
-		// If guest, check if guest checkout is allowed.
-		if ( $is_guest ) {
-			$guest_checkout_enabled = get_option( 'woocommerce_enable_guest_checkout', 'no' );
-			if ( 'yes' !== $guest_checkout_enabled ) {
-				return new \WP_REST_Response(
-					array(
-						'error'   => true,
-						'message' => 'Guest checkout is disabled. Please log in to add items to cart.',
-						'code'    => 'guest_checkout_disabled',
-					),
-					403
-				);
-			}
-		}
-
 		$product_id   = intval( $req['product_id'] ?? 0 );
 		$variation_id = intval( $req['variation_id'] ?? 0 );
 		$quantity     = intval( $req['quantity'] ?? 1 );
