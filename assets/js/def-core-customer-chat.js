@@ -1133,13 +1133,18 @@
 		}
 
 		var url = config.wpRestUrl + action.endpoint;
+		var headers = { 'Content-Type': 'application/json' };
+		// Only send nonce when the action explicitly requires auth. Public
+		// endpoints (like add-to-cart) must NOT send X-WP-Nonce — WordPress
+		// validates it against the session cookie and returns 403 for
+		// anonymous visitors even when the permission callback allows them.
+		if (action.auth === true) {
+			headers['X-WP-Nonce'] = config.wpRestNonce || '';
+		}
 		var options = {
 			method: action.method || 'POST',
 			credentials: 'same-origin',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': config.wpRestNonce || '',
-			},
+			headers: headers,
 		};
 		if (action.body) {
 			options.body = JSON.stringify(action.body);
