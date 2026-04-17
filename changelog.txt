@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.7 - 2026/04/17 =
+* Fix: Removed duplicate guest checkout check inside `wc_add_to_cart` function body. The permission callback (v2.2.5) and nonce fix (v2.2.6) were correct, but the function itself had a second check at line 850 that returned 403 "Guest checkout is disabled" for anonymous users. Adding to cart does not require checkout eligibility — WooCommerce handles that at the checkout page.
+
 = 2.2.6 - 2026/04/17 =
 * Fix: `handleWpRestCall` no longer sends `X-WP-Nonce` header for public endpoints. WordPress validates the nonce against the session cookie and returns 403 for anonymous visitors — even when the endpoint's permission callback allows them. The nonce is now only sent when the action explicitly sets `auth: true`. Tested on Docker: anonymous add-to-cart returns 200 success.
 
