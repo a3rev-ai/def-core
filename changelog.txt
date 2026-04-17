@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.6 - 2026/04/17 =
+* Fix: `handleWpRestCall` no longer sends `X-WP-Nonce` header for public endpoints. WordPress validates the nonce against the session cookie and returns 403 for anonymous visitors — even when the endpoint's permission callback allows them. The nonce is now only sent when the action explicitly sets `auth: true`. Tested on Docker: anonymous add-to-cart returns 200 success.
+
 = 2.2.5 - 2026/04/17 =
 * Fix: Add-to-cart permission callback now always returns true. Adding items to cart does not require authentication — any visitor can add to cart on any WooCommerce store. Guest checkout (collecting payment details) is a separate concern handled at the checkout page. The previous callback incorrectly denied anonymous users on stores without guest checkout enabled, causing a 401 on the browser-side wp_rest_call.
 * Fix: `handleWpRestCall` response check now uses `resp.ok` (HTTP status) instead of only inspecting the response body. WordPress REST errors return `{code, message, data}` — not `{error}` — so 401/403/500 responses were incorrectly treated as success, showing a green success toast when the action actually failed.
