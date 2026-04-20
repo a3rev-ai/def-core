@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.8 - 2026/04/21 =
+* Docs: CONTRIBUTING.md now explains when `npm run env:start` is sufficient vs. when the full integration stack (DEF backend + pre-seeded WordPress) is needed for bridge testing. Points internal contributors at `DEV-SETUP.md` in the private DEF repo. No code changes.
+
 = 2.2.7 - 2026/04/17 =
 * Fix: Removed duplicate guest checkout check inside `wc_add_to_cart` function body. The permission callback (v2.2.5) and nonce fix (v2.2.6) were correct, but the function itself had a second check at line 850 that returned 403 "Guest checkout is disabled" for anonymous users. Adding to cart does not require checkout eligibility — WooCommerce handles that at the checkout page.
 

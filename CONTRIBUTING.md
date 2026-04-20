@@ -52,6 +52,12 @@ Thank you for your interest in contributing to def-core. This guide covers the w
 
 See [docs/TESTING.md](docs/TESTING.md) for the full testing guide.
 
+### Full-stack testing (bridge with DEF backend)
+
+`npm run env:start` is enough for PHP-only changes and PHPUnit/smoke tests. Changes that exercise the bridge to DEF — JWT flows, API-key auth, REST passthrough, tool calls, chat streaming — need the full integration stack, which includes the DEF Python backend plus a pre-seeded WordPress with def-core activated.
+
+The integration stack lives in the `digital-employee-framework` repository (private) and is available to a3rev staff and partner contributors with access. If you have access, see `DEV-SETUP.md` in that repo for the full setup. Community contributors working on the def-core plugin in isolation do not need it — `npm run env:start` covers the public contribution path.
+
 ## Workflow
 
 ### Branch Naming
