@@ -248,6 +248,41 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * BFF proxy for async tool-result confirmation.
+	 *
+	 * Called by the browser after a wp_rest_call UI action completes, to
+	 * close the agentic loop (Reason → Act → Observe) for async tools like
+	 * add_to_cart_by_name. DEF records the confirmation against the
+	 * originating tool_call_id so next-turn rehydration has the real
+	 * server result, not just the LLM's pre-execution guess.
+	 *
+	 * Auth mirrors rest_proxy_chat_stream: nonce required for logged-in
+	 * users, anonymous visitors fall through to the DEF-side signed-
+	 * visitor-cookie thread-ownership check.
+	 *
+	 * Spec: DEF-AGENTIC-LOOP-CLOSURE-V1.2 §4.2.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_tool_result_confirm( $request ) {
+		if ( is_user_logged_in() ) {
+			$nonce = $request->get_header( 'X-WP-Nonce' );
+			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+				return new \WP_Error(
+					'invalid_nonce',
+					'Authentication required.',
+					array( 'status' => 403 )
+				);
+			}
+		}
+
+		$headers = self::build_proxy_headers();
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/chat/tool-result-confirm';
+		return self::json_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
 	 * BFF proxy for Customer Chat upload init.
 	 *
 	 * @param \WP_REST_Request $request The REST request.

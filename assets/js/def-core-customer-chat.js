@@ -1124,8 +1124,67 @@
 	}
 
 	/**
+	 * Shape normalisers per tool. Maps the raw WP REST response body into
+	 * the same shape the synchronous version of the tool would return, so
+	 * the LLM sees a consistent observation format across sync and async
+	 * paths. DEF-AGENTIC-LOOP-CLOSURE-V1.2 §4.4.
+	 */
+	var SHAPE_NORMALISERS = {
+		add_to_cart: function (body) {
+			if (!body || typeof body !== 'object') return null;
+			return {
+				cart_item_key: body.cart_item_key || null,
+				product_id:    body.product_id    || null,
+				product_name:  body.product_name  || null,
+				cart_total:    body.cart_total    || null,
+			};
+		},
+	};
+
+	function normaliseToolResultShape(toolName, wpResponseBody) {
+		var fn = SHAPE_NORMALISERS[toolName];
+		return fn ? fn(wpResponseBody) : wpResponseBody;
+	}
+
+	/**
+	 * POST the result of an async client-executed tool back to DEF, via the
+	 * def-core BFF proxy. Closes the Reason → Act → Observe loop. Primary
+	 * delivery uses fetch(keepalive: true) — survives page unload AND
+	 * supports custom headers (X-WP-Nonce). sendBeacon is a fallback for
+	 * anonymous cookie-auth paths where no custom headers are required.
+	 */
+	function postToolResultConfirm(payload) {
+		if (!payload || !payload.tool_call_id) return;
+		var url   = config.wpRestUrl + 'tool-result-confirm';
+		var body  = JSON.stringify(payload);
+		var nonce = config.wpRestNonce || '';
+		try {
+			fetch(url, {
+				method:      'POST',
+				keepalive:   true,
+				credentials: 'same-origin',
+				headers:     {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce':   nonce,
+				},
+				body: body,
+			}).catch(function () { /* best-effort; loop tolerates misses */ });
+			return;
+		} catch (_) { /* fall through to sendBeacon */ }
+		if (navigator.sendBeacon) {
+			navigator.sendBeacon(
+				url,
+				new Blob([body], { type: 'application/json' })
+			);
+		}
+	}
+
+	/**
 	 * Execute a WordPress REST call on behalf of a DEF tool (browser-side).
 	 * The browser has cookies/nonce that DEF cannot access in BFF architecture.
+	 * After the call resolves, posts the authoritative result back to DEF so
+	 * the next turn's LLM observation reflects reality, not pre-execution
+	 * guess. DEF-AGENTIC-LOOP-CLOSURE-V1.2.
 	 */
 	function handleWpRestCall(action) {
 		if (!action.endpoint || WP_REST_CALL_ALLOWLIST.indexOf(action.endpoint) === -1) {
@@ -1152,17 +1211,40 @@
 
 		fetch(url, options)
 			.then(function (resp) {
-				var ok = resp.ok;
-				return resp.json().then(function (result) {
-					if (ok && result && !result.error) {
-						showToast(action.success_message || 'Done');
-					} else {
-						showToast(action.error_message || 'Action failed', 'error');
-					}
+				var httpStatus = resp.status;
+				return resp.json().then(function (body) {
+					var ok = resp.ok && body && !body.error;
+					showToast(
+						ok ? (action.success_message || 'Done')
+						   : (action.error_message   || 'Action failed'),
+						ok ? null : 'error'
+					);
+					postToolResultConfirm({
+						thread_id:    threadId,
+						tool_call_id: action.tool_call_id,
+						tool_name:    action.tool_name,
+						status:       ok ? 'completed' : 'failed',
+						result: {
+							data:        ok ? normaliseToolResultShape(action.tool_name, body) : null,
+							http_status: httpStatus,
+							error:       ok ? null : ((body && body.message) || 'Action failed'),
+						},
+					});
 				});
 			})
-			.catch(function () {
+			.catch(function (err) {
 				showToast(action.error_message || 'Action failed', 'error');
+				postToolResultConfirm({
+					thread_id:    threadId,
+					tool_call_id: action.tool_call_id,
+					tool_name:    action.tool_name,
+					status:       'failed',
+					result: {
+						data:        null,
+						http_status: 0,
+						error:       String(err && err.message || err || 'Network error'),
+					},
+				});
 			});
 	}
 
