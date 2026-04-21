@@ -1130,13 +1130,25 @@
 	 * paths. DEF-AGENTIC-LOOP-CLOSURE-V1.2 §4.4.
 	 */
 	var SHAPE_NORMALISERS = {
+		// Mirrors wc_add_to_cart()'s response shape in class-def-core-tools.php.
+		// Pulls the LLM-relevant fields out of the nested product/cart dicts
+		// into a flat object that matches what a synchronous cart tool would
+		// return, so rehydration sees consistent grounding across sync/async.
 		add_to_cart: function (body) {
 			if (!body || typeof body !== 'object') return null;
+			var product = (body.product && typeof body.product === 'object') ? body.product : {};
+			var cart    = (body.cart    && typeof body.cart    === 'object') ? body.cart    : {};
 			return {
-				cart_item_key: body.cart_item_key || null,
-				product_id:    body.product_id    || null,
-				product_name:  body.product_name  || null,
-				cart_total:    body.cart_total    || null,
+				cart_item_key:  body.cart_item_key      || null,
+				product_id:     product.id              || null,
+				product_name:   product.name            || null,
+				variation_id:   product.variation_id    || null,
+				variation_name: product.variation_name  || null,
+				cart_total:     cart.total              || null,
+				cart_subtotal:  cart.subtotal           || null,
+				cart_count:     (typeof cart.count === 'number') ? cart.count : null,
+				currency:       cart.currency           || null,
+				cart_url:       cart.cart_url           || null,
 			};
 		},
 	};
@@ -1154,7 +1166,7 @@
 	 * anonymous cookie-auth paths where no custom headers are required.
 	 */
 	function postToolResultConfirm(payload) {
-		if (!payload || !payload.tool_call_id) return;
+		if (!payload || !payload.tool_call_id || !payload.thread_id) return;
 		var url   = config.wpRestUrl + 'tool-result-confirm';
 		var body  = JSON.stringify(payload);
 		var nonce = config.wpRestNonce || '';
