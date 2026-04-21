@@ -1,5 +1,12 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.2.9 - 2026/04/21 =
+* Feature: Agentic loop closure for async client-executed tools (companion to DEF PR #200). Closes the Reason → Act → Observe cycle for `wp_rest_call` UI actions like add-to-cart. After the browser-side action resolves, `handleWpRestCall` now POSTs the authoritative WP response back to DEF via a new BFF proxy endpoint — so the next turn's LLM observation reflects reality, not a pre-execution guess.
+* Feature: New WP REST route `POST /wp-json/a3-ai/v1/tool-result-confirm`. Nonce-checked for logged-in users; anonymous visitors fall through to DEF's signed-visitor-cookie thread-ownership check. Forwards to DEF's `/api/chat/tool-result-confirm` via the existing HMAC + API-key BFF helper.
+* Feature: Customer Chat `handleWpRestCall` now uses `fetch(keepalive: true)` with X-WP-Nonce as the primary confirmation delivery path — survives page unload AND supports custom headers. `navigator.sendBeacon` retained as fallback for anonymous cookie-auth paths only.
+* Feature: Per-tool shape normaliser (`SHAPE_NORMALISERS`) lets the confirmation payload match the shape a synchronous version of the same tool would return. First tool: add_to_cart → `{cart_item_key, product_id, product_name, cart_total}`. Keeps LLM observation format consistent across sync/async tools.
+* Badge catch-up: README.md Download Plugin badge bumped from v2.2.7 to v2.2.9 (was missed during the v2.2.8 release).
+
 = 2.2.8 - 2026/04/21 =
 * Docs: CONTRIBUTING.md now explains when `npm run env:start` is sufficient vs. when the full integration stack (DEF backend + pre-seeded WordPress) is needed for bridge testing. Points internal contributors at `DEV-SETUP.md` in the private DEF repo. No code changes.
 

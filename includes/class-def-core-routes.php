@@ -114,6 +114,18 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// Customer Chat BFF proxy — async tool-result confirmation
+		// (agentic loop closure, DEF-AGENTIC-LOOP-CLOSURE-V1.2 §4.2).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/tool-result-confirm',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_tool_result_confirm' ),
+			)
+		);
+
 		// Staff AI BFF proxy — proxies chat requests to DEF backend
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
