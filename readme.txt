@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.2.10
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.3.0 - 2026-04-23 =
+* Feature: V2 Orchestrator frontend — agent persona badge for Customer Chat. When the Concierge dispatches a specialist, the chat widget renders a subtle "Sales Assistant is helping" divider so the user understands which role is speaking. Companion to the DEF backend Orchestrator V2 Customer Chat migration.
+* Compatibility: purely additive — no change to tool events or text rendering. SSE event handler degrades gracefully on older backend events that lack the `agent` tag.
 
 = 2.2.10 - 2026-04-22 =
 * Fix: Customer Chat add-to-cart no longer wipes existing items from a logged-in user's cart. v2.2.6 stopped sending `X-WP-Nonce` on `wp_rest_call` actions to fix anonymous-visitor 403s, but WordPress REST cookie auth refuses to set the current user from the auth cookie without a matching nonce — so logged-in users were treated as anonymous, `wc_add_to_cart` skipped its persistent-cart merge, and the next add overwrote the existing cart in the session. `handleWpRestCall` now sends the nonce when `config.isLoggedIn` is true (in addition to the existing `auth: true` opt-in). Anonymous visitors still skip the nonce and continue to work.

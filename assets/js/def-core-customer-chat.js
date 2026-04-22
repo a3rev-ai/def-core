@@ -1487,6 +1487,14 @@
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
 
+		// V2 (Spec V1.4 §6): per-turn speaker tracking. When the orchestrator
+		// spawns a specialist, streaming events arrive tagged with
+		// `agent: "<employee_id>"`. On agent change we render a subtle divider
+		// so the user understands a specialist has taken over. Concierge
+		// events may be tagged `agent: "concierge"` or unlabelled; both mean
+		// "the front door is speaking" — no divider needed.
+		var currentAgent = null;
+
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
 				wordDrainTimer = null;
@@ -1528,7 +1536,39 @@
 			}, delay);
 		}
 
+		function renderSpeakerDivider(agentId) {
+			// Friendly labels for the three specialists visible on Customer
+			// Chat today. Unknown agent_id falls back to a title-cased default.
+			var labels = {
+				'sales_assistant': 'Sales Assistant',
+				'support_assistant': 'Support Assistant'
+			};
+			var label = labels[agentId] || (agentId
+				? agentId.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); })
+				: 'Assistant');
+			var div = el('div', 'def-cc-speaker-divider');
+			div.textContent = label + ' is helping';
+			els.messages.appendChild(div);
+			scrollToBottom();
+		}
+
 		function handleSSEEvent(evt) {
+			// V2 persona badge — draw a divider when the active speaker changes.
+			// Concierge events (evt.agent absent or "concierge") never trigger
+			// a divider; the front-door speaker is the default. Only specialist
+			// takeovers (and any subsequent change) get a visible handoff.
+			var evtAgent = (evt && evt.agent) ? String(evt.agent) : null;
+			var isSpecialistEvent = evtAgent && evtAgent !== 'concierge';
+			if (isSpecialistEvent && evtAgent !== currentAgent) {
+				renderSpeakerDivider(evtAgent);
+				currentAgent = evtAgent;
+			} else if (evtAgent === 'concierge' && currentAgent !== null) {
+				// Specialist is done; Concierge speaks again. No divider — the
+				// Concierge is the default voice; the user sees the specialist's
+				// answer then silently returns to Concierge context.
+				currentAgent = null;
+			}
+
 			switch (evt.type) {
 				case 'thinking':
 					hideThinking(thinkingEl);
@@ -1588,6 +1628,7 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					currentAgent = null;  // V2: next turn starts with Concierge-as-default
 					dirtyInput = false;
 
 					processChatResponseMeta(evt, text, wasStreamed);
