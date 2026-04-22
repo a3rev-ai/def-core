@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.2.9
+Stable tag: 2.2.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.2.10 - 2026-04-22 =
+* Fix: Customer Chat add-to-cart no longer wipes existing items from a logged-in user's cart. v2.2.6 stopped sending `X-WP-Nonce` on `wp_rest_call` actions to fix anonymous-visitor 403s, but WordPress REST cookie auth refuses to set the current user from the auth cookie without a matching nonce — so logged-in users were treated as anonymous, `wc_add_to_cart` skipped its persistent-cart merge, and the next add overwrote the existing cart in the session. `handleWpRestCall` now sends the nonce when `config.isLoggedIn` is true (in addition to the existing `auth: true` opt-in). Anonymous visitors still skip the nonce and continue to work.
+* Fix: Customer Chat widget now reflects the WordPress login state on init for logged-in users. Since v2.0.3 (#108) the JWT context-token fetch was removed from init to suppress a 401 console error for anonymous visitors. As a side effect, `isAuthenticated()` always returned false for logged-in users — the widget showed the "Log in" menu item, the escalation form rendered anonymous fields, and server-side thread history was not loaded. Init now calls `getValidToken()` only when `config.isLoggedIn` is true, restoring the pre-v2.0.3 behaviour for logged-in users while keeping the no-401 path for anonymous visitors.
 
 = 2.2.9 - 2026-04-21 =
 * Feature: Agentic loop closure for async client-executed tools. The browser now POSTs the authoritative result of `wp_rest_call` UI actions (like add-to-cart) back to DEF after they resolve, so the next turn's AI response reflects the real outcome rather than a pre-execution guess. New WP REST endpoint `POST /wp-json/a3-ai/v1/tool-result-confirm`. See DEF PR #200 for the backend half.
