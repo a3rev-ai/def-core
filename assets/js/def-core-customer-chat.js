@@ -1205,11 +1205,20 @@
 
 		var url = config.wpRestUrl + action.endpoint;
 		var headers = { 'Content-Type': 'application/json' };
-		// Only send nonce when the action explicitly requires auth. Public
-		// endpoints (like add-to-cart) must NOT send X-WP-Nonce — WordPress
-		// validates it against the session cookie and returns 403 for
-		// anonymous visitors even when the permission callback allows them.
-		if (action.auth === true) {
+		// Send X-WP-Nonce when:
+		//   - the action explicitly requires it (auth: true), OR
+		//   - the user is logged in to WordPress.
+		//
+		// Logged-in callers MUST send the nonce: WordPress REST cookie auth
+		// refuses to set the current user from the auth cookie unless a
+		// matching nonce is present, which would make wc_add_to_cart see
+		// get_current_user_id() = 0 and fall into the guest path that
+		// doesn't merge the persistent cart — wiping existing items.
+		//
+		// Anonymous visitors must NOT send the nonce — WP validates it
+		// against the session cookie and returns 403 for anon even when
+		// the endpoint's permission callback allows them (see v2.2.6).
+		if (action.auth === true || config.isLoggedIn) {
 			headers['X-WP-Nonce'] = config.wpRestNonce || '';
 		}
 		var options = {
@@ -3085,6 +3094,25 @@
 		if (threadId) {
 			isContinuing = true;
 			loadThreadMessages(threadId);
+		}
+
+		// Fetch the JWT context token for logged-in WordPress users so the
+		// widget's isAuthenticated() reflects the real auth state — drives the
+		// Login/Logout menu item, escalation form anonymous fields, and
+		// server-side thread loading. Anonymous visitors skip this to avoid a
+		// 401 from /context-token; the BFF proxy authenticates each chat
+		// request from cookie + nonce, so the JWT is not strictly required for
+		// the message flow.
+		if (config.isLoggedIn) {
+			getValidToken().then(function () {
+				if (destroyed) return;
+				// setContextToken() (called inside getValidToken on success)
+				// already fires updateMenuState. Load server-side threads now
+				// that we know the user is authenticated.
+				if (isAuthenticated() && typeof loadServerThreads === 'function') {
+					loadServerThreads();
+				}
+			});
 		}
 
 		// Check upload eligibility.
