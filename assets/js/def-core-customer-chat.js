@@ -1487,6 +1487,14 @@
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
 
+		// V2 (Spec V1.4 §6): per-turn speaker tracking. When the orchestrator
+		// spawns a specialist, streaming events arrive tagged with
+		// `agent: "<employee_id>"`. On agent change we render a subtle divider
+		// so the user understands a specialist has taken over. Concierge
+		// events may be tagged `agent: "concierge"` or unlabelled; both mean
+		// "the front door is speaking" — no divider needed.
+		var currentAgent = null;
+
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
 				wordDrainTimer = null;
@@ -1528,21 +1536,93 @@
 			}, delay);
 		}
 
+		// Friendly display name for a given agent_id. Returns empty string for
+		// Concierge / unknown / null — the Concierge is the default speaker
+		// so its label is elided from the status row (§6 intent).
+		function specialistDisplayName(agentId) {
+			if (!agentId || agentId === 'concierge') return '';
+			var labels = {
+				'sales_assistant': 'Sales Assistant',
+				'support_assistant': 'Support Assistant'
+			};
+			if (labels[agentId]) return labels[agentId];
+			return agentId.replace(/_/g, ' ').replace(/\b\w/g, function (c) {
+				return c.toUpperCase();
+			});
+		}
+
+		// Build the status-row label text. When a specialist is active, prepend
+		// their display name: "Sales Assistant — Checking your cart…". Concierge
+		// (default voice) shows just the raw status text.
+		function formatThinkingLabel(agentId, statusText) {
+			var name = specialistDisplayName(agentId);
+			var msg = (statusText || '').toString().trim() || 'Thinking…';
+			return name ? (name + ' — ' + msg) : msg;
+		}
+
+		function renderSpeakerDivider(agentId) {
+			var label = specialistDisplayName(agentId) || 'Assistant';
+			var div = el('div', 'def-cc-speaker-divider');
+			div.textContent = label + ' is helping';
+			els.messages.appendChild(div);
+			scrollToBottom();
+		}
+
+		// Update the in-place thinking-row label when the active speaker
+		// changes mid-turn (Spec §6 persistent speaker indicator). Called
+		// every time we notice an agent change, not just on `thinking` events.
+		function refreshThinkingRowSpeaker(agentId) {
+			if (!thinkingStatusEl) return;
+			var labelEl = thinkingStatusEl.querySelector('.cc-tool-label');
+			if (!labelEl) return;
+			// Preserve whatever status text is currently displayed — strip any
+			// existing "Name — " prefix before re-prefixing, so repeated
+			// refreshes don't double-stack (e.g. "Sales — Sales — Thinking…").
+			var current = labelEl.textContent || '';
+			var em = ' — ';
+			var idx = current.indexOf(em);
+			var raw = idx >= 0 ? current.slice(idx + em.length) : current;
+			labelEl.textContent = formatThinkingLabel(agentId, raw);
+		}
+
 		function handleSSEEvent(evt) {
+			// V2 persona handling — two visible signals per Spec §6:
+			//   1. Divider rendered inline when the active speaker changes
+			//      (specialist takeover / next specialist in a handoff).
+			//   2. Persistent speaker prefix on the thinking-status row label,
+			//      e.g. "Sales Assistant — Checking your cart…". The prefix
+			//      follows the current speaker in-place as the turn unfolds.
+			// Concierge events (evt.agent absent or "concierge") don't render
+			// a divider and don't prefix the status label — Concierge is the
+			// default voice so labelling it would be noise.
+			var evtAgent = (evt && evt.agent) ? String(evt.agent) : null;
+			var isSpecialistEvent = evtAgent && evtAgent !== 'concierge';
+			if (isSpecialistEvent && evtAgent !== currentAgent) {
+				renderSpeakerDivider(evtAgent);
+				currentAgent = evtAgent;
+				refreshThinkingRowSpeaker(currentAgent);
+			} else if (evtAgent === 'concierge' && currentAgent !== null) {
+				// Specialist done; Concierge speaks again. No divider.
+				// Strip any lingering specialist prefix from the status row.
+				currentAgent = null;
+				refreshThinkingRowSpeaker(currentAgent);
+			}
+
 			switch (evt.type) {
 				case 'thinking':
 					hideThinking(thinkingEl);
 					var thinkMsg = (evt.message || '').toString().trim() || 'Thinking\u2026';
+					var rowLabel = formatThinkingLabel(currentAgent, thinkMsg);
 					if (!thinkingStatusEl) {
 						var div = el('div', 'cc-tool-status');
 						div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label"></span>';
-						div.querySelector('.cc-tool-label').textContent = thinkMsg;
+						div.querySelector('.cc-tool-label').textContent = rowLabel;
 						els.messages.appendChild(div);
 						scrollToBottom();
 						thinkingStatusEl = div;
 					} else {
 						var ccLabel = thinkingStatusEl.querySelector('.cc-tool-label');
-						if (ccLabel) ccLabel.textContent = thinkMsg;
+						if (ccLabel) ccLabel.textContent = rowLabel;
 					}
 					break;
 				case 'tool_start':
@@ -1588,6 +1668,7 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					currentAgent = null;  // V2: next turn starts with Concierge-as-default
 					dirtyInput = false;
 
 					processChatResponseMeta(evt, text, wasStreamed);
@@ -1610,6 +1691,7 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					currentAgent = null;  // V2: symmetry with done-branch reset
 					appendMessage('assistant', evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;
