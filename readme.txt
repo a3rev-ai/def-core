@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.3.0
+Stable tag: 2.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.3.1 - 2026-04-23 =
+* Fix: Customer Chat add-to-cart now narrates from WooCommerce's actual response instead of a hardcoded "Product added to cart" string. The PHP endpoint clears WC notices before dispatch, captures `wc_get_notices('error')` on failure (e.g. `Sorry, you cannot add another "X" to your cart.`), and otherwise generates the success message via `wc_add_to_cart_message()`. The trailing "View cart" link bleed-through from WC's HTML messages is stripped so the final string reads as natural English.
+* Fix: When `handleWpRestCall` gets an error response from a `wp_rest_call` endpoint, the JS now appends WC's actual error wording as a real assistant chat bubble (in addition to the existing red toast). Without this, the LLM's pre-execution "I'm adding it" narration was the only visible message — the user had no in-conversation evidence of WC's rejection.
 
 = 2.3.0 - 2026-04-23 =
 * Feature: V2 Orchestrator frontend — agent persona badge for Customer Chat. When the Concierge dispatches a specialist, the chat widget renders a subtle "Sales Assistant is helping" divider so the user understands which role is speaking. Companion to the DEF backend Orchestrator V2 Customer Chat migration.
