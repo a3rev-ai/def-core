@@ -123,6 +123,7 @@ Chat messages, user display name, and session context — only when a user activ
 = 2.3.1 - 2026-04-23 =
 * Fix: Customer Chat add-to-cart now narrates from WooCommerce's actual response instead of a hardcoded "Product added to cart" string. The PHP endpoint clears WC notices before dispatch, captures `wc_get_notices('error')` on failure (e.g. `Sorry, you cannot add another "X" to your cart.`), and otherwise generates the success message via `wc_add_to_cart_message()`. The trailing "View cart" link bleed-through from WC's HTML messages is stripped so the final string reads as natural English.
 * Fix: When `handleWpRestCall` gets an error response from a `wp_rest_call` endpoint, the JS now appends WC's actual error wording as a real assistant chat bubble (in addition to the existing red toast). Without this, the LLM's pre-execution "I'm adding it" narration was the only visible message — the user had no in-conversation evidence of WC's rejection.
+* Fix: When the request was for a variation, the success message now uses the variant's display name (e.g. *"WP Email Template — Pro"*) instead of the parent product name. Matches WC's own notice wording on a normal page submit.
 
 = 2.3.0 - 2026-04-23 =
 * Feature: V2 Orchestrator frontend — agent persona badge for Customer Chat. When the Concierge dispatches a specialist, the chat widget renders a subtle "Sales Assistant is helping" divider so the user understands which role is speaking. Companion to the DEF backend Orchestrator V2 Customer Chat migration.

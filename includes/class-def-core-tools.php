@@ -1092,17 +1092,21 @@ final class DEF_Core_Tools {
 			}
 
 			// Generate WooCommerce's own natural-language success message —
-			// e.g. "&ldquo;WP Email Template&rdquo; has been added to your cart."
+			// e.g. "&ldquo;WP Email Template — Pro&rdquo; has been added to your cart."
 			// or, when multiple items, the plural form. wc_add_to_cart_message
 			// with $return=true gives us the string without firing the notice.
 			// Same wording whether this was a brand-new cart line or a
 			// quantity bump, which is what the customer sees in the WC notice
 			// area on a normal page submit, so the LLM stays consistent with
-			// the rest of the storefront.
+			// the rest of the storefront. When the request was for a variation,
+			// key the message off $variation_id (not the parent $product_id) so
+			// the storefront-natural wording uses the specific variant's
+			// display name.
 			$success_message = '';
 			if ( function_exists( 'wc_add_to_cart_message' ) ) {
+				$message_id = ( $variation_id > 0 ) ? (int) $variation_id : (int) $product_id;
 				$success_message = trim( wp_strip_all_tags(
-					wc_add_to_cart_message( array( $product_id => $quantity ), false, true )
+					wc_add_to_cart_message( array( $message_id => $quantity ), false, true )
 				) );
 			}
 
