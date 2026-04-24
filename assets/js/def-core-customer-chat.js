@@ -1139,6 +1139,11 @@
 			var product = (body.product && typeof body.product === 'object') ? body.product : {};
 			var cart    = (body.cart    && typeof body.cart    === 'object') ? body.cart    : {};
 			return {
+				// WooCommerce's own natural-language success message
+				// ("X has been added to your cart") — the LLM should
+				// narrate from this rather than its own memory of what
+				// it added in prior turns.
+				message:        body.message            || null,
 				cart_item_key:  body.cart_item_key      || null,
 				product_id:     product.id              || null,
 				product_name:   product.name            || null,
@@ -1240,6 +1245,22 @@
 						   : (action.error_message   || 'Action failed'),
 						ok ? null : 'error'
 					);
+					// Surface WooCommerce's own error wording as a chat bubble
+					// when the server-side action failed. The LLM has already
+					// finished streaming its narration by the time fetch
+					// resolves (it commits on the dispatch turn from the
+					// pending_confirmation status, before the wp_rest_call
+					// runs), so without this the user sees an over-confident
+					// "added to your cart!" message even when WC actually
+					// rejected the request. The next-turn agentic loop closure
+					// only kicks in when the user sends another message —
+					// poor UX for the visitor staring at a confidently wrong
+					// answer right now. The body.message field carries WC's
+					// own natural-language error (set in PHP by capturing
+					// wc_get_notices('error') in wc_add_to_cart).
+					if (!ok && body && body.message) {
+						appendMessage('assistant', body.message);
+					}
 					postToolResultConfirm({
 						thread_id:    threadId,
 						tool_call_id: action.tool_call_id,
