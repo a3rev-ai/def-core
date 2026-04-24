@@ -1109,11 +1109,31 @@
 	}
 
 	/**
+	 * Statuses the backend may emit on a tool_done event that all mean
+	 * "this completed successfully". Centralised here so a new backend
+	 * framework using different success vocab doesn't require a per-tool
+	 * patch upstream. V2 sub-agents emit "completed"; legacy tools emit
+	 * "success"; file extractor previously emitted "completed" which the
+	 * widget rendered as red ✗ "File analyzed (failed)" — the bug class
+	 * DEF PR #202 fix #3 patched per-tool. This kills it for any tool.
+	 */
+	var SUCCESS_TOOL_STATUSES = ['success', 'completed', 'ok', 'done'];
+
+	/**
 	 * Mark a tool status line as complete (spinner → checkmark or ✗ on failure).
 	 */
 	function completeToolStatus(statusEl, toolName, status) {
 		if (!statusEl) return;
-		var failed = status && status !== 'success';
+		// Status is treated as success when it appears in SUCCESS_TOOL_STATUSES,
+		// OR when it's empty/missing (legacy backwards-compat: some older code
+		// paths omit the status field entirely on success). Centralising this
+		// list at the widget avoids per-tool patches in the backend whenever
+		// a new framework uses different success vocab — V2 sub-agents emit
+		// "completed", legacy tools emit "success", file extractor emitted
+		// "completed" causing red ✗ "File analyzed (failed)" bug class.
+		var statusStr = (typeof status === 'string') ? status.toLowerCase() : '';
+		var isSuccess = !statusStr || SUCCESS_TOOL_STATUSES.indexOf(statusStr) !== -1;
+		var failed = !isSuccess;
 		var icon = failed ? '\u2717' : '\u2713';
 		var label = failed
 			? (TOOL_DONE_LABELS[toolName] || 'Done') + ' (failed)'
