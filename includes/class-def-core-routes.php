@@ -225,16 +225,12 @@ final class DEF_Core_Routes {
 				'core'
 			);
 
-			// WooCommerce Add to Cart (public — any visitor can add to cart).
-			$registry->register_tool(
-				'/tools/wc/add-to-cart',
-				__( 'WooCommerce Add to Cart', 'digital-employees' ),
-				array( 'POST' ),
-				array( 'DEF_Core_Tools', 'wc_add_to_cart' ),
-				array( 'DEF_Core_Tools', 'permission_check_add_to_cart' ),
-				array(),
-				'core'
-			);
+			// Adding to cart is handled by the widget calling WooCommerce's
+			// Store API directly (wc/store/v1/cart/add-item). Running a
+			// custom REST endpoint through WC's session/cart machinery in
+			// REST context is fragile — Store API is the endpoint the WC
+			// Cart Block uses and has a Cart-Token mechanism designed for
+			// this use case. No custom add-to-cart route is registered.
 
 			// WooCommerce Products (public - no authentication required).
 			$registry->register_tool(
