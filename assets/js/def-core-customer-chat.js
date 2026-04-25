@@ -87,8 +87,12 @@
 	 * Security hardening: only endpoints on this list will be executed.
 	 * Add new entries as new tools ship that need browser-side execution.
 	 */
+	// Endpoints that wp_rest_call tool-outputs are allowed to hit. These
+	// are WooCommerce Store API paths (wc/store/*) resolved against the
+	// bare /wp-json/ root (config.wpRestRoot). Add entries as new tools
+	// ship that need browser-side execution.
 	var WP_REST_CALL_ALLOWLIST = [
-		'tools/wc/add-to-cart',
+		'wc/store/v1/cart/add-item',
 	];
 
 	var TOOL_STATUS_LABELS = {
@@ -1150,30 +1154,32 @@
 	 * paths. DEF-AGENTIC-LOOP-CLOSURE-V1.2 §4.4.
 	 */
 	var SHAPE_NORMALISERS = {
-		// Mirrors wc_add_to_cart()'s response shape in class-def-core-tools.php.
-		// Pulls the LLM-relevant fields out of the nested product/cart dicts
-		// into a flat object that matches what a synchronous cart tool would
-		// return, so rehydration sees consistent grounding across sync/async.
+		// Flatten the WC Store API cart/add-item response so the LLM sees
+		// consistent grounding across sync/async tool paths.
+		// Response shape: body.items[], body.items_count,
+		// body.totals.{total_price, total_items, currency_code, currency_minor_unit}.
 		add_to_cart: function (body) {
 			if (!body || typeof body !== 'object') return null;
-			var product = (body.product && typeof body.product === 'object') ? body.product : {};
-			var cart    = (body.cart    && typeof body.cart    === 'object') ? body.cart    : {};
+			var items     = Array.isArray(body.items) ? body.items : [];
+			// Just-added item is typically the last in the response.
+			var lastItem  = items.length ? items[items.length - 1] : null;
+			var totals    = (body.totals && typeof body.totals === 'object') ? body.totals : {};
+			var minorUnit = (typeof totals.currency_minor_unit === 'number') ? totals.currency_minor_unit : 2;
+			function fromMinor(v) {
+				if (v == null || v === '') return null;
+				var n = parseInt(v, 10);
+				if (isNaN(n)) return null;
+				return (n / Math.pow(10, minorUnit)).toFixed(minorUnit);
+			}
 			return {
-				// WooCommerce's own natural-language success message
-				// ("X has been added to your cart") — the LLM should
-				// narrate from this rather than its own memory of what
-				// it added in prior turns.
-				message:        body.message            || null,
-				cart_item_key:  body.cart_item_key      || null,
-				product_id:     product.id              || null,
-				product_name:   product.name            || null,
-				variation_id:   product.variation_id    || null,
-				variation_name: product.variation_name  || null,
-				cart_total:     cart.total              || null,
-				cart_subtotal:  cart.subtotal           || null,
-				cart_count:     (typeof cart.count === 'number') ? cart.count : null,
-				currency:       cart.currency           || null,
-				cart_url:       cart.cart_url           || null,
+				message:        lastItem && lastItem.name ? ('"' + lastItem.name + '" has been added to your cart.') : null,
+				cart_item_key:  lastItem ? (lastItem.key || null) : null,
+				product_id:     lastItem ? (lastItem.id || null) : null,
+				product_name:   lastItem ? (lastItem.name || null) : null,
+				cart_total:     fromMinor(totals.total_price),
+				cart_subtotal:  fromMinor(totals.total_items),
+				cart_count:     (typeof body.items_count === 'number') ? body.items_count : null,
+				currency:       totals.currency_code || body.currency_code || null,
 			};
 		},
 	};
@@ -1216,6 +1222,43 @@
 		}
 	}
 
+	// Serialise wp_rest_call dispatches. The LLM may emit several
+	// add_to_cart actions in a single turn; if we fired them in parallel,
+	// each fetch would race against the same empty-cookie state, the server
+	// would create a separate WC session per call, and the browser would
+	// keep only the last Set-Cookie — leaving the cart populated only with
+	// items from one of the sessions. Chaining ensures call N+1 starts
+	// AFTER call N's response (and its cookie sync) has settled.
+	var wpRestCallChain = Promise.resolve();
+
+	// Cart-Token returned by WooCommerce Store API. Echoed back as the
+	// Cart-Token request header on every Store API call so the server
+	// loads the correct guest cart even when the WC session cookie was
+	// stripped by an edge proxy or never made it to the browser. This is
+	// the same mechanism the official WC Cart Block uses. Persisted to
+	// localStorage so the cart survives page reloads.
+	var wcCartToken = '';
+	try {
+		wcCartToken = localStorage.getItem('def:wc_cart_token') || '';
+	} catch (e) { /* localStorage may be blocked */ }
+
+	function rememberCartToken(token) {
+		if (!token || token === wcCartToken) return;
+		wcCartToken = token;
+		try {
+			localStorage.setItem('def:wc_cart_token', token);
+		} catch (e) { /* best-effort */ }
+	}
+
+	// Latest Store API nonce. Store API requires a `Nonce` request header
+	// on EVERY write (including the first), using its own action name
+	// 'wc_store_api' — separate from WP's wp_rest_nonce. Starts empty
+	// here because `config` hasn't been assigned yet at module-parse
+	// time; falls back to the bootstrap value (config.wcStoreApiNonce)
+	// inside executeWpRestCall. Rotates on each response (server returns
+	// a fresh nonce via the `Nonce` response header).
+	var wcStoreApiNonce = '';
+
 	/**
 	 * Execute a WordPress REST call on behalf of a DEF tool (browser-side).
 	 * The browser has cookies/nonce that DEF cannot access in BFF architecture.
@@ -1227,25 +1270,31 @@
 		if (!action.endpoint || WP_REST_CALL_ALLOWLIST.indexOf(action.endpoint) === -1) {
 			return;
 		}
+		wpRestCallChain = wpRestCallChain.then(function () {
+			return executeWpRestCall(action);
+		});
+	}
 
-		var url = config.wpRestUrl + action.endpoint;
+	function executeWpRestCall(action) {
+		// All wp_rest_call actions currently target WooCommerce Store API
+		// (wc/store/v1/*), which lives outside the DEF namespace — use
+		// the bare /wp-json/ root.
+		var url = (config.wpRestRoot || config.wpRestUrl) + action.endpoint;
 		var headers = { 'Content-Type': 'application/json' };
-		// Send X-WP-Nonce when:
-		//   - the action explicitly requires it (auth: true), OR
-		//   - the user is logged in to WordPress.
-		//
-		// Logged-in callers MUST send the nonce: WordPress REST cookie auth
-		// refuses to set the current user from the auth cookie unless a
-		// matching nonce is present, which would make wc_add_to_cart see
-		// get_current_user_id() = 0 and fall into the guest path that
-		// doesn't merge the persistent cart — wiping existing items.
-		//
-		// Anonymous visitors must NOT send the nonce — WP validates it
-		// against the session cookie and returns 403 for anon even when
-		// the endpoint's permission callback allows them (see v2.2.6).
-		if (action.auth === true || config.isLoggedIn) {
-			headers['X-WP-Nonce'] = config.wpRestNonce || '';
+
+		// Store API session: Cart-Token identifies the visitor's cart
+		// across requests (server issues it via response header, we echo
+		// back). Survives even when wp_woocommerce_session cookies are
+		// stripped by edge proxies on /wp-json/*.
+		if (wcCartToken) {
+			headers['Cart-Token'] = wcCartToken;
 		}
+		// Store API writes require a `Nonce` header on every call —
+		// action name `wc_store_api`, separate from wp_rest_nonce. Use
+		// the latest server-rotated value if we have one; otherwise fall
+		// back to the bootstrap nonce PHP minted at page render.
+		headers['Nonce'] = wcStoreApiNonce || (config && config.wcStoreApiNonce) || '';
+
 		var options = {
 			method: action.method || 'POST',
 			credentials: 'same-origin',
@@ -1255,29 +1304,32 @@
 			options.body = JSON.stringify(action.body);
 		}
 
-		fetch(url, options)
+		return fetch(url, options)
 			.then(function (resp) {
 				var httpStatus = resp.status;
+				// Capture rotated Store API headers before consuming body.
+				var token = resp.headers.get('Cart-Token');
+				if (token) rememberCartToken(token);
+				var nonce = resp.headers.get('Nonce');
+				if (nonce) wcStoreApiNonce = nonce;
+
 				return resp.json().then(function (body) {
-					var ok = resp.ok && body && !body.error;
+					// Store API error responses have a WP_Error shape:
+					// { code: 'woocommerce_rest_*', message, data: { status } }.
+					var ok = resp.ok && body && !body.code;
 					showToast(
 						ok ? (action.success_message || 'Done')
 						   : (action.error_message   || 'Action failed'),
 						ok ? null : 'error'
 					);
-					// Surface WooCommerce's own error wording as a chat bubble
-					// when the server-side action failed. The LLM has already
-					// finished streaming its narration by the time fetch
-					// resolves (it commits on the dispatch turn from the
-					// pending_confirmation status, before the wp_rest_call
-					// runs), so without this the user sees an over-confident
-					// "added to your cart!" message even when WC actually
-					// rejected the request. The next-turn agentic loop closure
-					// only kicks in when the user sends another message —
-					// poor UX for the visitor staring at a confidently wrong
-					// answer right now. The body.message field carries WC's
-					// own natural-language error (set in PHP by capturing
-					// wc_get_notices('error') in wc_add_to_cart).
+					// Surface WC's own error wording as a chat bubble when
+					// the server-side action failed. The LLM commits its
+					// "I'm adding X" narration on the dispatch turn (from
+					// pending_confirmation status) — by the time fetch
+					// resolves it's too late to revise. Without this, an
+					// over-confident success bubble sits next to a failed
+					// toast until the user sends another message and the
+					// next-turn loop closure runs.
 					if (!ok && body && body.message) {
 						appendMessage('assistant', body.message);
 					}

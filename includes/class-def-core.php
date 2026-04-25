@@ -425,6 +425,15 @@ final class DEF_Core {
 			// WP REST URL + nonce for same-origin calls (escalation send).
 			'wpRestUrl'       => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/' ) ),
 			'wpRestNonce'     => wp_create_nonce( 'wp_rest' ),
+			// Bare /wp-json/ root, for cross-namespace REST calls (e.g.
+			// WooCommerce Store API at wc/store/v1/cart/add-item).
+			'wpRestRoot'      => esc_url_raw( rest_url( '' ) ),
+			// WC Store API uses its own nonce action ("wc_store_api") and
+			// requires a `Nonce` header on every write, including the first.
+			// On successful responses the server rotates the nonce via the
+			// `Nonce` response header — the widget tracks that and uses the
+			// latest on subsequent calls. This is just the bootstrap value.
+			'wcStoreApiNonce' => wp_create_nonce( 'wc_store_api' ),
 			// Asset URLs for lazy loading (versioned for cache-busting).
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js?ver=' . DEF_CORE_VERSION,
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css?ver=' . DEF_CORE_VERSION,
@@ -447,28 +456,11 @@ final class DEF_Core {
 	/**
 	 * Check if cart sync script should be enqueued.
 	 *
-	 * @return bool True if WooCommerce is installed and Add to Cart API is enabled.
+	 * @return bool True if WooCommerce is installed and active.
 	 * @since 0.2.0
-	 * @version 0.2.0
 	 */
 	private function should_enqueue_cart_sync(): bool {
-		// Check if WooCommerce is installed and active.
-		$woocommerce_active = class_exists( 'WooCommerce' ) || function_exists( 'WC' );
-		if ( ! $woocommerce_active ) {
-			return false;
-		}
-
-		// Check if Add to Cart tool is registered.
-		$registry = DEF_Core_API_Registry::instance();
-		$route    = '/tools/wc/add-to-cart';
-
-		// Check if tool is registered.
-		if ( ! $registry->is_registered( $route ) ) {
-			return false;
-		}
-
-		// Check if tool is enabled.
-		return $registry->is_tool_enabled( $route );
+		return class_exists( 'WooCommerce' ) || function_exists( 'WC' );
 	}
 
 	/**

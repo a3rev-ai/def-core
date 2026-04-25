@@ -239,7 +239,7 @@ final class DEF_Core_API_Registry {
 	/**
 	 * Check if a tool is enabled.
 	 *
-	 * @param string $route Tool route (e.g., '/tools/wc/add-to-cart').
+	 * @param string $route Tool route (e.g., '/tools/wc/orders').
 	 * @return bool True if enabled, false if disabled. Defaults to true if not in list.
 	 * @since 0.2.0
 	 * @version 0.2.0
