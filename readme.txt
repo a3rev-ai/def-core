@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.5.0
+Stable tag: 2.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.5.1 - 2026-04-27 =
+* Feature: the `[def_chat_button]` shortcode and `def_core_chat_button` action hook now render a properly styled trigger button that visually matches the floating chat button. Previously the rendered `<button>` had no styling — sites that disabled the floating button and placed the trigger via shortcode/hook saw an unstyled browser-default button. The Chat Settings options (Button Color, Button Hover Color, Button Icon — Chat bubble / Headset / AI sparkle / Custom — and Button Label) now drive both the floating button and any shortcode/hook placement, identically.
+* Internal: shortcode/hook button receives main-document CSS via a new `def-core-chat-trigger` stylesheet enqueued on every frontend page, with color values injected as CSS variables (`--def-chat-btn-color`, `--def-chat-btn-hover`) from the existing options via `wp_add_inline_style`. The floating button continues to be styled inside its Shadow DOM by the loader; the two buttons now share the same icon set, sparkle hover animation, and reduced-motion handling, but their styles live in independent scopes (Shadow DOM vs. main document) by design.
+* Behavior change: shortcode default for `label` and `icon` attributes now falls through to the saved Chat Settings options when omitted, instead of hard-coded `Chat` / no-icon. Existing shortcode invocations like `[def_chat_button label="Help"]` are unaffected — explicit attributes always override.
 
 = 2.5.0 - 2026-04-27 =
 * Feature: Orchestrator V2 agent-persona indicator now ships across all three channels (Customer Chat, Staff AI, Setup Assistant). When the Concierge dispatches a specialist (e.g. Sales Assistant in Customer Chat, Knowledge Assistant in Staff AI), the chat renders a subtle "X is helping" divider in the message stream and prefixes the thinking-status row with the active speaker's name. Concierge / unlabelled events render no divider — keeps the calm of the front-door voice.

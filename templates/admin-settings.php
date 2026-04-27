@@ -318,7 +318,7 @@ $first_tab = 'branding';
 					<span class="def-core-color-value"><?php echo esc_html( $button_settings['color'] ); ?></span>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'Background color for the floating chat button.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Background color for the chat button (applies to both the floating button and any [def_chat_button] shortcode placement).', 'digital-employees' ); ?>
 				</p>
 			</div>
 
@@ -443,7 +443,7 @@ $first_tab = 'branding';
 					</label>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'Text label shown on the floating chat button.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Text label shown on the chat button (applies to both the floating button and shortcode placements).', 'digital-employees' ); ?>
 				</p>
 			</div>
 
