@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.3.2
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.4.0 - 2026-04-25 =
+* Feature: Customer Chat add-to-cart now calls WooCommerce's Store API (`/wp-json/wc/store/v1/cart/add-item`) directly from the widget instead of the custom `tools/wc/add-to-cart` REST endpoint. Store API is the same endpoint the WC Cart Block uses — it manages guest sessions via a `Cart-Token` response/request header pair (separate from the `wp_woocommerce_session` cookie that edge proxies routinely strip on `/wp-json/*`), and uses its own `wc_store_api` Nonce. The browser tracks the rotated `Cart-Token` in `localStorage` so the cart survives reloads and proxy churn. Logged-in and guest visitors both flow through the same code path.
+* Removed: legacy `wc_add_to_cart` PHP endpoint (~340 LOC), `permission_check_add_to_cart`, `parse_wc_session_cookie_from_request`, and the `/tools/wc/add-to-cart` route registration. Browser-side dispatch via `handleWpRestCall` is unchanged in shape — only the URL and headers it sends differ. The new path eliminates the REST-context session-init timing bug that produced "second add wipes cart" symptoms for guests under any cookie-stripping proxy (Cloudflare, hosting CDNs).
+* Compatibility: `def-core-cart-sync.js` (iframe integration helper) is still enqueued whenever WC is active — its gating no longer references the removed endpoint. No JS-side breaking changes for iframe deployments.
 
 = 2.3.2 - 2026-04-24 =
 * Fix: Customer Chat tool_done status rendering is now centralised at the widget. `completeToolStatus()` treats success-shaped statuses (`success`, `completed`, `ok`, `done`) as success regardless of which backend framework emitted the event. Kills the `Done (failed)` and `File analyzed (failed)` bug class for any tool, not just per-tool. Companion to DEF #204.

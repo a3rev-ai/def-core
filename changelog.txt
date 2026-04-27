@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.4.0 - 2026/04/25 =
+* Feature: Customer Chat add-to-cart now calls WooCommerce's Store API (`/wp-json/wc/store/v1/cart/add-item`) directly from the widget instead of the custom `tools/wc/add-to-cart` REST endpoint. Store API is the same endpoint the WC Cart Block uses — it manages guest sessions via a `Cart-Token` response/request header pair (separate from the `wp_woocommerce_session` cookie that edge proxies routinely strip on `/wp-json/*`), and uses its own `wc_store_api` Nonce. The browser tracks the rotated `Cart-Token` in `localStorage` so the cart survives reloads and proxy churn. Logged-in and guest visitors both flow through the same code path.
+* Removed: legacy `wc_add_to_cart` PHP endpoint (~340 LOC), `permission_check_add_to_cart`, `parse_wc_session_cookie_from_request`, and the `/tools/wc/add-to-cart` route registration. Browser-side dispatch via `handleWpRestCall` is unchanged in shape — only the URL and headers it sends differ. The new path eliminates the REST-context session-init timing bug that produced "second add wipes cart" symptoms for guests under any cookie-stripping proxy (Cloudflare, hosting CDNs).
+* Compatibility: `def-core-cart-sync.js` (iframe integration helper) is still enqueued whenever WC is active — its gating no longer references the removed endpoint. No JS-side breaking changes for iframe deployments.
+
 = 2.3.2 - 2026/04/24 =
 * Fix: Customer Chat tool_done status mapping is now centralised at the widget level. The widget's `completeToolStatus()` now treats `'success'`, `'completed'`, `'ok'`, and `'done'` (case-insensitive) as success, plus an empty/missing status for legacy backwards-compat. Kills the bug class behind both `Done (failed)` (DEF PR #202 fix #3 patched per-tool by translating `"completed"` → `"success"` for spawn_sub_agent only) and `File analyzed (failed)` (file extractor was emitting `"completed"` and being rendered red). Companion to DEF #204 follow-up.
 
