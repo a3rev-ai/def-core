@@ -816,6 +816,20 @@ $data     = $response->get_data();
 assert_equals( 400, $response->get_status(), 'returns 400' );
 assert_equals( 'VALIDATION_ERROR', $data['error']['code'], 'error code is VALIDATION_ERROR' );
 
+// Spotlight is now an accepted display-mode value (v2.6.0).
+$request->set_body_params( array( 'value' => 'spotlight' ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight display_mode accepted' );
+
+// Modal and drawer remain accepted (regression check).
+$request->set_body_params( array( 'value' => 'modal' ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'modal display_mode accepted' );
+
+$request->set_body_params( array( 'value' => 'drawer' ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'drawer display_mode accepted' );
+
 // ── 22. POST /setup/setting — drawer width validation ───────────────────
 echo "\n[22] POST /setup/setting — drawer width out of range\n";
 reset_test_state();
@@ -834,6 +848,60 @@ assert_equals( 400, $response->get_status(), 'width 200 rejected' );
 $request->set_body_params( array( 'value' => 450 ) );
 $response = $sa->rest_update_setting( $request );
 assert_equals( 200, $response->get_status(), 'width 450 accepted' );
+
+// ── 22a. POST /setup/setting — spotlight width validation (v2.6.0) ──────
+echo "\n[22a] POST /setup/setting — spotlight width out of range\n";
+reset_test_state();
+setup_admin_user();
+
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_spotlight_width' );
+$request->set_param( 'key', 'def_core_chat_spotlight_width' );
+$request->set_body_params( array( 'value' => 599 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 400, $response->get_status(), 'spotlight width 599 (below min) rejected' );
+
+$request->set_body_params( array( 'value' => 1201 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 400, $response->get_status(), 'spotlight width 1201 (above max) rejected' );
+
+$request->set_body_params( array( 'value' => 600 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight width 600 (min boundary) accepted' );
+
+$request->set_body_params( array( 'value' => 1200 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight width 1200 (max boundary) accepted' );
+
+$request->set_body_params( array( 'value' => 960 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight width 960 (default) accepted' );
+
+// ── 22b. POST /setup/setting — spotlight height validation (v2.6.0) ─────
+echo "\n[22b] POST /setup/setting — spotlight height out of range\n";
+reset_test_state();
+setup_admin_user();
+
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_spotlight_height' );
+$request->set_param( 'key', 'def_core_chat_spotlight_height' );
+$request->set_body_params( array( 'value' => 499 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 400, $response->get_status(), 'spotlight height 499 (below min) rejected' );
+
+$request->set_body_params( array( 'value' => 801 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 400, $response->get_status(), 'spotlight height 801 (above max) rejected' );
+
+$request->set_body_params( array( 'value' => 500 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight height 500 (min boundary) accepted' );
+
+$request->set_body_params( array( 'value' => 800 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight height 800 (max boundary) accepted' );
+
+$request->set_body_params( array( 'value' => 600 ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'spotlight height 600 (default) accepted' );
 
 // ── 23. POST /setup/setting — URL validation (readonly after Sub-PR C) ──
 echo "\n[23] POST /setup/setting — URL validation (readonly)\n";
@@ -1142,6 +1210,8 @@ $expected_keys = array(
 	'def_core_escalation_setup_assistant',
 	'def_core_chat_display_mode',
 	'def_core_chat_drawer_width',
+	'def_core_chat_spotlight_width',
+	'def_core_chat_spotlight_height',
 );
 foreach ( $expected_keys as $key ) {
 	assert_true( isset( $allowlist[ $key ] ), "allowlist contains $key" );

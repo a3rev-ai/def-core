@@ -90,10 +90,12 @@
 		shadowRoot.appendChild(style);
 	}
 
-	// Defense-in-depth clamp for admin-configured dimensions. The PHP
-	// sanitizers already clamp on save, but the values flow through
-	// wp_localize_script as strings — re-clamp at runtime to guard
-	// against any future drift or external config injection.
+	// Defense-in-depth clamp for admin-configured dimensions. PHP
+	// sanitizers already clamp on save and the values are emitted
+	// via wp_localize_script as JSON numbers (not strings) thanks to
+	// the (int) cast at the PHP boundary — re-clamp at runtime
+	// anyway to guard against future drift, future code paths that
+	// might emit strings, or external config injection.
 	function clampInt(value, min, max, fallback) {
 		var n = parseInt(value, 10);
 		if (isNaN(n)) return fallback;
@@ -169,7 +171,11 @@
 			'.def-cc-backdrop--dim.def-cc-backdrop--visible {' +
 			'  background: rgba(0, 0, 0, 0.5);' +
 			'}' +
-			/* Panel shell (empty until module loads) */
+			/* Panel shell (empty until module loads). The transform/opacity
+			 * here is the closed-state default for Modal mode. Mode shells
+			 * below (--drawer / --spotlight) override transform via source
+			 * order — keep this rule above them or the entrance animation
+			 * for non-Modal modes will break. */
 			'.def-cc-panel {' +
 			'  position: fixed; z-index: 999999;' +
 			'  display: flex; flex-direction: column;' +
