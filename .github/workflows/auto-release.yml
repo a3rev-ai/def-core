@@ -1,0 +1,112 @@
+name: Auto-publish release on version bump
+
+# When def-core.php's Plugin Header `Version:` is bumped on `main`, create
+# a matching GitHub Release. The existing `release.yml` workflow listens
+# for `release: published` and builds + attaches `digital-employees.zip`,
+# so this workflow's only job is publishing the release that kicks that
+# chain off.
+#
+# Idempotent: if a release with the current version's tag already exists
+# (e.g. PR merged without bumping the version, or the merger already ran
+# `gh release create` manually), the workflow no-ops.
+#
+# Notes are extracted from the matching section of `changelog.txt` so the
+# auto-published release reads the same as a hand-cut one.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  # Releases require contents:write. NOT pull-requests:write — the repo
+  # setting "GitHub Actions cannot create or approve pull requests" is a
+  # deliberate guardrail and this workflow does not touch PRs.
+  contents: write
+
+# Serialise per-branch so two near-simultaneous merges don't race when
+# checking + creating the release tag.
+concurrency:
+  group: auto-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from def-core.php Plugin Header
+        id: version
+        run: |
+          set -euo pipefail
+          # Match the "Version: X.Y.Z" line in the Plugin Header block.
+          VERSION="$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' def-core.php \
+            | head -n1 \
+            | sed -E 's/.*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid version extracted from def-core.php: '$VERSION'"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: v$VERSION"
+
+      - name: Check if release v${{ steps.version.outputs.version }} already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "v${{ steps.version.outputs.version }}" \
+              --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ steps.version.outputs.version }} already exists — skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ steps.version.outputs.version }} does not exist — will create."
+          fi
+
+      - name: Extract changelog notes for this version
+        id: notes
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.version.outputs.version }}'
+          # Grab everything from "= VERSION " to the next "= " entry (exclusive),
+          # or to EOF if this is the topmost / only entry.
+          NOTES="$(awk -v ver="$VERSION" '
+            /^= [0-9]/ {
+              if (printing) { exit }
+              if ($0 ~ "^= " ver " ") { printing=1; next }
+            }
+            printing { print }
+          ' changelog.txt)"
+          if [ -z "$NOTES" ]; then
+            NOTES="Automated release for v$VERSION. See changelog.txt for details."
+          fi
+          # Write to a file via heredoc so single quotes / backticks / dollar
+          # signs in the changelog don't break shell quoting at gh-cli call
+          # time. The next step reads it via --notes-file.
+          {
+            echo "## v$VERSION"
+            echo
+            echo "$NOTES"
+            echo
+            echo "_Auto-published from main on def-core.php Version bump. Edit on the GitHub release page if you need richer notes._"
+          } > /tmp/release-notes.md
+          echo "Notes written to /tmp/release-notes.md ($(wc -l < /tmp/release-notes.md) lines)"
+
+      - name: Create GitHub Release v${{ steps.version.outputs.version }}
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file /tmp/release-notes.md
+          echo "Created release v${{ steps.version.outputs.version }} at $GITHUB_SHA"
+          echo "release.yml will now fire on the release:published event and attach digital-employees.zip"
