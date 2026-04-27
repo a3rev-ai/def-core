@@ -1,0 +1,100 @@
+/**
+ * Digital Employee Framework — Chat Trigger Button (main document)
+ *
+ * Styles for the [def_chat_button] shortcode and `def_core_chat_button`
+ * action hook. The floating trigger button (`.def-cc-trigger`) lives
+ * inside the Customer Chat Shadow DOM and is styled by the loader's
+ * inline <style> block — those styles cannot reach the main document.
+ * This stylesheet mirrors that visual design for the main-document
+ * button so theme-header / shortcode-placed buttons get the same look.
+ *
+ * Color variables `--def-chat-btn-color` / `--def-chat-btn-hover` are
+ * injected via wp_add_inline_style on every frontend page from the
+ * existing Chat Settings options (def_core_chat_button_color and
+ * def_core_chat_button_hover_color), so the same admin controls drive
+ * both the floating button and the shortcode-placed button.
+ */
+
+.def-chat-trigger-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border: none;
+	border-radius: 24px;
+	background: var(--def-chat-btn-color, #111827);
+	color: #fff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+	transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+	-webkit-tap-highlight-color: transparent;
+	text-decoration: none; /* in case rendered inside an <a> wrapper by the theme */
+}
+
+.def-chat-trigger-btn:hover {
+	background: var(--def-chat-btn-hover, var(--def-chat-btn-color, #111827));
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+	transform: translateY(-1px);
+}
+
+.def-chat-trigger-btn:focus-visible {
+	outline: 2px solid #3b82f6;
+	outline-offset: 2px;
+}
+
+.def-chat-trigger-btn-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	flex-shrink: 0;
+}
+
+.def-chat-trigger-btn-icon svg {
+	width: 20px;
+	height: 20px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.def-chat-trigger-btn-icon img {
+	width: 20px;
+	height: 20px;
+	object-fit: contain;
+	border-radius: 4px;
+}
+
+.def-chat-trigger-btn-icon--sparkle svg {
+	fill: currentColor;
+	stroke: none;
+}
+
+.def-chat-trigger-btn:hover .def-chat-trigger-btn-icon--sparkle svg {
+	animation: def-chat-trigger-sparkle 0.6s ease-in-out;
+}
+
+@keyframes def-chat-trigger-sparkle {
+	0%   { transform: scale(1)    rotate(0deg);  }
+	40%  { transform: scale(1.2)  rotate(12deg); }
+	70%  { transform: scale(0.95) rotate(-4deg); }
+	100% { transform: scale(1)    rotate(0deg);  }
+}
+
+.def-chat-trigger-btn-label {
+	display: inline-block;
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.def-chat-trigger-btn { transition: none; }
+	.def-chat-trigger-btn:hover { transform: none; }
+	.def-chat-trigger-btn:hover .def-chat-trigger-btn-icon--sparkle svg { animation: none; }
+}
