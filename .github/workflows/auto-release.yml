@@ -41,14 +41,35 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          # Match the "Version: X.Y.Z" line in the Plugin Header block.
-          VERSION="$(grep -E '^[[:space:]]*\*[[:space:]]*Version:' def-core.php \
+          # `grep -oE` only outputs the matching segment (3-segment semver
+          # only). If no match, output is empty — the explicit guards below
+          # surface a clean error instead of a misleading "invalid version"
+          # against the whole line. `|| true` keeps `set -e + pipefail` from
+          # killing us when grep finds nothing.
+          VERSION="$(grep -oE 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' def-core.php \
             | head -n1 \
-            | sed -E 's/.*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Invalid version extracted from def-core.php: '$VERSION'"
+            | sed -E 's/.*Version:[[:space:]]*//' || true)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not find a 3-segment semver in def-core.php Plugin Header. Expected format: ' * Version: X.Y.Z'"
             exit 1
           fi
+
+          # Defense-in-depth: assert the Plugin Header version matches the
+          # DEF_CORE_VERSION runtime constant. The plugin has two version
+          # surfaces; both must agree, or the auto-updater ships a release
+          # whose runtime self-reports a different version. Closing this
+          # gap is the same class of fix this workflow exists for.
+          CONSTANT_VERSION="$(grep 'DEF_CORE_VERSION' def-core.php \
+            | grep -oE "'[0-9]+\.[0-9]+\.[0-9]+'" \
+            | tr -d "'" \
+            | head -n1 || true)"
+          if [ -z "$CONSTANT_VERSION" ]; then
+            echo "::warning::Could not extract DEF_CORE_VERSION constant from def-core.php — skipping consistency check"
+          elif [ "$VERSION" != "$CONSTANT_VERSION" ]; then
+            echo "::error::Plugin Header Version ($VERSION) and DEF_CORE_VERSION constant ($CONSTANT_VERSION) disagree. Bump both before merging."
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: v$VERSION"
 
