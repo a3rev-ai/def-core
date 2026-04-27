@@ -1158,11 +1158,29 @@
 		// consistent grounding across sync/async tool paths.
 		// Response shape: body.items[], body.items_count,
 		// body.totals.{total_price, total_items, currency_code, currency_minor_unit}.
-		add_to_cart: function (body) {
+		//
+		// `dispatchedId` is the variation_id or product_id we sent in the
+		// add-item request. We use it to identify the just-added line in
+		// the response — taking the last array entry would be wrong when
+		// the same product is re-added (Store API bumps quantity in place,
+		// so a later A→B→A-again sequence leaves items=[A,B] with A as
+		// "the just-added" but B as the array tail).
+		add_to_cart: function (body, dispatchedId) {
 			if (!body || typeof body !== 'object') return null;
 			var items     = Array.isArray(body.items) ? body.items : [];
-			// Just-added item is typically the last in the response.
-			var lastItem  = items.length ? items[items.length - 1] : null;
+			// Match by dispatched id; fall back to last item if no match
+			// (e.g. unknown id-canonicalisation by WC, or dispatch metadata
+			// missing).
+			var dispatchedItem = null;
+			if (dispatchedId) {
+				for (var i = items.length - 1; i >= 0; i--) {
+					if (items[i] && items[i].id === dispatchedId) {
+						dispatchedItem = items[i];
+						break;
+					}
+				}
+			}
+			var item      = dispatchedItem || (items.length ? items[items.length - 1] : null);
 			var totals    = (body.totals && typeof body.totals === 'object') ? body.totals : {};
 			var minorUnit = (typeof totals.currency_minor_unit === 'number') ? totals.currency_minor_unit : 2;
 			function fromMinor(v) {
@@ -1172,10 +1190,10 @@
 				return (n / Math.pow(10, minorUnit)).toFixed(minorUnit);
 			}
 			return {
-				message:        lastItem && lastItem.name ? ('"' + lastItem.name + '" has been added to your cart.') : null,
-				cart_item_key:  lastItem ? (lastItem.key || null) : null,
-				product_id:     lastItem ? (lastItem.id || null) : null,
-				product_name:   lastItem ? (lastItem.name || null) : null,
+				message:        item && item.name ? ('"' + item.name + '" has been added to your cart.') : null,
+				cart_item_key:  item ? (item.key || null) : null,
+				product_id:     item ? (item.id || null) : null,
+				product_name:   item ? (item.name || null) : null,
 				cart_total:     fromMinor(totals.total_price),
 				cart_subtotal:  fromMinor(totals.total_items),
 				cart_count:     (typeof body.items_count === 'number') ? body.items_count : null,
@@ -1184,9 +1202,9 @@
 		},
 	};
 
-	function normaliseToolResultShape(toolName, wpResponseBody) {
+	function normaliseToolResultShape(toolName, wpResponseBody, dispatchedId) {
 		var fn = SHAPE_NORMALISERS[toolName];
-		return fn ? fn(wpResponseBody) : wpResponseBody;
+		return fn ? fn(wpResponseBody, dispatchedId) : wpResponseBody;
 	}
 
 	/**
@@ -1237,6 +1255,11 @@
 	// stripped by an edge proxy or never made it to the browser. This is
 	// the same mechanism the official WC Cart Block uses. Persisted to
 	// localStorage so the cart survives page reloads.
+	//
+	// Cross-tab note: if two tabs share def:wc_cart_token they will race
+	// on the rotated header value, but Store API tolerates a stale
+	// Cart-Token (server reissues a fresh one in the response), so the
+	// race is benign.
 	var wcCartToken = '';
 	try {
 		wcCartToken = localStorage.getItem('def:wc_cart_token') || '';
@@ -1278,8 +1301,15 @@
 	function executeWpRestCall(action) {
 		// All wp_rest_call actions currently target WooCommerce Store API
 		// (wc/store/v1/*), which lives outside the DEF namespace — use
-		// the bare /wp-json/ root.
-		var url = (config.wpRestRoot || config.wpRestUrl) + action.endpoint;
+		// the bare /wp-json/ root. If wpRestRoot is missing from config
+		// (PHP/JS version skew), fail loud instead of silently building a
+		// 404 URL by falling back to the namespaced wpRestUrl.
+		if (!config.wpRestRoot) {
+			console.error('[def-core] wpRestRoot missing from config — cart calls cannot dispatch (PHP/JS version skew?).');
+			showToast(action.error_message || 'Action failed', 'error');
+			return;
+		}
+		var url = config.wpRestRoot + action.endpoint;
 		var headers = { 'Content-Type': 'application/json' };
 
 		// Store API session: Cart-Token identifies the visitor's cart
@@ -1339,7 +1369,7 @@
 						tool_name:    action.tool_name,
 						status:       ok ? 'completed' : 'failed',
 						result: {
-							data:        ok ? normaliseToolResultShape(action.tool_name, body) : null,
+							data:        ok ? normaliseToolResultShape(action.tool_name, body, action.body && action.body.id) : null,
 							http_status: httpStatus,
 							error:       ok ? null : ((body && body.message) || 'Action failed'),
 						},

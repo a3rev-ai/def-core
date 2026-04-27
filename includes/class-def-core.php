@@ -456,6 +456,15 @@ final class DEF_Core {
 	/**
 	 * Check if cart sync script should be enqueued.
 	 *
+	 * Note: def-core-cart-sync.js is the iframe integration helper used
+	 * for embedded-widget deployments where the chat lives in an iframe
+	 * separate from the storefront. It listens for postMessage events
+	 * from the parent page. The widget itself (def-core-customer-chat.js)
+	 * no longer drives cart sync since v2.4.0 — Store API's Cart-Token
+	 * handles guest sessions directly. Kept enqueued for any iframe-
+	 * integrated tenants that still rely on the helper. Candidate for
+	 * deletion in a follow-up if no live tenants are using it.
+	 *
 	 * @return bool True if WooCommerce is installed and active.
 	 * @since 0.2.0
 	 */
