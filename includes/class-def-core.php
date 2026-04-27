@@ -433,7 +433,10 @@ final class DEF_Core {
 			'logoShow'       => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
 			'logoMaxHeight'  => (int) get_option( 'def_core_logo_max_height', 40 ),
 			// Chat settings.
-			'chatDisplayMode' => get_option( 'def_core_chat_display_mode', 'modal' ),
+			'chatDisplayMode'      => get_option( 'def_core_chat_display_mode', 'modal' ),
+			'chatDrawerWidth'      => (int) get_option( 'def_core_chat_drawer_width', 400 ),
+			'chatSpotlightWidth'   => (int) get_option( 'def_core_chat_spotlight_width', 960 ),
+			'chatSpotlightHeight'  => (int) get_option( 'def_core_chat_spotlight_height', 600 ),
 			// Button appearance.
 			'buttonPosition'  => get_option( 'def_core_chat_button_position', 'right' ),
 			'buttonColor'     => get_option( 'def_core_chat_button_color', '#111827' ),

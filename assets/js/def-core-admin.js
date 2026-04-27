@@ -1034,15 +1034,22 @@
 			'input[data-setting="def_core_chat_display_mode"]'
 		);
 		var drawerOptions = document.getElementById('def-core-drawer-options');
+		var spotlightOptions = document.getElementById('def-core-spotlight-options');
 
-		if (!radios.length || !drawerOptions) {
+		if (!radios.length) {
 			return;
 		}
 
 		radios.forEach(function (radio) {
 			radio.addEventListener('change', function () {
-				drawerOptions.style.display =
-					radio.value === 'drawer' ? 'block' : 'none';
+				if (drawerOptions) {
+					drawerOptions.style.display =
+						radio.value === 'drawer' ? 'block' : 'none';
+				}
+				if (spotlightOptions) {
+					spotlightOptions.style.display =
+						radio.value === 'spotlight' ? 'block' : 'none';
+				}
 			});
 		});
 	}

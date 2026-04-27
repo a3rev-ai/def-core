@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.5.1
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,13 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.6.0 - 2026-04-28 =
+* Feature: new "Spotlight" Display Mode option for Customer Chat. A large overlay centered on the page with a dimmed backdrop, inspired by the Bunnings "Buddy" / WC Cart Block full-attention pattern. Best for tenants who want the chat to feel like a focused experience rather than a peek-mode bubble. Default 960×600 desktop size, configurable in admin (width 600–1200, height 500–800), goes full-screen on mobile.
+* Feature: existing Modal and Drawer modes unchanged. Spotlight is purely additive — picking it does not affect tenants on Modal/Drawer. The same chat content (header, messages, composer, file upload, AI disclosure, V2 persona indicator, etc.) renders identically across all three modes; only the panel shell differs.
+* Fix: the Drawer Width admin option (300–600px) is now actually applied to the rendered drawer. Previously the drawer was hard-coded to 400px regardless of the setting — the value flowed through the admin save path but was ignored by the loader CSS. The setting now drives a `width: min(<configured>px, 100vw)` rule.
+* Fix: the Modal description in admin Chat Settings was inaccurate ("Chat opens in a centered overlay window") — Modal mode has always been corner-anchored, not centered. Updated to "Compact panel anchored next to the trigger button (bottom corner)."
+* Internal: new `def_core_chat_spotlight_width` and `def_core_chat_spotlight_height` options registered in the admin API + Setup Assistant settings registry. Defense-in-depth runtime clamps in the loader (in addition to the existing PHP sanitizers on save) protect against drift or external config injection.
 
 = 2.5.1 - 2026-04-27 =
 * Feature: the `[def_chat_button]` shortcode and `def_core_chat_button` action hook now render a properly styled trigger button that visually matches the floating chat button. Previously the rendered `<button>` had no styling — sites that disabled the floating button and placed the trigger via shortcode/hook saw an unstyled browser-default button. The Chat Settings options (Button Color, Button Hover Color, Button Icon — Chat bubble / Headset / AI sparkle / Custom — and Button Label) now drive both the floating button and any shortcode/hook placement, identically.

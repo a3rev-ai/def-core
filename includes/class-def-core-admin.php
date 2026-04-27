@@ -65,6 +65,14 @@ final class DEF_Core_Admin {
 				'type'     => 'int',
 				'sanitize' => 'sanitize_drawer_width',
 			),
+			'def_core_chat_spotlight_width' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_spotlight_width',
+			),
+			'def_core_chat_spotlight_height' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_spotlight_height',
+			),
 			'def_core_chat_button_position' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_button_position',
@@ -396,8 +404,10 @@ final class DEF_Core_Admin {
 
 		// D-II: Chat settings.
 		$chat_settings = array(
-			'display_mode' => get_option( 'def_core_chat_display_mode', 'modal' ),
-			'drawer_width' => (int) get_option( 'def_core_chat_drawer_width', 400 ),
+			'display_mode'     => get_option( 'def_core_chat_display_mode', 'modal' ),
+			'drawer_width'     => (int) get_option( 'def_core_chat_drawer_width', 400 ),
+			'spotlight_width'  => (int) get_option( 'def_core_chat_spotlight_width', 960 ),
+			'spotlight_height' => (int) get_option( 'def_core_chat_spotlight_height', 600 ),
 		);
 
 		// AI consent notice settings.
@@ -731,11 +741,11 @@ final class DEF_Core_Admin {
 	 * Sanitize chat display mode.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string 'modal' or 'drawer'.
+	 * @return string 'modal', 'drawer', or 'spotlight'.
 	 */
 	public static function sanitize_chat_display_mode( $value ): string {
 		$value = sanitize_text_field( (string) $value );
-		return in_array( $value, array( 'modal', 'drawer' ), true ) ? $value : 'modal';
+		return in_array( $value, array( 'modal', 'drawer', 'spotlight' ), true ) ? $value : 'modal';
 	}
 
 	/**
@@ -747,6 +757,28 @@ final class DEF_Core_Admin {
 	public static function sanitize_drawer_width( $value ): int {
 		$value = (int) $value;
 		return max( 300, min( 600, $value ) );
+	}
+
+	/**
+	 * Sanitize spotlight width (600–1200 px).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return int Clamped width value.
+	 */
+	public static function sanitize_spotlight_width( $value ): int {
+		$value = (int) $value;
+		return max( 600, min( 1200, $value ) );
+	}
+
+	/**
+	 * Sanitize spotlight height (500–800 px).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return int Clamped height value.
+	 */
+	public static function sanitize_spotlight_height( $value ): int {
+		$value = (int) $value;
+		return max( 500, min( 800, $value ) );
 	}
 
 	/**

@@ -148,6 +148,16 @@ final class DEF_Core_Admin_API {
 			'validate'  => 'validate_drawer_width',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_spotlight_width' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_spotlight_width',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_spotlight_height' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_spotlight_height',
+			'read_mode' => 'value',
+		),
 		'def_core_chat_button_color' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_hex_color',
@@ -643,6 +653,8 @@ final class DEF_Core_Admin_API {
 			'def_core_escalation_setup_assistant' => 'escalation',
 			'def_core_chat_display_mode'         => 'chat-settings',
 			'def_core_chat_drawer_width'         => 'chat-settings',
+			'def_core_chat_spotlight_width'      => 'chat-settings',
+			'def_core_chat_spotlight_height'     => 'chat-settings',
 			'def_core_chat_button_color'         => 'chat-settings',
 			'def_core_chat_button_hover_color'   => 'chat-settings',
 			'def_core_chat_button_icon'          => 'chat-settings',
@@ -1189,8 +1201,8 @@ final class DEF_Core_Admin_API {
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_display_mode( $value ) {
-		if ( ! in_array( $value, array( 'modal', 'drawer' ), true ) ) {
-			return 'Display mode must be "modal" or "drawer".';
+		if ( ! in_array( $value, array( 'modal', 'drawer', 'spotlight' ), true ) ) {
+			return 'Display mode must be "modal", "drawer", or "spotlight".';
 		}
 		return true;
 	}
@@ -1205,6 +1217,34 @@ final class DEF_Core_Admin_API {
 		$width = intval( $value );
 		if ( $width < 300 || $width > 600 ) {
 			return 'Drawer width must be between 300 and 600 pixels.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate spotlight width setting.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_spotlight_width( $value ) {
+		$width = intval( $value );
+		if ( $width < 600 || $width > 1200 ) {
+			return 'Spotlight width must be between 600 and 1200 pixels.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate spotlight height setting.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_spotlight_height( $value ) {
+		$height = intval( $value );
+		if ( $height < 500 || $height > 800 ) {
+			return 'Spotlight height must be between 500 and 800 pixels.';
 		}
 		return true;
 	}

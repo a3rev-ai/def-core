@@ -90,11 +90,30 @@
 		shadowRoot.appendChild(style);
 	}
 
+	// Defense-in-depth clamp for admin-configured dimensions. The PHP
+	// sanitizers already clamp on save, but the values flow through
+	// wp_localize_script as strings — re-clamp at runtime to guard
+	// against any future drift or external config injection.
+	function clampInt(value, min, max, fallback) {
+		var n = parseInt(value, 10);
+		if (isNaN(n)) return fallback;
+		if (n < min) return min;
+		if (n > max) return max;
+		return n;
+	}
+
 	function getTriggerCSS() {
 		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
 		var opp = pos === 'left' ? 'right' : 'left';
 		var btnColor = config.buttonColor || '#111827';
 		var hoverColor = config.buttonHoverColor || btnColor;
+		// Drawer width is admin-configurable (300–600); previously hard-coded
+		// to 400 in the CSS. Spotlight width/height are admin-configurable
+		// (600–1200 × 500–800). The min(...) on-screen clamp inside each CSS
+		// rule below protects against overflow on smaller viewports.
+		var drawerWidth     = clampInt(config.chatDrawerWidth,    300,  600, 400);
+		var spotlightWidth  = clampInt(config.chatSpotlightWidth, 600, 1200, 960);
+		var spotlightHeight = clampInt(config.chatSpotlightHeight, 500,  800, 600);
 
 		return (
 			'*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }' +
@@ -138,13 +157,18 @@
 			'@keyframes def-cc-sparkle-entrance { 0% { transform: scale(0) rotate(-30deg); opacity: 0; } 50% { transform: scale(1.3) rotate(10deg); opacity: 1; } 75% { transform: scale(0.9) rotate(-3deg); } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }' +
 			'@keyframes def-cc-sparkle { 0% { transform: scale(1) rotate(0deg); } 40% { transform: scale(1.2) rotate(12deg); } 70% { transform: scale(0.95) rotate(-4deg); } 100% { transform: scale(1) rotate(0deg); } }' +
 			'.def-cc-trigger-dot { display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 9999px; flex-shrink: 0; }' +
-			/* Backdrop (drawer mode — invisible but clickable) */
+			/* Backdrop. Transparent by default (drawer mode, click-to-close).
+			 * Spotlight mode adds .def-cc-backdrop--dim for a visible scrim. */
 			'.def-cc-backdrop {' +
 			'  position: fixed; top: 0; left: 0; right: 0; bottom: 0;' +
 			'  z-index: 999997; background: transparent;' +
 			'  pointer-events: none;' +
+			'  transition: background 0.25s ease;' +
 			'}' +
 			'.def-cc-backdrop--visible { pointer-events: auto; }' +
+			'.def-cc-backdrop--dim.def-cc-backdrop--visible {' +
+			'  background: rgba(0, 0, 0, 0.5);' +
+			'}' +
 			/* Panel shell (empty until module loads) */
 			'.def-cc-panel {' +
 			'  position: fixed; z-index: 999999;' +
@@ -184,7 +208,7 @@
 			'  top: 0; ' +
 			pos +
 			': 0; bottom: 0;' +
-			'  width: 400px;' +
+			'  width: min(' + drawerWidth + 'px, 100vw);' +
 			(pos === 'left'
 				? '  border-radius: 0 16px 16px 0;'
 				: '  border-radius: 16px 0 0 16px;') +
@@ -198,6 +222,22 @@
 			'  transform: translateX(0);' +
 			'}' +
 			'.def-cc-shell--drawer.def-cc-admin-bar { top: 32px; }' +
+			/* Spotlight mode — large centered overlay with dimmed backdrop.
+			 * Like the WC Cart Block / Bunnings "Buddy" full-attention
+			 * pattern. Sized from admin options (clamped above) and further
+			 * constrained to 92vw × 85vh so it never overflows on smaller
+			 * desktops. Transform-origin centered for a subtle scale-in. */
+			'.def-cc-shell--spotlight {' +
+			'  top: 50%; left: 50%; right: auto; bottom: auto;' +
+			'  width: min(' + spotlightWidth + 'px, 92vw);' +
+			'  height: min(' + spotlightHeight + 'px, 85vh);' +
+			'  border-radius: 16px;' +
+			'  box-shadow: 0 24px 64px rgba(0,0,0,0.35);' +
+			'  transform: translate(-50%, calc(-50% + 24px)); opacity: 0;' +
+			'}' +
+			'.def-cc-shell--spotlight.def-cc-panel--open {' +
+			'  transform: translate(-50%, -50%); opacity: 1;' +
+			'}' +
 			/* Loading spinner */
 			'.def-cc-loading {' +
 			'  display: flex; align-items: center; justify-content: center;' +
@@ -217,6 +257,9 @@
 			pos +
 			': 12px; bottom: 60px; }' +
 			'  .def-cc-shell--drawer { width: 100vw; border-radius: 0; }' +
+			/* Spotlight goes full-screen on mobile — same intent as Modal. */
+			'  .def-cc-shell--spotlight { top: 0; left: 0; width: 100vw; height: 100vh; border-radius: 0; transform: translate(0, 24px); }' +
+			'  .def-cc-shell--spotlight.def-cc-panel--open { transform: translate(0, 0); }' +
 			'}' +
 			/* Reduced motion */
 			'@media (prefers-reduced-motion: reduce) {' +
@@ -325,13 +368,25 @@
 	// ─── Panel shell ────────────────────────────────────────────────
 
 	function createPanel() {
-		var mode = config.chatDisplayMode === 'drawer' ? 'drawer' : 'modal';
+		// Resolve display mode. Default to modal for unknown values.
+		var mode;
+		if (config.chatDisplayMode === 'drawer') {
+			mode = 'drawer';
+		} else if (config.chatDisplayMode === 'spotlight') {
+			mode = 'spotlight';
+		} else {
+			mode = 'modal';
+		}
 		var isDrawer = mode === 'drawer';
+		var isSpotlight = mode === 'spotlight';
 
-		// Backdrop for drawer mode (click to close).
-		if (isDrawer) {
+		// Backdrop for drawer + spotlight modes (click-to-close).
+		// Spotlight gets a visible dim via the --dim modifier; drawer's
+		// backdrop stays transparent (just an interaction layer).
+		if (isDrawer || isSpotlight) {
 			backdrop = document.createElement('div');
-			backdrop.className = 'def-cc-backdrop';
+			backdrop.className = 'def-cc-backdrop' +
+				(isSpotlight ? ' def-cc-backdrop--dim' : '');
 			backdrop.addEventListener('click', closePanel);
 			shadowRoot.appendChild(backdrop);
 		}
