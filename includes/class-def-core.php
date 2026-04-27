@@ -336,6 +336,19 @@ final class DEF_Core {
 			array( 'in_footer' => true )
 		);
 
+		// Trigger-button styles for the [def_chat_button] shortcode and the
+		// def_core_chat_button action hook. The floating trigger button
+		// lives inside the chat Shadow DOM and gets its styles from the
+		// loader's inline <style> block — those styles cannot reach
+		// shortcode-placed buttons in the main document. This stylesheet
+		// mirrors the floating button's design so both render identically.
+		wp_register_style(
+			'def-core-chat-trigger',
+			DEF_CORE_PLUGIN_URL . 'assets/css/def-chat-trigger.css',
+			array(),
+			DEF_CORE_VERSION
+		);
+
 		// Full chat module (lazy-loaded by loader, NOT enqueued directly).
 		wp_register_script(
 			'def-core-customer-chat',
@@ -461,6 +474,25 @@ final class DEF_Core {
 		wp_localize_script( 'def-core-customer-chat-loader', 'DEFCore', $rest_data );
 		wp_enqueue_script( 'def-core-customer-chat-loader' );
 
+		// Trigger-button styles for shortcode/hook-placed buttons. The CSS
+		// uses var(--def-chat-btn-color) / var(--def-chat-btn-hover); the
+		// inline-style below sets those variables from the same admin
+		// options that drive the floating button.
+		wp_enqueue_style( 'def-core-chat-trigger' );
+		$btn_color = get_option( 'def_core_chat_button_color', '#111827' );
+		$btn_hover = get_option( 'def_core_chat_button_hover_color', '' );
+		if ( '' === $btn_hover ) {
+			$btn_hover = $btn_color;
+		}
+		wp_add_inline_style(
+			'def-core-chat-trigger',
+			sprintf(
+				':root{--def-chat-btn-color:%s;--def-chat-btn-hover:%s;}',
+				esc_attr( $btn_color ),
+				esc_attr( $btn_hover )
+			)
+		);
+
 		// Cart sync (unchanged).
 		if ( $this->should_enqueue_cart_sync() ) {
 			wp_enqueue_script( 'def-core-cart-sync' );
@@ -585,29 +617,95 @@ final class DEF_Core {
 	// ─── Customer Chat: Shortcode + Action Hook ──────────────────
 
 	/**
-	 * Shortcode: [def_chat_button label="Chat with us" class="my-class" icon="chat"]
+	 * Shortcode: [def_chat_button label="Chat with us" class="my-class" icon="sparkle"]
+	 *
+	 * Per-instance attributes override the corresponding Chat Settings
+	 * options. When `label`, `icon` are omitted, the saved option values
+	 * (`def_core_chat_button_label`, `def_core_chat_button_icon`,
+	 * `def_core_chat_button_icon_id`) drive rendering — same surface as
+	 * the floating button.
 	 *
 	 * @param array|string $atts Shortcode attributes.
 	 * @return string Button HTML.
 	 */
 	public function shortcode_chat_button( $atts ): string {
 		$atts = shortcode_atts( array(
-			'label' => __( 'Chat', 'digital-employees' ),
+			'label' => '',
 			'class' => '',
-			'icon'  => 'none',
+			'icon'  => '',
 		), $atts, 'def_chat_button' );
+
+		// Resolve from the shortcode attr first, then fall back to the
+		// Chat Settings option, then a sensible default.
+		$label = '' !== $atts['label']
+			? $atts['label']
+			: get_option( 'def_core_chat_button_label', __( 'Chat', 'digital-employees' ) );
+		$icon  = '' !== $atts['icon']
+			? $atts['icon']
+			: get_option( 'def_core_chat_button_icon', 'chat' );
 
 		$classes = 'def-chat-trigger-btn';
 		if ( ! empty( $atts['class'] ) ) {
-			$classes .= ' ' . esc_attr( $atts['class'] );
+			$classes .= ' ' . sanitize_html_class( $atts['class'], '' );
 		}
 
 		return sprintf(
-			'<button type="button" class="%s" data-def-chat-trigger data-icon="%s">%s</button>',
+			'<button type="button" class="%s" data-def-chat-trigger>%s<span class="def-chat-trigger-btn-label">%s</span></button>',
 			esc_attr( $classes ),
-			esc_attr( $atts['icon'] ),
-			esc_html( $atts['label'] )
+			$this->render_chat_button_icon( $icon ),
+			esc_html( $label )
 		);
+	}
+
+	/**
+	 * Render the icon markup for the trigger button. Mirrors the SVG paths
+	 * the floating button uses (def-core-customer-chat-loader.js, see
+	 * createTrigger / icon switch). Same icon set, same proportions, same
+	 * sparkle hover animation.
+	 *
+	 * @param string $icon Icon key: 'chat', 'headset', 'sparkle', 'custom', 'none'.
+	 * @return string Icon HTML (already escaped where needed). Empty for 'none'.
+	 */
+	private function render_chat_button_icon( string $icon ): string {
+		switch ( $icon ) {
+			case 'custom':
+				$icon_id  = (int) get_option( 'def_core_chat_button_icon_id', 0 );
+				$icon_url = $icon_id ? wp_get_attachment_image_url( $icon_id, 'thumbnail' ) : '';
+				if ( ! $icon_url ) {
+					return '';
+				}
+				return '<span class="def-chat-trigger-btn-icon">'
+					. '<img src="' . esc_url( $icon_url ) . '" alt="" aria-hidden="true">'
+					. '</span>';
+
+			case 'headset':
+				return '<span class="def-chat-trigger-btn-icon">'
+					. '<svg viewBox="0 0 24 24" aria-hidden="true">'
+					. '<path d="M3 18v-6a9 9 0 0 1 18 0v6"/>'
+					. '<path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>'
+					. '</svg>'
+					. '</span>';
+
+			case 'sparkle':
+				return '<span class="def-chat-trigger-btn-icon def-chat-trigger-btn-icon--sparkle">'
+					. '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">'
+					. '<path d="M12 2C12.7 6.3 13.2 8.2 15 10C16.8 11.8 18.7 12.3 23 13C18.7 13.7 16.8 14.2 15 16C13.2 17.8 12.7 19.7 12 24C11.3 19.7 10.8 17.8 9 16C7.2 14.2 5.3 13.7 1 13C5.3 12.3 7.2 11.8 9 10C10.8 8.2 11.3 6.3 12 2Z"/>'
+					. '<path d="M20 1C20.3 2.6 20.5 3.2 21 3.7C21.5 3.2 21.7 2.6 22 1C21.7 2.6 21.5 3.2 21 3.7C20.5 3.2 20.3 2.6 20 1Z"/>'
+					. '<path d="M3 19C3.2 20 3.4 20.4 3.7 20.7C4 20.4 4.2 20 4.4 19C4.2 20 4 20.4 3.7 20.7C3.4 20.4 3.2 20 3 19Z"/>'
+					. '</svg>'
+					. '</span>';
+
+			case 'none':
+				return '';
+
+			case 'chat':
+			default:
+				return '<span class="def-chat-trigger-btn-icon">'
+					. '<svg viewBox="0 0 24 24" aria-hidden="true">'
+					. '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
+					. '</svg>'
+					. '</span>';
+		}
 	}
 
 	/**
