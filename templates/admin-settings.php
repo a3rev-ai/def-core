@@ -240,7 +240,7 @@ $first_tab = 'branding';
 							<?php checked( $chat_settings['display_mode'], 'modal' ); ?>
 						/>
 						<strong><?php esc_html_e( 'Modal', 'digital-employees' ); ?></strong>
-						<span class="description"><?php esc_html_e( 'Chat opens in a centered overlay window.', 'digital-employees' ); ?></span>
+						<span class="description"><?php esc_html_e( 'Compact panel anchored next to the trigger button (bottom corner).', 'digital-employees' ); ?></span>
 					</label>
 					<label class="def-core-radio-label">
 						<input
@@ -251,7 +251,18 @@ $first_tab = 'branding';
 							<?php checked( $chat_settings['display_mode'], 'drawer' ); ?>
 						/>
 						<strong><?php esc_html_e( 'Drawer', 'digital-employees' ); ?></strong>
-						<span class="description"><?php esc_html_e( 'Chat slides in from the right edge of the screen.', 'digital-employees' ); ?></span>
+						<span class="description"><?php esc_html_e( 'Full-height panel that slides in from the right edge of the screen.', 'digital-employees' ); ?></span>
+					</label>
+					<label class="def-core-radio-label">
+						<input
+							type="radio"
+							name="def_core_chat_display_mode"
+							data-setting="def_core_chat_display_mode"
+							value="spotlight"
+							<?php checked( $chat_settings['display_mode'], 'spotlight' ); ?>
+						/>
+						<strong><?php esc_html_e( 'Spotlight', 'digital-employees' ); ?></strong>
+						<span class="description"><?php esc_html_e( 'Large overlay centered on the page, with a dimmed background. Best for full-attention experiences.', 'digital-employees' ); ?></span>
 					</label>
 				</div>
 			</div>
@@ -270,6 +281,39 @@ $first_tab = 'branding';
 					/>
 					<p class="description">
 						<?php esc_html_e( 'Width of the chat drawer in pixels. Range: 300–600px.', 'digital-employees' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<div id="def-core-spotlight-options" style="<?php echo 'spotlight' === $chat_settings['display_mode'] ? '' : 'display: none;'; ?>">
+				<div class="def-core-field">
+					<label for="def_core_chat_spotlight_width"><?php esc_html_e( 'Spotlight Width (px)', 'digital-employees' ); ?></label>
+					<input
+						type="number"
+						id="def_core_chat_spotlight_width"
+						data-setting="def_core_chat_spotlight_width"
+						value="<?php echo esc_attr( $chat_settings['spotlight_width'] ); ?>"
+						min="600"
+						max="1200"
+						class="small-text"
+					/>
+					<p class="description">
+						<?php esc_html_e( 'Width of the spotlight overlay in pixels. Range: 600–1200px. Auto-clamped to 92% of screen width on smaller displays.', 'digital-employees' ); ?>
+					</p>
+				</div>
+				<div class="def-core-field">
+					<label for="def_core_chat_spotlight_height"><?php esc_html_e( 'Spotlight Height (px)', 'digital-employees' ); ?></label>
+					<input
+						type="number"
+						id="def_core_chat_spotlight_height"
+						data-setting="def_core_chat_spotlight_height"
+						value="<?php echo esc_attr( $chat_settings['spotlight_height'] ); ?>"
+						min="500"
+						max="800"
+						class="small-text"
+					/>
+					<p class="description">
+						<?php esc_html_e( 'Height of the spotlight overlay in pixels. Range: 500–800px. Auto-clamped to 85% of screen height on smaller displays. Goes full-screen on mobile.', 'digital-employees' ); ?>
 					</p>
 				</div>
 			</div>
