@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.4.0
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.5.0 - 2026-04-27 =
+* Feature: Orchestrator V2 agent-persona indicator now ships across all three channels (Customer Chat, Staff AI, Setup Assistant). When the Concierge dispatches a specialist (e.g. Sales Assistant in Customer Chat, Knowledge Assistant in Staff AI), the chat renders a subtle "X is helping" divider in the message stream and prefixes the thinking-status row with the active speaker's name. Concierge / unlabelled events render no divider — keeps the calm of the front-door voice.
+* Refactor: Persona logic factored into a shared `def-persona.js` helper consumed by all three channel widgets via `window.DefPersona.createController(...)`. Replaces the inline copy that previously lived only in Customer Chat. Default specialist labels (sales/support/staff/management/AP/setup) live in the helper; channels override on demand. Future Concierge roster changes (e.g. adding `sales_assistant` to Staff Coordinator) need no def-core update — the agent_id is already covered.
 
 = 2.4.0 - 2026-04-25 =
 * Feature: Customer Chat add-to-cart now calls WooCommerce's Store API (`/wp-json/wc/store/v1/cart/add-item`) directly from the widget instead of the custom `tools/wc/add-to-cart` REST endpoint. Store API is the same endpoint the WC Cart Block uses — it manages guest sessions via a `Cart-Token` response/request header pair (separate from the `wp_woocommerce_session` cookie that edge proxies routinely strip on `/wp-json/*`), and uses its own `wc_store_api` Nonce. The browser tracks the rotated `Cart-Token` in `localStorage` so the cart survives reloads and proxy churn. Logged-in and guest visitors both flow through the same code path.
