@@ -1773,3 +1773,22 @@ html {
 .message-image-thumb:hover {
 	opacity: 0.85;
 }
+
+/* ─── V2 speaker divider (Spec V1.4 §6) ─────────────────────────
+ * Rendered inside the message stream when an Orchestrator V2
+ * specialist takes over from the Concierge. Compact, neutral,
+ * matches the calm style of existing tool-status rows. */
+
+.staff-ai-speaker-divider {
+	margin: 10px 0 6px;
+	text-align: center;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: var(--text-secondary, #888);
+	opacity: 0.8;
+	padding: 4px 8px;
+	border-top: 1px dashed rgba(0, 0, 0, 0.08);
+	border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}

@@ -313,11 +313,25 @@ final class DEF_Core {
 			array( 'in_footer' => true )
 		);
 
+		// V2 agent persona helper — shared across all three channels (Customer
+		// Chat, Staff AI, Setup Assistant). Renders the "X is helping" divider
+		// + persistent thinking-row prefix when an Orchestrator V2 specialist
+		// takes over from the Concierge. window.DefPersona global, IIFE-loaded.
+		wp_register_script(
+			'def-core-persona',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-persona.js',
+			array(),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
 		// Native Customer Chat loader (enqueued on frontend).
+		// Depends on def-core-persona so window.DefPersona is available
+		// before the lazy-loaded chat module fetches.
 		wp_register_script(
 			'def-core-customer-chat-loader',
 			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat-loader.js',
-			array(),
+			array( 'def-core-persona' ),
 			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
@@ -365,7 +379,7 @@ final class DEF_Core {
 		wp_register_script(
 			'def-core-setup-assistant',
 			DEF_CORE_PLUGIN_URL . 'assets/js/setup-assistant-drawer.js',
-			array( 'def-core-admin' ),
+			array( 'def-core-admin', 'def-core-persona' ),
 			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);

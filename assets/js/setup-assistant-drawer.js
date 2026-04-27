@@ -397,6 +397,16 @@
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
 
+		// V2 persona indicator (Spec V1.4 §6) — shared helper.
+		var persona = window.DefPersona.createController({
+			dividerCssClass:        'def-sa-speaker-divider',
+			thinkingLabelSelector:  '.def-sa-tool-label',
+			appendDivider: function (div) {
+				self.messagesEl.appendChild(div);
+				self.scrollToBottom();
+			},
+		});
+
 		function drainNextWord() {
 			if (displayedLen >= streamBuffer.length) {
 				wordDrainTimer = null;
@@ -445,10 +455,11 @@
 		}
 
 		function handleSSEEvent(event) {
+			persona.handleEvent(event, thinkingStatusEl);
 			switch (event.type) {
 				case 'thinking':
 					self.hideTypingIndicator();
-					var saThinkMsg = (event.message || '').toString().trim() || 'Thinking\u2026';
+					var saThinkMsg = persona.formatThinkingLabel(event.message);
 					if (!thinkingStatusEl) {
 						var div = document.createElement('div');
 						div.className = 'def-sa-tool-status';
@@ -511,6 +522,7 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					persona.reset();
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
 					if (event.tool_outputs && event.tool_outputs.length) {
@@ -553,6 +565,7 @@
 					wordDrainTimer = null;
 					displayedLen = 0;
 					thinkingStatusEl = null;
+					persona.reset();
 					self.renderError(event.message || 'An error occurred.');
 					self.isSending = false;
 					self.sendEl.disabled = false;

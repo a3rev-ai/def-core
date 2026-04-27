@@ -1364,6 +1364,25 @@ function t(key, fallback) {
 			_isStreaming = true;
 			_userScrolledUp = false;
 
+			// V2 persona indicator (Spec V1.4 §6) — shared helper. Divider
+			// appends to the messages-list root (matching Customer Chat and
+			// Setup Assistant) so it sits between message bubbles, not inside
+			// the last bubble — avoids layout breakage from the dashed
+			// top/bottom borders inside .message-content padding, and avoids
+			// the edge case where an agent-tagged event arrives before the
+			// typing indicator is rendered (which would land the divider
+			// inside the user's bubble).
+			var persona = window.DefPersona.createController({
+				dividerCssClass:        'staff-ai-speaker-divider',
+				thinkingLabelSelector:  '.tool-label',
+				appendDivider: function (div) {
+					messagesList.appendChild(div);
+					if (!_userScrolledUp) {
+						messagesContainer.scrollTop = messagesContainer.scrollHeight;
+					}
+				},
+			});
+
 			// Streaming render constants.
 			var STREAM_RENDER_INTERVAL = 120;
 			var STREAM_RENDER_INTERVAL_LARGE = 200;
@@ -1405,8 +1424,9 @@ function t(key, fallback) {
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
+					persona.handleEvent(evt, thinkingStatusEl);
 					if (evt.type === 'thinking') {
-						var thinkMsg = (evt.message || '').toString().trim() || 'Thinking\u2026';
+						var thinkMsg = persona.formatThinkingLabel(evt.message);
 						if (!thinkingStatusEl) {
 							var div = document.createElement('div');
 							div.className = 'tool-status';
@@ -1484,6 +1504,7 @@ function t(key, fallback) {
 						_userScrolledUp = false;
 						thinkingStatusEl = null;
 						_isStreaming = false;
+						persona.reset();
 
 						if (evt.thread_id) {
 							currentConversationId = evt.thread_id;
@@ -1508,6 +1529,7 @@ function t(key, fallback) {
 						lastRenderedLen = 0;
 						_userScrolledUp = false;
 						_isStreaming = false;
+						persona.reset();
 						removeTypingMessage();
 						renderMessages();
 						showError(evt.message || 'An error occurred.');
