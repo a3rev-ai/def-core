@@ -2196,11 +2196,11 @@
 		var iconEl = el('div', 'def-cc-message-icon');
 		iconEl.setAttribute('aria-hidden', 'true');
 		// Use the configured logo when available — same logo from Branding
-		// tab (already shown in the chat header). Falls back to display-name
-		// initials, or "AI" as a last resort. Previous hardcoded "DE" was
-		// the framework default and wrong for any tenant who'd configured
-		// their own brand.
-		if (config.logoUrl && config.logoShow !== false) {
+		// tab. Falls back to display-name initials, or "AI" as a last resort.
+		// Independent of the header `logoShow` toggle: that toggle controls
+		// whether the logo appears in the chat header, not whether it's the
+		// AI's identity in message bubbles.
+		if (config.logoUrl) {
 			iconEl.classList.add('def-cc-message-icon--img');
 			var img = document.createElement('img');
 			img.src = config.logoUrl;
