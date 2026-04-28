@@ -111,6 +111,41 @@ Optional additional checks:
 
 See [docs/TESTING.md](docs/TESTING.md) for details on all test tiers.
 
+## Releasing a new version
+
+Releases are cut **manually** after a version-bumping PR is merged to `main`. There is no auto-release on merge — the merger must run the release command explicitly.
+
+### Steps
+
+1. Merge the version-bumping PR to `main` (PR includes the bump in `def-core.php` ×2, `readme.txt` Stable tag + changelog entry, `changelog.txt` entry, `README.md` badge URL).
+2. From your local clone with `gh` authenticated, run:
+
+   ```bash
+   gh release create vX.Y.Z --target main \
+     --title "vX.Y.Z — short description" \
+     --notes "$(awk -v ver='X.Y.Z' '/^= [0-9]/ { if (printing) exit; if ($0 ~ \"^= \" ver \" \") { printing=1; next } } printing { print }' changelog.txt)"
+   ```
+
+   Replace `X.Y.Z` (e.g. `2.7.0`) and the title. The `awk` extracts the matching `= X.Y.Z =` section from `changelog.txt` for the release notes; you can edit those notes on the GitHub release page after creation if you want richer formatting.
+
+3. The `release.yml` workflow fires on the `release: published` event, builds `digital-employees.zip`, and attaches it to the release.
+4. Verify the asset is attached:
+
+   ```bash
+   gh release view vX.Y.Z --json assets --jq '.assets[].name'
+   # Expect: digital-employees.zip
+   ```
+
+5. WordPress sites with the plugin installed will see the update on their next auto-update check (or immediately when an admin clicks **Plugins → Check for updates** or **Dashboard → Updates → Check again**).
+
+### Why manual
+
+`release.yml` only fires on a `release: published` event triggered by a real user (not by `GITHUB_TOKEN` from another workflow — those events do not propagate downstream). A previous automation attempt (PRs #149, #151) tried to bypass this with cleverness; it failed and was reverted. The two-step pattern (merge → manually run `gh release create`) is the supported path.
+
+### Skipping `10` segments
+
+WordPress's `version_compare()` has a quirk where `2.2.10` is treated as **less than** `2.2.9`. **Skip any `10` segment** when versioning. Jump from `2.2.9` to `2.3.0` instead.
+
 ## Code Conventions
 
 ### PHP
