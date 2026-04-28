@@ -186,6 +186,9 @@
 		if (els.greeting) {
 			els.greeting.style.display = 'none';
 		}
+		if (els.welcomeChips) {
+			els.welcomeChips.style.display = 'none';
+		}
 		if (els.aiNotice) {
 			els.aiNotice.style.display = 'none';
 		}
@@ -584,19 +587,17 @@
 		// rendered at the bottom of the panel — for tenants in regulated
 		// industries (legal, medical, trades) where AI outputs need a
 		// "consult a qualified professional" disclaimer. Privacy URL
-		// (existing AI Disclosure setting) appended as a link if present.
-		if (config.complianceText || (config.aiNoticeEnabled && config.privacyUrl)) {
+		// (existing AI Disclosure setting) appended as a link, but only
+		// when the AI notice block isn't ALREADY rendering its own privacy
+		// link — avoids two identical "Privacy Policy" links on screen.
+		if (config.complianceText) {
 			var footer = el('div', 'def-cc-compliance-footer');
-			if (config.complianceText) {
-				var footerText = document.createElement('span');
-				footerText.className = 'def-cc-compliance-text';
-				footerText.textContent = String(config.complianceText);
-				footer.appendChild(footerText);
-			}
-			if (config.privacyUrl) {
-				if (config.complianceText) {
-					footer.appendChild(document.createTextNode(' '));
-				}
+			var footerText = document.createElement('span');
+			footerText.className = 'def-cc-compliance-text';
+			footerText.textContent = String(config.complianceText);
+			footer.appendChild(footerText);
+			if (config.privacyUrl && !config.aiNoticeEnabled) {
+				footer.appendChild(document.createTextNode(' '));
 				var privacyLink = document.createElement('a');
 				privacyLink.href = String(config.privacyUrl);
 				privacyLink.target = '_blank';
@@ -2053,6 +2054,9 @@
 		if (els.greeting) {
 			els.greeting.style.display = 'none';
 		}
+		if (els.welcomeChips) {
+			els.welcomeChips.style.display = 'none';
+		}
 
 		scrollToBottom();
 	}
@@ -2908,6 +2912,9 @@
 		if (els.greeting) {
 			els.greeting.style.display = 'none';
 		}
+		if (els.welcomeChips) {
+			els.welcomeChips.style.display = 'none';
+		}
 
 		// Render all messages.
 		for (var j = 0; j < thread.messages.length; j++) {
@@ -3005,9 +3012,13 @@
 		// Clear staged files.
 		clearStagedFiles();
 
-		// Show greeting.
+		// Show greeting + welcome chips (parallel lifecycle — both belong
+		// to the empty/welcome state and are preserved by clearMessages).
 		if (els.greeting) {
 			els.greeting.style.display = '';
+		}
+		if (els.welcomeChips) {
+			els.welcomeChips.style.display = '';
 		}
 	}
 
@@ -3015,7 +3026,9 @@
 		if (!els.messages) return;
 		var children = els.messages.children;
 		for (var i = children.length - 1; i >= 0; i--) {
-			if (children[i] !== els.greeting) {
+			// Preserve both welcome-state elements so they re-appear after
+			// clearConversation rather than being lost from the DOM.
+			if (children[i] !== els.greeting && children[i] !== els.welcomeChips) {
 				els.messages.removeChild(children[i]);
 			}
 		}
@@ -3192,6 +3205,15 @@
 		if (els.input) els.input.disabled = disabled;
 		if (els.sendBtn) els.sendBtn.disabled = disabled;
 		if (els.attachBtn) els.attachBtn.disabled = disabled;
+		// Welcome chips share the composer's disabled state — without this,
+		// taps during sending would silently no-op (chips look tappable
+		// but the click handler early-returns).
+		if (els.welcomeChips) {
+			var chips = els.welcomeChips.querySelectorAll('.def-cc-welcome-chip');
+			for (var i = 0; i < chips.length; i++) {
+				chips[i].disabled = disabled;
+			}
+		}
 	}
 
 	function updateSendButton() {

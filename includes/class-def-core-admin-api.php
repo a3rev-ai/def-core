@@ -161,21 +161,25 @@ final class DEF_Core_Admin_API {
 		'def_core_chat_welcome_chip_1' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_welcome_chip',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_welcome_chip_2' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_welcome_chip',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_welcome_chip_3' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_welcome_chip',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_compliance_text' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_compliance_text',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_compliance_text' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_button_color' => array(
@@ -650,6 +654,17 @@ final class DEF_Core_Admin_API {
 
 		if ( $validation !== true ) {
 			return $this->error_response( 'VALIDATION_ERROR', $validation, 400 );
+		}
+
+		// Optional sanitize step (defense-in-depth — restores symmetry with
+		// the admin AJAX save path, which always sanitises). Validators
+		// only check shape/length; sanitisers strip dangerous content
+		// (HTML tags, control chars). Without this, the REST path would
+		// persist a raw `<script>` payload that future code paths reading
+		// these values could surface to an HTML sink. Today's sinks are
+		// all `.textContent`, but defence-in-depth is cheap.
+		if ( ! empty( $config['sanitize'] ) && is_callable( $config['sanitize'] ) ) {
+			$value = call_user_func( $config['sanitize'], $value );
 		}
 
 		// Save.
