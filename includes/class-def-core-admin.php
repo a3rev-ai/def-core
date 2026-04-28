@@ -439,7 +439,7 @@ final class DEF_Core_Admin {
 		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
 		$chat_settings['welcome_chip_2']   = get_option( 'def_core_chat_welcome_chip_2', '' );
 		$chat_settings['welcome_chip_3']   = get_option( 'def_core_chat_welcome_chip_3', '' );
-		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', '' );
+		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', __( 'AI content may be inaccurate. In using our AI you agree to our Terms and Conditions', 'digital-employees' ) );
 
 		// Button appearance settings.
 		$button_settings = array(

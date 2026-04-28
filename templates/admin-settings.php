@@ -567,10 +567,10 @@ $first_tab = 'branding';
 					class="large-text"
 					rows="3"
 					maxlength="500"
-					placeholder="<?php esc_attr_e( 'e.g. AI content may be inaccurate. For licensed work, consult a qualified professional.', 'digital-employees' ); ?>"
+					placeholder="<?php esc_attr_e( 'AI content may be inaccurate. In using our AI you agree to our Terms and Conditions', 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['compliance_text'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Optional disclaimer shown at the bottom of the chat panel. Use for jurisdictions that require AI-content disclosures or industries where professional advice should be sought elsewhere. If a Privacy Policy URL is set above (AI Disclosure card), it appears as a link after this text. Plain text only; max 500 characters.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Disclaimer shown at the bottom of the chat panel. A sensible default is provided — edit or clear as needed for your business and jurisdiction. If a Legal Link URL is set above (AI Disclosure card), the configured Legal Link Label appears as a link after this text. Plain text only; max 500 characters.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>

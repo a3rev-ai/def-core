@@ -455,7 +455,7 @@ final class DEF_Core {
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
 			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
-			'complianceText'  => get_option( 'def_core_chat_compliance_text', '' ),
+			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI content may be inaccurate. In using our AI you agree to our Terms and Conditions', 'digital-employees' ) ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
 			// WP REST URL + nonce for same-origin calls (escalation send).
