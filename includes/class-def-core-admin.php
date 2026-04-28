@@ -109,6 +109,26 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_privacy_url',
 			),
+			'def_core_chat_privacy_link_label' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_privacy_link_label',
+			),
+			'def_core_chat_welcome_chip_1' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_welcome_chip_2' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_welcome_chip_3' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_compliance_text' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_compliance_text',
+			),
 		),
 	);
 
@@ -410,9 +430,18 @@ final class DEF_Core_Admin {
 			'spotlight_height' => (int) get_option( 'def_core_chat_spotlight_height', 600 ),
 		);
 
-		// AI consent notice settings.
-		$chat_settings['ai_notice']   = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
-		$chat_settings['privacy_url'] = get_option( 'def_core_chat_privacy_url', '' );
+		// AI Disclosure Notice settings (rendered at the bottom of the chat panel).
+		// `ai_notice` is the master toggle — when off, the footer is hidden
+		// entirely regardless of the disclosure text and link fields below.
+		$chat_settings['ai_notice']          = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
+		$chat_settings['privacy_url']       = get_option( 'def_core_chat_privacy_url', '' );
+		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) );
+
+		// Welcome state + disclosure notice text.
+		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
+		$chat_settings['welcome_chip_2']   = get_option( 'def_core_chat_welcome_chip_2', '' );
+		$chat_settings['welcome_chip_3']   = get_option( 'def_core_chat_welcome_chip_3', '' );
+		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ) );
 
 		// Button appearance settings.
 		$button_settings = array(
@@ -782,6 +811,54 @@ final class DEF_Core_Admin {
 	}
 
 	/**
+	 * Sanitize a welcome-state chip label (text + length cap 80 chars).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated chip label.
+	 */
+	public static function sanitize_welcome_chip( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		// 80 chars covers reasonable chip labels and prevents pill overflow.
+		if ( mb_strlen( $value ) > 80 ) {
+			$value = mb_substr( $value, 0, 80 );
+		}
+		return $value;
+	}
+
+	/**
+	 * Sanitize compliance footer text (multiline allowed, length cap 500).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated compliance text.
+	 */
+	public static function sanitize_compliance_text( $value ): string {
+		// trim() collapses whitespace-only input to '' so the JS guard
+		// `if (config.complianceText)` correctly hides the footer instead
+		// of rendering an empty/whitespace lead with a dangling label.
+		$value = trim( sanitize_textarea_field( (string) $value ) );
+		if ( mb_strlen( $value ) > 500 ) {
+			$value = mb_substr( $value, 0, 500 );
+		}
+		return $value;
+	}
+
+	/**
+	 * Sanitize privacy / legal link label (text + length cap 50 chars).
+	 * Empty string is the documented "fall back to translated default"
+	 * value — sanitiser preserves empty.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated link label.
+	 */
+	public static function sanitize_privacy_link_label( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		if ( mb_strlen( $value ) > 50 ) {
+			$value = mb_substr( $value, 0, 50 );
+		}
+		return $value;
+	}
+
+	/**
 	 * Sanitize button position ('right' or 'left').
 	 *
 	 * @param mixed $value The value to sanitize.
@@ -823,14 +900,60 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Sanitize privacy policy URL.
+	 * Sanitize privacy / legal page URL.
+	 *
+	 * The stored value is rendered as the `href` of an admin-controlled
+	 * link in the chat widget and the AI disclosure notice. esc_url_raw()
+	 * with the WP defaults still permits schemes like ftp / mailto /
+	 * gopher that aren't sensible for a "Privacy Policy" link, and a
+	 * mistyped value (e.g. `example.com/privacy` with no scheme) silently
+	 * persists as a relative-to-host path.
+	 *
+	 * Hardening:
+	 *   - Cap length at 2048 (typical browser URL limit) — anything longer
+	 *     is malformed or hostile.
+	 *   - Allow same-origin paths starting with `/` (e.g. `/privacy/`).
+	 *   - For absolute URLs, restrict the scheme allowlist to http/https.
+	 *     esc_url_raw returns '' when the scheme isn't permitted, which
+	 *     blocks javascript:, data:, file:, etc. as a stored-XSS gadget.
+	 *   - Require both scheme + host so a stray `https:` or `http://`
+	 *     fragment doesn't slip through.
+	 * Invalid input is dropped to '' (sanitisers don't surface errors —
+	 * the admin UI shows the empty field as feedback).
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Valid URL or empty string.
+	 * @return string Safe http/https URL, same-origin path, or empty string.
 	 */
 	public static function sanitize_privacy_url( $value ): string {
-		$value = esc_url_raw( trim( (string) $value ) );
-		return $value;
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		if ( mb_strlen( $value ) > 2048 ) {
+			return '';
+		}
+
+		// Same-origin path (e.g. "/privacy-policy/") — preserve as-is after
+		// esc_url_raw scrubs control chars; no scheme/host check applies.
+		// Reject protocol-relative URLs ("//evil.com/phish") which also start
+		// with `/` but are cross-origin, defeating the same-origin promise.
+		if ( '/' === $value[0] && ( ! isset( $value[1] ) || '/' !== $value[1] ) ) {
+			return esc_url_raw( $value );
+		}
+
+		$sanitised = esc_url_raw( $value, array( 'http', 'https' ) );
+		if ( '' === $sanitised ) {
+			return '';
+		}
+
+		$parsed = wp_parse_url( $sanitised );
+		if ( empty( $parsed['scheme'] ) || empty( $parsed['host'] ) ) {
+			return '';
+		}
+
+		return $sanitised;
 	}
 
 	/**

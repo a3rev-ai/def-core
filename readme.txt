@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.6.0
+Stable tag: 2.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,18 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.7.0 - 2026-04-28 =
+* Feature: welcome-state suggestion chips. Up to three admin-configurable opening prompts render as tappable pills below the greeting in Customer Chat. Tap pre-fills the composer and submits. Empty admin slots are hidden.
+* Feature: AI Disclosure Notice at the bottom of the chat panel. A single notice line (max 500 chars, default *"AI responses may be inaccurate. By using this assistant, you agree to our"*) followed by the Legal Link Label (max 50 chars, default *"Terms & Conditions"*). The label renders as a clickable link when a Legal Link URL is configured. Default reads: *"AI responses may be inaccurate. By using this assistant, you agree to our Terms & Conditions"*. Clearing the notice text hides the entire line.
+* Feature: one-tap refresh button in the chat header. Same handler as the "Clear chat" menu item but reachable in one click.
+* Feature: configurable Legal Link Label. The "Privacy Policy URL" field is renamed "Legal Link URL" and gains a sibling "Legal Link Label" text field. Defaults to "Privacy Policy" when empty.
+* Removed: the legacy inline disclosure surface (the line that rendered between the welcome greeting and the composer when the old "Show AI disclosure notice" toggle was on). The new bottom-of-panel AI Disclosure Notice is the single canonical place for AI/legal disclosure — the previous design rendered the same legal link twice in the visible viewport. The legacy admin checkbox is removed.
+* Polish: text-readability pass. Body messages 14→15px (16px in Spotlight), composer 16px (prevents iOS zoom-on-focus), line-height 1.5→1.6.
+* Fix: whitespace-only AI Disclosure Notice text now collapses to empty so the line hides as expected.
+* Security: Legal Link URL sanitiser hardened — http/https-only, scheme+host required, same-origin paths allowed (protocol-relative `//evil.com` rejected), 2048-char cap, invalid input drops to empty string.
+* Security: client-side scheme allowlist (`safeLinkHref()`) applied at the DOM sink (immediately before assigning to `<a>.href`) in the AI Disclosure Notice line, as a second layer over the PHP sanitiser. A bad URL falls through to plain-text label rendering instead of attaching a hostile href.
+* Internal: five new tenant-config options registered in the admin API + Setup Assistant settings registry (`def_core_chat_welcome_chip_1`–`_3`, `def_core_chat_compliance_text`, `def_core_chat_privacy_link_label`). The retired `def_core_chat_ai_notice` option key is no longer read.
 
 = 2.6.0 - 2026-04-28 =
 * Feature: new "Spotlight" Display Mode option for Customer Chat. A large overlay centered on the page with a dimmed backdrop, inspired by the Bunnings "Buddy" / WC Cart Block full-attention pattern. Best for tenants who want the chat to feel like a focused experience rather than a peek-mode bubble. Default 960×600 desktop size, configurable in admin (width 600–1200, height 500–800), goes full-screen on mobile.

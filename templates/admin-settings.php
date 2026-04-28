@@ -512,9 +512,55 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_1"><?php esc_html_e( 'Suggestion Chip 1', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_1"
+					data-setting="def_core_chat_welcome_chip_1"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_1'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Help me find the right product', 'digital-employees' ); ?>"
+				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_2"><?php esc_html_e( 'Suggestion Chip 2', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_2"
+					data-setting="def_core_chat_welcome_chip_2"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_2'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Check stock availability', 'digital-employees' ); ?>"
+				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_3"><?php esc_html_e( 'Suggestion Chip 3', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_3"
+					data-setting="def_core_chat_welcome_chip_3"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_3'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Get expert advice or inspiration', 'digital-employees' ); ?>"
+				/>
+				<p class="description">
+					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Max 80 characters each.', 'digital-employees' ); ?>
+				</p>
+			</div>
+		</div>
+
+		<div class="def-core-card">
 			<h2><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'Show a brief notice in the Customer Chat informing visitors that responses are AI-generated. Recommended for transparency and required by some jurisdictions.', 'digital-employees' ); ?>
+				<?php esc_html_e( 'Show a notice in the Chat footer advising that responses are AI-generated. Recommended for transparency and required by some jurisdictions.', 'digital-employees' ); ?>
 			</p>
 
 			<div class="def-core-field def-core-checkbox-field">
@@ -526,31 +572,63 @@ $first_tab = 'branding';
 						value="1"
 						<?php checked( $chat_settings['ai_notice'] ); ?>
 					/>
-					<?php esc_html_e( 'Show AI disclosure notice in Customer Chat', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Show AI disclosure notice', 'digital-employees' ); ?>
 				</label>
 			</div>
 
 			<div class="def-core-field">
-				<label for="def_core_chat_privacy_url"><?php esc_html_e( 'Privacy Policy URL', 'digital-employees' ); ?></label>
+				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_compliance_text"
+					data-setting="def_core_chat_compliance_text"
+					value="<?php echo esc_attr( $chat_settings['compliance_text'] ); ?>"
+					class="regular-text"
+					maxlength="500"
+					placeholder="<?php esc_attr_e( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ); ?>"
+				/>
+				<p class="description">
+					<?php esc_html_e( 'Need help? Ask your Setup Assistant.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_privacy_link_label"><?php esc_html_e( 'Legal Link Label', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_privacy_link_label"
+					data-setting="def_core_chat_privacy_link_label"
+					value="<?php echo esc_attr( $chat_settings['privacy_link_label'] ); ?>"
+					class="regular-text"
+					maxlength="50"
+					placeholder="<?php esc_attr_e( 'Terms & Conditions', 'digital-employees' ); ?>"
+				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_privacy_url"><?php esc_html_e( 'Legal Link URL', 'digital-employees' ); ?></label>
 				<input
 					type="url"
 					id="def_core_chat_privacy_url"
 					data-setting="def_core_chat_privacy_url"
 					value="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>"
 					class="regular-text"
-					placeholder="https://example.com/privacy-policy"
+					placeholder="https://example.com/terms-and-conditions"
 				/>
-				<p class="description">
-					<?php esc_html_e( 'Link to your privacy policy. If set, a "Privacy Policy" link is shown alongside the AI notice.', 'digital-employees' ); ?>
-				</p>
 			</div>
 
-			<div id="def-core-ai-notice-preview" class="def-core-notice def-core-notice-info" style="<?php echo $chat_settings['ai_notice'] ? '' : 'display: none;'; ?>">
+			<div id="def-core-ai-notice-preview" class="def-core-notice def-core-notice-info">
 				<p>
 					<strong><?php esc_html_e( 'Preview:', 'digital-employees' ); ?></strong>
-					<?php esc_html_e( 'Responses are generated by AI and may not always be accurate.', 'digital-employees' ); ?>
+					<?php
+					$preview_text  = $chat_settings['compliance_text'] ? $chat_settings['compliance_text'] : __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' );
+					$preview_label = $chat_settings['privacy_link_label'] ? $chat_settings['privacy_link_label'] : __( 'Terms & Conditions', 'digital-employees' );
+					?>
+					<?php echo esc_html( $preview_text ); ?>
 					<?php if ( $chat_settings['privacy_url'] ) : ?>
-						<a href="#"><?php esc_html_e( 'Privacy Policy', 'digital-employees' ); ?></a>
+						<a href="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $preview_label ); ?></a>
+					<?php else : ?>
+						<?php echo esc_html( $preview_label ); ?>
 					<?php endif; ?>
 				</p>
 			</div>

@@ -188,6 +188,13 @@
 			.then(function (data) {
 				if (data.success) {
 					showToast(data.data.message || 'Settings saved.', 'success');
+					// Rebuild the AI Disclosure Notice preview from current
+					// form values so the admin sees the saved state without
+					// reloading. Only relevant for the chat-settings tab —
+					// the helper is a no-op on other tabs.
+					if (tabId === 'chat-settings') {
+						refreshAiNoticePreview();
+					}
 				} else {
 					showToast(
 						(data.data && data.data.message) || 'Save failed.',
@@ -204,6 +211,85 @@
 					spinner.classList.remove('is-active');
 				}
 			});
+	}
+
+	// Rebuilds the AI Disclosure Notice preview block from the current
+	// form values. Mirrors the chat widget's footer-render logic:
+	//   - checkbox off ⇒ render a muted "disabled" stub
+	//   - checkbox on + non-empty disclosure text ⇒ render text + label
+	//     (label as link if URL set, plain text otherwise)
+	//   - checkbox on + empty text + empty label ⇒ fall back to placeholder
+	//     defaults so the preview always shows what the chat will render
+	// The preview is rebuilt via DOM APIs (createElement / textContent)
+	// — never innerHTML on user-supplied strings — so admin-entered text
+	// can't break out into HTML. URL is run through the same scheme
+	// allowlist used by the widget runtime (http/https/same-origin path,
+	// not protocol-relative, ≤2048 chars) before being assigned to .href.
+	function refreshAiNoticePreview() {
+		var preview = document.getElementById('def-core-ai-notice-preview');
+		if (!preview) return;
+		var p = preview.querySelector('p');
+		if (!p) return;
+
+		var checkbox = document.getElementById('def_core_chat_ai_notice');
+		var textInput = document.getElementById('def_core_chat_compliance_text');
+		var labelInput = document.getElementById('def_core_chat_privacy_link_label');
+		var urlInput = document.getElementById('def_core_chat_privacy_url');
+
+		// Clear preview, keep the leading "Preview:" strong tag.
+		while (p.firstChild) {
+			p.removeChild(p.firstChild);
+		}
+		var heading = document.createElement('strong');
+		heading.textContent = 'Preview:';
+		p.appendChild(heading);
+		p.appendChild(document.createTextNode(' '));
+
+		// Checkbox off → muted disabled state, mirrors actual chat (no footer).
+		if (checkbox && !checkbox.checked) {
+			var disabled = document.createElement('em');
+			disabled.textContent = 'Notice disabled — not shown in chat.';
+			p.appendChild(disabled);
+			return;
+		}
+
+		// Compose text + label, falling back to placeholders so preview
+		// matches what an empty-config chat would render at runtime.
+		var text = (textInput && textInput.value.trim())
+			|| (textInput && textInput.placeholder)
+			|| '';
+		var label = (labelInput && labelInput.value.trim())
+			|| (labelInput && labelInput.placeholder)
+			|| '';
+		var url = urlInput ? safeAdminLinkHref(urlInput.value) : '';
+
+		p.appendChild(document.createTextNode(text));
+		if (label) {
+			p.appendChild(document.createTextNode(' '));
+			if (url) {
+				var a = document.createElement('a');
+				a.href = url;
+				a.target = '_blank';
+				a.rel = 'noopener noreferrer';
+				a.textContent = label;
+				p.appendChild(a);
+			} else {
+				p.appendChild(document.createTextNode(label));
+			}
+		}
+	}
+
+	// Same scheme allowlist the chat widget enforces at runtime — kept
+	// here as a small duplicate so the preview can't ever attach a
+	// hostile href even if a future admin entry slips past server-side
+	// validation. Returns '' to signal "render as plain text".
+	function safeAdminLinkHref(url) {
+		if (typeof url !== 'string') return '';
+		var trimmed = url.trim();
+		if (!trimmed || trimmed.length > 2048) return '';
+		if (trimmed.charAt(0) === '/' && trimmed.charAt(1) !== '/') return trimmed;
+		if (/^https?:\/\//i.test(trimmed)) return trimmed;
+		return '';
 	}
 
 	function collectTabData(tabId, panel, formData) {
