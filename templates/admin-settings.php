@@ -679,15 +679,11 @@ $first_tab = 'branding';
 			<div id="def-core-ai-notice-preview" class="def-core-notice def-core-notice-info">
 				<p>
 					<strong><?php esc_html_e( 'Preview:', 'digital-employees' ); ?></strong>
-					<?php
-					$preview_text  = $chat_settings['compliance_text'] ? $chat_settings['compliance_text'] : __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' );
-					$preview_label = $chat_settings['privacy_link_label'] ? $chat_settings['privacy_link_label'] : __( 'Terms & Conditions', 'digital-employees' );
-					?>
-					<?php echo esc_html( $preview_text ); ?>
+					<?php echo esc_html( $chat_settings['compliance_text'] ); ?>
 					<?php if ( $chat_settings['privacy_url'] ) : ?>
-						<a href="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $preview_label ); ?></a>
+						<a href="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $chat_settings['privacy_link_label'] ); ?></a>
 					<?php else : ?>
-						<?php echo esc_html( $preview_label ); ?>
+						<?php echo esc_html( $chat_settings['privacy_link_label'] ); ?>
 					<?php endif; ?>
 				</p>
 			</div>

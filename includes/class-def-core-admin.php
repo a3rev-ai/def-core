@@ -465,13 +465,16 @@ final class DEF_Core_Admin {
 		// entirely regardless of the disclosure text and link fields below.
 		$chat_settings['ai_notice']          = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
 		$chat_settings['privacy_url']       = get_option( 'def_core_chat_privacy_url', '' );
-		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) );
+		// `?:` coalesce so a saved-empty-string falls back to the same default the frontend
+		// uses (see class-def-core.php). `get_option()`'s default arg only fires when the
+		// row is missing, not when the row holds ''.
+		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', '' ) ?: __( 'Terms & Conditions', 'digital-employees' );
 
 		// Welcome state + disclosure notice text.
 		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
 		$chat_settings['welcome_chip_2']   = get_option( 'def_core_chat_welcome_chip_2', '' );
 		$chat_settings['welcome_chip_3']   = get_option( 'def_core_chat_welcome_chip_3', '' );
-		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ) );
+		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', '' ) ?: __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' );
 
 		// Button appearance settings.
 		$button_settings = array(
