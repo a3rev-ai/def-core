@@ -101,10 +101,6 @@ final class DEF_Core_Admin {
 				'type'     => 'bool',
 				'sanitize' => 'sanitize_bool_setting',
 			),
-			'def_core_chat_ai_notice' => array(
-				'type'     => 'bool',
-				'sanitize' => 'sanitize_bool_setting',
-			),
 			'def_core_chat_privacy_url' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_privacy_url',
@@ -430,8 +426,7 @@ final class DEF_Core_Admin {
 			'spotlight_height' => (int) get_option( 'def_core_chat_spotlight_height', 600 ),
 		);
 
-		// AI consent notice settings.
-		$chat_settings['ai_notice']         = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
+		// Compliance footer link settings (rendered at the bottom of the chat panel).
 		$chat_settings['privacy_url']       = get_option( 'def_core_chat_privacy_url', '' );
 		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', __( 'Terms and Conditions', 'digital-employees' ) );
 
