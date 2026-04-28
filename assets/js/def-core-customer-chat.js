@@ -140,6 +140,26 @@
 		);
 	}
 
+	// Defence-in-depth: validate any admin-supplied URL right before
+	// assigning to an element's `href`. The PHP sanitiser
+	// (sanitize_privacy_url) is the primary line of defence; this
+	// guards against future drift in that sanitiser by enforcing the
+	// same allowlist client-side. Returns the URL string when safe,
+	// or '' to signal "do not assign" (caller falls back to plain text).
+	// Allowed: http://, https://, and same-origin paths starting with
+	// "/" but not "//" (the latter is protocol-relative → cross-origin).
+	function safeLinkHref(url) {
+		if (typeof url !== 'string') return '';
+		var trimmed = url.trim();
+		if (!trimmed) return '';
+		if (trimmed.length > 2048) return '';
+		if (trimmed.charAt(0) === '/' && trimmed.charAt(1) !== '/') {
+			return trimmed;
+		}
+		if (/^https?:\/\//i.test(trimmed)) return trimmed;
+		return '';
+	}
+
 	// ─── 2. STATE ──────────────────────────────────────────────────
 
 	var root = null; // shadowRoot reference
@@ -424,15 +444,20 @@
 		// link renders whenever a Legal Link URL is configured — the
 		// notice and the compliance footer are independent surfaces and
 		// both should be linkable when the admin has set a URL.
+		// The double link (one here, one in the footer) is INTENTIONAL
+		// and was confirmed by the tenant during smoke testing — do not
+		// re-introduce the suppression that previously gated the footer
+		// label to plain text whenever the AI notice was on.
 		if (config.aiNoticeEnabled) {
 			var notice = el('div', 'def-cc-ai-notice');
 			var noticeText = document.createTextNode(t('aiNotice'));
 			notice.appendChild(noticeText);
-			if (config.privacyUrl) {
+			var noticeHref = safeLinkHref(config.privacyUrl);
+			if (noticeHref) {
 				var sep = document.createTextNode(' ');
 				notice.appendChild(sep);
 				var link = el('a', 'def-cc-ai-notice-link');
-				link.href = config.privacyUrl;
+				link.href = noticeHref;
 				link.target = '_blank';
 				link.rel = 'noopener noreferrer';
 				// Admin-configurable label — defaults to "Privacy Policy"
@@ -606,11 +631,15 @@
 			if (linkLabel) {
 				footer.appendChild(document.createTextNode(' '));
 				// Footer label renders as a clickable link whenever a
-				// Legal Link URL is configured, otherwise as plain text.
-				var asLink = !!config.privacyUrl;
-				if (asLink) {
+				// safe Legal Link URL is configured, otherwise as plain
+				// text. safeLinkHref() returns '' for protocol-relative
+				// or unknown-scheme URLs that may have slipped past the
+				// PHP sanitiser, falling us through to the plain-text
+				// branch instead of attaching a bad href.
+				var safeHref = safeLinkHref(config.privacyUrl);
+				if (safeHref) {
 					var privacyLink = document.createElement('a');
-					privacyLink.href = String(config.privacyUrl);
+					privacyLink.href = safeHref;
 					privacyLink.target = '_blank';
 					privacyLink.rel = 'noopener noreferrer';
 					privacyLink.textContent = linkLabel;

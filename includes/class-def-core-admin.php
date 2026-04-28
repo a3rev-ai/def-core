@@ -830,7 +830,10 @@ final class DEF_Core_Admin {
 	 * @return string Sanitised, truncated compliance text.
 	 */
 	public static function sanitize_compliance_text( $value ): string {
-		$value = sanitize_textarea_field( (string) $value );
+		// trim() collapses whitespace-only input to '' so the JS guard
+		// `if (config.complianceText)` correctly hides the footer instead
+		// of rendering an empty/whitespace lead with a dangling label.
+		$value = trim( sanitize_textarea_field( (string) $value ) );
 		if ( mb_strlen( $value ) > 500 ) {
 			$value = mb_substr( $value, 0, 500 );
 		}
@@ -932,7 +935,9 @@ final class DEF_Core_Admin {
 
 		// Same-origin path (e.g. "/privacy-policy/") — preserve as-is after
 		// esc_url_raw scrubs control chars; no scheme/host check applies.
-		if ( '/' === $value[0] ) {
+		// Reject protocol-relative URLs ("//evil.com/phish") which also start
+		// with `/` but are cross-origin, defeating the same-origin promise.
+		if ( '/' === $value[0] && ( ! isset( $value[1] ) || '/' !== $value[1] ) ) {
 			return esc_url_raw( $value );
 		}
 
