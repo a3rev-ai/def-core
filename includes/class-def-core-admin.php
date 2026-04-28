@@ -109,6 +109,22 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_privacy_url',
 			),
+			'def_core_chat_welcome_chip_1' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_welcome_chip_2' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_welcome_chip_3' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_compliance_text' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_compliance_text',
+			),
 		),
 	);
 
@@ -413,6 +429,12 @@ final class DEF_Core_Admin {
 		// AI consent notice settings.
 		$chat_settings['ai_notice']   = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
 		$chat_settings['privacy_url'] = get_option( 'def_core_chat_privacy_url', '' );
+
+		// Welcome state polish settings.
+		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
+		$chat_settings['welcome_chip_2']   = get_option( 'def_core_chat_welcome_chip_2', '' );
+		$chat_settings['welcome_chip_3']   = get_option( 'def_core_chat_welcome_chip_3', '' );
+		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', '' );
 
 		// Button appearance settings.
 		$button_settings = array(
@@ -779,6 +801,35 @@ final class DEF_Core_Admin {
 	public static function sanitize_spotlight_height( $value ): int {
 		$value = (int) $value;
 		return max( 500, min( 800, $value ) );
+	}
+
+	/**
+	 * Sanitize a welcome-state chip label (text + length cap 80 chars).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated chip label.
+	 */
+	public static function sanitize_welcome_chip( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		// 80 chars covers reasonable chip labels and prevents pill overflow.
+		if ( mb_strlen( $value ) > 80 ) {
+			$value = mb_substr( $value, 0, 80 );
+		}
+		return $value;
+	}
+
+	/**
+	 * Sanitize compliance footer text (multiline allowed, length cap 500).
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated compliance text.
+	 */
+	public static function sanitize_compliance_text( $value ): string {
+		$value = sanitize_textarea_field( (string) $value );
+		if ( mb_strlen( $value ) > 500 ) {
+			$value = mb_substr( $value, 0, 500 );
+		}
+		return $value;
 	}
 
 	/**

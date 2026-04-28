@@ -1,5 +1,12 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.7.0 - 2026/04/28 =
+* Feature: welcome-state suggestion chips. Up to three admin-configurable opening prompts (Chat Settings → Welcome State) render as tappable pills below the greeting in Customer Chat. Tap pre-fills the composer and submits, mirroring the Bunnings "Buddy" / Intercom Resolution Bot pattern. Empty admin slots are hidden — no chip slots show if none are configured.
+* Feature: optional compliance footer. Admin-configurable text (max 500 chars) shown at the bottom of the chat panel — for tenants who want an inline disclaimer (e.g. "AI content may be inaccurate. For licensed work, consult a qualified professional."). The existing Privacy Policy URL is appended as a link if set.
+* Feature: one-tap refresh button in the chat header. Same handler as the existing "Clear chat" menu item but reachable in one click instead of two. The 3-dot menu's "Clear chat" option remains unchanged.
+* Polish: text-readability pass. Body messages bumped from 14px → 15px (16px in Spotlight mode), composer input bumped to 16px (prevents iOS Safari from zooming the viewport on focus), AI disclosure notice bumped from 11px → 12px, line-height bumped from 1.5 → 1.6 in messages. Visible across all display modes.
+* Internal: four new tenant-config options registered in the admin API + Setup Assistant settings registry (`def_core_chat_welcome_chip_1`–`_3`, `def_core_chat_compliance_text`). Same sanitiser/validator pattern as existing options.
+
 = 2.6.0 - 2026/04/28 =
 * Feature: new "Spotlight" Display Mode option for Customer Chat. A large overlay centered on the page with a dimmed backdrop, inspired by the Bunnings "Buddy" / WC Cart Block full-attention pattern. Best for tenants who want the chat to feel like a focused experience rather than a peek-mode bubble. Default 960×600 desktop size, configurable in admin (width 600–1200, height 500–800), goes full-screen on mobile.
 * Feature: existing Modal and Drawer modes unchanged. Spotlight is purely additive — picking it does not affect tenants on Modal/Drawer. The same chat content (header, messages, composer, file upload, AI disclosure, V2 persona indicator, etc.) renders identically across all three modes; only the panel shell differs.

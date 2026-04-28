@@ -158,6 +158,26 @@ final class DEF_Core_Admin_API {
 			'validate'  => 'validate_spotlight_height',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_welcome_chip_1' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_welcome_chip_2' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_welcome_chip_3' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_compliance_text' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_compliance_text',
+			'read_mode' => 'value',
+		),
 		'def_core_chat_button_color' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_hex_color',
@@ -655,6 +675,10 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_spotlight_width'      => 'chat-settings',
 			'def_core_chat_spotlight_height'     => 'chat-settings',
+			'def_core_chat_welcome_chip_1'       => 'chat-settings',
+			'def_core_chat_welcome_chip_2'       => 'chat-settings',
+			'def_core_chat_welcome_chip_3'       => 'chat-settings',
+			'def_core_chat_compliance_text'      => 'chat-settings',
 			'def_core_chat_button_color'         => 'chat-settings',
 			'def_core_chat_button_hover_color'   => 'chat-settings',
 			'def_core_chat_button_icon'          => 'chat-settings',
@@ -1245,6 +1269,34 @@ final class DEF_Core_Admin_API {
 		$height = intval( $value );
 		if ( $height < 500 || $height > 800 ) {
 			return 'Spotlight height must be between 500 and 800 pixels.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate a welcome-state chip label (max 80 chars).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_welcome_chip( $value ) {
+		$str = (string) $value;
+		if ( mb_strlen( $str ) > 80 ) {
+			return 'Welcome chip text must be 80 characters or fewer.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate compliance footer text (max 500 chars).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_compliance_text( $value ) {
+		$str = (string) $value;
+		if ( mb_strlen( $str ) > 500 ) {
+			return 'Compliance text must be 500 characters or fewer.';
 		}
 		return true;
 	}

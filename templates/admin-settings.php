@@ -512,6 +512,70 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Customise the empty-chat welcome state: tappable suggestion chips that pre-fill the composer, plus an optional compliance footer line.', 'digital-employees' ); ?>
+			</p>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_1"><?php esc_html_e( 'Suggestion Chip 1', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_1"
+					data-setting="def_core_chat_welcome_chip_1"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_1'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Help me find the right product', 'digital-employees' ); ?>"
+				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_2"><?php esc_html_e( 'Suggestion Chip 2', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_2"
+					data-setting="def_core_chat_welcome_chip_2"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_2'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Check stock availability', 'digital-employees' ); ?>"
+				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_3"><?php esc_html_e( 'Suggestion Chip 3', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_welcome_chip_3"
+					data-setting="def_core_chat_welcome_chip_3"
+					value="<?php echo esc_attr( $chat_settings['welcome_chip_3'] ); ?>"
+					class="regular-text"
+					maxlength="80"
+					placeholder="<?php esc_attr_e( 'e.g. Get expert advice or inspiration', 'digital-employees' ); ?>"
+				/>
+				<p class="description">
+					<?php esc_html_e( 'Up to three short prompts shown as tappable chips below the greeting. Empty chips are hidden. Max 80 characters each.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'Compliance Footer Text', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_compliance_text"
+					data-setting="def_core_chat_compliance_text"
+					class="large-text"
+					rows="3"
+					maxlength="500"
+					placeholder="<?php esc_attr_e( 'e.g. AI content may be inaccurate. For licensed work, consult a qualified professional.', 'digital-employees' ); ?>"
+				><?php echo esc_textarea( $chat_settings['compliance_text'] ); ?></textarea>
+				<p class="description">
+					<?php esc_html_e( 'Optional disclaimer shown at the bottom of the chat panel. Use for jurisdictions that require AI-content disclosures or industries where professional advice should be sought elsewhere. If a Privacy Policy URL is set above (AI Disclosure card), it appears as a link after this text. Plain text only; max 500 characters.', 'digital-employees' ); ?>
+				</p>
+			</div>
+		</div>
+
+		<div class="def-core-card">
 			<h2><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></h2>
 			<p class="description">
 				<?php esc_html_e( 'Show a brief notice in the Customer Chat informing visitors that responses are AI-generated. Recommended for transparency and required by some jurisdictions.', 'digital-employees' ); ?>

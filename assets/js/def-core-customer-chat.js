@@ -248,8 +248,20 @@
 
 		header.appendChild(identity);
 
-		// Header actions (menu).
+		// Header actions (refresh + menu).
 		var actions = el('div', 'def-cc-header-actions');
+
+		// Refresh / new-conversation button — one-tap shortcut for the
+		// "Clear chat" menu item below. Same handler. Lives left of the
+		// menu so it's the most-prominent action other than close.
+		var refreshBtn = el('button', 'def-cc-btn def-cc-header-refresh');
+		refreshBtn.type = 'button';
+		refreshBtn.setAttribute('aria-label', 'New conversation');
+		refreshBtn.setAttribute('title', 'New conversation');
+		refreshBtn.innerHTML =
+			'<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>';
+		refreshBtn.addEventListener('click', handleClearChat);
+		actions.appendChild(refreshBtn);
 
 		var menuWrap = el('div', 'def-cc-menu-wrap');
 
@@ -371,6 +383,39 @@
 		greetingEl.appendChild(greetingContent);
 		els.greeting = greetingEl;
 		messages.appendChild(greetingEl);
+
+		// Suggested-prompt chips (admin-configurable, up to 3). Render
+		// below the greeting in the welcome state. Tap pre-fills the
+		// composer and submits, mirroring how Bunnings's "Buddy" chips
+		// behave. Empty admin slots are skipped — the row is hidden
+		// entirely if no chips are configured.
+		var chipDefs = [];
+		if (config.welcomeChip1) chipDefs.push(String(config.welcomeChip1));
+		if (config.welcomeChip2) chipDefs.push(String(config.welcomeChip2));
+		if (config.welcomeChip3) chipDefs.push(String(config.welcomeChip3));
+		if (chipDefs.length) {
+			var chipsRow = el('div', 'def-cc-welcome-chips');
+			chipsRow.setAttribute('role', 'group');
+			chipsRow.setAttribute('aria-label', 'Suggested prompts');
+			for (var ci = 0; ci < chipDefs.length; ci++) {
+				(function (chipText) {
+					var chip = el('button', 'def-cc-welcome-chip');
+					chip.type = 'button';
+					chip.textContent = chipText;
+					chip.addEventListener('click', function () {
+						if (isComposerDisabled) return;
+						els.input.value = chipText;
+						els.input.classList.remove('def-cc-suggestion-text');
+						autoResizeInput();
+						updateSendButton();
+						handleSubmit({ preventDefault: function () {} });
+					});
+					chipsRow.appendChild(chip);
+				})(chipDefs[ci]);
+			}
+			els.welcomeChips = chipsRow;
+			messages.appendChild(chipsRow);
+		}
 
 		// AI disclosure notice (WP.org compliance).
 		if (config.aiNoticeEnabled) {
@@ -534,6 +579,33 @@
 		});
 
 		panel.appendChild(composer);
+
+		// Compliance footer (admin-configurable). Optional disclaimer line
+		// rendered at the bottom of the panel — for tenants in regulated
+		// industries (legal, medical, trades) where AI outputs need a
+		// "consult a qualified professional" disclaimer. Privacy URL
+		// (existing AI Disclosure setting) appended as a link if present.
+		if (config.complianceText || (config.aiNoticeEnabled && config.privacyUrl)) {
+			var footer = el('div', 'def-cc-compliance-footer');
+			if (config.complianceText) {
+				var footerText = document.createElement('span');
+				footerText.className = 'def-cc-compliance-text';
+				footerText.textContent = String(config.complianceText);
+				footer.appendChild(footerText);
+			}
+			if (config.privacyUrl) {
+				if (config.complianceText) {
+					footer.appendChild(document.createTextNode(' '));
+				}
+				var privacyLink = document.createElement('a');
+				privacyLink.href = String(config.privacyUrl);
+				privacyLink.target = '_blank';
+				privacyLink.rel = 'noopener noreferrer';
+				privacyLink.textContent = t('privacyPolicy') || 'Privacy Policy';
+				footer.appendChild(privacyLink);
+			}
+			panel.appendChild(footer);
+		}
 
 		// ── Overlays (confirm, login, escalation) ──
 		buildConfirmOverlay(panel);
