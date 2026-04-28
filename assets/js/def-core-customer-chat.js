@@ -585,27 +585,41 @@
 
 		panel.appendChild(composer);
 
-		// Compliance footer (admin-configurable). Optional disclaimer line
-		// rendered at the bottom of the panel — for tenants in regulated
-		// industries (legal, medical, trades) where AI outputs need a
-		// "consult a qualified professional" disclaimer. Privacy URL
-		// (existing AI Disclosure setting) appended as a link, but only
-		// when the AI notice block isn't ALREADY rendering its own privacy
-		// link — avoids two identical "Privacy Policy" links on screen.
-		if (config.complianceText) {
+		// Compliance footer. Two-part structure:
+		//   1. Notice Text  (config.complianceText)  — the lead sentence
+		//   2. Link Label   (config.privacyLinkLabel) — the trailing words
+		// The Link Label is always rendered after the Notice Text so the
+		// sentence reads completely. It's styled as a clickable link IF
+		// the Legal Link URL is set AND the AI notice isn't already
+		// rendering the same link above (avoids duplication). Otherwise
+		// the label renders as plain text — sentence still reads.
+		if (config.complianceText || config.privacyLinkLabel) {
 			var footer = el('div', 'def-cc-compliance-footer');
-			var footerText = document.createElement('span');
-			footerText.className = 'def-cc-compliance-text';
-			footerText.textContent = String(config.complianceText);
-			footer.appendChild(footerText);
-			if (config.privacyUrl && !config.aiNoticeEnabled) {
-				footer.appendChild(document.createTextNode(' '));
-				var privacyLink = document.createElement('a');
-				privacyLink.href = String(config.privacyUrl);
-				privacyLink.target = '_blank';
-				privacyLink.rel = 'noopener noreferrer';
-				privacyLink.textContent = config.privacyLinkLabel || t('privacyPolicy') || 'Privacy Policy';
-				footer.appendChild(privacyLink);
+			if (config.complianceText) {
+				var footerText = document.createElement('span');
+				footerText.className = 'def-cc-compliance-text';
+				footerText.textContent = String(config.complianceText);
+				footer.appendChild(footerText);
+			}
+			var linkLabel = String(config.privacyLinkLabel || t('privacyPolicy') || '');
+			if (linkLabel) {
+				if (config.complianceText) {
+					footer.appendChild(document.createTextNode(' '));
+				}
+				var asLink = config.privacyUrl && !config.aiNoticeEnabled;
+				if (asLink) {
+					var privacyLink = document.createElement('a');
+					privacyLink.href = String(config.privacyUrl);
+					privacyLink.target = '_blank';
+					privacyLink.rel = 'noopener noreferrer';
+					privacyLink.textContent = linkLabel;
+					footer.appendChild(privacyLink);
+				} else {
+					var labelSpan = document.createElement('span');
+					labelSpan.className = 'def-cc-compliance-link-label';
+					labelSpan.textContent = linkLabel;
+					footer.appendChild(labelSpan);
+				}
 			}
 			panel.appendChild(footer);
 		}

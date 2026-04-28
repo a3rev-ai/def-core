@@ -567,10 +567,10 @@ $first_tab = 'branding';
 					class="large-text"
 					rows="3"
 					maxlength="500"
-					placeholder="<?php esc_attr_e( 'AI content may be inaccurate. In using our AI you agree to our Terms and Conditions', 'digital-employees' ); ?>"
+					placeholder="<?php esc_attr_e( 'AI content may be inaccurate. In using our AI you agree to our', 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['compliance_text'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Disclaimer shown at the bottom of the chat panel. A sensible default is provided — edit or clear as needed for your business and jurisdiction. If a Legal Link URL is set above (AI Disclosure card), the configured Legal Link Label appears as a link after this text. Plain text only; max 500 characters.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'The lead sentence of the compliance footer at the bottom of the chat panel. The Legal Link Label (set in the AI Disclosure card) is appended after this text — as a clickable link when a Legal Link URL is also set, or as plain text otherwise. Default: a generic AI-disclosure notice; edit or clear as needed. Plain text only; max 500 characters. Examples: "AI content may be inaccurate. In using our AI you agree to our" + "Terms and Conditions" → "AI content may be inaccurate. In using our AI you agree to our Terms and Conditions". Or "AI content may be inaccurate. Please see our" + "Privacy Policy".', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>

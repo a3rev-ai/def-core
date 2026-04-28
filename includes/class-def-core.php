@@ -450,12 +450,14 @@ final class DEF_Core {
 			// AI disclosure notice.
 			'aiNoticeEnabled'  => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
-			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', '' ),
+			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms and Conditions', 'digital-employees' ) ),
 			// Welcome state polish (v2.7.0).
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
 			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
-			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI content may be inaccurate. In using our AI you agree to our Terms and Conditions', 'digital-employees' ) ),
+			// Notice Text — the lead sentence. The trailing link words are
+			// in privacyLinkLabel and rendered separately by the widget.
+			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI content may be inaccurate. In using our AI you agree to our', 'digital-employees' ) ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
 			// WP REST URL + nonce for same-origin calls (escalation send).
