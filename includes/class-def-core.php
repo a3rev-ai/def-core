@@ -430,6 +430,8 @@ final class DEF_Core {
 			// Branding.
 			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
 			'logoUrl'        => $this->get_logo_url_for_frontend(),
+			'heroImageUrl'        => $this->get_hero_image_url_for_frontend( 'desktop' ),
+			'heroImageMobileUrl'  => $this->get_hero_image_url_for_frontend( 'mobile' ),
 			'logoShow'       => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
 			'logoMaxHeight'  => (int) get_option( 'def_core_logo_max_height', 40 ),
 			// Chat settings.
@@ -453,14 +455,20 @@ final class DEF_Core {
 			// of complianceText / privacyUrl / privacyLinkLabel.
 			'aiNoticeEnabled'  => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
-			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) ),
+			// Coalesce empty saved value to the same placeholder the admin
+			// Preview uses, so a cleared field still renders sensibly on the
+			// frontend instead of falling through to a different default.
+			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', '' ) ?: __( 'Terms & Conditions', 'digital-employees' ),
 			// Welcome state polish (v2.7.0).
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
 			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
 			// AI Disclosure Notice — the lead sentence. The trailing link
 			// words are in privacyLinkLabel and rendered separately.
-			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ) ),
+			// Coalesce empty saved value to the placeholder default so a
+			// cleared field still renders the footer (matches admin Preview)
+			// instead of suppressing the whole footer at runtime.
+			'complianceText'  => get_option( 'def_core_chat_compliance_text', '' ) ?: __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
 			// WP REST URL + nonce for same-origin calls (escalation send).
@@ -760,6 +768,35 @@ final class DEF_Core {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Get the welcome banner image URL for the customer chat (browser-side).
+	 * Optional — empty string if no banner is configured.
+	 *
+	 * Two variants: desktop (~5:1 wide strip, up to 960px wide in Spotlight)
+	 * and mobile (~2.7:1 chunkier banner, up to ~480px wide on phones).
+	 * Bunnings uses two separate images for the two viewport classes —
+	 * the desktop strip is too short on mobile, the mobile banner is too
+	 * tall on desktop. The widget renders a `<picture>` element with both
+	 * sources when both are configured.
+	 *
+	 * @param string $variant 'desktop' or 'mobile'.
+	 * @return string Banner URL or empty string.
+	 */
+	private function get_hero_image_url_for_frontend( string $variant = 'desktop' ): string {
+		$option_key = 'mobile' === $variant
+			? 'def_core_chat_hero_image_mobile_id'
+			: 'def_core_chat_hero_image_id';
+		$banner_id  = (int) get_option( $option_key, 0 );
+		if ( ! $banner_id ) {
+			return '';
+		}
+		$url = wp_get_attachment_image_url( $banner_id, 'large' );
+		if ( ! $url ) {
+			$url = wp_get_attachment_image_url( $banner_id, 'full' );
+		}
+		return $url ? $url : '';
 	}
 
 	/**

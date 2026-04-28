@@ -25,6 +25,8 @@
 		'api_url':                    { id: 'def_core_staff_ai_api_url',   max_length: 2000 },
 		'api_key':                    { id: 'def_core_api_key',            max_length: 256 },
 		'display_name':               { id: 'def_core_display_name',       max_length: 100 },
+		'chat_hero_image_id':         { id: 'def_core_chat_hero_image_id', max_length: 10 },
+		'chat_hero_image_mobile_id':  { id: 'def_core_chat_hero_image_mobile_id', max_length: 10 },
 		'chat_drawer_width':          { id: 'def_core_chat_drawer_width',  max_length: 5 },
 		'chat_spotlight_width':       { id: 'def_core_chat_spotlight_width',  max_length: 5 },
 		'chat_spotlight_height':      { id: 'def_core_chat_spotlight_height', max_length: 5 },

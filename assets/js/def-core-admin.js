@@ -679,6 +679,72 @@
 				});
 			}
 		}
+
+		// Welcome banner uploaders (desktop + mobile, same pattern as logo).
+		// Factored as a helper since we have two variants — desktop (wide)
+		// and mobile (tall). Same media library, same wp.media flow, just
+		// different DOM IDs and preview dimensions.
+		function bindBannerUploader(selectId, removeId, previewId, inputId, title, previewMaxW, previewMaxH) {
+			var sel = document.getElementById(selectId);
+			var rem = document.getElementById(removeId);
+			var prev = document.getElementById(previewId);
+			var inp = document.getElementById(inputId);
+			if (!sel || !inp) return;
+			var frame;
+			sel.addEventListener('click', function (e) {
+				e.preventDefault();
+				if (frame) { frame.open(); return; }
+				frame = wp.media({
+					title: title,
+					button: { text: 'Use as Banner' },
+					multiple: false,
+					library: { type: 'image' },
+				});
+				frame.on('select', function () {
+					var attachment = frame.state().get('selection').first().toJSON();
+					inp.value = attachment.id;
+					if (prev) {
+						var size =
+							attachment.sizes && attachment.sizes.large
+								? attachment.sizes.large
+								: (attachment.sizes && attachment.sizes.medium ? attachment.sizes.medium : attachment);
+						prev.innerHTML =
+							'<img src="' + escapeHtml(size.url) + '" alt="" style="max-width: ' + previewMaxW + 'px; max-height: ' + previewMaxH + 'px; object-fit: cover; border-radius: 8px; display: block;" />';
+						prev.style.display = '';
+					}
+					if (rem) { rem.style.display = 'inline-block'; }
+				});
+				frame.open();
+			});
+			if (rem) {
+				rem.addEventListener('click', function (e) {
+					e.preventDefault();
+					inp.value = '0';
+					if (prev) {
+						prev.style.display = 'none';
+						prev.innerHTML = '<img src="" alt="" style="max-width: ' + previewMaxW + 'px; max-height: ' + previewMaxH + 'px; object-fit: cover; border-radius: 8px; display: block;" />';
+					}
+					rem.style.display = 'none';
+				});
+			}
+		}
+
+		bindBannerUploader(
+			'def-core-select-hero-image',
+			'def-core-remove-hero-image',
+			'def-core-hero-image-preview',
+			'def_core_chat_hero_image_id',
+			'Select Desktop Banner',
+			480, 120
+		);
+		bindBannerUploader(
+			'def-core-select-hero-image-mobile',
+			'def-core-remove-hero-image-mobile',
+			'def-core-hero-image-mobile-preview',
+			'def_core_chat_hero_image_mobile_id',
+			'Select Mobile Banner',
+			320, 140
+		);
 	}
 
 	// ─── D-II: User Roles ─────────────────────────────────────────
