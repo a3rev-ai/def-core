@@ -559,6 +559,22 @@ $first_tab = 'branding';
 
 		<div class="def-core-card">
 			<h2><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Show a notice in the Chat footer advising that responses are AI-generated. Recommended for transparency and required by some jurisdictions.', 'digital-employees' ); ?>
+			</p>
+
+			<div class="def-core-field def-core-checkbox-field">
+				<label>
+					<input
+						type="checkbox"
+						id="def_core_chat_ai_notice"
+						data-setting="def_core_chat_ai_notice"
+						value="1"
+						<?php checked( $chat_settings['ai_notice'] ); ?>
+					/>
+					<?php esc_html_e( 'Show AI disclosure notice', 'digital-employees' ); ?>
+				</label>
+			</div>
 
 			<div class="def-core-field">
 				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></label>

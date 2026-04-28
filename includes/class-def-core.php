@@ -447,7 +447,11 @@ final class DEF_Core {
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// WooCommerce context.
 			'wooActive'       => ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) ? '1' : '',
-			// AI Disclosure Notice link (rendered at bottom of chat panel).
+			// AI Disclosure Notice — master toggle + link fields (rendered
+			// at the bottom of the chat panel). `aiNoticeEnabled` gates
+			// the entire footer; when off, no footer renders regardless
+			// of complianceText / privacyUrl / privacyLinkLabel.
+			'aiNoticeEnabled'  => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
 			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) ),
 			// Welcome state polish (v2.7.0).

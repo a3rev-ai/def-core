@@ -585,10 +585,13 @@
 		//   2. Link Label   (config.privacyLinkLabel) — the trailing words
 		// The Link Label is the *trailing words* of the sentence ("…agree
 		// to our Privacy Policy"), so it has no meaning without the lead
-		// text. When the admin clears Compliance Footer Text the entire
-		// footer hides — including the link label. Rendering the label
-		// alone would surface a dangling word with no surrounding context.
-		if (config.complianceText) {
+		// text. The footer is gated by two conditions:
+		//   - `aiNoticeEnabled` — the admin master toggle ("Show AI
+		//      disclosure notice" checkbox); when off, no footer at all.
+		//   - `complianceText` non-empty — clearing the lead text hides
+		//      the footer too, since the label alone would be a dangling
+		//      word with no surrounding context.
+		if (config.aiNoticeEnabled && config.complianceText) {
 			var footer = el('div', 'def-cc-compliance-footer');
 			var footerText = document.createElement('span');
 			footerText.className = 'def-cc-compliance-text';

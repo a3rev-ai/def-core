@@ -101,6 +101,10 @@ final class DEF_Core_Admin {
 				'type'     => 'bool',
 				'sanitize' => 'sanitize_bool_setting',
 			),
+			'def_core_chat_ai_notice' => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
 			'def_core_chat_privacy_url' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_privacy_url',
@@ -427,6 +431,9 @@ final class DEF_Core_Admin {
 		);
 
 		// AI Disclosure Notice settings (rendered at the bottom of the chat panel).
+		// `ai_notice` is the master toggle — when off, the footer is hidden
+		// entirely regardless of the disclosure text and link fields below.
+		$chat_settings['ai_notice']          = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
 		$chat_settings['privacy_url']       = get_option( 'def_core_chat_privacy_url', '' );
 		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) );
 
