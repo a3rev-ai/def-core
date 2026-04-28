@@ -420,7 +420,10 @@
 			messages.appendChild(chipsRow);
 		}
 
-		// AI disclosure notice (WP.org compliance).
+		// AI disclosure notice (WP.org compliance). The inline legal
+		// link renders whenever a Legal Link URL is configured — the
+		// notice and the compliance footer are independent surfaces and
+		// both should be linkable when the admin has set a URL.
 		if (config.aiNoticeEnabled) {
 			var notice = el('div', 'def-cc-ai-notice');
 			var noticeText = document.createTextNode(t('aiNotice'));
@@ -588,25 +591,23 @@
 		// Compliance footer. Two-part structure:
 		//   1. Notice Text  (config.complianceText)  — the lead sentence
 		//   2. Link Label   (config.privacyLinkLabel) — the trailing words
-		// The Link Label is always rendered after the Notice Text so the
-		// sentence reads completely. It's styled as a clickable link IF
-		// the Legal Link URL is set AND the AI notice isn't already
-		// rendering the same link above (avoids duplication). Otherwise
-		// the label renders as plain text — sentence still reads.
-		if (config.complianceText || config.privacyLinkLabel) {
+		// The Link Label is the *trailing words* of the sentence ("…agree
+		// to our Privacy Policy"), so it has no meaning without the lead
+		// text. When the admin clears Compliance Footer Text the entire
+		// footer hides — including the link label. Rendering the label
+		// alone would surface a dangling word with no surrounding context.
+		if (config.complianceText) {
 			var footer = el('div', 'def-cc-compliance-footer');
-			if (config.complianceText) {
-				var footerText = document.createElement('span');
-				footerText.className = 'def-cc-compliance-text';
-				footerText.textContent = String(config.complianceText);
-				footer.appendChild(footerText);
-			}
+			var footerText = document.createElement('span');
+			footerText.className = 'def-cc-compliance-text';
+			footerText.textContent = String(config.complianceText);
+			footer.appendChild(footerText);
 			var linkLabel = String(config.privacyLinkLabel || t('privacyPolicy') || '');
 			if (linkLabel) {
-				if (config.complianceText) {
-					footer.appendChild(document.createTextNode(' '));
-				}
-				var asLink = config.privacyUrl && !config.aiNoticeEnabled;
+				footer.appendChild(document.createTextNode(' '));
+				// Footer label renders as a clickable link whenever a
+				// Legal Link URL is configured, otherwise as plain text.
+				var asLink = !!config.privacyUrl;
 				if (asLink) {
 					var privacyLink = document.createElement('a');
 					privacyLink.href = String(config.privacyUrl);
