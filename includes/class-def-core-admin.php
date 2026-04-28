@@ -109,6 +109,10 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_privacy_url',
 			),
+			'def_core_chat_privacy_link_label' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_privacy_link_label',
+			),
 			'def_core_chat_welcome_chip_1' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_welcome_chip',
@@ -427,8 +431,9 @@ final class DEF_Core_Admin {
 		);
 
 		// AI consent notice settings.
-		$chat_settings['ai_notice']   = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
-		$chat_settings['privacy_url'] = get_option( 'def_core_chat_privacy_url', '' );
+		$chat_settings['ai_notice']         = '0' !== get_option( 'def_core_chat_ai_notice', '0' );
+		$chat_settings['privacy_url']       = get_option( 'def_core_chat_privacy_url', '' );
+		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', '' );
 
 		// Welcome state polish settings.
 		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
@@ -828,6 +833,22 @@ final class DEF_Core_Admin {
 		$value = sanitize_textarea_field( (string) $value );
 		if ( mb_strlen( $value ) > 500 ) {
 			$value = mb_substr( $value, 0, 500 );
+		}
+		return $value;
+	}
+
+	/**
+	 * Sanitize privacy / legal link label (text + length cap 50 chars).
+	 * Empty string is the documented "fall back to translated default"
+	 * value — sanitiser preserves empty.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated link label.
+	 */
+	public static function sanitize_privacy_link_label( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		if ( mb_strlen( $value ) > 50 ) {
+			$value = mb_substr( $value, 0, 50 );
 		}
 		return $value;
 	}

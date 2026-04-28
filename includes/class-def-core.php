@@ -448,8 +448,9 @@ final class DEF_Core {
 			// WooCommerce context.
 			'wooActive'       => ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) ? '1' : '',
 			// AI disclosure notice.
-			'aiNoticeEnabled' => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
-			'privacyUrl'      => get_option( 'def_core_chat_privacy_url', '' ),
+			'aiNoticeEnabled'  => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
+			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
+			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', '' ),
 			// Welcome state polish (v2.7.0).
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),

@@ -32,6 +32,7 @@
 		'chat_welcome_chip_2':        { id: 'def_core_chat_welcome_chip_2',  max_length: 80 },
 		'chat_welcome_chip_3':        { id: 'def_core_chat_welcome_chip_3',  max_length: 80 },
 		'chat_compliance_text':       { id: 'def_core_chat_compliance_text', max_length: 500 },
+		'chat_privacy_link_label':    { id: 'def_core_chat_privacy_link_label', max_length: 50 },
 		'chat_button_color':          { id: 'def_core_chat_button_color',  max_length: 7, type: 'color' },
 		'chat_button_hover_color':    { id: 'def_core_chat_button_hover_color', max_length: 7, type: 'color' },
 		'allowed_origins':            { id: 'def_core_allowed_origins',    max_length: 2000 },

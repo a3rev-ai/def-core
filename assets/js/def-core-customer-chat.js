@@ -432,7 +432,9 @@
 				link.href = config.privacyUrl;
 				link.target = '_blank';
 				link.rel = 'noopener noreferrer';
-				link.textContent = t('privacyPolicy');
+				// Admin-configurable label — defaults to "Privacy Policy"
+				// when the field is empty so existing tenants see no change.
+				link.textContent = config.privacyLinkLabel || t('privacyPolicy');
 				notice.appendChild(link);
 			}
 			els.aiNotice = notice;
@@ -602,7 +604,7 @@
 				privacyLink.href = String(config.privacyUrl);
 				privacyLink.target = '_blank';
 				privacyLink.rel = 'noopener noreferrer';
-				privacyLink.textContent = t('privacyPolicy') || 'Privacy Policy';
+				privacyLink.textContent = config.privacyLinkLabel || t('privacyPolicy') || 'Privacy Policy';
 				footer.appendChild(privacyLink);
 			}
 			panel.appendChild(footer);

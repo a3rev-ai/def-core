@@ -182,6 +182,12 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_compliance_text' ),
 			'read_mode' => 'value',
 		),
+		'def_core_chat_privacy_link_label' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_privacy_link_label',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_privacy_link_label' ),
+			'read_mode' => 'value',
+		),
 		'def_core_chat_button_color' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_hex_color',
@@ -694,6 +700,7 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_welcome_chip_2'       => 'chat-settings',
 			'def_core_chat_welcome_chip_3'       => 'chat-settings',
 			'def_core_chat_compliance_text'      => 'chat-settings',
+			'def_core_chat_privacy_link_label'   => 'chat-settings',
 			'def_core_chat_button_color'         => 'chat-settings',
 			'def_core_chat_button_hover_color'   => 'chat-settings',
 			'def_core_chat_button_icon'          => 'chat-settings',
@@ -1312,6 +1319,20 @@ final class DEF_Core_Admin_API {
 		$str = (string) $value;
 		if ( mb_strlen( $str ) > 500 ) {
 			return 'Compliance text must be 500 characters or fewer.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate privacy / legal link label (max 50 chars).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_privacy_link_label( $value ) {
+		$str = (string) $value;
+		if ( mb_strlen( $str ) > 50 ) {
+			return 'Link label must be 50 characters or fewer.';
 		}
 		return true;
 	}
