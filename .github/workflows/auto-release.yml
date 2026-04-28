@@ -1,22 +1,40 @@
 name: Auto-publish release on version bump
 
-# When def-core.php's Plugin Header `Version:` is bumped on `main`, create
-# a matching GitHub Release. The existing `release.yml` workflow listens
-# for `release: published` and builds + attaches `digital-employees.zip`,
-# so this workflow's only job is publishing the release that kicks that
-# chain off.
+# When def-core.php's Plugin Header `Version:` is bumped on `main`, this
+# workflow does the full release pipeline in one job:
 #
-# Idempotent: if a release with the current version's tag already exists
-# (e.g. PR merged without bumping the version, or the merger already ran
-# `gh release create` manually), the workflow no-ops.
+#   1. Extract version from def-core.php
+#   2. Confirm Plugin Header == DEF_CORE_VERSION constant
+#   3. Skip if a release with that tag already exists (idempotent)
+#   4. Extract release notes from changelog.txt
+#   5. Build digital-employees.zip
+#   6. Create the GitHub Release with the zip attached
 #
-# Notes are extracted from the matching section of `changelog.txt` so the
-# auto-published release reads the same as a hand-cut one.
+# Why one job instead of chaining release.yml on `release: published`:
+# GITHUB_TOKEN-created events do NOT trigger downstream workflows
+# (documented WP-of-source-control limitation, only workflow_dispatch /
+# repository_dispatch propagate). Previously release.yml was a separate
+# workflow listening on release:published — but auto-release.yml's
+# release:create call did not propagate, so the zip never got built and
+# attached. Combining the steps in one workflow run sidesteps the
+# propagation issue entirely: same job, same token, deterministic order.
+# v2.6.0 was the release that exposed this gap (asset missing).
 
 on:
   push:
     branches:
       - main
+  # Manual fallback: rebuild + attach the zip for an existing release
+  # tag. Use this if the asset goes missing or a previous release was
+  # created before this combined workflow shipped (v2.6.0 case). Run
+  # via `gh workflow run auto-release.yml -f tag=vX.Y.Z` or the
+  # GitHub Actions UI "Run workflow" button.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to rebuild (e.g. v2.6.0). Leave empty to use current main HEAD.'
+        required: false
+        type: string
 
 permissions:
   # Releases require contents:write. NOT pull-requests:write — the repo
@@ -36,6 +54,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # When manually triggered for an existing tag, check out that
+          # tag so we build the version that's actually on the release.
+          ref: ${{ github.event.inputs.tag || github.sha }}
 
       - name: Extract version from def-core.php Plugin Header
         id: version
@@ -73,24 +95,42 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: v$VERSION"
 
-      - name: Check if release v${{ steps.version.outputs.version }} already exists
+      - name: Check release state and decide action
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if gh release view "v${{ steps.version.outputs.version }}" \
-              --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Release v${{ steps.version.outputs.version }} already exists — skipping."
+          TAG="v${{ steps.version.outputs.version }}"
+          IS_MANUAL='${{ github.event_name == ''workflow_dispatch'' }}'
+
+          # Three states:
+          #   - release-missing: create release with asset (auto path)
+          #   - release-exists-asset-missing: upload only (manual rebuild path)
+          #   - release-exists-asset-present: skip (idempotent no-op)
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "action=create" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist — will create with asset."
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Release v${{ steps.version.outputs.version }} does not exist — will create."
+            ASSET_COUNT="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.assets | length')"
+            HAS_ASSET="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '[.assets[] | select(.name == "digital-employees.zip")] | length')"
+            if [ "$HAS_ASSET" -eq 0 ]; then
+              if [ "$IS_MANUAL" = 'true' ]; then
+                echo "action=upload" >> "$GITHUB_OUTPUT"
+                echo "Release $TAG exists but digital-employees.zip is missing — will build and upload (manual trigger)."
+              else
+                echo "action=skip" >> "$GITHUB_OUTPUT"
+                echo "Release $TAG exists but asset missing. Push event won't auto-recover; trigger manually via workflow_dispatch with tag=$TAG to rebuild."
+              fi
+            else
+              echo "action=skip" >> "$GITHUB_OUTPUT"
+              echo "Release $TAG exists with $ASSET_COUNT asset(s) including digital-employees.zip — skipping."
+            fi
           fi
 
       - name: Extract changelog notes for this version
         id: notes
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.action == 'create'
         run: |
           set -euo pipefail
           VERSION='${{ steps.version.outputs.version }}'
@@ -118,16 +158,55 @@ jobs:
           } > /tmp/release-notes.md
           echo "Notes written to /tmp/release-notes.md ($(wc -l < /tmp/release-notes.md) lines)"
 
-      - name: Create GitHub Release v${{ steps.version.outputs.version }}
-        if: steps.check.outputs.exists == 'false'
+      - name: Build digital-employees.zip
+        if: steps.check.outputs.action == 'create' || steps.check.outputs.action == 'upload'
+        run: |
+          set -euo pipefail
+          # Same shape as the previous release.yml build step — copy only
+          # distributable files (no dev tooling, tests, CI config) and
+          # produce a clean digital-employees/ folder root inside the zip.
+          mkdir -p build/digital-employees
+          cp def-core.php LICENSE README.md readme.txt changelog.txt build/digital-employees/
+          cp -r assets build/digital-employees/
+          cp -r includes build/digital-employees/
+          cp -r templates build/digital-employees/
+          if [ -d languages ]; then cp -r languages build/digital-employees/; fi
+          if [ -d vendor ]; then
+            cp -r vendor build/digital-employees/
+            rm -rf build/digital-employees/vendor/bin
+          fi
+          cd build && zip -rq ../digital-employees.zip digital-employees/ && cd ..
+          echo "=== Zip contents (first 20 entries) ==="
+          unzip -l digital-employees.zip | head -25
+          echo "=== Verifying main plugin file Plugin Header ==="
+          unzip -p digital-employees.zip digital-employees/def-core.php | head -6
+
+      - name: Create GitHub Release with asset (auto path)
+        if: steps.check.outputs.action == 'create'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Single create-with-asset call. `gh release create` accepts
+          # asset paths as positional args after the flags — the release
+          # is created and the asset attached in one HTTP transaction
+          # from this runner, no cross-workflow propagation needed.
           gh release create "v${{ steps.version.outputs.version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "v${{ steps.version.outputs.version }}" \
-            --notes-file /tmp/release-notes.md
-          echo "Created release v${{ steps.version.outputs.version }} at $GITHUB_SHA"
-          echo "release.yml will now fire on the release:published event and attach digital-employees.zip"
+            --notes-file /tmp/release-notes.md \
+            digital-employees.zip
+          echo "Created release v${{ steps.version.outputs.version }} at $GITHUB_SHA with digital-employees.zip attached"
+
+      - name: Upload asset to existing release (manual rebuild path)
+        if: steps.check.outputs.action == 'upload'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release upload "v${{ steps.version.outputs.version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            digital-employees.zip
+          echo "Uploaded digital-employees.zip to existing release v${{ steps.version.outputs.version }}"
