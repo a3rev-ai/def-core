@@ -455,14 +455,20 @@ final class DEF_Core {
 			// of complianceText / privacyUrl / privacyLinkLabel.
 			'aiNoticeEnabled'  => '0' !== get_option( 'def_core_chat_ai_notice', '0' ),
 			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
-			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) ),
+			// Coalesce empty saved value to the same placeholder the admin
+			// Preview uses, so a cleared field still renders sensibly on the
+			// frontend instead of falling through to a different default.
+			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', '' ) ?: __( 'Terms & Conditions', 'digital-employees' ),
 			// Welcome state polish (v2.7.0).
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
 			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
 			// AI Disclosure Notice — the lead sentence. The trailing link
 			// words are in privacyLinkLabel and rendered separately.
-			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ) ),
+			// Coalesce empty saved value to the placeholder default so a
+			// cleared field still renders the footer (matches admin Preview)
+			// instead of suppressing the whole footer at runtime.
+			'complianceText'  => get_option( 'def_core_chat_compliance_text', '' ) ?: __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
 			// WP REST URL + nonce for same-origin calls (escalation send).
