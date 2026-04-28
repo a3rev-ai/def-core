@@ -208,6 +208,9 @@
 		if (els.welcomeChips) {
 			els.welcomeChips.style.display = 'none';
 		}
+		if (els.welcomeBanner) {
+			els.welcomeBanner.style.display = 'none';
+		}
 
 		var offline = el('div', 'def-cc-offline');
 		var icon = el('div', 'def-cc-offline-icon');
@@ -356,6 +359,48 @@
 		messages.setAttribute('aria-relevant', 'additions');
 		els.messages = messages;
 		panel.appendChild(messages);
+
+		// Welcome banner (admin-configurable in Branding tab). Renders at
+		// the top of the messages list above the greeting in all three
+		// display modes. Shares the welcome-state lifecycle with the
+		// greeting — hidden when conversation starts, preserved through
+		// clearMessages, restored on clearConversation.
+		//
+		// Two variants: heroImageUrl (desktop, ~5:1 wide strip) and
+		// heroImageMobileUrl (mobile, ~2.7:1 chunkier banner). Bunnings
+		// uses two separate images for the two viewport classes — at
+		// mobile widths, the desktop strip would shrink to ~80px tall
+		// and lose impact. When both are configured, render a <picture>
+		// with a viewport media query. When only one is set, that one
+		// is used at all widths.
+		if (config.heroImageUrl || config.heroImageMobileUrl) {
+			var banner = el('div', 'def-cc-welcome-banner');
+			var desktopUrl = String(config.heroImageUrl || '');
+			var mobileUrl  = String(config.heroImageMobileUrl || '');
+			if (desktopUrl && mobileUrl) {
+				// Both set: <picture> picks the right one per viewport.
+				var picture = document.createElement('picture');
+				var srcDesktop = document.createElement('source');
+				srcDesktop.media  = '(min-width: 481px)';
+				srcDesktop.srcset = desktopUrl;
+				picture.appendChild(srcDesktop);
+				var bannerImg = document.createElement('img');
+				bannerImg.src = mobileUrl; // <img> fallback handles mobile
+				bannerImg.alt = '';
+				bannerImg.setAttribute('aria-hidden', 'true');
+				picture.appendChild(bannerImg);
+				banner.appendChild(picture);
+			} else {
+				// Only one set: use it at all viewports.
+				var soloImg = document.createElement('img');
+				soloImg.src = desktopUrl || mobileUrl;
+				soloImg.alt = '';
+				soloImg.setAttribute('aria-hidden', 'true');
+				banner.appendChild(soloImg);
+			}
+			els.welcomeBanner = banner;
+			messages.appendChild(banner);
+		}
 
 		// Greeting with capabilities.
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
@@ -2073,6 +2118,9 @@
 		if (els.welcomeChips) {
 			els.welcomeChips.style.display = 'none';
 		}
+		if (els.welcomeBanner) {
+			els.welcomeBanner.style.display = 'none';
+		}
 
 		scrollToBottom();
 	}
@@ -2146,8 +2194,31 @@
 
 	function createAssistantIcon() {
 		var iconEl = el('div', 'def-cc-message-icon');
-		iconEl.textContent = 'DE';
 		iconEl.setAttribute('aria-hidden', 'true');
+		// Use the configured logo when available — same logo from Branding
+		// tab (already shown in the chat header). Falls back to display-name
+		// initials, or "AI" as a last resort. Previous hardcoded "DE" was
+		// the framework default and wrong for any tenant who'd configured
+		// their own brand.
+		if (config.logoUrl && config.logoShow !== false) {
+			iconEl.classList.add('def-cc-message-icon--img');
+			var img = document.createElement('img');
+			img.src = config.logoUrl;
+			img.alt = '';
+			img.setAttribute('aria-hidden', 'true');
+			iconEl.appendChild(img);
+		} else {
+			var initials = '';
+			var name = (config.displayName || '').trim();
+			if (name) {
+				var parts = name.split(/\s+/);
+				initials = (parts[0][0] || '').toUpperCase();
+				if (parts.length > 1 && parts[parts.length - 1][0]) {
+					initials += parts[parts.length - 1][0].toUpperCase();
+				}
+			}
+			iconEl.textContent = initials || 'AI';
+		}
 		return iconEl;
 	}
 
@@ -2931,6 +3002,9 @@
 		if (els.welcomeChips) {
 			els.welcomeChips.style.display = 'none';
 		}
+		if (els.welcomeBanner) {
+			els.welcomeBanner.style.display = 'none';
+		}
 
 		// Render all messages.
 		for (var j = 0; j < thread.messages.length; j++) {
@@ -3028,13 +3102,17 @@
 		// Clear staged files.
 		clearStagedFiles();
 
-		// Show greeting + welcome chips (parallel lifecycle — both belong
-		// to the empty/welcome state and are preserved by clearMessages).
+		// Show greeting + welcome chips + welcome banner (parallel
+		// lifecycle — all belong to the empty/welcome state and are
+		// preserved by clearMessages).
 		if (els.greeting) {
 			els.greeting.style.display = '';
 		}
 		if (els.welcomeChips) {
 			els.welcomeChips.style.display = '';
+		}
+		if (els.welcomeBanner) {
+			els.welcomeBanner.style.display = '';
 		}
 	}
 
@@ -3042,9 +3120,11 @@
 		if (!els.messages) return;
 		var children = els.messages.children;
 		for (var i = children.length - 1; i >= 0; i--) {
-			// Preserve both welcome-state elements so they re-appear after
+			// Preserve all welcome-state elements so they re-appear after
 			// clearConversation rather than being lost from the DOM.
-			if (children[i] !== els.greeting && children[i] !== els.welcomeChips) {
+			if (children[i] !== els.greeting &&
+				children[i] !== els.welcomeChips &&
+				children[i] !== els.welcomeBanner) {
 				els.messages.removeChild(children[i]);
 			}
 		}

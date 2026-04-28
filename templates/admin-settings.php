@@ -177,6 +177,65 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-section">
+			<h3><?php esc_html_e( 'Customer Chat Welcome Banner', 'digital-employees' ); ?></h3>
+			<hr />
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Desktop Banner (Wide)', 'digital-employees' ); ?></label>
+				<div class="def-core-image-upload" id="def-core-hero-image-upload">
+					<?php if ( $branding['hero_image_url'] ) : ?>
+						<div class="def-core-image-preview" id="def-core-hero-image-preview">
+							<img src="<?php echo esc_url( $branding['hero_image_url'] ); ?>" alt="" style="max-width: 480px; max-height: 120px; object-fit: cover; border-radius: 8px; display: block;" />
+						</div>
+					<?php else : ?>
+						<div class="def-core-image-preview" id="def-core-hero-image-preview" style="display: none;">
+							<img src="" alt="" style="max-width: 480px; max-height: 120px; object-fit: cover; border-radius: 8px; display: block;" />
+						</div>
+					<?php endif; ?>
+					<input type="hidden" id="def_core_chat_hero_image_id" data-setting="def_core_chat_hero_image_id" value="<?php echo esc_attr( $branding['hero_image_id'] ); ?>" />
+					<div class="def-core-image-buttons">
+						<button type="button" class="button" id="def-core-select-hero-image">
+							<?php esc_html_e( 'Select Desktop Banner', 'digital-employees' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-hero-image" style="<?php echo $branding['hero_image_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove', 'digital-employees' ); ?>
+						</button>
+					</div>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Wide-format banner shown above the greeting on desktop. Recommended aspect: ~5:1 (e.g. 2400×480px). Renders at panel width — up to 960px in Spotlight, ~450px in Modal, drawer-width in Drawer. A thin horizontal strip works best.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label><?php esc_html_e( 'Mobile Banner (Tall)', 'digital-employees' ); ?></label>
+				<div class="def-core-image-upload" id="def-core-hero-image-mobile-upload">
+					<?php if ( $branding['hero_image_mobile_url'] ) : ?>
+						<div class="def-core-image-preview" id="def-core-hero-image-mobile-preview">
+							<img src="<?php echo esc_url( $branding['hero_image_mobile_url'] ); ?>" alt="" style="max-width: 320px; max-height: 140px; object-fit: cover; border-radius: 8px; display: block;" />
+						</div>
+					<?php else : ?>
+						<div class="def-core-image-preview" id="def-core-hero-image-mobile-preview" style="display: none;">
+							<img src="" alt="" style="max-width: 320px; max-height: 140px; object-fit: cover; border-radius: 8px; display: block;" />
+						</div>
+					<?php endif; ?>
+					<input type="hidden" id="def_core_chat_hero_image_mobile_id" data-setting="def_core_chat_hero_image_mobile_id" value="<?php echo esc_attr( $branding['hero_image_mobile_id'] ); ?>" />
+					<div class="def-core-image-buttons">
+						<button type="button" class="button" id="def-core-select-hero-image-mobile">
+							<?php esc_html_e( 'Select Mobile Banner', 'digital-employees' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-hero-image-mobile" style="<?php echo $branding['hero_image_mobile_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove', 'digital-employees' ); ?>
+						</button>
+					</div>
+				</div>
+				<p class="description">
+					<?php esc_html_e( 'Optional tall-format banner used on mobile (≤480px wide). Recommended aspect: ~2.7:1 (e.g. 860×320px). Mobile collapses the panel to ~full screen width, where the wide desktop banner becomes a thin sliver — this taller variant gives mobile visitors more visual impact. If left empty, the desktop banner is used at all viewports.', 'digital-employees' ); ?>
+				</p>
+			</div>
+		</div>
+
+		<div class="def-core-section">
 			<h3><?php esc_html_e( 'Web App Icon', 'digital-employees' ); ?></h3>
 			<hr />
 

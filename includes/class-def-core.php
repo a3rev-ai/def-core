@@ -430,6 +430,8 @@ final class DEF_Core {
 			// Branding.
 			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
 			'logoUrl'        => $this->get_logo_url_for_frontend(),
+			'heroImageUrl'        => $this->get_hero_image_url_for_frontend( 'desktop' ),
+			'heroImageMobileUrl'  => $this->get_hero_image_url_for_frontend( 'mobile' ),
 			'logoShow'       => '0' !== get_option( 'def_core_logo_show_customer_chat', '1' ),
 			'logoMaxHeight'  => (int) get_option( 'def_core_logo_max_height', 40 ),
 			// Chat settings.
@@ -760,6 +762,35 @@ final class DEF_Core {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Get the welcome banner image URL for the customer chat (browser-side).
+	 * Optional — empty string if no banner is configured.
+	 *
+	 * Two variants: desktop (~5:1 wide strip, up to 960px wide in Spotlight)
+	 * and mobile (~2.7:1 chunkier banner, up to ~480px wide on phones).
+	 * Bunnings uses two separate images for the two viewport classes —
+	 * the desktop strip is too short on mobile, the mobile banner is too
+	 * tall on desktop. The widget renders a `<picture>` element with both
+	 * sources when both are configured.
+	 *
+	 * @param string $variant 'desktop' or 'mobile'.
+	 * @return string Banner URL or empty string.
+	 */
+	private function get_hero_image_url_for_frontend( string $variant = 'desktop' ): string {
+		$option_key = 'mobile' === $variant
+			? 'def_core_chat_hero_image_mobile_id'
+			: 'def_core_chat_hero_image_id';
+		$banner_id  = (int) get_option( $option_key, 0 );
+		if ( ! $banner_id ) {
+			return '';
+		}
+		$url = wp_get_attachment_image_url( $banner_id, 'large' );
+		if ( ! $url ) {
+			$url = wp_get_attachment_image_url( $banner_id, 'full' );
+		}
+		return $url ? $url : '';
 	}
 
 	/**

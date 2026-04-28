@@ -49,6 +49,14 @@ final class DEF_Core_Admin {
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_id',
 			),
+			'def_core_chat_hero_image_id'      => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
+			'def_core_chat_hero_image_mobile_id' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
 		),
 		'connection'       => array(
 			'def_core_log_level' => array(
@@ -374,11 +382,33 @@ final class DEF_Core_Admin {
 			'logo_max_height'      => (int) get_option( 'def_core_logo_max_height', 40 ),
 			'app_icon_id'          => (int) get_option( 'def_core_app_icon_id', 0 ),
 			'app_icon_url'         => '',
+			'hero_image_id'        => (int) get_option( 'def_core_chat_hero_image_id', 0 ),
+			'hero_image_url'       => '',
+			'hero_image_mobile_id'  => (int) get_option( 'def_core_chat_hero_image_mobile_id', 0 ),
+			'hero_image_mobile_url' => '',
 		);
 
 		// App icon preview URL.
 		if ( $branding['app_icon_id'] ) {
 			$branding['app_icon_url'] = wp_get_attachment_image_url( $branding['app_icon_id'], 'medium' );
+		}
+
+		// Welcome banner preview URLs — desktop ('large' size, up to 960px
+		// wide in Spotlight) and mobile (medium-or-large size, up to ~480px
+		// wide on phones). Both optional.
+		if ( $branding['hero_image_id'] ) {
+			$banner_url = wp_get_attachment_image_url( $branding['hero_image_id'], 'large' );
+			if ( ! $banner_url ) {
+				$banner_url = wp_get_attachment_image_url( $branding['hero_image_id'], 'full' );
+			}
+			$branding['hero_image_url'] = $banner_url ? $banner_url : '';
+		}
+		if ( $branding['hero_image_mobile_id'] ) {
+			$mobile_url = wp_get_attachment_image_url( $branding['hero_image_mobile_id'], 'large' );
+			if ( ! $mobile_url ) {
+				$mobile_url = wp_get_attachment_image_url( $branding['hero_image_mobile_id'], 'full' );
+			}
+			$branding['hero_image_mobile_url'] = $mobile_url ? $mobile_url : '';
 		}
 
 		// D-II: Logo preview URL.

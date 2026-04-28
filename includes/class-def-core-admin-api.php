@@ -128,6 +128,18 @@ final class DEF_Core_Admin_API {
 			'validate'  => 'validate_logo_id',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_hero_image_id' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_id',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_id' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_hero_image_mobile_id' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_id',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_id' ),
+			'read_mode' => 'value',
+		),
 		'def_core_escalation_customer' => array(
 			'type'      => 'email',
 			'validate'  => 'validate_email_setting',
@@ -690,6 +702,8 @@ final class DEF_Core_Admin_API {
 		$tab_map    = array(
 			'def_core_display_name'              => 'branding',
 			'def_core_logo_id'                   => 'branding',
+			'def_core_chat_hero_image_id'        => 'branding',
+			'def_core_chat_hero_image_mobile_id' => 'branding',
 			'def_core_escalation_customer'       => 'escalation',
 			'def_core_escalation_setup_assistant' => 'escalation',
 			'def_core_chat_display_mode'         => 'chat-settings',
