@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.8.0
+Stable tag: 2.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.9.0 - 2026-04-28 =
+* Feature: per-chip introduction text — hybrid welcome-chip behaviour. Each suggestion chip can have an optional Introduction textarea (max 1000 chars). When set, clicking the chip renders the intro as an assistant message and waits for the visitor's reply (Bunnings "Buddy" pattern). When empty, the chip falls back to the v2.7.0 behaviour (pre-fill composer + submit). Mix-and-match per chip.
+* Polish: help text under Chip 1's intro field points admins to the Setup Assistant for help drafting introductions.
+* Internal: three new options (`def_core_chat_welcome_chip_1_intro`/`_2_intro`/`_3_intro`) registered in the admin sanitiser registry, REST API allowlist with validate + sanitize callbacks, `wp_localize_script`, and Setup Assistant FIELD_MAP. Intro text sanitised via `trim(sanitize_textarea_field())` and capped at 1000 chars. Rendered client-side through the same DOMPurify pipeline as normal AI messages.
 
 = 2.8.0 - 2026-04-28 =
 * Feature: welcome banner — two image uploads in Branding tab. **Desktop Banner** (recommended ~5:1 aspect, e.g. 2400×480px) renders as a wide strip above the greeting on viewports ≥481px wide. **Mobile Banner** (recommended ~2.7:1 aspect, e.g. 860×320px) is a chunkier banner shown on phones, where the wide desktop strip would otherwise shrink to a thin sliver and lose impact. Both optional — if only one is uploaded, it's used at all viewports. Widget renders a `<picture>` element with viewport `(min-width: 481px)` source for browser-native viewport selection.

@@ -125,13 +125,25 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_welcome_chip',
 			),
+			'def_core_chat_welcome_chip_1_intro' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip_intro',
+			),
 			'def_core_chat_welcome_chip_2' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_welcome_chip',
 			),
+			'def_core_chat_welcome_chip_2_intro' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip_intro',
+			),
 			'def_core_chat_welcome_chip_3' => array(
 				'type'     => 'string',
 				'sanitize' => 'sanitize_welcome_chip',
+			),
+			'def_core_chat_welcome_chip_3_intro' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_welcome_chip_intro',
 			),
 			'def_core_chat_compliance_text' => array(
 				'type'     => 'string',
@@ -471,9 +483,12 @@ final class DEF_Core_Admin {
 		$chat_settings['privacy_link_label'] = get_option( 'def_core_chat_privacy_link_label', '' ) ?: __( 'Terms & Conditions', 'digital-employees' );
 
 		// Welcome state + disclosure notice text.
-		$chat_settings['welcome_chip_1']   = get_option( 'def_core_chat_welcome_chip_1', '' );
-		$chat_settings['welcome_chip_2']   = get_option( 'def_core_chat_welcome_chip_2', '' );
-		$chat_settings['welcome_chip_3']   = get_option( 'def_core_chat_welcome_chip_3', '' );
+		$chat_settings['welcome_chip_1']         = get_option( 'def_core_chat_welcome_chip_1', '' );
+		$chat_settings['welcome_chip_1_intro']   = get_option( 'def_core_chat_welcome_chip_1_intro', '' );
+		$chat_settings['welcome_chip_2']         = get_option( 'def_core_chat_welcome_chip_2', '' );
+		$chat_settings['welcome_chip_2_intro']   = get_option( 'def_core_chat_welcome_chip_2_intro', '' );
+		$chat_settings['welcome_chip_3']         = get_option( 'def_core_chat_welcome_chip_3', '' );
+		$chat_settings['welcome_chip_3_intro']   = get_option( 'def_core_chat_welcome_chip_3_intro', '' );
 		$chat_settings['compliance_text']  = get_option( 'def_core_chat_compliance_text', '' ) ?: __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' );
 
 		// Button appearance settings.
@@ -854,6 +869,25 @@ final class DEF_Core_Admin {
 		// 80 chars covers reasonable chip labels and prevents pill overflow.
 		if ( mb_strlen( $value ) > 80 ) {
 			$value = mb_substr( $value, 0, 80 );
+		}
+		return $value;
+	}
+
+	/**
+	 * Sanitize a welcome-chip intro (multiline allowed, length cap 1000).
+	 *
+	 * Per-chip introduction text rendered as an assistant message when the
+	 * chip is clicked. Strips raw HTML; markdown is rendered client-side
+	 * through DOMPurify so we don't need to allow tags here. Trim to keep
+	 * empty/whitespace-only saves from triggering the intro path.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string Sanitised, truncated intro text.
+	 */
+	public static function sanitize_welcome_chip_intro( $value ): string {
+		$value = trim( sanitize_textarea_field( (string) $value ) );
+		if ( mb_strlen( $value ) > 1000 ) {
+			$value = mb_substr( $value, 0, 1000 );
 		}
 		return $value;
 	}

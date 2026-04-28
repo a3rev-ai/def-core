@@ -459,10 +459,13 @@ final class DEF_Core {
 			// Preview uses, so a cleared field still renders sensibly on the
 			// frontend instead of falling through to a different default.
 			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', '' ) ?: __( 'Terms & Conditions', 'digital-employees' ),
-			// Welcome state polish (v2.7.0).
-			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
-			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
-			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
+			// Welcome state polish (v2.7.0 chips + v2.9.0 per-chip intros).
+			'welcomeChip1'        => get_option( 'def_core_chat_welcome_chip_1', '' ),
+			'welcomeChip1Intro'   => get_option( 'def_core_chat_welcome_chip_1_intro', '' ),
+			'welcomeChip2'        => get_option( 'def_core_chat_welcome_chip_2', '' ),
+			'welcomeChip2Intro'   => get_option( 'def_core_chat_welcome_chip_2_intro', '' ),
+			'welcomeChip3'        => get_option( 'def_core_chat_welcome_chip_3', '' ),
+			'welcomeChip3Intro'   => get_option( 'def_core_chat_welcome_chip_3_intro', '' ),
 			// AI Disclosure Notice — the lead sentence. The trailing link
 			// words are in privacyLinkLabel and rendered separately.
 			// Coalesce empty saved value to the placeholder default so a

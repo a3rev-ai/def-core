@@ -176,16 +176,34 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
 			'read_mode' => 'value',
 		),
+		'def_core_chat_welcome_chip_1_intro' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip_intro',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip_intro' ),
+			'read_mode' => 'value',
+		),
 		'def_core_chat_welcome_chip_2' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_welcome_chip',
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
 			'read_mode' => 'value',
 		),
+		'def_core_chat_welcome_chip_2_intro' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip_intro',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip_intro' ),
+			'read_mode' => 'value',
+		),
 		'def_core_chat_welcome_chip_3' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_welcome_chip',
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_welcome_chip_3_intro' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_welcome_chip_intro',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_welcome_chip_intro' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_compliance_text' => array(
@@ -711,8 +729,11 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_spotlight_width'      => 'chat-settings',
 			'def_core_chat_spotlight_height'     => 'chat-settings',
 			'def_core_chat_welcome_chip_1'       => 'chat-settings',
+			'def_core_chat_welcome_chip_1_intro' => 'chat-settings',
 			'def_core_chat_welcome_chip_2'       => 'chat-settings',
+			'def_core_chat_welcome_chip_2_intro' => 'chat-settings',
 			'def_core_chat_welcome_chip_3'       => 'chat-settings',
+			'def_core_chat_welcome_chip_3_intro' => 'chat-settings',
 			'def_core_chat_compliance_text'      => 'chat-settings',
 			'def_core_chat_privacy_link_label'   => 'chat-settings',
 			'def_core_chat_button_color'         => 'chat-settings',
@@ -1319,6 +1340,20 @@ final class DEF_Core_Admin_API {
 		$str = (string) $value;
 		if ( mb_strlen( $str ) > 80 ) {
 			return 'Welcome chip text must be 80 characters or fewer.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate a welcome-chip intro text (max 1000 chars).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_welcome_chip_intro( $value ) {
+		$str = (string) $value;
+		if ( mb_strlen( $str ) > 1000 ) {
+			return 'Welcome chip intro text must be 1000 characters or fewer.';
 		}
 		return true;
 	}
