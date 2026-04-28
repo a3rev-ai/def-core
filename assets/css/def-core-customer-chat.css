@@ -1738,7 +1738,7 @@
 
 .def-cc-welcome-banner {
 	flex-shrink: 0;
-	width: 100%;
+	width: calc(100% + 32px); /* absorb the -16px L/R margins so right edge reaches the panel */
 	margin: -16px -16px 12px -16px; /* edge-to-edge under .def-cc-messages's padding */
 	overflow: hidden;
 	background: var(--def-cc-bg-alt);
