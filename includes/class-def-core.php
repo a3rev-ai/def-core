@@ -447,16 +447,16 @@ final class DEF_Core {
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// WooCommerce context.
 			'wooActive'       => ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) ? '1' : '',
-			// Compliance footer link (rendered at bottom of chat panel).
+			// AI Disclosure Notice link (rendered at bottom of chat panel).
 			'privacyUrl'       => get_option( 'def_core_chat_privacy_url', '' ),
-			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms and Conditions', 'digital-employees' ) ),
+			'privacyLinkLabel' => get_option( 'def_core_chat_privacy_link_label', __( 'Terms & Conditions', 'digital-employees' ) ),
 			// Welcome state polish (v2.7.0).
 			'welcomeChip1'    => get_option( 'def_core_chat_welcome_chip_1', '' ),
 			'welcomeChip2'    => get_option( 'def_core_chat_welcome_chip_2', '' ),
 			'welcomeChip3'    => get_option( 'def_core_chat_welcome_chip_3', '' ),
-			// Notice Text — the lead sentence. The trailing link words are
-			// in privacyLinkLabel and rendered separately by the widget.
-			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI content may be inaccurate. In using our AI you agree to our', 'digital-employees' ) ),
+			// AI Disclosure Notice — the lead sentence. The trailing link
+			// words are in privacyLinkLabel and rendered separately.
+			'complianceText'  => get_option( 'def_core_chat_compliance_text', __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ) ),
 			// API URL for direct fetch.
 			'apiBaseUrl'      => self::get_def_api_url(),
 			// WP REST URL + nonce for same-origin calls (escalation send).

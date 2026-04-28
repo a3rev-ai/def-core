@@ -512,10 +512,7 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Welcome State & Compliance Footer', 'digital-employees' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Customise the empty-chat welcome state and the permanent compliance footer at the bottom of the chat panel: tappable suggestion chips that pre-fill the composer, the footer notice text, and the legal link rendered at the end of the footer.', 'digital-employees' ); ?>
-			</p>
+			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
 
 			<div class="def-core-field">
 				<label for="def_core_chat_welcome_chip_1"><?php esc_html_e( 'Suggestion Chip 1', 'digital-employees' ); ?></label>
@@ -555,37 +552,27 @@ $first_tab = 'branding';
 					placeholder="<?php esc_attr_e( 'e.g. Get expert advice or inspiration', 'digital-employees' ); ?>"
 				/>
 				<p class="description">
-					<?php esc_html_e( 'Up to three short prompts shown as tappable chips below the greeting. Empty chips are hidden. Max 80 characters each.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Max 80 characters each.', 'digital-employees' ); ?>
 				</p>
 			</div>
+		</div>
+
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></h2>
 
 			<div class="def-core-field">
-				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'Compliance Footer Text', 'digital-employees' ); ?></label>
-				<textarea
+				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></label>
+				<input
+					type="text"
 					id="def_core_chat_compliance_text"
 					data-setting="def_core_chat_compliance_text"
-					class="large-text"
-					rows="3"
-					maxlength="500"
-					placeholder="<?php esc_attr_e( 'AI content may be inaccurate. In using our AI you agree to our', 'digital-employees' ); ?>"
-				><?php echo esc_textarea( $chat_settings['compliance_text'] ); ?></textarea>
-				<p class="description">
-					<?php esc_html_e( 'The lead sentence of the compliance footer at the bottom of the chat panel. The Legal Link Label (below) is appended after this text — as a clickable link when a Legal Link URL is also set, or as plain text otherwise. Clearing this field hides the entire footer (label included). Plain text only; max 500 characters. Examples: "AI content may be inaccurate. In using our AI you agree to our" + "Terms and Conditions" → "AI content may be inaccurate. In using our AI you agree to our Terms and Conditions". Or "AI content may be inaccurate. Please see our" + "Privacy Policy".', 'digital-employees' ); ?>
-				</p>
-			</div>
-
-			<div class="def-core-field">
-				<label for="def_core_chat_privacy_url"><?php esc_html_e( 'Legal Link URL', 'digital-employees' ); ?></label>
-				<input
-					type="url"
-					id="def_core_chat_privacy_url"
-					data-setting="def_core_chat_privacy_url"
-					value="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>"
+					value="<?php echo esc_attr( $chat_settings['compliance_text'] ); ?>"
 					class="regular-text"
-					placeholder="https://example.com/privacy-policy"
+					maxlength="500"
+					placeholder="<?php esc_attr_e( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ); ?>"
 				/>
 				<p class="description">
-					<?php esc_html_e( 'Link to your privacy policy, terms and conditions, or other legal page. When set, the Legal Link Label below renders as a clickable link at the end of the compliance footer.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Need help? Ask your Setup Assistant.', 'digital-employees' ); ?>
 				</p>
 			</div>
 
@@ -598,10 +585,35 @@ $first_tab = 'branding';
 					value="<?php echo esc_attr( $chat_settings['privacy_link_label'] ); ?>"
 					class="regular-text"
 					maxlength="50"
-					placeholder="<?php esc_attr_e( 'Privacy Policy', 'digital-employees' ); ?>"
+					placeholder="<?php esc_attr_e( 'Terms & Conditions', 'digital-employees' ); ?>"
 				/>
-				<p class="description">
-					<?php esc_html_e( 'Text shown for the legal link at the end of the footer (e.g. "Privacy Policy", "Terms and Conditions", "Legal"). Defaults to "Privacy Policy" if left empty. Max 50 characters.', 'digital-employees' ); ?>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_privacy_url"><?php esc_html_e( 'Legal Link URL', 'digital-employees' ); ?></label>
+				<input
+					type="url"
+					id="def_core_chat_privacy_url"
+					data-setting="def_core_chat_privacy_url"
+					value="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>"
+					class="regular-text"
+					placeholder="https://example.com/terms-and-conditions"
+				/>
+			</div>
+
+			<div id="def-core-ai-notice-preview" class="def-core-notice def-core-notice-info">
+				<p>
+					<strong><?php esc_html_e( 'Preview:', 'digital-employees' ); ?></strong>
+					<?php
+					$preview_text  = $chat_settings['compliance_text'] ? $chat_settings['compliance_text'] : __( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' );
+					$preview_label = $chat_settings['privacy_link_label'] ? $chat_settings['privacy_link_label'] : __( 'Terms & Conditions', 'digital-employees' );
+					?>
+					<?php echo esc_html( $preview_text ); ?>
+					<?php if ( $chat_settings['privacy_url'] ) : ?>
+						<a href="<?php echo esc_url( $chat_settings['privacy_url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $preview_label ); ?></a>
+					<?php else : ?>
+						<?php echo esc_html( $preview_label ); ?>
+					<?php endif; ?>
 				</p>
 			</div>
 		</div>
