@@ -1091,8 +1091,10 @@ function t(key, fallback) {
 		el.className = 'tool-status';
 		el.setAttribute('data-tool', toolName);
 		el.innerHTML = '<span class="tool-spinner"></span><span class="tool-label">' + escapeHtml(label) + '</span>';
-		// Insert before the typing indicator message
-		var typingMsg = messagesList.querySelector('.message:last-child .typing-indicator');
+		// Insert before the typing indicator. Search directly (not via
+		// `.message:last-child`) so the V2 persona divider being the last
+		// sibling doesn't break the lookup.
+		var typingMsg = messagesList.querySelector('.typing-indicator');
 		if (typingMsg) {
 			typingMsg.parentNode.insertBefore(el, typingMsg);
 		}
@@ -1111,7 +1113,9 @@ function t(key, fallback) {
 	}
 
 	function updateTypingLabel(text) {
-		var typingMsg = messagesList.querySelector('.message:last-child .typing-indicator');
+		// Search directly so the V2 persona divider being the last sibling
+		// doesn't break the lookup (same fix as addToolStatus / text_delta).
+		var typingMsg = messagesList.querySelector('.typing-indicator');
 		if (!typingMsg) return;
 		var labelEl = typingMsg.parentNode.querySelector('.typing-label');
 		if (!labelEl) {
@@ -1432,13 +1436,16 @@ function t(key, fallback) {
 							div.className = 'tool-status';
 							div.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
 							div.querySelector('.tool-label').textContent = thinkMsg;
-							var target = messagesList.querySelector('.message:last-child .message-content');
-							var typing = target ? target.querySelector('.typing-indicator') : null;
+							// Find the typing indicator directly (not via
+							// `.message:last-child`) — V2 persona divider can be
+							// the last sibling and break that selector.
+							var typing = messagesList.querySelector('.typing-indicator');
+							var target = typing ? typing.parentNode : null;
 							if (typing) {
 								typing.style.display = 'none';
 								target.insertBefore(div, typing);
 							}
-							var oldLbl = messagesList.querySelector('.message:last-child .typing-label');
+							var oldLbl = messagesList.querySelector('.typing-label');
 							if (oldLbl) oldLbl.remove();
 							thinkingStatusEl = div;
 						} else {
