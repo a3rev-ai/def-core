@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.9.0
+Stable tag: 2.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.9.1 - 2026-04-29 =
+* Fix: Staff AI specialist text streaming. When a Concierge spawned a V2 specialist, the specialist's response text never rendered — the persona divider ("MANAGEMENT KNOWLEDGE IS HELPING") was inserted as a sibling of `.message` divs, breaking the `.message:last-child` typing-takeover selector. Replaced with a direct `.typing-indicator` lookup so the takeover works regardless of sibling order. Customer Chat (V2 native) was unaffected.
 
 = 2.9.0 - 2026-04-28 =
 * Feature: per-chip introduction text — hybrid welcome-chip behaviour. Each suggestion chip can have an optional Introduction textarea (max 1000 chars). When set, clicking the chip renders the intro as an assistant message and waits for the visitor's reply (Bunnings "Buddy" pattern). When empty, the chip falls back to the v2.7.0 behaviour (pre-fill composer + submit). Mix-and-match per chip.

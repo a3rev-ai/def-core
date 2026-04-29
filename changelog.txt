@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 2.9.1 - 2026/04/29 =
+* Fix: Staff AI specialist text streaming. When a Concierge spawned a V2 specialist (e.g. Management Knowledge Assistant), the specialist's text response — sometimes 1000+ tokens of substantive output — never rendered in the widget. The persona divider ("MANAGEMENT KNOWLEDGE IS HELPING") was inserted as a sibling of `.message` divs, so the typing-indicator-takeover logic (which used `messagesList.querySelector('.message:last-child')`) returned null and silently dropped all `text_delta` events. Replaced the selector with a direct `.typing-indicator` lookup + `closest('.message')` to find the typing bubble regardless of sibling order. Customer Chat (V2 native) was unaffected — its handler doesn't reuse the typing bubble. End-to-end Staff-AI specialist streaming now works.
+
 = 2.9.0 - 2026/04/28 =
 * Feature: per-chip introduction text — hybrid welcome-chip behaviour. Each suggestion chip (Chat Settings → Welcome State) gains an optional "Introduction" textarea (max 1000 chars). When a chip's intro is set, tapping the chip renders the intro as an assistant message in the chat and waits for the visitor's reply — the Bunnings "Buddy" pattern: chip tap opens a topic-scoped conversation rather than just sending the chip text. When the intro is empty, the chip falls back to the v2.7.0 behaviour (pre-fill the composer + submit). Mix-and-match works — one chip can have an intro, another can use the pre-fill flow.
 * Polish: help text under Chip 1's intro field nudges admins toward the Setup Assistant: *"Need help? Ask your Setup Assistant to draft this introduction."* Reuses the existing `Need help? Ask your Setup Assistant.` pattern from the AI Disclosure Notice card.
