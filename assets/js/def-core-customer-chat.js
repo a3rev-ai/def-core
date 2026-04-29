@@ -449,26 +449,50 @@
 		messages.appendChild(greetingEl);
 
 		// Suggested-prompt chips (admin-configurable, up to 3). Render
-		// below the greeting in the welcome state. Tap pre-fills the
-		// composer and submits, mirroring how Bunnings's "Buddy" chips
-		// behave. Empty admin slots are skipped — the row is hidden
-		// entirely if no chips are configured.
+		// below the greeting in the welcome state. Each chip has an
+		// optional per-chip intro. With intro set: tap shows the intro
+		// as an assistant message + awaits the visitor's reply. Without
+		// intro: tap pre-fills the composer with the chip text and
+		// submits (the original Bunnings "Buddy" pattern). Empty admin
+		// slots are skipped — the row is hidden if no chips configured.
 		var chipDefs = [];
-		if (config.welcomeChip1) chipDefs.push(String(config.welcomeChip1));
-		if (config.welcomeChip2) chipDefs.push(String(config.welcomeChip2));
-		if (config.welcomeChip3) chipDefs.push(String(config.welcomeChip3));
+		if (config.welcomeChip1) chipDefs.push({
+			text:  String(config.welcomeChip1),
+			intro: String(config.welcomeChip1Intro || ''),
+		});
+		if (config.welcomeChip2) chipDefs.push({
+			text:  String(config.welcomeChip2),
+			intro: String(config.welcomeChip2Intro || ''),
+		});
+		if (config.welcomeChip3) chipDefs.push({
+			text:  String(config.welcomeChip3),
+			intro: String(config.welcomeChip3Intro || ''),
+		});
 		if (chipDefs.length) {
 			var chipsRow = el('div', 'def-cc-welcome-chips');
 			chipsRow.setAttribute('role', 'group');
 			chipsRow.setAttribute('aria-label', 'Suggested prompts');
 			for (var ci = 0; ci < chipDefs.length; ci++) {
-				(function (chipText) {
+				(function (chipDef) {
 					var chip = el('button', 'def-cc-welcome-chip');
 					chip.type = 'button';
-					chip.textContent = chipText;
+					chip.textContent = chipDef.text;
 					chip.addEventListener('click', function () {
 						if (isComposerDisabled) return;
-						els.input.value = chipText;
+						var intro = (chipDef.intro || '').trim();
+						if (intro) {
+							// Hybrid: render the configured intro as an
+							// assistant message and focus the composer
+							// for the visitor's reply. No network call —
+							// the LLM picks up the conversation when the
+							// visitor sends their first real message.
+							appendMessage('assistant', intro);
+							if (els.input) {
+								els.input.focus();
+							}
+							return;
+						}
+						els.input.value = chipDef.text;
 						els.input.classList.remove('def-cc-suggestion-text');
 						autoResizeInput();
 						updateSendButton();

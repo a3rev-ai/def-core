@@ -14,6 +14,19 @@
 	display: inline-block;
 }
 
+/* ─── Field-Help Inline Link ──────────────────────────────────── */
+
+/* "Ask your Setup Assistant" link rendered inside <p class="description"> next
+   to specific fields. WordPress's .button-link strips button chrome already;
+   these tweaks just align it visually with surrounding description text. */
+.def-sa-field-help {
+	padding: 0;
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: inherit;
+	vertical-align: baseline;
+}
+
 /* ─── Trigger Button ──────────────────────────────────────────── */
 
 .def-sa-trigger {

@@ -587,6 +587,32 @@ $first_tab = 'branding';
 			</div>
 
 			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_1_intro"><?php esc_html_e( 'Chip 1 — Introduction (optional)', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_welcome_chip_1_intro"
+					data-setting="def_core_chat_welcome_chip_1_intro"
+					class="large-text"
+					rows="4"
+					maxlength="1000"
+					placeholder="<?php esc_attr_e( "e.g. Hi there! I'd love to help you find the right product. To narrow it down, could you tell me what you're shopping for and roughly the size or budget you're looking at?", 'digital-employees' ); ?>"
+				><?php echo esc_textarea( $chat_settings['welcome_chip_1_intro'] ); ?></textarea>
+				<p class="description">
+					<?php
+					/* translators: %s: clickable "Ask your Setup Assistant" link that opens the Setup Assistant pre-seeded with field context. */
+					printf(
+						esc_html__( 'Need help? %s to draft this introduction.', 'digital-employees' ),
+						sprintf(
+							'<button type="button" class="button-link def-sa-field-help" data-sa-field="%s" data-sa-field-label="%s">%s</button>',
+							'chat_welcome_chip_1_intro',
+							esc_attr__( 'Chip 1 — Introduction', 'digital-employees' ),
+							esc_html__( 'Ask your Setup Assistant', 'digital-employees' )
+						)
+					);
+					?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
 				<label for="def_core_chat_welcome_chip_2"><?php esc_html_e( 'Suggestion Chip 2', 'digital-employees' ); ?></label>
 				<input
 					type="text"
@@ -600,6 +626,18 @@ $first_tab = 'branding';
 			</div>
 
 			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_2_intro"><?php esc_html_e( 'Chip 2 — Introduction (optional)', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_welcome_chip_2_intro"
+					data-setting="def_core_chat_welcome_chip_2_intro"
+					class="large-text"
+					rows="4"
+					maxlength="1000"
+					placeholder="<?php esc_attr_e( 'e.g. Happy to check stock for you. Which product or category are you interested in, and which store or postcode should I check?', 'digital-employees' ); ?>"
+				><?php echo esc_textarea( $chat_settings['welcome_chip_2_intro'] ); ?></textarea>
+			</div>
+
+			<div class="def-core-field">
 				<label for="def_core_chat_welcome_chip_3"><?php esc_html_e( 'Suggestion Chip 3', 'digital-employees' ); ?></label>
 				<input
 					type="text"
@@ -610,8 +648,20 @@ $first_tab = 'branding';
 					maxlength="80"
 					placeholder="<?php esc_attr_e( 'e.g. Get expert advice or inspiration', 'digital-employees' ); ?>"
 				/>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_welcome_chip_3_intro"><?php esc_html_e( 'Chip 3 — Introduction (optional)', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_welcome_chip_3_intro"
+					data-setting="def_core_chat_welcome_chip_3_intro"
+					class="large-text"
+					rows="4"
+					maxlength="1000"
+					placeholder="<?php esc_attr_e( "e.g. I'd love to help you get started on a project or find some inspiration. To give you the best advice, could you let me know what you're thinking of working on?", 'digital-employees' ); ?>"
+				><?php echo esc_textarea( $chat_settings['welcome_chip_3_intro'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Max 80 characters each.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Each chip has an optional Introduction — when set, clicking the chip shows that intro as an assistant message and waits for the visitor to reply, instead of pre-filling the composer. Chip text max 80 characters; intro text max 1000.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>
@@ -647,7 +697,18 @@ $first_tab = 'branding';
 					placeholder="<?php esc_attr_e( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ); ?>"
 				/>
 				<p class="description">
-					<?php esc_html_e( 'Need help? Ask your Setup Assistant.', 'digital-employees' ); ?>
+					<?php
+					/* translators: %s: clickable "Ask your Setup Assistant" link that opens the Setup Assistant pre-seeded with field context. */
+					printf(
+						esc_html__( 'Need help? %s.', 'digital-employees' ),
+						sprintf(
+							'<button type="button" class="button-link def-sa-field-help" data-sa-field="%s" data-sa-field-label="%s">%s</button>',
+							'chat_compliance_text',
+							esc_attr__( 'AI Disclosure Notice', 'digital-employees' ),
+							esc_html__( 'Ask your Setup Assistant', 'digital-employees' )
+						)
+					);
+					?>
 				</p>
 			</div>
 
