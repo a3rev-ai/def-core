@@ -106,6 +106,15 @@
 		this.dirtyInput = false;
 		this.lastSuggestion = null;       // Phase 10.1: last suggestion shown
 
+		// Field-help state: when admin clicks an "Ask your Setup Assistant" link
+		// next to a specific field, we render a synthetic assistant greeting and
+		// stash the seed text + field key here. They ride along on the next
+		// outbound message so the backend can persist the greeting into thread
+		// history (so the LLM has the field as conversational context) — then
+		// they're cleared. See def-sa-field-help buttons in admin-settings.php.
+		this.pendingSeedAssistant = null;
+		this.pendingFieldFocus    = null;
+
 		this.init();
 	}
 
@@ -218,6 +227,61 @@
 				self.handleFocusTrap(e);
 			}
 		});
+
+		// Field-help links: any element with .def-sa-field-help (rendered in
+		// admin-settings.php near specific fields) opens the drawer with a
+		// synthetic assistant greeting tailored to that field.
+		document.addEventListener('click', function (e) {
+			var btn = e.target.closest && e.target.closest('.def-sa-field-help');
+			if (!btn) {
+				return;
+			}
+			e.preventDefault();
+			self.handleFieldHelpClick(
+				btn.getAttribute('data-sa-field') || '',
+				btn.getAttribute('data-sa-field-label') || ''
+			);
+		});
+	};
+
+	// ─── Field-Help Handler ──────────────────────────────────────
+
+	SetupAssistantDrawer.prototype.handleFieldHelpClick = function (fieldKey, fieldLabel) {
+		if (!fieldLabel) {
+			fieldLabel = fieldKey;
+		}
+		if (!fieldLabel) {
+			return;
+		}
+
+		// Build a natural-language assistant greeting from the field label.
+		// Stays generic so adding the same .def-sa-field-help pattern to any
+		// future field "just works" without touching this file.
+		var seed = 'Sure — happy to help with **' + fieldLabel + '**. ' +
+			'What would you like it to say? Tell me your goals, tone, or any ' +
+			'examples and I\'ll draft it for you.';
+
+		// Open drawer if needed; open() will render the welcome bubble first
+		// when the drawer is empty, which is fine — the seed appears below it.
+		if (!this.isOpen) {
+			this.open();
+		}
+
+		// Render the assistant greeting in the UI immediately. The same text
+		// is sent on the next outbound message so the backend persists it into
+		// the thread (see sendMessageStreaming).
+		this.renderMessage({ role: 'assistant', content: seed });
+
+		this.pendingSeedAssistant = seed;
+		this.pendingFieldFocus    = fieldKey || null;
+
+		// Defer focus to after the open() transition (mirrors open()'s 350ms).
+		var self = this;
+		setTimeout(function () {
+			if (self.inputEl) {
+				self.inputEl.focus();
+			}
+		}, 360);
 	};
 
 	SetupAssistantDrawer.prototype.open = function () {
@@ -395,6 +459,18 @@
 		}
 		self._pendingOutcome = null;
 		self._pendingScore = null;
+
+		// Field-help seed: persist the synthetic assistant greeting into thread
+		// history on the backend so the LLM sees it as real context on this and
+		// future turns. Cleared after this send — only the first reply carries it.
+		if (self.pendingSeedAssistant) {
+			body.seed_assistant_message = self.pendingSeedAssistant;
+		}
+		if (self.pendingFieldFocus) {
+			body.field_focus = self.pendingFieldFocus;
+		}
+		self.pendingSeedAssistant = null;
+		self.pendingFieldFocus    = null;
 
 		// Track active tool status elements for pacing.
 		var toolStatusEls = {};

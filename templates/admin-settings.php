@@ -597,7 +597,18 @@ $first_tab = 'branding';
 					placeholder="<?php esc_attr_e( "e.g. Hi there! I'd love to help you find the right product. To narrow it down, could you tell me what you're shopping for and roughly the size or budget you're looking at?", 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['welcome_chip_1_intro'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Need help? Ask your Setup Assistant to draft this introduction.', 'digital-employees' ); ?>
+					<?php
+					/* translators: %s: clickable "Ask your Setup Assistant" link that opens the Setup Assistant pre-seeded with field context. */
+					printf(
+						esc_html__( 'Need help? %s to draft this introduction.', 'digital-employees' ),
+						sprintf(
+							'<button type="button" class="button-link def-sa-field-help" data-sa-field="%s" data-sa-field-label="%s">%s</button>',
+							'chat_welcome_chip_1_intro',
+							esc_attr__( 'Chip 1 — Introduction', 'digital-employees' ),
+							esc_html__( 'Ask your Setup Assistant', 'digital-employees' )
+						)
+					);
+					?>
 				</p>
 			</div>
 
@@ -686,7 +697,18 @@ $first_tab = 'branding';
 					placeholder="<?php esc_attr_e( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ); ?>"
 				/>
 				<p class="description">
-					<?php esc_html_e( 'Need help? Ask your Setup Assistant.', 'digital-employees' ); ?>
+					<?php
+					/* translators: %s: clickable "Ask your Setup Assistant" link that opens the Setup Assistant pre-seeded with field context. */
+					printf(
+						esc_html__( 'Need help? %s.', 'digital-employees' ),
+						sprintf(
+							'<button type="button" class="button-link def-sa-field-help" data-sa-field="%s" data-sa-field-label="%s">%s</button>',
+							'chat_compliance_text',
+							esc_attr__( 'AI Disclosure Notice', 'digital-employees' ),
+							esc_html__( 'Ask your Setup Assistant', 'digital-employees' )
+						)
+					);
+					?>
 				</p>
 			</div>
 
