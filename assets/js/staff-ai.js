@@ -1492,21 +1492,51 @@ function t(key, fallback) {
 						clearStagedFiles();
 						removeTypingMessage();
 
-						// Use done payload content, fall back to streamed buffer
+						// Prefer streamBuffer (what was actually rendered — truth)
+						// over done.content. In V2 spawn flows the user sees
+						// specialist + Concierge text streamed into one bubble
+						// (~1900 tokens combined); evt.choices[0].message.content
+						// is only the Concierge's final wrap-up (~170 tokens).
+						// done.content is the fallback for no-streaming cases.
 						var finalMessage = evt?.choices?.[0]?.message || {};
-						var finalContent = (finalMessage.content || streamBuffer || '').trim();
+						var streamedText = (streamBuffer || '').trim();
+						var doneContent = (finalMessage.content || '').trim();
+						var finalContent = streamedText || doneContent;
 						if (!finalContent) {
 							finalContent = t('failedToSend', 'Sorry, something went wrong. Please try again.');
 						}
 
+						var toolOutputs = finalMessage.tool_outputs || [];
+
 						messages.push({
 							role: 'assistant',
 							content: finalContent,
-							tool_outputs: finalMessage.tool_outputs || []
+							tool_outputs: toolOutputs
 						});
 
-						// Always re-render from messages array for DOM/array consistency
-						renderMessages();
+						// Finalize the streamed bubble in place — match Customer
+						// Chat's V2 pattern. Do NOT call renderMessages() when
+						// streamEl exists: rebuild from messages[] would wipe the
+						// multi-agent streaming (specialist + Concierge), corrupt
+						// the persona divider's DOM position, and orphan tool-
+						// status indicators. messages[] still gets the entry above
+						// for state consistency; loadConversation() refetches
+						// from server on conversation switch.
+						if (streamEl) {
+							streamEl.innerHTML = renderMarkdown(finalContent);
+							if (streamEl.parentNode) {
+								streamEl.parentNode.classList.remove('message-streaming');
+							}
+							toolOutputs.forEach(function(tool) {
+								var card = createToolOutputCard(tool);
+								streamEl.appendChild(card);
+							});
+						} else {
+							// No streaming happened (tool-only response or empty).
+							// Safe to renderMessages() — there's no streamed DOM
+							// to wipe.
+							renderMessages();
+						}
 
 						streamBuffer = '';
 						streamEl = null;
@@ -1534,6 +1564,22 @@ function t(key, fallback) {
 					} else if (evt.type === 'error') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
+						removeTypingMessage();
+						// If text already streamed, leave it visible — finalise the
+						// bubble and surface the error separately. Match Customer
+						// Chat's pattern: don't renderMessages() and wipe what the
+						// user already saw. If nothing streamed, safe to rebuild.
+						if (streamEl) {
+							var partial = (streamBuffer || '').trim();
+							if (partial) {
+								streamEl.innerHTML = renderMarkdown(partial);
+							}
+							if (streamEl.parentNode) {
+								streamEl.parentNode.classList.remove('message-streaming');
+							}
+						} else {
+							renderMessages();
+						}
 						streamBuffer = '';
 						streamEl = null;
 						wordDrainTimer = null;
@@ -1541,8 +1587,6 @@ function t(key, fallback) {
 						_userScrolledUp = false;
 						_isStreaming = false;
 						persona.reset();
-						removeTypingMessage();
-						renderMessages();
 						showError(evt.message || 'An error occurred.');
 					}
 				}

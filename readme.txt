@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.9.1
+Stable tag: 2.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 2.9.2 - 2026-04-29 =
+* Fix (architectural): Staff AI streaming brought into structural parity with Customer Chat's V2 pattern. The `done` handler was rebuilding DOM from a messages[] array via `renderMessages()`, which wiped the multi-agent streamed content (specialist text + Concierge wrap-up), corrupted the persona divider's DOM position, and orphaned tool-status indicators. Now finalises the streamed bubble in place via `streamEl.innerHTML` (matching Customer Chat). Only falls back to renderMessages when no text streamed (tool-only/empty responses). Same alignment applied to the error branch.
 
 = 2.9.1 - 2026-04-29 =
 * Fix: Staff AI specialist text streaming. When a Concierge spawned a V2 specialist, the specialist's response text never rendered — the persona divider ("MANAGEMENT KNOWLEDGE IS HELPING") was inserted as a sibling of `.message` divs, breaking the `.message:last-child` typing-takeover selector. Replaced with a direct `.typing-indicator` lookup so the takeover works regardless of sibling order. Customer Chat (V2 native) was unaffected.
