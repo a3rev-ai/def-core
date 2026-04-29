@@ -1455,14 +1455,18 @@ function t(key, fallback) {
 					} else if (evt.type === 'text_delta') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (!streamEl) {
-							// Take over the typing indicator message.
-							var lastMsg = messagesList.querySelector('.message:last-child');
+							// Take over the typing indicator message. Search for the
+							// indicator directly (not `.message:last-child`) — V2 specialist
+							// spawns append a persona divider as the last sibling, so the
+							// typing bubble is no longer `:last-child` and the old selector
+							// returned null, silently dropping all streamed text.
+							var typingInd = messagesList.querySelector('.typing-indicator');
+							var lastMsg = typingInd ? typingInd.closest('.message') : null;
 							if (lastMsg) {
 								lastMsg.classList.add('message-streaming');
 								var contentDiv = lastMsg.querySelector('.message-content');
 								if (contentDiv) {
-									var typingInd = contentDiv.querySelector('.typing-indicator');
-									if (typingInd) typingInd.remove();
+									typingInd.remove();
 									var labelEl = contentDiv.querySelector('.typing-label');
 									if (labelEl) labelEl.remove();
 									streamEl = contentDiv;
