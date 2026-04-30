@@ -2209,6 +2209,17 @@
 				btn.textContent = 'Try again';
 				btn.classList.add('def-cc-result-card-add--error');
 				btn.disabled = false;
+				// Surface WC's actual error wording (e.g. "we have 5 in stock and
+				// you already have 5 in your cart") into the chat as an assistant
+				// bubble so the user understands WHY the add failed — not just
+				// that it did. err.message carries the body.message string from
+				// the WC Store API JSON error response (extracted in the .then
+				// chain above), or 'HTTP {code}' as fallback.
+				var wcMessage = (err && err.message) ? err.message : '';
+				var bubble = wcMessage
+					? wcMessage
+					: 'Sorry — couldn\'t add to cart. Please try again.';
+				appendMessage('assistant', bubble);
 				setTimeout(function () {
 					btn.textContent = originalText;
 					btn.classList.remove('def-cc-result-card-add--error');
