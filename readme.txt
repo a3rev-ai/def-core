@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 2.9.2
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,16 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.0.0 - 2026-04-30 =
+* Feature: chat-native product cards (V1.2). Sales Assistant (Customer Chat) and Staff/Management Knowledge Assistants (Staff AI) now surface product results as a chat-native grid of cards — image, price, title, action button — instead of plain text. The LLM plans 1-4 thematic searches per turn and authors a heading + description for each, producing Bunnings-style multi-section responses for broad customer questions and tighter 1-2 section responses for narrow filtered questions.
+* Feature: shared renderer module (`def-core-product-cards.js` + `def-core-product-cards.css`) loaded by both Customer Chat and Staff AI. Container-query responsive (2 cols < 720px, 4 cols ≥ 720px) sized to the chat panel width. Equal-row-height across each row via CSS Grid stretch + flex column with `margin-top: auto` on the action button — no JS, no truncation, faithful to how the customer's WC archive page renders the same titles.
+* Feature: Customer Chat add-to-cart wiring. Tapping `+ Add to cart` on a simple in-stock product POSTs to `/wp-json/wc/store/v1/cart/add-item` with the existing Cart-Token + wc_store_api Nonce headers (rotated on response, persisted to localStorage — same pattern as v2.4.0). Variable / grouped / external / out-of-stock products fall back to `View product →`.
+* Feature: Staff AI Edit Product action. Cards render with a single "Edit product" anchor pointing to wp-admin; WordPress core handles permission rejection for staff without `edit_products` capability.
+* Security: DOMPurify allowlist for WC `price_html` (sale markup `<del>` + `<ins>` preserved; `style` forbidden). URL fields pass through `safeLinkHref()` to reject `javascript:` / `data:` / `vbscript:`. Renderer fails closed if DOMPurify unavailable.
+* Accessibility: image link `aria-hidden="true"` so title link is the sole accessible name (no duplicate screen-reader announcements). Action button is a sibling, never nested in card-level link.
+* Defensive: frontend cap of 6 sections per turn; cards missing `id`/`title`/`url` silently dropped; card count clamped to 4.
+* Pairs with DEF backend PR #215 (`feat(v2): search_products tool — vector + WC Store API hybrid`).
 
 = 2.9.2 - 2026-04-29 =
 * Fix (architectural): Staff AI streaming brought into structural parity with Customer Chat's V2 pattern. The `done` handler was rebuilding DOM from a messages[] array via `renderMessages()`, which wiped the multi-agent streamed content (specialist text + Concierge wrap-up), corrupted the persona divider's DOM position, and orphaned tool-status indicators. Now finalises the streamed bubble in place via `streamEl.innerHTML` (matching Customer Chat). Only falls back to renderMessages when no text streamed (tool-only/empty responses). Same alignment applied to the error branch.

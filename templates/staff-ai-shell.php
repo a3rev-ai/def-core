@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<link rel="manifest" href="<?php echo esc_url( home_url( '/staff-ai/manifest.json' ) ); ?>">
 	<meta name="theme-color" content="#6366f1">
 	<link rel="stylesheet" href="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/css/staff-ai.css' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>">
+	<link rel="stylesheet" href="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/css/def-core-product-cards.css' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>">
 	<script>
 	// Theme init — must run before body renders to prevent flash.
 	(function() {
@@ -462,6 +463,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js' ); ?>?ver=15.0.12"></script>
 	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js' ); ?>?ver=3.1.6"></script>
 	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/def-persona.js' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>"></script>
+	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/def-core-product-cards.js' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>"></script>
 	<script src="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/js/staff-ai.js' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>"></script>
 </body>
 </html>

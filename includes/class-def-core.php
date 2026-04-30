@@ -491,6 +491,9 @@ final class DEF_Core {
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css?ver=' . DEF_CORE_VERSION,
 			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js?ver=' . DEF_CORE_VERSION,
 			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js?ver=' . DEF_CORE_VERSION,
+			// V1.2 Result Cards renderer — loaded after purify, before chat module.
+			'productCardsScriptUrl' => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-product-cards.js?ver=' . DEF_CORE_VERSION,
+			'productCardsStyleUrl'  => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-product-cards.css?ver=' . DEF_CORE_VERSION,
 			// i18n strings.
 			'strings'         => $this->get_chat_strings(),
 		);
