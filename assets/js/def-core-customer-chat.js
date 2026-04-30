@@ -1657,6 +1657,11 @@
 					displayText = 'Please analyze the attached file(s).';
 				}
 
+				// Reset per-turn result-cards section counter (frontend cap of 6 per turn).
+				if (window.DefResultCards) {
+					window.DefResultCards.resetTurn();
+				}
+
 				// Render user message.
 				appendUserMessage(displayText, fileIds);
 				clearStagedFiles();
@@ -1995,7 +2000,7 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Process tool_outputs (escalation offers, wp_rest_call actions).
+		// Process tool_outputs (escalation offers, wp_rest_call actions, result cards).
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
@@ -2003,6 +2008,8 @@
 					showEscalation(output.reason);
 				} else if (output.type === 'wp_rest_call') {
 					handleWpRestCall(output);
+				} else if (output.result_type === 'wp_product') {
+					appendResultCardsSection(output);
 				}
 			}
 		}
@@ -2052,7 +2059,7 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Process tool_outputs (escalation offers, wp_rest_call actions).
+		// Process tool_outputs (escalation offers, wp_rest_call actions, result cards).
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
@@ -2060,6 +2067,8 @@
 					showEscalation(output.reason);
 				} else if (output.type === 'wp_rest_call') {
 					handleWpRestCall(output);
+				} else if (output.result_type === 'wp_product') {
+					appendResultCardsSection(output);
 				}
 			}
 		}
@@ -2114,6 +2123,91 @@
 		msgEl.appendChild(content);
 		els.messages.appendChild(msgEl);
 		scrollToBottom();
+	}
+
+	// V1.2 Result Cards — Customer Chat integration.
+	// Renders the section payload via window.DefResultCards (loaded by the
+	// loader before this module) and appends to the message stream.
+	// Cart-add buttons go through the existing WC Store API path with
+	// Cart-Token + wc_store_api Nonce headers.
+	var resultCardsClickWired = false;
+
+	function appendResultCardsSection(payload) {
+		if (!window.DefResultCards || !els.messages) return;
+		var section = window.DefResultCards.renderSection(payload, { channel: 'customer_chat' });
+		if (!section) return;
+		els.messages.appendChild(section);
+		wireResultCardsClickHandlerOnce();
+		scrollToBottom();
+	}
+
+	function wireResultCardsClickHandlerOnce() {
+		if (resultCardsClickWired || !els.messages) return;
+		resultCardsClickWired = true;
+		els.messages.addEventListener('click', function (e) {
+			var btn = e.target.closest('.def-cc-result-card-add');
+			if (!btn || btn.disabled) return;
+			var productId = parseInt(btn.getAttribute('data-product-id'), 10);
+			if (!productId) return;
+			handleResultCardAddToCart(btn, productId);
+		});
+	}
+
+	function handleResultCardAddToCart(btn, productId) {
+		var originalText = btn.textContent;
+		btn.disabled = true;
+		btn.textContent = 'Adding…';
+
+		var url = (config.wpRestRoot || '') + 'wc/store/v1/cart/add-item';
+		var headers = { 'Content-Type': 'application/json' };
+		var nonce = wcStoreApiNonce || config.wcStoreApiNonce;
+		if (nonce) headers['Nonce'] = nonce;
+		try {
+			var cartToken = localStorage.getItem('def:wc_cart_token') || '';
+			if (cartToken) headers['Cart-Token'] = cartToken;
+		} catch (e) {}
+
+		fetch(url, {
+			method: 'POST',
+			headers: headers,
+			credentials: 'same-origin',
+			body: JSON.stringify({ id: productId, quantity: 1 })
+		})
+			.then(function (resp) {
+				var rotatedNonce = resp.headers.get('Nonce');
+				if (rotatedNonce) wcStoreApiNonce = rotatedNonce;
+				var rotatedCartToken = resp.headers.get('Cart-Token');
+				if (rotatedCartToken) {
+					try { localStorage.setItem('def:wc_cart_token', rotatedCartToken); } catch (e) {}
+				}
+				if (!resp.ok) {
+					return resp.json().then(function (body) {
+						throw new Error((body && body.message) || ('HTTP ' + resp.status));
+					}, function () {
+						throw new Error('HTTP ' + resp.status);
+					});
+				}
+				return resp.json();
+			})
+			.then(function () {
+				btn.textContent = '✓ Added';
+				btn.classList.add('def-cc-result-card-add--success');
+				setTimeout(function () {
+					btn.textContent = originalText;
+					btn.classList.remove('def-cc-result-card-add--success');
+					btn.disabled = false;
+				}, 2000);
+			})
+			.catch(function (err) {
+				console.error('[def-cc] result-card add-to-cart failed:', err);
+				btn.textContent = 'Try again';
+				btn.classList.add('def-cc-result-card-add--error');
+				btn.disabled = false;
+				setTimeout(function () {
+					btn.textContent = originalText;
+					btn.classList.remove('def-cc-result-card-add--error');
+				}, 3000);
+			});
 	}
 
 	function appendMessage(role, content) {

@@ -594,6 +594,14 @@ function t(key, fallback) {
 			return;
 		}
 
+		// V1.2 Result Cards — reset per-turn section counter so the
+		// SECTION_FRONTEND_CAP defensive guard applies fresh on each render
+		// (Staff AI rebuilds DOM from messages[] every event; CC pre-resets
+		// at user-send time which is enough for its in-place pattern).
+		if (window.DefResultCards) {
+			window.DefResultCards.resetTurn();
+		}
+
 		welcomeMessage.style.display = 'none';
 
 		const msgElements = messagesList.querySelectorAll('.message');
@@ -658,7 +666,9 @@ function t(key, fallback) {
 				if (msg.tool_outputs && msg.tool_outputs.length > 0) {
 					msg.tool_outputs.forEach(function(tool) {
 						const card = createToolOutputCard(tool);
-						content.appendChild(card);
+						if (card) {
+							content.appendChild(card);
+						}
 					});
 				}
 
@@ -690,6 +700,13 @@ function t(key, fallback) {
 
 	// Create tool output card
 	function createToolOutputCard(tool) {
+		// V1.2 Result Cards — search_products tool. Staff AI renders cards
+		// with the "Edit product" action (per V1.2 §8). Renderer returns
+		// null for invalid/empty payloads — caller skips nulls.
+		if (tool && tool.result_type === 'wp_product' && window.DefResultCards) {
+			return window.DefResultCards.renderSection(tool, { channel: 'staff_ai' });
+		}
+
 		// Escalation offer — inline suggestion card
 		if (tool.type === 'escalation_offer') {
 			const card = document.createElement('div');

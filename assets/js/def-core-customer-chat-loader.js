@@ -523,21 +523,32 @@
 			shadowRoot.insertBefore(link, shadowRoot.firstChild);
 		}
 
-		// Sequential script loading: marked.js → purify.js → chat module.
-		// Each onload triggers the next since chat module needs window.marked
-		// and window.DOMPurify available at init time.
+		// V1.2 Result Cards CSS — same shadow root as chat CSS.
+		if (config.productCardsStyleUrl) {
+			var cardsLink = document.createElement('link');
+			cardsLink.rel = 'stylesheet';
+			cardsLink.href = config.productCardsStyleUrl;
+			shadowRoot.insertBefore(cardsLink, shadowRoot.firstChild);
+		}
+
+		// Sequential script loading: marked.js → purify.js → product-cards
+		// renderer → chat module. Each onload triggers the next since the
+		// chat module needs window.marked, window.DOMPurify, AND
+		// window.DefResultCards available at init time.
 		loadScript(config.markedUrl, function () {
 			loadScript(config.purifyUrl, function () {
-				loadScript(config.chatModuleUrl, function () {
-					moduleLoading = false;
-					moduleLoaded = true;
+				loadScript(config.productCardsScriptUrl, function () {
+					loadScript(config.chatModuleUrl, function () {
+						moduleLoading = false;
+						moduleLoaded = true;
 
-					if (
-						window.DEFCustomerChat &&
-						typeof window.DEFCustomerChat.init === 'function'
-					) {
-						window.DEFCustomerChat.init(shadowRoot, config);
-					}
+						if (
+							window.DEFCustomerChat &&
+							typeof window.DEFCustomerChat.init === 'function'
+						) {
+							window.DEFCustomerChat.init(shadowRoot, config);
+						}
+					});
 				});
 			});
 		});

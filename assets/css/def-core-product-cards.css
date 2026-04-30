@@ -1,0 +1,226 @@
+/**
+ * Digital Employee Framework — Result Cards Styles (V1.2)
+ *
+ * Shared between Customer Chat and Staff AI. Container-query responsive:
+ * 2 cols < 720px, 4 cols ≥ 720px (panel width, not viewport — cards live
+ * inside chat panels of varying widths).
+ *
+ * Equal-row-height: CSS Grid default `align-items: stretch` makes all
+ * cards in a row match the tallest sibling. Inside each card, a flex
+ * column with `margin-top: auto` on the action button keeps action
+ * buttons aligned across the row regardless of title length. No JS
+ * measuring, no truncation — faithful to how the customer's WC archive
+ * page renders the same titles.
+ */
+
+.def-cc-result-section {
+	margin: 16px 0;
+}
+
+.def-cc-result-section-heading {
+	font-size: 16px;
+	font-weight: 700;
+	margin: 0 0 4px 0;
+	color: #1f2937;
+	overflow-wrap: anywhere; /* unbreakable strings (long words/SKUs) wrap */
+}
+
+.def-cc-result-section-description {
+	font-size: 14px;
+	color: #6b7280;
+	margin: 0 0 12px 0;
+	line-height: 1.4;
+}
+
+/* Container-query responsive grid. The chat panel is the relevant axis,
+   not the viewport — so we use container-type: inline-size, not @media. */
+.def-cc-result-cards {
+	container-type: inline-size;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 8px;
+	/* Default align-items: stretch — equal-row-height across the row */
+}
+
+@container (min-width: 720px) {
+	.def-cc-result-cards {
+		grid-template-columns: repeat(4, 1fr);
+	}
+}
+
+.def-cc-result-card {
+	display: flex;
+	flex-direction: column;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	padding: 8px;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (hover: hover) {
+	.def-cc-result-card:hover {
+		transform: scale(1.02);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	}
+}
+
+.def-cc-result-card-image-link {
+	display: block;
+	aspect-ratio: 1 / 1; /* CLS prevention: reserves square space pre-image-load */
+	overflow: hidden;
+	border-radius: 4px;
+}
+
+.def-cc-result-card-image-link img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.def-cc-result-card-subtitle {
+	margin-top: 8px;
+	font-size: 15px;
+	font-weight: 600;
+	color: #1f2937;
+}
+
+.def-cc-result-card-subtitle del {
+	color: #9ca3af;
+	font-weight: 400;
+	margin-right: 4px;
+}
+
+.def-cc-result-card-subtitle ins {
+	color: #dc2626;
+	text-decoration: none;
+}
+
+.def-cc-result-card-title {
+	margin-top: 4px;
+	font-size: 14px;
+	color: #374151;
+	text-decoration: none;
+	line-height: 1.35;
+	overflow-wrap: anywhere; /* match archive page wrap behaviour */
+}
+
+.def-cc-result-card-title:hover {
+	text-decoration: underline;
+	color: #1f2937;
+}
+
+.def-cc-result-card-title:focus-visible {
+	outline: 2px solid #3b82f6;
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* Action buttons — pushed to bottom of card via margin-top: auto so all
+   cards in a row align action edges regardless of title length. */
+.def-cc-result-card-add,
+.def-cc-result-card-view,
+.def-cc-result-card-edit {
+	margin-top: auto; /* the load-bearing line for equal-row-height */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 36px;
+	padding: 6px 12px;
+	margin-bottom: 0;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* WCAG touch-target floor on mobile. */
+@media (max-width: 480px) {
+	.def-cc-result-card-add,
+	.def-cc-result-card-view,
+	.def-cc-result-card-edit {
+		min-height: 44px;
+	}
+}
+
+.def-cc-result-card-add {
+	background: #2563eb;
+	color: #fff;
+	border: 1px solid #2563eb;
+}
+
+.def-cc-result-card-add:hover:not(:disabled) {
+	background: #1d4ed8;
+	border-color: #1d4ed8;
+}
+
+.def-cc-result-card-add:disabled {
+	background: #9ca3af;
+	border-color: #9ca3af;
+	cursor: wait;
+}
+
+.def-cc-result-card-add:focus-visible {
+	outline: 2px solid #1d4ed8;
+	outline-offset: 2px;
+}
+
+/* Add-to-cart success state (set by consuming bundle for ~2s after success). */
+.def-cc-result-card-add--success {
+	background: #10b981 !important;
+	border-color: #10b981 !important;
+	color: #fff !important;
+}
+
+/* Add-to-cart error state. */
+.def-cc-result-card-add--error {
+	background: #ef4444 !important;
+	border-color: #ef4444 !important;
+	color: #fff !important;
+}
+
+.def-cc-result-card-view {
+	background: transparent;
+	color: #2563eb;
+	border: 1px solid #2563eb;
+}
+
+.def-cc-result-card-view:hover {
+	background: #eff6ff;
+}
+
+.def-cc-result-card-view:focus-visible {
+	outline: 2px solid #2563eb;
+	outline-offset: 2px;
+}
+
+/* Staff AI Edit-product action — admin-styled (subtle / neutral). */
+.def-cc-result-card-edit {
+	background: #f3f4f6;
+	color: #374151;
+	border: 1px solid #d1d5db;
+}
+
+.def-cc-result-card-edit:hover {
+	background: #e5e7eb;
+	border-color: #9ca3af;
+}
+
+.def-cc-result-card-edit:focus-visible {
+	outline: 2px solid #6b7280;
+	outline-offset: 2px;
+}
+
+/* Reduced motion preference. */
+@media (prefers-reduced-motion: reduce) {
+	.def-cc-result-card,
+	.def-cc-result-card-add,
+	.def-cc-result-card-view,
+	.def-cc-result-card-edit {
+		transition: none;
+	}
+}
