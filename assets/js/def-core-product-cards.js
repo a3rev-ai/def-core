@@ -91,10 +91,14 @@
 		var section = document.createElement('section');
 		section.className = 'def-cc-result-section';
 
-		var heading = document.createElement('h3');
-		heading.className = 'def-cc-result-section-heading';
-		heading.textContent = payload.section_heading || '';
-		section.appendChild(heading);
+		// Only render heading element if non-empty — empty <h3> is an a11y
+		// violation and the description-skip pattern below already does this.
+		if (payload.section_heading && payload.section_heading.trim()) {
+			var heading = document.createElement('h3');
+			heading.className = 'def-cc-result-section-heading';
+			heading.textContent = payload.section_heading;
+			section.appendChild(heading);
+		}
 
 		if (payload.section_description && payload.section_description.trim()) {
 			var desc = document.createElement('p');

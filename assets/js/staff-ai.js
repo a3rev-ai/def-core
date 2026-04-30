@@ -1546,7 +1546,13 @@ function t(key, fallback) {
 							}
 							toolOutputs.forEach(function(tool) {
 								var card = createToolOutputCard(tool);
-								streamEl.appendChild(card);
+								// Skip nulls — DefResultCards.renderSection can return null
+								// (empty result_cards, frontend cap reached, DOMPurify missing,
+								// or all cards filtered out by validation). appendChild(null)
+								// would TypeError out of the SSE event loop.
+								if (card) {
+									streamEl.appendChild(card);
+								}
 							});
 						} else {
 							// No streaming happened (tool-only response or empty).

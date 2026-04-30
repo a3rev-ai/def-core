@@ -2000,7 +2000,10 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Process tool_outputs (escalation offers, wp_rest_call actions, result cards).
+		// Process tool_outputs. Schema is a tagged-union: each output has
+		// EITHER a `type` field (escalation_offer / wp_rest_call) OR a
+		// `result_type` field (wp_product / future wp_post / wp_<cpt>).
+		// Both fields don't co-exist on a single output.
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
@@ -2059,7 +2062,10 @@
 			appendMessage('assistant', reply);
 		}
 
-		// Process tool_outputs (escalation offers, wp_rest_call actions, result cards).
+		// Process tool_outputs. Schema is a tagged-union: each output has
+		// EITHER a `type` field (escalation_offer / wp_rest_call) OR a
+		// `result_type` field (wp_product / future wp_post / wp_<cpt>).
+		// Both fields don't co-exist on a single output.
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
