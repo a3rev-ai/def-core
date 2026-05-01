@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.0.1
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.0 - 2026-05-01 =
+* Feature: per-item exclusion from Digital Employee knowledge ingestion. Admins can now mark individual posts, pages, WC products, or any DEF-ingestible CPT to be skipped during the knowledge sync. Items already in the search index are removed on the next Sync Now — Full from the Tenant Portal. Adds a `_def_exclude_from_ingestion` post meta (REST-exposed) plus four admin surfaces: Gutenberg sidebar panel ("Digital Employees"), classic editor meta box, Quick Edit checkbox, and bulk action ("Exclude from DEF knowledge" / "Include in DEF knowledge"). A new "DEF" column on the post list shows the current exclusion state at a glance. Pairs with DEF backend changes that read the meta during wp_sync.
 
 = 3.0.1 - 2026-05-01 =
 * Fix: chat-native product cards — column count, layout, action button. Four issues caught in V1.2 live verification on a3rev.com:
