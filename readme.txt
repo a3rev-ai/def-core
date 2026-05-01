@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.0.0
+Stable tag: 3.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,12 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.0.1 - 2026-05-01 =
+* Fix: chat-native product cards — column count, layout, action button. Four issues caught in V1.2 live verification on a3rev.com:
+* Fix: container query never matched. `container-type: inline-size` was on `.def-cc-result-cards` and the `@container` rule queried the same element, but container queries match the nearest containment ANCESTOR — not self. The grid stayed at 2 columns at all widths. Moved `container-type` to `.def-cc-result-section` so the cards grid correctly queries its parent's inline-size and expands to 4 columns at ≥720px.
+* Fix: card title now renders before price (matches archive-page convention). Title is bold (font-weight 600); price/subtitle is regular weight. Previously the price rendered first in bold and the title second in light — visually backwards.
+* Fix: Simple Subscription products (WC Subscriptions plugin, type `subscription`) now show `+ Add to cart` instead of `View product →`. Variable Subscription (type `variable-subscription`) correctly continues to fall back to View product since it requires tier selection on the product page (same as variable products). Add-to-cart eligible types are now `simple` and `subscription`.
 
 = 3.0.0 - 2026-04-30 =
 * Feature: chat-native product cards (V1.2). Sales Assistant (Customer Chat) and Staff/Management Knowledge Assistants (Staff AI) now surface product results as a chat-native grid of cards — image, price, title, action button — instead of plain text. The LLM plans 1-4 thematic searches per turn and authors a heading + description for each, producing Bunnings-style multi-section responses for broad customer questions and tighter 1-2 section responses for narrow filtered questions.
