@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.1.0 - 2026/05/01 =
+* Feature: per-item exclusion from Digital Employee knowledge. New `_def_exclude_from_ingestion` post meta (REST-exposed) on every public + REST-visible post type. DEF backend's wp_sync skips flagged items + removes prior chunks on next Sync Now — Full.
+* Feature: five admin surfaces — Gutenberg sidebar panel ("Digital Employees"), classic editor meta box, Quick Edit checkbox, bulk action ("Exclude from DEF knowledge" / "Include"), and a "DEF" column indicator on the list view. All write the same meta.
+
 = 3.0.1 - 2026/05/01 =
 * Fix: chat-native product cards — four polish bugs caught during V1.2 live verification on a3rev.com.
 * Fix: column count. The container query in `def-core-product-cards.css` had `container-type: inline-size` on `.def-cc-result-cards` AND the `@container (min-width: 720px) { .def-cc-result-cards { ... } }` rule querying the same element — but CSS container queries match the nearest containment ANCESTOR, never the element itself. So the rule never matched and the grid stayed at 2 columns regardless of panel width. Moved `container-type: inline-size` to the parent `.def-cc-result-section`; the cards grid now correctly queries its section's inline-size and expands to 4 columns at ≥720px (≈ chat panel width minus padding). Subtle but worth a memory rule — container queries on the same element you set `container-type` on are the most common newcomer-trap pattern with this feature.

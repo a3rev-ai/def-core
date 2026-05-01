@@ -64,6 +64,7 @@ final class DEF_Core {
 		DEF_Core_OAuth::init();
 		DEF_Core_Export::init();
 		DEF_Core_Knowledge_Export::init();
+		DEF_Core_Knowledge_Exclusion::init();
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
 		DEF_Core_Logs_Page::init();
@@ -144,6 +145,9 @@ final class DEF_Core {
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
+
+		// Per-item exclusion from knowledge ingestion (v3.1.0).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-exclusion.php';
 
 		// Admin REST API (settings, users, connection, chat proxy).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
