@@ -143,6 +143,14 @@
 		imgLink.appendChild(img);
 		article.appendChild(imgLink);
 
+		// Title link — the accessible name. Rendered before price so the
+		// product name reads first (per archive-page convention).
+		var titleLink = document.createElement('a');
+		titleLink.href = safeUrl;
+		titleLink.className = 'def-cc-result-card-title';
+		titleLink.textContent = card.title;
+		article.appendChild(titleLink);
+
 		// Subtitle (WC price_html with sale markup), DOMPurify-sanitised.
 		var subtitle = document.createElement('div');
 		subtitle.className = 'def-cc-result-card-subtitle';
@@ -152,25 +160,22 @@
 		);
 		article.appendChild(subtitle);
 
-		// Title link — the accessible name.
-		var titleLink = document.createElement('a');
-		titleLink.href = safeUrl;
-		titleLink.className = 'def-cc-result-card-title';
-		titleLink.textContent = card.title;
-		article.appendChild(titleLink);
-
 		article.appendChild(renderAction(card, options));
 		return article;
 	}
+
+	// Product types that can be added to cart in one click from the archive
+	// (no variation or option selection needed). WC Subscriptions registers
+	// `subscription` for Simple Subscription; Variable Subscription
+	// (`variable-subscription`) needs tier selection on the product page so
+	// it falls back to View product.
+	var ADD_TO_CART_TYPES = ['simple', 'subscription'];
 
 	function renderAction(card, options) {
 		if (options && options.channel === 'staff_ai') {
 			return renderEditProductLink(card);
 		}
-		// Customer Chat default. Variable / grouped / external / out-of-stock
-		// fall back to View product (cart action only fires for purchasable
-		// simple in-stock products).
-		if (card.product_type !== 'simple' || !card.in_stock) {
+		if (ADD_TO_CART_TYPES.indexOf(card.product_type) === -1 || !card.in_stock) {
 			return renderViewProductLink(card);
 		}
 		return renderAddToCartButton(card);

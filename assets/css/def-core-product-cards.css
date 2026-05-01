@@ -13,7 +13,11 @@
  * page renders the same titles.
  */
 
+/* Container query is queried against the SECTION (ancestor), not the cards
+   grid itself. Container queries match the nearest ancestor with
+   container-type, so putting it on the grid never matched. */
 .def-cc-result-section {
+	container-type: inline-size;
 	margin: 16px 0;
 }
 
@@ -33,9 +37,8 @@
 }
 
 /* Container-query responsive grid. The chat panel is the relevant axis,
-   not the viewport — so we use container-type: inline-size, not @media. */
+   not the viewport — container-type lives on .def-cc-result-section above. */
 .def-cc-result-cards {
-	container-type: inline-size;
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 8px;
@@ -80,9 +83,9 @@
 }
 
 .def-cc-result-card-subtitle {
-	margin-top: 8px;
-	font-size: 15px;
-	font-weight: 600;
+	margin-top: 4px;
+	font-size: 14px;
+	font-weight: 400;
 	color: #1f2937;
 }
 
@@ -98,9 +101,10 @@
 }
 
 .def-cc-result-card-title {
-	margin-top: 4px;
-	font-size: 14px;
-	color: #374151;
+	margin-top: 8px;
+	font-size: 15px;
+	font-weight: 600;
+	color: #1f2937;
 	text-decoration: none;
 	line-height: 1.35;
 	overflow-wrap: anywhere; /* match archive page wrap behaviour */
