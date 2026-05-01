@@ -121,7 +121,7 @@ Chat messages, user display name, and session context — only when a user activ
 == Changelog ==
 
 = 3.1.0 - 2026-05-01 =
-* Feature: per-item exclusion from Digital Employee knowledge ingestion. Admins can now mark individual posts, pages, WC products, or any DEF-ingestible CPT to be skipped during the knowledge sync. Items already in the search index are removed on the next Sync Now — Full from the Tenant Portal. Adds a `_def_exclude_from_ingestion` post meta (REST-exposed) plus four admin surfaces: Gutenberg sidebar panel ("Digital Employees"), classic editor meta box, Quick Edit checkbox, and bulk action ("Exclude from DEF knowledge" / "Include in DEF knowledge"). A new "DEF" column on the post list shows the current exclusion state at a glance. Pairs with DEF backend changes that read the meta during wp_sync.
+* Feature: per-item exclusion from Digital Employee knowledge. Mark any post / page / product / CPT to be skipped during knowledge ingestion via a checkbox in the Gutenberg sidebar, classic editor meta box, Quick Edit, or bulk action. Items already indexed are removed on the next Sync Now — Full from the Tenant Portal. Pairs with DEF backend changes that read the new `_def_exclude_from_ingestion` post meta.
 
 = 3.0.1 - 2026-05-01 =
 * Fix: chat-native product cards — column count, layout, action button. Four issues caught in V1.2 live verification on a3rev.com:
