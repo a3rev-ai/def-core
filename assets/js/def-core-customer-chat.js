@@ -2025,7 +2025,12 @@
 		}
 
 		// Save thread to localStorage.
-		upsertThread(threadId, text || 'Please analyze the attached file(s).', reply);
+		upsertThread(
+			threadId,
+			text || 'Please analyze the attached file(s).',
+			reply,
+			data.tool_outputs
+		);
 		setComposerDisabled(false);
 	}
 
@@ -2087,7 +2092,12 @@
 		}
 
 		// Save thread to localStorage.
-		upsertThread(threadId, text || 'Please analyze the attached file(s).', reply);
+		upsertThread(
+			threadId,
+			text || 'Please analyze the attached file(s).',
+			reply,
+			data.tool_outputs
+		);
 		setComposerDisabled(false);
 	}
 
@@ -3054,10 +3064,26 @@
 		} catch (e) {}
 	}
 
-	function upsertThread(tid, userMsg, assistantMsg) {
+	// v3.0.2 — Replay-safe tool_outputs subset for history rehydration.
+	// Only render-data outputs (result_type === 'wp_product' product cards) are
+	// persisted. Transient UX prompts (escalation_offer) and action-execution
+	// markers (wp_rest_call) are dropped so a page reload doesn't re-prompt the
+	// user or re-trigger a side-effect.
+	function persistableToolOutputs(outputs) {
+		if (!outputs || !outputs.length) return null;
+		var out = [];
+		for (var i = 0; i < outputs.length; i++) {
+			var o = outputs[i];
+			if (o && o.result_type === 'wp_product') out.push(o);
+		}
+		return out.length ? out : null;
+	}
+
+	function upsertThread(tid, userMsg, assistantMsg, toolOutputs) {
 		if (!tid) return;
 		var now = new Date().toISOString();
 		var found = false;
+		var persisted = persistableToolOutputs(toolOutputs);
 
 		for (var i = 0; i < localThreads.length; i++) {
 			if (localThreads[i].id === tid) {
@@ -3074,11 +3100,13 @@
 					});
 				}
 				if (assistantMsg) {
-					localThreads[i].messages.push({
+					var asstMsg = {
 						role: 'assistant',
 						content: assistantMsg,
 						at: now,
-					});
+					};
+					if (persisted) asstMsg.tool_outputs = persisted;
+					localThreads[i].messages.push(asstMsg);
 				}
 				break;
 			}
@@ -3098,12 +3126,15 @@
 					content: userMsg,
 					at: now,
 				});
-			if (assistantMsg)
-				thread.messages.push({
+			if (assistantMsg) {
+				var newAsstMsg = {
 					role: 'assistant',
 					content: assistantMsg,
 					at: now,
-				});
+				};
+				if (persisted) newAsstMsg.tool_outputs = persisted;
+				thread.messages.push(newAsstMsg);
+			}
 			localThreads.unshift(thread);
 		}
 
@@ -3145,6 +3176,18 @@
 		for (var j = 0; j < thread.messages.length; j++) {
 			var msg = thread.messages[j];
 			appendMessage(msg.role, msg.content);
+			// v3.0.2 — replay persisted result-cards. Snapshot data (price/stock
+			// reflects render-time state, not live); the action button still
+			// links to the live product so a stale price doesn't drive a bad
+			// add-to-cart click — the cart endpoint is the source of truth.
+			if (msg.role === 'assistant' && msg.tool_outputs && msg.tool_outputs.length) {
+				for (var k = 0; k < msg.tool_outputs.length; k++) {
+					var out = msg.tool_outputs[k];
+					if (out && out.result_type === 'wp_product') {
+						appendResultCardsSection(out);
+					}
+				}
+			}
 		}
 	}
 
