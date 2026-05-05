@@ -111,12 +111,17 @@ class DEF_Core_Knowledge_Exclusion {
 		if ( $column !== self::COLUMN_KEY ) {
 			return;
 		}
-		$on = self::is_excluded( $post_id );
+		$on    = self::is_excluded( $post_id );
+		$color = $on ? '#b91c1c' : '#16a34a';
+		$label = $on
+			? esc_attr__( 'Excluded from Digital Employee knowledge', 'digital-employees' )
+			: esc_attr__( 'Included in Digital Employee knowledge', 'digital-employees' );
 		printf(
-			'<span class="def-core-exclusion-flag" data-excluded="%d" style="color:%s">%s</span>',
+			'<span class="def-core-exclusion-flag" data-excluded="%d" title="%s" aria-label="%s" style="display:inline-block;width:12px;height:12px;border-radius:50%%;background:%s;vertical-align:middle;"></span>',
 			$on ? 1 : 0,
-			$on ? '#b91c1c' : '#9ca3af',
-			$on ? esc_html__( 'Excluded', 'digital-employees' ) : '—'
+			$label,
+			$label,
+			esc_attr( $color )
 		);
 	}
 
