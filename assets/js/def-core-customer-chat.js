@@ -3064,11 +3064,16 @@
 		} catch (e) {}
 	}
 
-	// v3.0.2 — Replay-safe tool_outputs subset for history rehydration.
+	// v3.1.1 — Replay-safe tool_outputs subset for history rehydration.
 	// Only render-data outputs (result_type === 'wp_product' product cards) are
 	// persisted. Transient UX prompts (escalation_offer) and action-execution
 	// markers (wp_rest_call) are dropped so a page reload doesn't re-prompt the
 	// user or re-trigger a side-effect.
+	//
+	// To extend: add new render-data result_types to the allowlist below.
+	// Never persist action-execution markers or transient prompts.
+	// Mirror this allowlist in the DEF backend (_REPLAY_SAFE_RESULT_TYPES in
+	// app/chatbot/routes.py) — both filters must stay in sync.
 	function persistableToolOutputs(outputs) {
 		if (!outputs || !outputs.length) return null;
 		var out = [];
@@ -3176,7 +3181,7 @@
 		for (var j = 0; j < thread.messages.length; j++) {
 			var msg = thread.messages[j];
 			appendMessage(msg.role, msg.content);
-			// v3.0.2 — replay persisted result-cards. Snapshot data (price/stock
+			// v3.1.1 — replay persisted result-cards. Snapshot data (price/stock
 			// reflects render-time state, not live); the action button still
 			// links to the live product so a stale price doesn't drive a bad
 			// add-to-cart click — the cart endpoint is the source of truth.
