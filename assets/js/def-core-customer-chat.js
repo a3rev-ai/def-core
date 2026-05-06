@@ -1972,13 +1972,38 @@
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
 
+					// Prefer streamBuffer (what the user actually saw render)
+					// over evt.choices[0].message.content. In V2 spawn flows
+					// the streamed bubble carries specialist + Concierge text
+					// combined, while evt.choices[].message.content is only
+					// the Concierge's final wrap-up — using it first wipes
+					// the specialist text the user just watched stream
+					// (Sorin C2 — Doc 1 #5). Mirror Staff AI v2.9.2 fix
+					// (commit 2e16851 / PR #158) — the prior fix's commit
+					// message claimed Customer Chat wasn't affected because
+					// it doesn't call renderMessages(), but it missed that
+					// the same wrong priority drives the in-place finalize.
+					var streamedText = (streamBuffer || '').trim();
+					var doneContent = '';
+					if (evt.choices && evt.choices[0] && evt.choices[0].message) {
+						doneContent = (evt.choices[0].message.content || '').trim();
+					}
+					var finalContent = streamedText || doneContent;
+
 					if (streamEl) {
-						var reply = '';
-						if (evt.choices && evt.choices[0] && evt.choices[0].message) {
-							reply = evt.choices[0].message.content || '';
-						}
-						streamEl.innerHTML = renderMarkdown(reply || streamBuffer);
+						streamEl.innerHTML = renderMarkdown(finalContent);
 						streamEl.parentNode.classList.remove('def-cc-message--streaming');
+					}
+
+					// Mutate evt so downstream metadata processing sees the
+					// same text the user saw, not the wrap-up-only content.
+					// Persistence (upsertThread) and the non-streamed
+					// appendMessage fallback both read from evt.choices —
+					// without this override, page-reload rehydration would
+					// show only the wrap-up, not the streamed specialist
+					// reply.
+					if (evt.choices && evt.choices[0] && evt.choices[0].message) {
+						evt.choices[0].message.content = finalContent;
 					}
 
 					var wasStreamed = !!streamEl;
@@ -2005,6 +2030,20 @@
 					hideThinking(thinkingEl);
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
+					// Leave any already-streamed text visible. The previous
+					// behaviour reset streamEl=null and pushed a generic
+					// "connection error" via appendMessage, replacing what
+					// the user had just watched stream — the same DOM-clobber
+					// shape as Staff AI v2.9.2's done-branch bug. Surface the
+					// error as a separate bubble below the streamed reply
+					// instead.
+					if (streamEl) {
+						var partial = (streamBuffer || '').trim();
+						if (partial) {
+							streamEl.innerHTML = renderMarkdown(partial);
+						}
+						streamEl.parentNode.classList.remove('def-cc-message--streaming');
+					}
 					streamBuffer = '';
 					streamEl = null;
 					wordDrainTimer = null;
