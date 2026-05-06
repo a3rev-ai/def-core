@@ -1407,6 +1407,83 @@
 	// AFTER call N's response (and its cookie sync) has settled.
 	var wpRestCallChain = Promise.resolve();
 
+	// Tool ticks deferred until a wp_rest_call confirms the real outcome.
+	// SSE 'tool_done' fires the moment DEF finishes server-side dispatch,
+	// which for async tools (those that emit a wp_rest_call output —
+	// add_to_cart / add_to_cart_by_name today) is BEFORE the browser has
+	// executed the WC call. Painting the tick at tool_done time would lie
+	// about a possible 4xx that arrives later (Sorin C1 / Doc 5 Phase 3).
+	// When DEF sets pending_async=true on tool_done (post DEF #223), we
+	// stash the tick element here and finalise it from executeWpRestCall
+	// once the WC fetch resolves with the real HTTP status. Two-key lookup:
+	// by tool_call_id (precise — same id flows through the wp_rest_call
+	// action) and by tool_name FIFO (fallback, for the V1.2 spawn case
+	// where the wp_rest_call's tool_call_id is rewritten to the outer
+	// spawn id while the inner tick used the inner id). Module scope
+	// because executeWpRestCall is also module-scope.
+	var pendingAsyncTicks = {};       // tool_call_id -> entry
+	var pendingAsyncTickQueues = {};  // tool_name -> FIFO entry array
+	// entry shape: { el, name, tool_call_id, status }
+	// `status` preserves the original SSE tool_done status as a fallback
+	// for the safety-net flush at end-of-turn.
+
+	function deferAsyncTick(el, name, toolCallId, status) {
+		if (!el) return;
+		var entry = { el: el, name: name, tool_call_id: toolCallId || null, status: status };
+		if (toolCallId) pendingAsyncTicks[toolCallId] = entry;
+		if (!pendingAsyncTickQueues[name]) pendingAsyncTickQueues[name] = [];
+		pendingAsyncTickQueues[name].push(entry);
+	}
+
+	function takeAsyncTickEntry(name, toolCallId) {
+		// Precise lookup first (DEF #223+: wp_rest_call carries tool_call_id
+		// matching the tool_done event in the non-spawn path).
+		if (toolCallId && pendingAsyncTicks[toolCallId]) {
+			var entry = pendingAsyncTicks[toolCallId];
+			delete pendingAsyncTicks[toolCallId];
+			var byName = pendingAsyncTickQueues[entry.name] || [];
+			var idx = byName.indexOf(entry);
+			if (idx >= 0) byName.splice(idx, 1);
+			return entry;
+		}
+		// Fallback: oldest-by-name (V1.2 spawn case rewrites wp_rest_call
+		// tool_call_id to the outer spawn id while tool_done used the inner
+		// id, so id lookup misses; also covers older DEF without tool_call_id
+		// on the SSE event at all).
+		var queue = pendingAsyncTickQueues[name];
+		if (queue && queue.length) {
+			var fifoEntry = queue.shift();
+			if (fifoEntry.tool_call_id) delete pendingAsyncTicks[fifoEntry.tool_call_id];
+			return fifoEntry;
+		}
+		return null;
+	}
+
+	function finaliseAsyncTick(name, toolCallId, ok) {
+		var entry = takeAsyncTickEntry(name, toolCallId);
+		if (!entry) return;
+		completeToolStatus(entry.el, entry.name, ok ? 'success' : 'failed');
+	}
+
+	function flushUnmatchedAsyncTicks(dispatchedNamesCount) {
+		// After processChatResponseMeta dispatches all wp_rest_calls, any
+		// deferred ticks beyond the dispatched count had no matching action
+		// and would otherwise hang as spinners forever. Finalise them with
+		// their original SSE status. Should be a no-op in normal flow —
+		// guards against future drift between pending_async emission and
+		// wp_rest_call output emission inside DEF.
+		for (var name in pendingAsyncTickQueues) {
+			if (!Object.prototype.hasOwnProperty.call(pendingAsyncTickQueues, name)) continue;
+			var queue = pendingAsyncTickQueues[name];
+			var expected = (dispatchedNamesCount && dispatchedNamesCount[name]) || 0;
+			while (queue.length > expected) {
+				var entry = queue.shift();
+				if (entry.tool_call_id) delete pendingAsyncTicks[entry.tool_call_id];
+				completeToolStatus(entry.el, entry.name, entry.status);
+			}
+		}
+	}
+
 	// Cart-Token returned by WooCommerce Store API. Echoed back as the
 	// Cart-Token request header on every Store API call so the server
 	// loads the correct guest cart even when the WC session cookie was
@@ -1464,6 +1541,7 @@
 		// 404 URL by falling back to the namespaced wpRestUrl.
 		if (!config.wpRestRoot) {
 			console.error('[def-core] wpRestRoot missing from config — cart calls cannot dispatch (PHP/JS version skew?).');
+			finaliseAsyncTick(action.tool_name, action.tool_call_id, false);
 			showToast(action.error_message || 'Action failed', 'error');
 			return;
 		}
@@ -1505,6 +1583,12 @@
 					// Store API error responses have a WP_Error shape:
 					// { code: 'woocommerce_rest_*', message, data: { status } }.
 					var ok = resp.ok && body && !body.code;
+					// Finalise the deferred tool tick now that we know the
+					// real outcome — green ✓ when WC accepted the call, red
+					// ✗ when it returned 4xx. No-op when the tick wasn't
+					// deferred (older DEF without pending_async, or non-async
+					// tool that somehow routed through here).
+					finaliseAsyncTick(action.tool_name, action.tool_call_id, ok);
 					showToast(
 						ok ? (action.success_message || 'Done')
 						   : (action.error_message   || 'Action failed'),
@@ -1535,6 +1619,7 @@
 				});
 			})
 			.catch(function (err) {
+				finaliseAsyncTick(action.tool_name, action.tool_call_id, false);
 				showToast(action.error_message || 'Action failed', 'error');
 				postToolResultConfirm({
 					thread_id:    threadId,
@@ -1853,7 +1938,17 @@
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
 					break;
 				case 'tool_done':
-					completeToolStatus(toolStatusEls[evt.tool], evt.tool, evt.status);
+					var doneEl = toolStatusEls[evt.tool];
+					if (evt.pending_async) {
+						// Real outcome arrives via the wp_rest_call action's
+						// fetch resolution — keep the spinner showing and
+						// finalise from executeWpRestCall instead. Falls back
+						// to the immediate finalise path below for any older
+						// DEF deploy where pending_async is undefined.
+						deferAsyncTick(doneEl, evt.tool, evt.tool_call_id, evt.status);
+					} else {
+						completeToolStatus(doneEl, evt.tool, evt.status);
+					}
 					break;
 				case 'text_delta':
 					if (!streamEl) {
@@ -2110,6 +2205,7 @@
 		// EITHER a `type` field (escalation_offer / wp_rest_call) OR a
 		// `result_type` field (wp_product / future wp_post / wp_<cpt>).
 		// Both fields don't co-exist on a single output.
+		var dispatchedAsyncByName = {};
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
@@ -2117,11 +2213,22 @@
 					showEscalation(output.reason);
 				} else if (output.type === 'wp_rest_call') {
 					handleWpRestCall(output);
+					if (output.tool_name) {
+						dispatchedAsyncByName[output.tool_name] =
+							(dispatchedAsyncByName[output.tool_name] || 0) + 1;
+					}
 				} else if (output.result_type === 'wp_product') {
 					appendResultCardsSection(output);
 				}
 			}
 		}
+		// Safety net: if DEF emitted pending_async on tool_done but no
+		// matching wp_rest_call action arrived (shouldn't happen — same
+		// code path in orchestrator.py — but guards against future drift),
+		// finalise the surplus deferred ticks now using their original
+		// SSE status. Without this, a missing action would leave the tick
+		// as a stuck spinner.
+		flushUnmatchedAsyncTicks(dispatchedAsyncByName);
 
 		// Handle session_cookie from server.
 		if (data.session_cookie) {
