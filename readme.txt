@@ -122,6 +122,7 @@ Chat messages, user display name, and session context — only when a user activ
 
 = 3.1.1 - 2026-05-04 =
 * Fix: chat-native product cards now persist across in-page navigation. When a Customer Chat conversation contained product cards and the visitor navigated to another page on the site, the assistant text re-rendered from history but the cards were silently dropped — only plain text remained. Cards are now snapshot-persisted on the assistant message in localStorage and re-rendered on rehydration. The action button still links to the live product, so a stale snapshot price never drives a bad add-to-cart click — the cart endpoint is the source of truth.
+* Fix: DEF list-column status indicator. Post / page / product list tables now show a small green or red dot to indicate inclusion / exclusion from Digital Employee knowledge ingestion, instead of the literal text "Excluded" / em-dash. Tooltip + screen-reader label preserve discoverability.
 * Internal: only `wp_product` result-card outputs are persisted; `escalation_offer` and `wp_rest_call` outputs are intentionally dropped on persist (replaying them would re-prompt the visitor or could re-trigger a side-effect). Pairs with DEF backend changes that persist the same filtered `tool_outputs` into `chat_messages.metadata_json` and surface them on the thread-fetch endpoints — cards now survive in-page navigation AND fresh-browser cross-device hydration.
 
 = 3.1.0 - 2026-05-01 =
