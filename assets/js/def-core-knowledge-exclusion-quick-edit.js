@@ -9,7 +9,7 @@
 	var orig = inlineEditPost.edit;
 	inlineEditPost.edit = function (id) {
 		var ret = orig.apply(this, arguments);
-		var pid = parseInt(typeof id === 'object' ? $(id).attr('id').replace(/[^0-9]/g, '') : id, 10);
+		var pid = parseInt(typeof id === 'object' ? ($(id).closest('tr').attr('id') || '').replace(/[^0-9]/g, '') : id, 10);
 		if (!pid) return ret;
 		var on = $('#post-' + pid).find('.def-core-exclusion-flag').attr('data-excluded') === '1';
 		$('#edit-' + pid).find('input[name="_def_exclude_from_ingestion"]').prop('checked', on);
