@@ -3217,10 +3217,37 @@
 			.then(function (data) {
 				if (!data || !data.threads) return;
 				mergeThreads(data.threads);
+				adoptMostRecentThreadIfNone();
 			})
 			.catch(function () {
 				untrackAbort(controller);
 			});
+	}
+
+	// Cross-device continuity: when a logged-in WP user opens the widget on a
+	// new browser, localStorage is empty so threadId is null at init. After
+	// /api/my/threads merges the user's prior threads, adopt the most recent
+	// one with messages so the conversation continues instead of starting blank.
+	// The !threadId guard makes this a no-op if the user already sent a message
+	// before the server responded (processChatResponse sets threadId first).
+	function adoptMostRecentThreadIfNone() {
+		if (threadId) return;
+		if (!Array.isArray(localThreads) || !localThreads.length) return;
+
+		var picked = null;
+		for (var i = 0; i < localThreads.length; i++) {
+			var t = localThreads[i];
+			if (t && t.id && t.messages && t.messages.length > 0) {
+				picked = t;
+				break;
+			}
+		}
+		if (!picked) return;
+
+		threadId = picked.id;
+		isContinuing = true;
+		try { localStorage.setItem(THREAD_KEY, threadId); } catch (e) {}
+		loadThreadMessages(threadId);
 	}
 
 	function mergeThreads(serverThreads) {
