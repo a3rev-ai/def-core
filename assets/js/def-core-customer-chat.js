@@ -3376,8 +3376,14 @@
 	// one with messages so the conversation continues instead of starting blank.
 	// The !threadId guard makes this a no-op if the user already sent a message
 	// before the server responded (processChatResponse sets threadId first).
+	// The cleared_session check respects an explicit Clear & Start Fresh — a
+	// cleared user reloading the page should keep seeing the welcome state, not
+	// have the cleared thread silently re-adopted from the server.
 	function adoptMostRecentThreadIfNone() {
 		if (threadId) return;
+		try {
+			if (localStorage.getItem('def:cleared_session') === '1') return;
+		} catch (e) {}
 		if (!Array.isArray(localThreads) || !localThreads.length) return;
 
 		var picked = null;
@@ -3443,10 +3449,14 @@
 			saveLocalThread();
 		}
 
-		// Reset state.
+		// Reset state. The cleared_session marker tells adoptMostRecentThreadIfNone()
+		// to skip cross-device adoption on the next reload — without it, an explicit
+		// Clear by a logged-in user would be silently undone when /api/my/threads
+		// returns the (still server-side) prior threads.
 		try {
 			localStorage.removeItem(THREAD_KEY);
 			localStorage.removeItem('def:session_cookie');
+			localStorage.setItem('def:cleared_session', '1');
 		} catch (e) {}
 		threadId = null;
 		isContinuing = false;
