@@ -92,6 +92,15 @@
 	// ship that need browser-side execution.
 	var WP_REST_CALL_ALLOWLIST = [
 		'wc/store/v1/cart/add-item',
+		// GET wc/store/v1/cart — get_cart tool (DEF-side, registered in
+		// app/chatbot/tools/cart.py). Cart is browser-bound (Cart-Token +
+		// session cookies live on the browser↔WC hop), so the read is
+		// dispatched here the same way as add-item. The handleWpRestCall
+		// gate at line ~1528 silently drops any endpoint not on this list,
+		// so omitting it from the allowlist is the failure mode where the
+		// LLM hallucinates "couldn't retrieve any details" because no
+		// confirmation ever posts back through tool-result-confirm.
+		'wc/store/v1/cart',
 	];
 
 	var TOOL_STATUS_LABELS = {
@@ -103,6 +112,7 @@
 		'get_products_list':      'Browsing products...',
 		'add_to_cart':            'Adding to cart...',
 		'add_to_cart_by_name':    'Adding to cart...',
+		'get_cart':               'Checking your cart...',
 		'get_user_profile':       'Loading your profile...',
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
@@ -118,6 +128,7 @@
 		'get_products_list':      'Products loaded',
 		'add_to_cart':            'Added to cart',
 		'add_to_cart_by_name':    'Added to cart',
+		'get_cart':               'Cart loaded',
 		'get_user_profile':       'Profile loaded',
 		'handle_file_upload':     'Upload processed',
 		'extract_upload_content': 'File analyzed',
