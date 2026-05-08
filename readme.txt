@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.4
+Stable tag: 3.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.5 - 2026-05-07 =
+* Fix: Clear & Start Fresh now survives a page reload for logged-in WP users. Previously, after clicking Clear, the welcome state appeared correctly — but reloading the page or opening a new tab silently re-adopted the cleared thread because v3.1.2's cross-device adoption couldn't tell "first time on this browser" apart from "user just cleared." A `def:cleared_session` localStorage marker now signals an explicit fresh-start intent so it survives the reload. The marker is per-browser, matching Clear's existing local-only semantics — a clear on Device A does not affect Device B's continuity — and is bypassed automatically when the user starts a new conversation.
 
 = 3.1.4 - 2026-05-07 =
 * Fix: Customer Chat streamed reply no longer disappears mid-render. After the assistant's text streamed in correctly, the bubble would suddenly empty out leaving only a ✓ Done tick (Sorin C2 — "Show my last order just in case"). Cause was the same wrong-priority bug Staff AI hit in v2.9.2: the done handler picked the final `content` (often a near-empty Concierge wrap-up post DEF #213/#214 wrap-up suppression) over `streamBuffer` — the buffer that captured what the user saw render. The fix inverts the priority. The streamed reply also now survives an SSE error event mid-stream — error appears as a separate bubble below the streamed text instead of clobbering it.
