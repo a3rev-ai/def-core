@@ -2120,6 +2120,12 @@
 			threadId = data.thread_id;
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
+				// Fresh thread started — clear the cleared-session marker so it
+				// doesn't accumulate as dead weight in localStorage. The marker
+				// only exists to suppress adoption between Clear and the next
+				// real message; once we have a thread id, the !threadId guard
+				// in adoptMostRecentThreadIfNone() takes over.
+				localStorage.removeItem('def:cleared_session');
 			} catch (e) {}
 			isContinuing = true;
 		}
@@ -2186,6 +2192,9 @@
 			threadId = data.thread_id;
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
+				// Fresh thread started — clear the cleared-session marker. See
+				// processChatResponse for the rationale.
+				localStorage.removeItem('def:cleared_session');
 			} catch (e) {}
 			isContinuing = true;
 		}
