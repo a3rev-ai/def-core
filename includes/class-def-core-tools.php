@@ -244,6 +244,29 @@ final class DEF_Core_Tools {
 			}
 		}
 
+		// Forward the WC Store API Cart-Token from the widget so DEF can
+		// read the live cart server-side for the sync `get_cart` tool.
+		// We rename it from `Cart-Token` (browser-supplied) to a DEF-
+		// namespaced header before forwarding so that an external caller
+		// hitting DEF directly cannot inject one — DEF only honors the
+		// X-DEF-WC-Cart-Token header, which only this proxy emits.
+		//
+		// Validation: WC issues Cart-Token as a JWT-shaped string
+		// (`<base64url>.<base64url>.<base64url>`). Constrain the
+		// forwarded value to that alphabet/length so a hostile widget
+		// payload cannot smuggle CRLF, header splits, or oversized junk
+		// through the proxy.
+		if ( isset( $_SERVER['HTTP_CART_TOKEN'] ) ) {
+			$cart_token = trim( wp_unslash( $_SERVER['HTTP_CART_TOKEN'] ) );
+			if (
+				'' !== $cart_token
+				&& strlen( $cart_token ) <= 4096
+				&& preg_match( '/^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/', $cart_token )
+			) {
+				$headers[] = 'X-DEF-WC-Cart-Token: ' . $cart_token;
+			}
+		}
+
 		return $headers;
 	}
 
@@ -798,6 +821,109 @@ final class DEF_Core_Tools {
 					200
 				);
 			}
+		);
+	}
+
+	/**
+	 * Read the current user's WooCommerce cart server-side.
+	 *
+	 * Server-side fallback for the DEF `get_cart` tool. The primary path
+	 * is DEF calling Store API directly with the browser-supplied
+	 * Cart-Token (forwarded via X-DEF-WC-Cart-Token by build_proxy_headers).
+	 * This route covers the residual case where a logged-in user has no
+	 * browser Cart-Token yet but does have items in their persistent
+	 * cart user meta.
+	 *
+	 * Logged-in only — gated by permission_check on the route. We still
+	 * defensively short-circuit on $current_user_id <= 0 so a permission
+	 * regression cannot leak an empty cart shape from an unauthenticated
+	 * caller.
+	 *
+	 * @param \WP_REST_Request $req The REST request.
+	 * @return \WP_REST_Response
+	 * @since 3.2.0
+	 */
+	public static function wc_get_cart( \WP_REST_Request $req ): \WP_REST_Response {
+		if ( ! function_exists( 'WC' ) || ! class_exists( 'WC_Cart' ) ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => true,
+					'message' => 'WooCommerce not available',
+				),
+				400
+			);
+		}
+
+		$current_user_id = get_current_user_id();
+		if ( $current_user_id <= 0 ) {
+			return new \WP_REST_Response(
+				array(
+					'items'         => array(),
+					'cart_count'    => 0,
+					'cart_total'    => null,
+					'cart_subtotal' => null,
+					'currency'      => null,
+				),
+				200
+			);
+		}
+
+		// Bring up a session for this REST request so WC()->cart can attach
+		// to it. WC's normal session bootstrap runs on `init`, but in the
+		// REST context for an HMAC-auth'd request the customer_id has not
+		// been set, so calculate_totals() would otherwise compute totals
+		// against an anonymous customer.
+		if ( ! isset( WC()->session ) || is_null( WC()->session ) ) {
+			WC()->session = new \WC_Session_Handler();
+			WC()->session->init();
+		}
+		WC()->session->set( 'customer_id', $current_user_id );
+
+		if ( ! did_action( 'woocommerce_load_cart_from_session' ) ) {
+			wc_load_cart();
+		}
+
+		// Hydrate cart from the persistent_cart user meta — this is what
+		// /cart/ reads for the same user when they revisit the site after
+		// clearing localStorage but with the WP login cookie still set.
+		$saved_cart = get_user_meta(
+			$current_user_id,
+			'_woocommerce_persistent_cart_' . get_current_blog_id(),
+			true
+		);
+		if ( ! empty( $saved_cart['cart'] ) && is_array( $saved_cart['cart'] ) ) {
+			WC()->session->set( 'cart', $saved_cart['cart'] );
+			WC()->cart->get_cart_from_session();
+		}
+
+		WC()->cart->calculate_totals();
+
+		$decimals = wc_get_price_decimals();
+		$items    = array();
+		foreach ( WC()->cart->get_cart() as $cart_item ) {
+			$product = isset( $cart_item['data'] ) ? $cart_item['data'] : null;
+			if ( ! $product ) {
+				continue;
+			}
+			$variation_id = isset( $cart_item['variation_id'] ) ? (int) $cart_item['variation_id'] : 0;
+			$product_id   = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
+			$items[]      = array(
+				'product_id'   => $variation_id > 0 ? $variation_id : $product_id,
+				'product_name' => $product->get_name(),
+				'quantity'     => isset( $cart_item['quantity'] ) ? (int) $cart_item['quantity'] : 0,
+				'line_total'   => wc_format_decimal( isset( $cart_item['line_total'] ) ? $cart_item['line_total'] : 0, $decimals ),
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'items'         => $items,
+				'cart_count'    => WC()->cart->get_cart_contents_count(),
+				'cart_total'    => wc_format_decimal( WC()->cart->get_total( 'edit' ), $decimals ),
+				'cart_subtotal' => wc_format_decimal( WC()->cart->get_subtotal(), $decimals ),
+				'currency'      => get_woocommerce_currency(),
+			),
+			200
 		);
 	}
 

@@ -103,6 +103,7 @@
 		'get_products_list':      'Browsing products...',
 		'add_to_cart':            'Adding to cart...',
 		'add_to_cart_by_name':    'Adding to cart...',
+		'get_cart':               'Checking your cart...',
 		'get_user_profile':       'Loading your profile...',
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
@@ -118,6 +119,7 @@
 		'get_products_list':      'Products loaded',
 		'add_to_cart':            'Added to cart',
 		'add_to_cart_by_name':    'Added to cart',
+		'get_cart':               'Cart loaded',
 		'get_user_profile':       'Profile loaded',
 		'handle_file_upload':     'Upload processed',
 		'extract_upload_content': 'File analyzed',
@@ -1790,6 +1792,15 @@
 					'Content-Type': 'application/json',
 					'X-WP-Nonce': config.nonce,
 				};
+				// Forward the WC Store API Cart-Token so DEF can read the
+				// cart server-side (sync get_cart tool). Token is opaque,
+				// scoped to one cart, and stays inside the same trust
+				// boundary as cookies do (browser → WP plugin → DEF →
+				// Store API). build_proxy_headers() in def-core renames
+				// it to X-DEF-WC-Cart-Token before forwarding upstream.
+				if (wcCartToken) {
+					headers['Cart-Token'] = wcCartToken;
+				}
 
 				// Feature detection: stream if ReadableStream supported
 				if (typeof ReadableStream !== 'undefined') {
