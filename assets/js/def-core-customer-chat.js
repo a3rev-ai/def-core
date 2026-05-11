@@ -1792,12 +1792,7 @@
 					'Content-Type': 'application/json',
 					'X-WP-Nonce': config.nonce,
 				};
-				// Forward the WC Store API Cart-Token so DEF can read the
-				// cart server-side (sync get_cart tool). Token is opaque,
-				// scoped to one cart, and stays inside the same trust
-				// boundary as cookies do (browser → WP plugin → DEF →
-				// Store API). build_proxy_headers() in def-core renames
-				// it to X-DEF-WC-Cart-Token before forwarding upstream.
+				// Forward Cart-Token for DEF's sync get_cart tool.
 				if (wcCartToken) {
 					headers['Cart-Token'] = wcCartToken;
 				}

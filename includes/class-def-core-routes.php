@@ -243,13 +243,8 @@ final class DEF_Core_Routes {
 				'core'
 			);
 
-			// WooCommerce Cart — server-side fallback for the DEF
-			// `get_cart` tool. The primary path is DEF calling Store API
-			// directly with the browser-supplied Cart-Token (forwarded as
-			// X-DEF-WC-Cart-Token by build_proxy_headers). This route is
-			// the fallback for logged-in users whose browser has no
-			// Cart-Token in localStorage yet but whose persistent_cart
-			// user meta has items. Auth-required.
+			// WooCommerce Cart — server-side fallback for DEF's `get_cart`
+			// when the browser has no Cart-Token but the user is logged in.
 			$registry->register_tool(
 				'/tools/wc/cart',
 				__( 'WooCommerce Cart', 'digital-employees' ),
