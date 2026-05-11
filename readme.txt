@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.5
+Stable tag: 3.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.6 - 2026-05-11 =
+* Feature: new server-side `get_cart` tool for the DEF Customer Chat. Pairs with the DEF backend's matching get_cart implementation so the assistant can answer "what's in my cart?" / "what's my cart total?" in the same SSE turn — single user message, real cart contents narrated back — instead of the prior two-turn async flow. Implementation forwards the visitor's WC Store API Cart-Token through the BFF proxy chain (widget → def-core → DEF → Store API) so the cart lookup runs server-side from DEF with the visitor's real session, then renders the answer inline.
+* Internal: `build_proxy_headers()` validates the inbound Cart-Token to JWT shape (`<base64url>.<base64url>.<base64url>`, ≤4096 chars) before renaming it to the DEF-namespaced `X-DEF-WC-Cart-Token` header. The namespace rename prevents an external caller hitting DEF directly from injecting the header; the shape gate prevents a hostile widget payload from smuggling CRLF / header splits / oversized junk through the proxy.
+* Internal: new `wc_get_cart()` REST method + `/tools/wc/cart` route registration. Logged-in fallback for the rare case where a visitor's browser has no Cart-Token in localStorage yet but their `_woocommerce_persistent_cart_*` user meta has items. Auth gated by the existing HMAC `permission_check`. Defensively short-circuits on `current_user_id <= 0`.
 
 = 3.1.5 - 2026-05-07 =
 * Fix: Clear & Start Fresh now survives a page reload for logged-in WP users. Previously, after clicking Clear, the welcome state appeared correctly — but reloading the page or opening a new tab silently re-adopted the cleared thread because v3.1.2's cross-device adoption couldn't tell "first time on this browser" apart from "user just cleared." A `def:cleared_session` localStorage marker now signals an explicit fresh-start intent so it survives the reload. The marker is per-browser, matching Clear's existing local-only semantics — a clear on Device A does not affect Device B's continuity — and is bypassed automatically when the user starts a new conversation.

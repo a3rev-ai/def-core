@@ -103,6 +103,7 @@
 		'get_products_list':      'Browsing products...',
 		'add_to_cart':            'Adding to cart...',
 		'add_to_cart_by_name':    'Adding to cart...',
+		'get_cart':               'Checking your cart...',
 		'get_user_profile':       'Loading your profile...',
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
@@ -118,6 +119,7 @@
 		'get_products_list':      'Products loaded',
 		'add_to_cart':            'Added to cart',
 		'add_to_cart_by_name':    'Added to cart',
+		'get_cart':               'Cart loaded',
 		'get_user_profile':       'Profile loaded',
 		'handle_file_upload':     'Upload processed',
 		'extract_upload_content': 'File analyzed',
@@ -1790,6 +1792,10 @@
 					'Content-Type': 'application/json',
 					'X-WP-Nonce': config.nonce,
 				};
+				// Forward Cart-Token for DEF's sync get_cart tool.
+				if (wcCartToken) {
+					headers['Cart-Token'] = wcCartToken;
+				}
 
 				// Feature detection: stream if ReadableStream supported
 				if (typeof ReadableStream !== 'undefined') {

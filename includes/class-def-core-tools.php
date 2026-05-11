@@ -244,6 +244,19 @@ final class DEF_Core_Tools {
 			}
 		}
 
+		// Forward WC Cart-Token (browser-supplied) as DEF-namespaced header.
+		// JWT-shape + length-capped to block header-splitting payloads.
+		if ( isset( $_SERVER['HTTP_CART_TOKEN'] ) ) {
+			$cart_token = trim( wp_unslash( $_SERVER['HTTP_CART_TOKEN'] ) );
+			if (
+				'' !== $cart_token
+				&& strlen( $cart_token ) <= 4096
+				&& preg_match( '/^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/', $cart_token )
+			) {
+				$headers[] = 'X-DEF-WC-Cart-Token: ' . $cart_token;
+			}
+		}
+
 		return $headers;
 	}
 
@@ -798,6 +811,83 @@ final class DEF_Core_Tools {
 					200
 				);
 			}
+		);
+	}
+
+	/**
+	 * Server-side fallback for DEF's `get_cart` tool — hydrates the
+	 * logged-in user's persistent_cart user meta into WC()->cart.
+	 *
+	 * @param \WP_REST_Request $req
+	 * @return \WP_REST_Response
+	 * @since 3.1.6
+	 */
+	public static function wc_get_cart( \WP_REST_Request $req ): \WP_REST_Response {
+		$current_user_id = get_current_user_id();
+		if ( $current_user_id <= 0 ) {
+			// Defensive: permission_check should have rejected anonymous callers.
+			return new \WP_REST_Response(
+				array(
+					'items'         => array(),
+					'cart_count'    => 0,
+					'cart_total'    => null,
+					'cart_subtotal' => null,
+					'currency'      => null,
+				),
+				200
+			);
+		}
+
+		// WC's session bootstrap runs on `init`, but REST callers skip that.
+		if ( ! isset( WC()->session ) || is_null( WC()->session ) ) {
+			WC()->session = new \WC_Session_Handler();
+			WC()->session->init();
+		}
+		WC()->session->set( 'customer_id', $current_user_id );
+
+		if ( ! did_action( 'woocommerce_load_cart_from_session' ) ) {
+			wc_load_cart();
+		}
+
+		// Same persistent_cart row /cart/ reads on revisit.
+		$saved_cart = get_user_meta(
+			$current_user_id,
+			'_woocommerce_persistent_cart_' . get_current_blog_id(),
+			true
+		);
+		if ( ! empty( $saved_cart['cart'] ) && is_array( $saved_cart['cart'] ) ) {
+			WC()->session->set( 'cart', $saved_cart['cart'] );
+			WC()->cart->get_cart_from_session();
+		}
+
+		WC()->cart->calculate_totals();
+
+		$decimals = wc_get_price_decimals();
+		$items    = array();
+		foreach ( WC()->cart->get_cart() as $cart_item ) {
+			$product = isset( $cart_item['data'] ) ? $cart_item['data'] : null;
+			if ( ! $product ) {
+				continue;
+			}
+			$variation_id = isset( $cart_item['variation_id'] ) ? (int) $cart_item['variation_id'] : 0;
+			$product_id   = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
+			$items[]      = array(
+				'product_id'   => $variation_id > 0 ? $variation_id : $product_id,
+				'product_name' => $product->get_name(),
+				'quantity'     => isset( $cart_item['quantity'] ) ? (int) $cart_item['quantity'] : 0,
+				'line_total'   => wc_format_decimal( isset( $cart_item['line_total'] ) ? $cart_item['line_total'] : 0, $decimals ),
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'items'         => $items,
+				'cart_count'    => WC()->cart->get_cart_contents_count(),
+				'cart_total'    => wc_format_decimal( WC()->cart->get_total( 'edit' ), $decimals ),
+				'cart_subtotal' => wc_format_decimal( WC()->cart->get_subtotal(), $decimals ),
+				'currency'      => get_woocommerce_currency(),
+			),
+			200
 		);
 	}
 

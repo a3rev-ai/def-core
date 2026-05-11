@@ -242,6 +242,18 @@ final class DEF_Core_Routes {
 				array(),
 				'core'
 			);
+
+			// WooCommerce Cart — server-side fallback for DEF's `get_cart`
+			// when the browser has no Cart-Token but the user is logged in.
+			$registry->register_tool(
+				'/tools/wc/cart',
+				__( 'WooCommerce Cart', 'digital-employees' ),
+				array( 'GET' ),
+				array( 'DEF_Core_Tools', 'wc_get_cart' ),
+				array( 'DEF_Core_Tools', 'permission_check' ),
+				array(),
+				'core'
+			);
 		}
 	}
 }
