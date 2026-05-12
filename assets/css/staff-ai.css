@@ -554,7 +554,11 @@ body {
 }
 
 .message-assistant .message-content a {
-	color: var(--accent-indigo);
+	color: #2271b1;
+	text-decoration: none;
+}
+
+.message-assistant .message-content a:hover {
 	text-decoration: underline;
 }
 

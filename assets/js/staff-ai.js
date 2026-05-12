@@ -1121,12 +1121,16 @@ function t(key, fallback) {
 	function completeToolStatus(el, toolName, status) {
 		if (!el) return;
 		var failed = status && status !== 'success';
-		var doneLabel = failed
-			? (TOOL_DONE_LABELS[toolName] || (toolName + ' done')) + ' (failed)'
-			: (TOOL_DONE_LABELS[toolName] || (toolName + ' done'));
 		el.classList.add(failed ? 'failed' : 'done');
 		var icon = failed ? '&#10007;' : '&#10003;';
-		el.innerHTML = '<span class="tool-checkmark">' + icon + '</span><span class="tool-label">' + escapeHtml(doneLabel) + '</span>';
+		// Persist the in-progress label after completion — "Searching... ✓ Done"
+		// rather than the in-progress text being replaced by a separate done
+		// label. Mirrors the same fix in def-core-customer-chat.js.
+		var inProgressLabel = TOOL_STATUS_LABELS[toolName] || (toolName + '...');
+		var suffix = failed ? 'Failed' : 'Done';
+		el.innerHTML = '<span class="tool-label">' + escapeHtml(inProgressLabel) + '</span>'
+			+ ' <span class="tool-checkmark">' + icon + '</span> '
+			+ '<span class="tool-label">' + suffix + '</span>';
 	}
 
 	function updateTypingLabel(text) {
