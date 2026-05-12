@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.7
+Stable tag: 3.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,12 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.8 - 2026-05-12 =
+* Polish: tool-status pills now show meaningful labels for the three V2 orchestrator tools that previously fell through to "Processing...": `retrieve` → "Working on it...", `render_product_cards` → "Fetching products...", `spawn_sub_agent` → "Calling our {Sales|Support|Setup} Specialist..." (dynamic based on which specialist is being called).
+* Polish: specialist handoff banner restyled in Customer Chat. New wording: "You are now talking with our Sales Specialist!" (and Support / Setup) — replaces the muted "SALES ASSISTANT IS HELPING". Pale-blue rounded pill with bolder font so the handoff is clearly signposted without feeling like a system alert.
+* Internal: `def-persona.js` gains a `bannerTemplate` option for channel-specific handoff wording. Customer Chat overrides the default "{name} is helping" with the new framing; Staff AI keeps the default. `def-core-customer-chat.js` exposes `SPECIALIST_ROLE_NAMES` for the spawn-tool label.
+* Polish: Staff AI tool labels add `retrieve` and `render_product_cards` so the V2 orchestrator tools render meaningful labels in the staff console too.
 
 = 3.1.7 - 2026-05-12 =
 * Polish: tool-status pill now persists the in-progress label after completion. Visitor sees "Searching... ✓ Done" / "Searching... ✗ Failed" instead of the in-progress text being replaced. Context across the spinner→checkmark transition.

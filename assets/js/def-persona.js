@@ -61,6 +61,10 @@
 		var dClass    = (options && options.dividerCssClass) || 'def-speaker-divider';
 		var thinkSel  = (options && options.thinkingLabelSelector) || '.cc-tool-label';
 		var appendFn  = (options && options.appendDivider) || function () {};
+		// Channel-specific banner text. {name} is substituted with the
+		// specialist display name. Default reads "X is helping"; Customer
+		// Chat uses "You are now talking with our X Specialist!".
+		var template  = (options && options.bannerTemplate) || '{name} is helping';
 
 		var currentAgent = null;
 
@@ -82,7 +86,7 @@
 			var label = specialistDisplayName(agentId) || 'Assistant';
 			var div   = document.createElement('div');
 			div.className   = dClass;
-			div.textContent = label + ' is helping';
+			div.textContent = template.replace('{name}', label);
 			appendFn(div);
 		}
 

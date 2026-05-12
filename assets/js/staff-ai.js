@@ -53,6 +53,8 @@ function t(key, fallback) {
 	// Tool status labels for SSE streaming
 	const TOOL_STATUS_LABELS = {
 		'retrieve_company_knowledge': 'Searching knowledge base...',
+		'retrieve':                   'Working on it...',
+		'render_product_cards':       'Fetching products...',
 		'create_document': 'Creating document...',
 		'create_spreadsheet': 'Creating spreadsheet...',
 		'generate_image': 'Generating image...',

@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.1.8 - 2026/05/12 =
+* Polish: tool-status pills now show meaningful labels for the three V2 orchestrator tools that previously fell through to the generic "Processing..." default. `retrieve` → "Working on it...", `render_product_cards` → "Fetching products...", `spawn_sub_agent` → "Calling our {Sales|Support|Setup} Specialist..." computed per-call from the target employee_id carried on the tool_start SSE event.
+* Polish: specialist handoff banner restyled in Customer Chat. New wording is "You are now talking with our Sales Specialist!" (and the Support / Setup variants) — replaces the previously muted "SALES ASSISTANT IS HELPING" small-caps. The banner is now a pale-blue rounded pill with bolder 13px font that signals the handoff clearly without feeling like a system alert.
+* Internal: `def-persona.js` gains a `bannerTemplate` option for channel-specific handoff wording with `{name}` substitution. Customer Chat overrides the default "{name} is helping" with the new "You are now talking with our {name} Specialist!" framing and passes role-only specialist labels (Sales/Support/Setup); Staff AI keeps the default. New module-level `SPECIALIST_ROLE_NAMES` map in `def-core-customer-chat.js` drives the spawn-tool label.
+* Polish: Staff AI tool labels add `retrieve` and `render_product_cards` so the V2 orchestrator tools render meaningful labels in the staff console too. (The legacy `retrieve_company_knowledge` label is left in place but is no longer emitted by the DEF backend after V1.1.)
+
 = 3.1.7 - 2026/05/12 =
 * Polish: tool-status pill persists the in-progress label after completion. Visitor sees "Searching... ✓ Done" / "Searching... ✗ Failed" instead of the in-progress text being replaced by a separate done label. Previously the in-progress text flashed and was overwritten by the done state at the moment the spinner became a checkmark, losing context on what just completed.
 * Polish: Customer Chat greeting reordered. "Hi! I'm your Joe AI Assistant." → "Hi! I'm Joe your AI Assistant." (and the logged-in "Hi Steve!" variant). The brand name reads more naturally before the "your" possessive.
