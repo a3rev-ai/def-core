@@ -108,6 +108,22 @@
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
 		'escalate_to_human':      'Preparing escalation...',
+		'retrieve':               'Working on it...',
+		'render_product_cards':   'Fetching products...',
+		// spawn_sub_agent label is computed per-call from the target
+		// employee_id (evt.subagent on the tool_start event) so we can
+		// show "Calling our Sales Specialist..." vs "Calling our Support
+		// Specialist..." See renderToolStatusForStream + SPECIALIST_ROLE_NAMES.
+	};
+
+	// Role names used in the dynamic spawn-tool label.
+	// "Calling our {Sales} Specialist..." Different from persona banner
+	// labels ("Sales Assistant") because "our Sales Assistant Specialist"
+	// reads awkwardly.
+	var SPECIALIST_ROLE_NAMES = {
+		'sales_assistant':   'Sales',
+		'support_assistant': 'Support',
+		'setup_assistant':   'Setup',
 	};
 
 	var TOOL_DONE_LABELS = {
@@ -1262,9 +1278,27 @@
 	/**
 	 * Render a tool status line with spinner during streaming.
 	 */
-	function renderToolStatusForStream(toolName) {
-		var label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+	function renderToolStatusForStream(toolName, subagentId) {
+		var label;
+		if (toolName === 'spawn_sub_agent') {
+			// Dynamic per-call label: "Calling our Sales Specialist..."
+			// Falls back to a humanised agent_id ("Knowledge Assistant" →
+			// "Calling our Knowledge Assistant Specialist...") if the role
+			// name isn't in our short-name map.
+			var role = (subagentId && SPECIALIST_ROLE_NAMES[subagentId])
+				|| (subagentId
+					? subagentId.replace(/_/g, ' ').replace(/\b\w/g, function (c) {
+						return c.toUpperCase();
+					})
+					: 'Specialist');
+			label = 'Calling our ' + role + ' Specialist...';
+		} else {
+			label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+		}
 		var div = el('div', 'cc-tool-status');
+		// Tag with toolName for completeToolStatus persistence + dataset
+		// so the spawn pill keeps showing the specialist name on completion.
+		div.dataset.inProgressLabel = label;
 		div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">'
 			+ escapeHtml(label) + '</span>';
 		els.messages.appendChild(div);
@@ -1302,7 +1336,11 @@
 		// Persist the in-progress label after completion so the user sees
 		// "Searching... \u2713 Done" rather than the in-progress text being
 		// replaced. Context across spinner\u2192checkmark transition matters.
-		var inProgressLabel = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+		// Read from dataset first so dynamic labels (spawn_sub_agent's
+		// per-target "Calling our Sales Specialist...") survive complete.
+		var inProgressLabel = (statusEl.dataset && statusEl.dataset.inProgressLabel)
+			|| TOOL_STATUS_LABELS[toolName]
+			|| 'Processing...';
 		var suffix = failed ? 'Failed' : 'Done';
 		statusEl.innerHTML = '<span class="cc-tool-label">' + escapeHtml(inProgressLabel) + '</span>'
 			+ ' <span class="cc-checkmark">' + icon + '</span> '
@@ -1881,6 +1919,15 @@
 		var persona = window.DefPersona.createController({
 			dividerCssClass:        'def-cc-speaker-divider',
 			thinkingLabelSelector:  '.cc-tool-label',
+			// Override the role-only labels so the banner reads "our Sales
+			// Specialist" not "our Sales Assistant Specialist". The
+			// SPECIALIST_ROLE_NAMES map up top has the same mapping.
+			specialistLabels: {
+				'sales_assistant':   'Sales',
+				'support_assistant': 'Support',
+				'setup_assistant':   'Setup',
+			},
+			bannerTemplate: 'You are now talking with our {name} Specialist!',
 			appendDivider: function (div) {
 				els.messages.appendChild(div);
 				scrollToBottom();
@@ -1951,7 +1998,7 @@
 					}
 					break;
 				case 'tool_start':
-					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool);
+					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool, evt.subagent);
 					break;
 				case 'tool_done':
 					var doneEl = toolStatusEls[evt.tool];
