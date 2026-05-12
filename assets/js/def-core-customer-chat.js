@@ -415,7 +415,7 @@
 		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
 		var intro = document.createElement('strong');
 		intro.textContent = bizName
-			? hi + ' I\'m your ' + bizName + ' AI Assistant.'
+			? hi + ' I\'m ' + bizName + ' your AI Assistant.'
 			: hi + ' I\'m your AI Assistant.';
 		greetingContent.appendChild(intro);
 		greetingContent.appendChild(document.createElement('br'));
@@ -1299,11 +1299,14 @@
 		var isSuccess = !statusStr || SUCCESS_TOOL_STATUSES.indexOf(statusStr) !== -1;
 		var failed = !isSuccess;
 		var icon = failed ? '\u2717' : '\u2713';
-		var label = failed
-			? (TOOL_DONE_LABELS[toolName] || 'Done') + ' (failed)'
-			: (TOOL_DONE_LABELS[toolName] || 'Done');
-		statusEl.innerHTML = '<span class="cc-checkmark">' + icon + '</span><span class="cc-tool-label">'
-			+ escapeHtml(label) + '</span>';
+		// Persist the in-progress label after completion so the user sees
+		// "Searching... \u2713 Done" rather than the in-progress text being
+		// replaced. Context across spinner\u2192checkmark transition matters.
+		var inProgressLabel = TOOL_STATUS_LABELS[toolName] || 'Processing...';
+		var suffix = failed ? 'Failed' : 'Done';
+		statusEl.innerHTML = '<span class="cc-tool-label">' + escapeHtml(inProgressLabel) + '</span>'
+			+ ' <span class="cc-checkmark">' + icon + '</span> '
+			+ '<span class="cc-tool-label">' + suffix + '</span>';
 		statusEl.className = failed ? 'cc-tool-status cc-tool-failed' : 'cc-tool-status cc-tool-done';
 	}
 
@@ -1606,6 +1609,13 @@
 					// next-turn loop closure runs.
 					if (!ok && body && body.message) {
 						appendMessage('assistant', body.message);
+					}
+					// Success path for cart-add: append a clickable cart link
+					// in a new assistant bubble so the visitor has an obvious
+					// next step. WC always installs the /cart/ page so a
+					// site-root relative URL is safe across themes.
+					if (ok && /add[_-]to[_-]cart/i.test(action.tool_name || '')) {
+						appendMessage('assistant', 'Here is a link to your cart: [View cart](/cart/)');
 					}
 					postToolResultConfirm({
 						thread_id:    threadId,

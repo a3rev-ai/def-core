@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.6
+Stable tag: 3.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,13 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.7 - 2026-05-12 =
+* Polish: tool-status pill now persists the in-progress label after completion. Visitor sees "Searching... ✓ Done" / "Searching... ✗ Failed" instead of the in-progress text being replaced. Context across the spinner→checkmark transition.
+* Polish: Customer Chat greeting reordered. "Hi! I'm your Joe AI Assistant." → "Hi! I'm Joe your AI Assistant." (and the logged-in variant). The brand name reads better before the "your" possessive.
+* Polish: Staff AI greeting reframed. "Hi Steve! I'm your Joe Management Assistant." → "Hi Steve! I am your personal AI Management Assistant." (or "personal AI Assistant" for non-management roles). Staff AI is a personal assistant — the brand-name framing belongs in Customer Chat, not the staff console.
+* Polish: Customer Chat now appends a clickable cart link as a separate assistant bubble after a successful add-to-cart. Visitor sees the green ✓ status, then "Here is a link to your cart: View cart" pointing at /cart/. The link is the obvious next step.
+* Polish: chat message links (Customer Chat and Staff AI both) are now WP blue (`#2271b1`) with no underline; hover restores the underline. Makes links readable as links without the visual noise of underlining every URL.
 
 = 3.1.6 - 2026-05-11 =
 * Feature: new server-side `get_cart` tool for the DEF Customer Chat. Pairs with the DEF backend's matching get_cart implementation so the assistant can answer "what's in my cart?" / "what's my cart total?" in the same SSE turn — single user message, real cart contents narrated back — instead of the prior two-turn async flow. Implementation forwards the visitor's WC Store API Cart-Token through the BFF proxy chain (widget → def-core → DEF → Store API) so the cart lookup runs server-side from DEF with the visitor's real session, then renders the answer inline.

@@ -555,7 +555,11 @@
 }
 
 .def-cc-message-content a {
-	color: inherit;
+	color: #2271b1;
+	text-decoration: none;
+}
+
+.def-cc-message-content a:hover {
 	text-decoration: underline;
 }
 

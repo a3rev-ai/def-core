@@ -191,15 +191,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="welcome-message" id="welcomeMessage">
 						<?php
 						$first_name   = $user->first_name ?: $user->display_name;
-						$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
-						$role_label   = $user->has_cap( 'def_management_access' )
-							? __( 'Management Assistant', 'digital-employees' )
-							: __( 'Staff Assistant', 'digital-employees' );
 						$woo_active   = class_exists( 'WooCommerce' ) || function_exists( 'WC' );
 						$is_manager   = $user->has_cap( 'def_management_access' );
+						// Greeting role: Management users get "Management Assistant",
+						// everyone else gets the plain "Assistant". The display_name
+						// (e.g. "Joe") was previously stitched in here but Steve
+						// reframed Staff-AI as a personal assistant; the brand
+						// name belongs to Customer Chat, not the staff console.
+						$role_label   = $is_manager
+							? __( 'Management Assistant', 'digital-employees' )
+							: __( 'Assistant', 'digital-employees' );
 						?>
 						<div id="welcomeFull">
-							<p><strong><?php printf( esc_html__( 'Hi %s! I\'m your %s %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $display_name ), esc_html( $role_label ) ); ?></strong></p>
+							<p><strong><?php printf( esc_html__( 'Hi %s! I am your personal AI %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $role_label ) ); ?></strong></p>
 							<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
 							<ul>
 								<li><?php esc_html_e( 'Answer questions and explain concepts (technical, business, strategy)', 'digital-employees' ); ?></li>
