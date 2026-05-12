@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.1.9 - 2026/05/13 =
+* Polish: Customer Chat welcome greeting is now tenant-generic. The capability list no longer branches on whether WooCommerce is active — Sales and Support are universal Digital Employee roles, so "Look up your order status" / "Help you find the right product" (which assumed a WC storefront) are replaced with role-based bullets that apply to any tenant: "Be your personal Sales consultant", "Be your Support specialist", "Connect you with a human if you need extra help".
+* Polish: greeting punctuation and lead-in. "Hi! I'm Joe your AI Assistant." → "Hi! I'm Joe, your AI Assistant." (comma after the brand name, applies to both logged-in and logged-out variants). "Here's what I can help you with:" → "Here's how I can help you:". Closing CTA "What can I help you with?" → "What can I do for you today?".
+
 = 3.1.8 - 2026/05/12 =
 * Polish: tool-status pills now show meaningful labels for the three V2 orchestrator tools that previously fell through to the generic "Processing..." default. `retrieve` → "Working on it...", `render_product_cards` → "Fetching products...", `spawn_sub_agent` → "Calling our {Sales|Support|Setup} Specialist..." computed per-call from the target employee_id carried on the tool_start SSE event.
 * Polish: specialist handoff banner restyled in Customer Chat. New wording is "You are now talking with our Sales Specialist!" (and the Support / Setup variants) — replaces the previously muted "SALES ASSISTANT IS HELPING" small-caps. The banner is now a pale-blue rounded pill with bolder 13px font that signals the handoff clearly without feeling like a system alert.

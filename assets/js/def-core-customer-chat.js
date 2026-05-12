@@ -431,27 +431,27 @@
 		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
 		var intro = document.createElement('strong');
 		intro.textContent = bizName
-			? hi + ' I\'m ' + bizName + ' your AI Assistant.'
+			? hi + ' I\'m ' + bizName + ', your AI Assistant.'
 			: hi + ' I\'m your AI Assistant.';
 		greetingContent.appendChild(intro);
 		greetingContent.appendChild(document.createElement('br'));
 		greetingContent.appendChild(document.createElement('br'));
 
-		var helpText = document.createTextNode('Here\'s what I can help you with:');
+		var helpText = document.createTextNode('Here\'s how I can help you:');
 		greetingContent.appendChild(helpText);
 
 		var ul = document.createElement('ul');
 		ul.style.margin = '8px 0';
 		ul.style.paddingLeft = '18px';
-		var capabilities = [];
-		if (config.wooActive) {
-			capabilities.push('Answer questions about our products and services');
-			capabilities.push('Help you find the right product');
-			capabilities.push('Look up your order status');
-		} else {
-			capabilities.push('Answer questions about our site and services');
-		}
-		capabilities.push('Connect you with a human if you need extra help');
+		// Role-based capabilities — apply regardless of WooCommerce being
+		// active. Sales and Support are universal employee roles in DEF;
+		// the WC-vs-not branch was telling a non-WC tenant's visitors the
+		// wrong thing and a WC tenant's visitors a too-narrow thing.
+		var capabilities = [
+			'Be your personal Sales consultant',
+			'Be your Support specialist',
+			'Connect you with a human if you need extra help',
+		];
 		for (var i = 0; i < capabilities.length; i++) {
 			var li = document.createElement('li');
 			li.textContent = capabilities[i];
@@ -459,7 +459,7 @@
 		}
 		greetingContent.appendChild(ul);
 
-		var cta = document.createTextNode('What can I help you with?');
+		var cta = document.createTextNode('What can I do for you today?');
 		greetingContent.appendChild(cta);
 
 		greetingEl.appendChild(greetingContent);

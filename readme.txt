@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.8
+Stable tag: 3.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.1.9 - 2026-05-13 =
+* Polish: Customer Chat welcome greeting is now tenant-generic. The capability list no longer branches on WooCommerce being active — Sales and Support are universal Digital Employee roles, so "Look up your order status" / "Help you find the right product" are replaced with role-based bullets that apply to any tenant: "Be your personal Sales consultant", "Be your Support specialist", "Connect you with a human if you need extra help".
+* Polish: greeting punctuation and lead-in. "Hi! I'm Joe your AI Assistant." → "Hi! I'm Joe, your AI Assistant." (comma after the brand name, applies to both logged-in and logged-out variants). "Here's what I can help you with:" → "Here's how I can help you:". Closing CTA "What can I help you with?" → "What can I do for you today?".
 
 = 3.1.8 - 2026-05-12 =
 * Polish: tool-status pills now show meaningful labels for the three V2 orchestrator tools that previously fell through to "Processing...": `retrieve` → "Working on it...", `render_product_cards` → "Fetching products...", `spawn_sub_agent` → "Calling our {Sales|Support|Setup} Specialist..." (dynamic based on which specialist is being called).
