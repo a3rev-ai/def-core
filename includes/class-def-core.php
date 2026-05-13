@@ -823,16 +823,17 @@ final class DEF_Core {
 	public static function get_def_api_url(): string {
 		// Environment-aware: wp-config.php define takes priority,
 		// then stored option, then default production URL.
+		// Either source may carry a Docker-internal hostname (e.g. "def-api"),
+		// so the rewrite below applies uniformly to both.
 		if ( defined( 'DEF_API_URL' ) && DEF_API_URL ) {
-			return rtrim( DEF_API_URL, '/' );
+			$url = rtrim( DEF_API_URL, '/' );
+		} else {
+			$url = get_option( 'def_core_staff_ai_api_url', '' );
+			if ( empty( $url ) ) {
+				return 'https://api.defho.ai';
+			}
+			$url = rtrim( $url, '/' );
 		}
-
-		$url = get_option( 'def_core_staff_ai_api_url', '' );
-		if ( empty( $url ) ) {
-			return 'https://api.defho.ai';
-		}
-
-		$url = rtrim( $url, '/' );
 
 		// If the URL host is not browser-routable (Docker internal name),
 		// replace it with the current site's hostname.

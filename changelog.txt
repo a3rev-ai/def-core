@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.1.10 - 2026/05/13 =
+* Fix: `DEF_Core::get_def_api_url()` now applies the Docker-hostname rewrite to the `DEF_API_URL` constant value, not just to the `def_core_staff_ai_api_url` option. When a local-dev setup pins `DEF_API_URL` to a Docker-internal hostname (e.g. `http://def-api:8000`) the browser used to receive `def-api:8000` and throw `net::ERR_NAME_NOT_RESOLVED` on calls to `/api/customer/employee-tools` and `/api/my/threads`. Now the browser-facing helper rewrites Docker hostnames to the WP site host (e.g. `localhost`) regardless of source, while the server-side `get_def_api_url_internal()` continues to return the raw Docker hostname for PHP cURL. Production with public-domain DEF URLs is unaffected (real domains exit the rewrite early).
+
 = 3.1.9 - 2026/05/13 =
 * Polish: Customer Chat welcome greeting is now tenant-generic. The capability list no longer branches on whether WooCommerce is active — Sales and Support are universal Digital Employee roles, so "Look up your order status" / "Help you find the right product" (which assumed a WC storefront) are replaced with role-based bullets that apply to any tenant: "Be your personal Sales consultant", "Be your Support specialist", "Connect you with a human if you need extra help".
 * Polish: greeting punctuation and lead-in. "Hi! I'm Joe your AI Assistant." → "Hi! I'm Joe, your AI Assistant." (comma after the brand name, applies to both logged-in and logged-out variants). "Here's what I can help you with:" → "Here's how I can help you:". Closing CTA "What can I help you with?" → "What can I do for you today?".
