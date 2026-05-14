@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.10
+Stable tag: 3.1.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,8 @@ Chat messages, user display name, and session context — only when a user activ
 
 == Changelog ==
 
-= 3.1.10 - 2026-05-13 =
+= 3.1.11 - 2026-05-13 =
+* (note: 3.1.10 skipped — PHP version_compare bug treats "10" as "1")
 * Fix: `DEF_Core::get_def_api_url()` now applies the Docker-hostname rewrite to the `DEF_API_URL` constant value, not just to the `def_core_staff_ai_api_url` option. When a local-dev setup pins `DEF_API_URL` to a Docker-internal hostname (e.g. `http://def-api:8000`) the browser used to receive `def-api:8000` and throw `net::ERR_NAME_NOT_RESOLVED` on calls to `/api/customer/employee-tools` and `/api/my/threads`. Now the browser-facing helper rewrites Docker hostnames to the WP site host (e.g. `localhost`) regardless of source, while the server-side `get_def_api_url_internal()` continues to return the raw Docker hostname for PHP cURL. Production with public-domain DEF URLs is unaffected (real domains exit the rewrite early).
 
 = 3.1.9 - 2026-05-13 =
