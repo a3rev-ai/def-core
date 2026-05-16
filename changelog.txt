@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.2.0 - 2026/05/16 =
+* Feature: Customer Chat handoff-ceremony bubbles removed, completing DEF Orchestrator V3.0 on the def-core side. The "Calling our Sales Specialist..." per-call status pill (introduced in v3.1.8) and the "You are now talking with our X Specialist!" persona banner no longer render. V3.0 collapses each DEF channel to one unified employee — Customer Chat now runs as a single agent ("Joe") that handles every turn end-to-end, so there is no specialist takeover moment to announce. The persona controller itself is preserved (still called from the SSE event path as a no-op) — only the V2 specialist override + banner template + `SPECIALIST_ROLE_NAMES` map + the dynamic `spawn_sub_agent` tool label are removed. Staff AI and Setup Assistant are unaffected; their persona surfaces continue to use def-persona.js defaults.
+* Fix: `DEF_CORE_VERSION` constant in `def-core.php` was stale at '3.1.1' (likely missed in a prior version bump); now matches the plugin-header Version (3.2.0) as required by the auto-updater (see release-engineering memo).
+
 = 3.1.11 - 2026/05/13 =
 * (note: 3.1.10 skipped — PHP version_compare bug treats "10" as "1")
 * Fix: `DEF_Core::get_def_api_url()` now applies the Docker-hostname rewrite to the `DEF_API_URL` constant value, not just to the `def_core_staff_ai_api_url` option. When a local-dev setup pins `DEF_API_URL` to a Docker-internal hostname (e.g. `http://def-api:8000`) the browser used to receive `def-api:8000` and throw `net::ERR_NAME_NOT_RESOLVED` on calls to `/api/customer/employee-tools` and `/api/my/threads`. Now the browser-facing helper rewrites Docker hostnames to the WP site host (e.g. `localhost`) regardless of source, while the server-side `get_def_api_url_internal()` continues to return the raw Docker hostname for PHP cURL. Production with public-domain DEF URLs is unaffected (real domains exit the rewrite early).

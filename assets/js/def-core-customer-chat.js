@@ -110,20 +110,11 @@
 		'escalate_to_human':      'Preparing escalation...',
 		'retrieve':               'Working on it...',
 		'render_product_cards':   'Fetching products...',
-		// spawn_sub_agent label is computed per-call from the target
-		// employee_id (evt.subagent on the tool_start event) so we can
-		// show "Calling our Sales Specialist..." vs "Calling our Support
-		// Specialist..." See renderToolStatusForStream + SPECIALIST_ROLE_NAMES.
-	};
-
-	// Role names used in the dynamic spawn-tool label.
-	// "Calling our {Sales} Specialist..." Different from persona banner
-	// labels ("Sales Assistant") because "our Sales Assistant Specialist"
-	// reads awkwardly.
-	var SPECIALIST_ROLE_NAMES = {
-		'sales_assistant':   'Sales',
-		'support_assistant': 'Support',
-		'setup_assistant':   'Setup',
+		// V3.0 (Spec V1.2 §6): spawn_sub_agent is no longer surfaced to
+		// Customer Chat — joe.yaml does not declare it as a tool, so this
+		// label entry is unreachable from the customer channel. Removed
+		// the dynamic "Calling our X Specialist..." per-call label and
+		// the SPECIALIST_ROLE_NAMES map that fed it.
 	};
 
 	var TOOL_DONE_LABELS = {
@@ -1277,27 +1268,16 @@
 
 	/**
 	 * Render a tool status line with spinner during streaming.
+	 *
+	 * V3.0 (Spec V1.2 §6): the spawn_sub_agent special-case ("Calling our
+	 * X Specialist...") is removed — joe.yaml does not surface
+	 * spawn_sub_agent on the customer channel, so this code path was
+	 * unreachable. The `subagentId` parameter is retained for back-compat
+	 * with callers; it is no longer read.
 	 */
 	function renderToolStatusForStream(toolName, subagentId) {
-		var label;
-		if (toolName === 'spawn_sub_agent') {
-			// Dynamic per-call label: "Calling our Sales Specialist..."
-			// Falls back to a humanised agent_id ("Knowledge Assistant" →
-			// "Calling our Knowledge Assistant Specialist...") if the role
-			// name isn't in our short-name map.
-			var role = (subagentId && SPECIALIST_ROLE_NAMES[subagentId])
-				|| (subagentId
-					? subagentId.replace(/_/g, ' ').replace(/\b\w/g, function (c) {
-						return c.toUpperCase();
-					})
-					: 'Specialist');
-			label = 'Calling our ' + role + ' Specialist...';
-		} else {
-			label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
-		}
+		var label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
 		var div = el('div', 'cc-tool-status');
-		// Tag with toolName for completeToolStatus persistence + dataset
-		// so the spawn pill keeps showing the specialist name on completion.
 		div.dataset.inProgressLabel = label;
 		div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">'
 			+ escapeHtml(label) + '</span>';
@@ -1912,22 +1892,19 @@
 		var displayedLen = 0;
 		var thinkingStatusEl = null;
 
-		// V2 (Spec V1.4 §6): per-turn speaker tracking. Shared logic lives in
-		// def-persona.js so all three channels (Customer Chat, Staff AI,
-		// Setup Assistant) render the divider + thinking-row prefix
-		// consistently. The persona controller owns the currentAgent state.
+		// V3.0 (Spec V1.2 §6): per-turn speaker tracking is now a no-op for
+		// Customer Chat. Joe handles every turn end-to-end; the orchestrator
+		// emits no `agent` tag changes mid-stream, so persona.handleEvent
+		// never triggers a divider render. The controller is retained
+		// because handleEvent / formatThinkingLabel / reset are still called
+		// on the SSE event path — they short-circuit cleanly with no agent
+		// tag. The V2 specialistLabels override and the "You are now
+		// talking with our {name} Specialist!" banner template are removed:
+		// they would only fire on a specialist takeover, which V3.0 cannot
+		// produce.
 		var persona = window.DefPersona.createController({
 			dividerCssClass:        'def-cc-speaker-divider',
 			thinkingLabelSelector:  '.cc-tool-label',
-			// Override the role-only labels so the banner reads "our Sales
-			// Specialist" not "our Sales Assistant Specialist". The
-			// SPECIALIST_ROLE_NAMES map up top has the same mapping.
-			specialistLabels: {
-				'sales_assistant':   'Sales',
-				'support_assistant': 'Support',
-				'setup_assistant':   'Setup',
-			},
-			bannerTemplate: 'You are now talking with our {name} Specialist!',
 			appendDivider: function (div) {
 				els.messages.appendChild(div);
 				scrollToBottom();

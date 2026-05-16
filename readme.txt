@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.1.11
+Stable tag: 3.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.2.0 - 2026-05-16 =
+* Feature: Customer Chat handoff-ceremony bubbles removed, completing DEF Orchestrator V3.0 on the def-core side. The "Calling our Sales Specialist..." per-call status pill (v3.1.8) and the "You are now talking with our X Specialist!" persona banner no longer render. V3.0 collapses each channel to one unified employee — Joe handles every Customer Chat turn end-to-end, so there is no specialist takeover moment to announce. The persona controller is preserved (still a no-op on the SSE path); only the V2 specialist override + banner template + role-name map + dynamic spawn label are removed. Staff AI and Setup Assistant are unaffected.
+* Fix: `DEF_CORE_VERSION` constant in `def-core.php` was stale at '3.1.1'; now matches the plugin-header Version (3.2.0).
 
 = 3.1.11 - 2026-05-13 =
 * (note: 3.1.10 skipped — PHP version_compare bug treats "10" as "1")
