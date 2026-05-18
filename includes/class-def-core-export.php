@@ -201,6 +201,11 @@ final class DEF_Core_Export {
 				'date'          => $post->post_date_gmt,
 				'categories'    => wp_get_post_categories( $post->ID, array( 'fields' => 'names' ) ),
 				'tags'          => wp_get_post_tags( $post->ID, array( 'fields' => 'names' ) ),
+				// V1.1 platform-agnostic taxonomy emission (Page Context Build Plan
+				// Sub-PR 0.1.a). DEF-side mapper (Sub-PR 0.1.b) consumes this in
+				// preference to the WP-named `categories`/`tags` fields above; old
+				// fields retained for one release for backward compatibility.
+				'taxonomies'    => self::collect_taxonomy_terms( $post->ID ),
 				'modified'      => $post->post_modified_gmt,
 				'parent_title'  => $parent_title,
 			);
@@ -333,6 +338,11 @@ final class DEF_Core_Export {
 				'description'     => wp_strip_all_tags( $product->get_description() ),
 				'categories'      => wp_get_post_terms( $post->ID, 'product_cat', array( 'fields' => 'names' ) ),
 				'tags'            => wp_get_post_terms( $post->ID, 'product_tag', array( 'fields' => 'names' ) ),
+				// V1.1 platform-agnostic taxonomy emission (Page Context Build Plan
+				// Sub-PR 0.1.a). Carries product_cat + product_tag + any custom
+				// taxonomies (brand plugins, attributes, etc.) as full
+				// {taxonomy, term_id, slug, name} tuples for the DEF-side mapper.
+				'taxonomies'      => self::collect_taxonomy_terms( $post->ID ),
 				'modified'        => $post->post_modified_gmt,
 			);
 
@@ -422,5 +432,48 @@ final class DEF_Core_Export {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Collect taxonomy terms attached to a post in a platform-agnostic shape.
+	 *
+	 * Enumerates ALL taxonomies attached to the post's type (via
+	 * get_object_taxonomies()) and returns full {taxonomy, term_id, slug, name}
+	 * tuples for each term. Used by the DEF-side content mapper to populate the
+	 * platform-agnostic Azure Search taxonomy_terms field (Page Context Build
+	 * Plan V1.1, Sub-PR 0.1.b).
+	 *
+	 * Emits all taxonomies including WC attribute taxonomies (pa_*) — the search
+	 * index benefits from attribute terms (a visitor filtering for "blue
+	 * products" can match pa_color: blue). Joe's prompt-context layer
+	 * (Sub-PR C, def_core_collect_page_terms()) does its own pa_* filtering for
+	 * token-noise reasons; that concern is orthogonal to indexing.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<int, array{taxonomy: string, term_id: int, slug: string, name: string}>
+	 */
+	private static function collect_taxonomy_terms( int $post_id ): array {
+		$post_type = get_post_type( $post_id );
+		if ( ! $post_type ) {
+			return array();
+		}
+		$taxonomies = get_object_taxonomies( $post_type );
+		if ( empty( $taxonomies ) ) {
+			return array();
+		}
+		$terms = wp_get_object_terms( $post_id, $taxonomies );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $terms as $term ) {
+			$out[] = array(
+				'taxonomy' => $term->taxonomy,
+				'term_id'  => (int) $term->term_id,
+				'slug'     => $term->slug,
+				'name'     => $term->name,
+			);
+		}
+		return $out;
 	}
 }
