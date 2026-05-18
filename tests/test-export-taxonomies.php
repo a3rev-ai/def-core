@@ -30,6 +30,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // taxonomies_map: taxonomy_name => list of term objects.
 $GLOBALS['fixture_posts'] = array();
 
+// Per-taxonomy fixture: taxonomy_name => bool public. Tests can flip
+// individual taxonomies to public=false to verify the public-only filter.
+$GLOBALS['fixture_taxonomies_public'] = array();
+
 if ( ! function_exists( 'get_post_type' ) ) {
 	function get_post_type( int $post_id ) {
 		$f = $GLOBALS['fixture_posts'][ $post_id ] ?? null;
@@ -54,8 +58,24 @@ if ( ! function_exists( 'get_object_taxonomies' ) ) {
 	}
 }
 
+if ( ! function_exists( 'get_taxonomy' ) ) {
+	function get_taxonomy( string $tax_name ) {
+		// Default to public=true (matches WP's default for non-internal taxonomies)
+		// unless the test fixture overrides it.
+		$is_public = $GLOBALS['fixture_taxonomies_public'][ $tax_name ] ?? true;
+		return (object) array(
+			'name'   => $tax_name,
+			'public' => $is_public,
+		);
+	}
+}
+
 if ( ! function_exists( 'wp_get_object_terms' ) ) {
 	function wp_get_object_terms( int $post_id, $taxonomies ) {
+		// Sentinel post_id to exercise the is_wp_error() branch.
+		if ( 8800 === $post_id ) {
+			return (object) array( 'errors' => array( 'invalid_taxonomy' => array( 'fixture' ) ) );
+		}
 		$f = $GLOBALS['fixture_posts'][ $post_id ] ?? null;
 		if ( ! $f ) {
 			return array();
@@ -205,7 +225,54 @@ $GLOBALS['fixture_posts'] = array();
 $out = $collect->invoke( null, 9999 );
 assert_test( $out === array(), 'unknown post_id → empty array (no errors)' );
 
-// ── Test 7: term_id coerced to int ─────────────────────────────────────
+// ── Test 7a: Private taxonomy EXCLUDED (post-review hardening) ─────────
+// Pre-merge fix per converged code + security review on PR #177.
+// Admin-internal taxonomies (public=false) must NOT flow to DEF index.
+echo "\nPrivate (public=false) taxonomy excluded:\n";
+$GLOBALS['fixture_posts'] = array(
+	700 => array(
+		'post_type'  => 'product',
+		'taxonomies' => array(
+			'product_cat' => array(
+				array( 'taxonomy' => 'product_cat', 'term_id' => 89, 'slug' => 'shirts', 'name' => 'Shirts' ),
+			),
+			'internal-tag' => array(
+				array( 'taxonomy' => 'internal-tag', 'term_id' => 999, 'slug' => 'do-not-quote', 'name' => 'Do Not Quote' ),
+			),
+		),
+	),
+);
+// Mark internal-tag as private; product_cat defaults to public=true.
+$GLOBALS['fixture_taxonomies_public'] = array(
+	'internal-tag' => false,
+);
+$out = $collect->invoke( null, 700 );
+assert_test( count( $out ) === 1, 'private taxonomy filtered out → only 1 term remains' );
+$tax_names = array_column( $out, 'taxonomy' );
+assert_test( in_array( 'product_cat', $tax_names, true ) && ! in_array( 'internal-tag', $tax_names, true ), 'product_cat kept, internal-tag dropped' );
+// Reset fixture for subsequent tests.
+$GLOBALS['fixture_taxonomies_public'] = array();
+
+// ── Test 7b: wp_get_object_terms returning WP_Error → empty array ──────
+// Closes Code Review #5 gap. The is_wp_error() branch should silently
+// return an empty array, not crash or leak the WP_Error object.
+// post_id 8800 is a sentinel in the wp_get_object_terms stub.
+echo "\nWP_Error from wp_get_object_terms → empty array:\n";
+$GLOBALS['fixture_posts'] = array(
+	8800 => array(
+		'post_type'  => 'product',
+		'taxonomies' => array(
+			'product_cat' => array(
+				// Term content doesn't matter — stub returns WP_Error for post_id 8800.
+				array( 'taxonomy' => 'product_cat', 'term_id' => 1, 'slug' => 'x', 'name' => 'X' ),
+			),
+		),
+	),
+);
+$out = $collect->invoke( null, 8800 );
+assert_test( $out === array(), 'WP_Error response → empty array (no crash, no leak)' );
+
+// ── Test 8: term_id coerced to int ─────────────────────────────────────
 echo "\nterm_id type coercion:\n";
 $GLOBALS['fixture_posts'] = array(
 	600 => array(

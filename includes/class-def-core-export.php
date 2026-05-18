@@ -457,7 +457,21 @@ final class DEF_Core_Export {
 		if ( ! $post_type ) {
 			return array();
 		}
-		$taxonomies = get_object_taxonomies( $post_type );
+		// Public taxonomies only. Filtering by public=true at the registry level
+		// drops admin-internal taxonomies (e.g. `nav_menu`, `link_category`,
+		// `wp_pattern_category`, and any tenant-registered private categorisation
+		// such as `internal-tag`, `do-not-quote`, etc.). These would otherwise
+		// flow into DEF's search index where Joe could surface them in
+		// customer-facing conversation — addressed pre-merge per converged code
+		// + security review on PR #177.
+		$all_taxonomies = get_object_taxonomies( $post_type );
+		$taxonomies     = array_filter(
+			$all_taxonomies,
+			static function ( $tax_name ) {
+				$tax = get_taxonomy( $tax_name );
+				return $tax && ! empty( $tax->public );
+			}
+		);
 		if ( empty( $taxonomies ) ) {
 			return array();
 		}
