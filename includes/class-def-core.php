@@ -145,6 +145,10 @@ final class DEF_Core {
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
+		// Page Context Build Plan V1.1 Sub-PR C: server-side page-context
+		// detection helpers; consumed by wp_localize_script (frontend) to
+		// produce window.DefCorePageContext.
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-page-context.php';
 
 		// Per-item exclusion from knowledge ingestion (v3.1.0).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-exclusion.php';
@@ -329,13 +333,29 @@ final class DEF_Core {
 			array( 'in_footer' => true )
 		);
 
+		// Page Context Build Plan V1.1 Sub-PR C: client-side capture +
+		// sessionStorage trail accumulation + chat-payload builder.
+		// Loaded on the frontend BEFORE the customer-chat module so
+		// window.DefCorePageContextHelper is available when the chat
+		// builds its message body.
+		wp_register_script(
+			'def-core-page-context',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-page-context.js',
+			array(),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
 		// Native Customer Chat loader (enqueued on frontend).
 		// Depends on def-core-persona so window.DefPersona is available
-		// before the lazy-loaded chat module fetches.
+		// before the lazy-loaded chat module fetches. Also depends on
+		// def-core-page-context so window.DefCorePageContextHelper is
+		// loaded + window.DefCorePageContext is populated before any
+		// chat message is sent.
 		wp_register_script(
 			'def-core-customer-chat-loader',
 			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat-loader.js',
-			array( 'def-core-persona' ),
+			array( 'def-core-persona', 'def-core-page-context' ),
 			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);
@@ -504,6 +524,22 @@ final class DEF_Core {
 
 		// Enqueue native loader (replaces old bridge script).
 		wp_localize_script( 'def-core-customer-chat-loader', 'DEFCore', $rest_data );
+
+		// Page Context Build Plan V1.1 Sub-PR C: PHP-localize the page-
+		// context payload as `window.DefCorePageContext`. JS overrides
+		// `canonical_path` from `window.location.pathname` at mount time
+		// and adds `referrer_path` at submit time, but every other field
+		// is PHP-derived (page type, IDs, queried taxonomy, terms, title,
+		// language). Localized on the page-context script itself so it's
+		// available before the customer-chat module loads.
+		if ( class_exists( 'DEF_Core_Page_Context' ) ) {
+			wp_localize_script(
+				'def-core-page-context',
+				'DefCorePageContext',
+				DEF_Core_Page_Context::build_payload()
+			);
+		}
+
 		wp_enqueue_script( 'def-core-customer-chat-loader' );
 
 		// Trigger-button styles for shortcode/hook-placed buttons. The CSS
