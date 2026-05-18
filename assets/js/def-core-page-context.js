@@ -58,6 +58,30 @@
 		}
 	}
 
+	// ─── Type coercion ───────────────────────────────────────────────
+
+	/**
+	 * Coerce a value to an integer. Accepts both real numbers AND
+	 * string-numerics (e.g. "1234"). Defense-in-depth against
+	 * serialization paths that string-encode integer IDs — v3.4.0
+	 * shipped with a wp_localize_script-induced regression where
+	 * top-level int fields arrived as strings; this helper makes the
+	 * JS layer tolerant of either shape in case any future caller
+	 * sends data differently.
+	 *
+	 * Returns the coerced integer, or the fallback if the value
+	 * isn't a finite number or a clean integer-string.
+	 */
+	function coerceInt(value, fallback) {
+		if (typeof value === 'number' && isFinite(value)) {
+			return value;
+		}
+		if (typeof value === 'string' && /^-?\d+$/.test(value)) {
+			return parseInt(value, 10);
+		}
+		return fallback;
+	}
+
 	// ─── Path helpers ────────────────────────────────────────────────
 
 	function normalisePath(path) {
@@ -102,8 +126,8 @@
 		return {
 			path: normalisePath(window.location.pathname || '/'),
 			page_type: ctx.page_type || 'other',
-			page_id: typeof ctx.page_id === 'number' ? ctx.page_id : 0,
-			product_id: typeof ctx.product_id === 'number' ? ctx.product_id : null,
+			page_id: coerceInt(ctx.page_id, 0),
+			product_id: coerceInt(ctx.product_id, null),
 			queried_taxonomy: ctx.queried_taxonomy || null,
 			language_code: ctx.language_code || 'en',
 			first_seen_ts: nowIso,
@@ -189,8 +213,8 @@
 			canonical_path: submitPath,
 			language_code: ctx.language_code || 'en',
 			page_type: ctx.page_type || 'other',
-			page_id: typeof ctx.page_id === 'number' ? ctx.page_id : 0,
-			product_id: typeof ctx.product_id === 'number' ? ctx.product_id : null,
+			page_id: coerceInt(ctx.page_id, 0),
+			product_id: coerceInt(ctx.product_id, null),
 			queried_taxonomy: ctx.queried_taxonomy || null,
 			terms: Array.isArray(ctx.terms) ? ctx.terms : [],
 			title: typeof ctx.title === 'string' ? ctx.title : '',
