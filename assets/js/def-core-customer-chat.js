@@ -1807,6 +1807,22 @@
 					continue_thread: isContinuing,
 				};
 
+				// Page Context Build Plan V1.1 Sub-PR C: splice the
+				// page_context payload (current page + first-message
+				// pre_chat_trail) into the request body. The helper is
+				// loaded BEFORE this module via the def-core-page-context
+				// dependency on the customer-chat loader. Defensive
+				// presence check covers the rare case where the helper
+				// failed to load (silent degrade — chat still works,
+				// just without page context).
+				if (window.DefCorePageContextHelper && typeof window.DefCorePageContextHelper.build === 'function') {
+					try {
+						body.page_context = window.DefCorePageContextHelper.build(threadId || null);
+					} catch (e) {
+						// Silent degrade — chat turn still proceeds.
+					}
+				}
+
 				// Phase 10.1: Add suggestion feedback signal
 				var suggResult = classifySuggestionOutcome(text, lastSuggestion);
 				if (suggResult.outcome) {
@@ -2054,6 +2070,32 @@
 					thinkingStatusEl = null;
 					persona.reset();  // V2: next turn starts with Concierge-as-default
 					dirtyInput = false;
+
+					// Page Context Build Plan V1.1 Sub-PR C: mark this
+					// thread's pre_chat_trail as shipped so the next
+					// message on the same thread doesn't re-ship it.
+					//
+					// Pre-merge fix (code review #4): DO NOT mark
+					// `__pending__` as shipped. The sentinel is only
+					// used as the build() key for the FIRST message of
+					// a brand-new thread (before the server assigns a
+					// thread_id). If we persisted '__pending__' here,
+					// the NEXT brand-new thread in the same tab would
+					// silently skip its trail because hasShipped
+					// returns true. Keep '__pending__' ephemeral —
+					// only persist real thread IDs.
+					if (window.DefCorePageContextHelper
+						&& typeof window.DefCorePageContextHelper.markShipped === 'function') {
+						try {
+							if (evt.thread_id) {
+								window.DefCorePageContextHelper.markShipped(evt.thread_id);
+							}
+						} catch (e) {
+							// Silent — pre_chat_trail may re-send on next
+							// turn; server-side history-empty guard
+							// silently discards duplicates.
+						}
+					}
 
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
