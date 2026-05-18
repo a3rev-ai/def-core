@@ -1,6 +1,6 @@
 *** Digital Employee Framework - Core Changelog ***
 
-= 3.2.1 - 2026/05/18 =
+= 3.3.0 - 2026/05/18 =
 * Feature: Content + product export endpoints (`/wp-json/def-core/v1/content/export`, `/wp-json/def-core/v1/products/export`) now emit a new `taxonomies` field on every item — an array of `{taxonomy, term_id, slug, name}` tuples enumerating ALL taxonomies attached to the post (built-in `category`/`post_tag`, WC `product_cat`/`product_tag`, plus any custom taxonomies registered for the post type). Existing `categories` and `tags` fields (slug-name arrays) are retained for one release for backward compatibility. This is the def-core half of DEF Page Context Build Plan V1.1 Sub-PR 0.1 — the DEF-side mapper (Sub-PR 0.1.b) will switch to consuming the platform-agnostic `taxonomies` field as canonical, enabling the Azure Search index to support arbitrary taxonomies (built-in WP, WC, custom) and future non-WP platforms (Shopify collections/tags, etc.) via one schema. No behavioural change in this release on its own; DEF-side cutover follows.
 
 = 3.2.0 - 2026/05/16 =
