@@ -525,18 +525,28 @@ final class DEF_Core {
 		// Enqueue native loader (replaces old bridge script).
 		wp_localize_script( 'def-core-customer-chat-loader', 'DEFCore', $rest_data );
 
-		// Page Context Build Plan V1.1 Sub-PR C: PHP-localize the page-
-		// context payload as `window.DefCorePageContext`. JS overrides
+		// Page Context Build Plan V1.1 Sub-PR C: inject the page-context
+		// payload as `window.DefCorePageContext`. JS overrides
 		// `canonical_path` from `window.location.pathname` at mount time
 		// and adds `referrer_path` at submit time, but every other field
 		// is PHP-derived (page type, IDs, queried taxonomy, terms, title,
-		// language). Localized on the page-context script itself so it's
-		// available before the customer-chat module loads.
+		// language).
+		//
+		// v3.4.1 fix: use wp_add_inline_script with wp_json_encode rather
+		// than wp_localize_script. WP's localize routine casts every TOP-
+		// level scalar value to a string before output (see
+		// WP_Scripts::localize), which mangles integer fields like page_id
+		// and product_id. The inline-script + json_encode path preserves
+		// types end-to-end — integers stay integers, nulls stay nulls.
+		// The page-context script (loaded BEFORE the customer-chat module
+		// via its dependency entry) reads window.DefCorePageContext on
+		// mount; nothing else needs to change.
 		if ( class_exists( 'DEF_Core_Page_Context' ) ) {
-			wp_localize_script(
+			$payload = DEF_Core_Page_Context::build_payload();
+			wp_add_inline_script(
 				'def-core-page-context',
-				'DefCorePageContext',
-				DEF_Core_Page_Context::build_payload()
+				'window.DefCorePageContext = ' . wp_json_encode( $payload ) . ';',
+				'before'
 			);
 		}
 
