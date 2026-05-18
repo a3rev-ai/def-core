@@ -472,6 +472,26 @@ assert_test( $payload['language_code'] === 'en', 'payload.language_code defaults
 assert_test( $payload['title'] === 'Predictive Search Pro', 'payload.title populated' );
 assert_test( count( $payload['terms'] ) === 1, 'payload.terms populated from collect_page_terms' );
 assert_test( ! array_key_exists( 'canonical_path', $payload ), 'canonical_path NOT in PHP payload (JS overrides at submit time)' );
+// Pre-merge fixup (code review #1): symmetry test — referrer_path
+// is also intentionally absent from the PHP payload; JS adds it at
+// submit time via document.referrer.
+assert_test( ! array_key_exists( 'referrer_path', $payload ), 'referrer_path NOT in PHP payload (JS adds at submit time)' );
+
+// Pre-merge fixup (code review #2): non-product page → product_id is
+// explicitly null in the payload. Confirms the null vs missing-key
+// behaviour Pydantic on Sub-PR B expects.
+_fx_reset();
+_fx_set( array(
+	'is_singular'       => true,
+	'is_singular_post'  => true,
+	'queried_object_id' => 42,
+	'post_type'         => 'post',
+	'object_taxonomies' => array(),
+	'object_terms'      => array(),
+) );
+$payload_post = DEF_Core_Page_Context::build_payload();
+assert_test( $payload_post['product_id'] === null, 'payload.product_id is null on non-product page' );
+assert_test( $payload_post['page_type'] === 'post', 'payload.page_type=post for a single post' );
 
 // ─── Summary ─────────────────────────────────────────────────────────
 echo "\n=== Summary ===\n";

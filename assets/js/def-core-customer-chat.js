@@ -2074,12 +2074,19 @@
 					// Page Context Build Plan V1.1 Sub-PR C: mark this
 					// thread's pre_chat_trail as shipped so the next
 					// message on the same thread doesn't re-ship it.
-					// Also clears the `__pending__` sentinel that the
-					// first message used before thread_id was assigned.
+					//
+					// Pre-merge fix (code review #4): DO NOT mark
+					// `__pending__` as shipped. The sentinel is only
+					// used as the build() key for the FIRST message of
+					// a brand-new thread (before the server assigns a
+					// thread_id). If we persisted '__pending__' here,
+					// the NEXT brand-new thread in the same tab would
+					// silently skip its trail because hasShipped
+					// returns true. Keep '__pending__' ephemeral —
+					// only persist real thread IDs.
 					if (window.DefCorePageContextHelper
 						&& typeof window.DefCorePageContextHelper.markShipped === 'function') {
 						try {
-							window.DefCorePageContextHelper.markShipped('__pending__');
 							if (evt.thread_id) {
 								window.DefCorePageContextHelper.markShipped(evt.thread_id);
 							}
