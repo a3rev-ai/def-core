@@ -452,7 +452,7 @@ final class DEF_Core_Export {
 	 * @param int $post_id Post ID.
 	 * @return array<int, array{taxonomy: string, term_id: int, slug: string, name: string}>
 	 */
-	private static function collect_taxonomy_terms( int $post_id ): array {
+	public static function collect_taxonomy_terms( int $post_id ): array {
 		$post_type = get_post_type( $post_id );
 		if ( ! $post_type ) {
 			return array();
