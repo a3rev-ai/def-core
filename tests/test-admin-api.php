@@ -355,7 +355,10 @@ if ( ! defined( 'WP_DEBUG' ) ) {
 	define( 'WP_DEBUG', true );
 }
 
-// Load the class under test.
+// Load the class under test. Admin-API auth delegates to the shared HMAC
+// verifier (\A3Rev\DefCore\DEF_Core_HMAC_Auth, unified in v1.6.2), so it must
+// be loaded too or permission_check() fatals on a missing class.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
 // ── Test helpers ────────────────────────────────────────────────────────

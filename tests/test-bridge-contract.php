@@ -180,6 +180,17 @@ if ( ! function_exists( 'hash_equals' ) ) {
 	// Built-in PHP function.
 }
 
+// Staff AI resolves the backend URL via \DEF_Core::get_def_api_url_internal();
+// stub it so backend_request() reaches the (stubbed) wp_remote_* layer instead
+// of fataling on a missing DEF_Core class.
+if ( ! class_exists( 'DEF_Core' ) ) {
+	class DEF_Core {
+		public static function get_def_api_url_internal(): ?string {
+			return $GLOBALS['_def_test_api_url'] ?? 'https://def-api.test';
+		}
+	}
+}
+
 // Load classes.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-ai.php';
