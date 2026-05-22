@@ -115,12 +115,15 @@ assert_test( 0.0 === $to_float->invoke( null, '0' ), 'zero kept (not dropped)' )
 
 echo "\nfocus_keywords():\n";
 $GLOBALS['fixture_post_meta'][101] = array(
-	'_yoast_wpseo_focuskw' => 'fuel filter',
-	'_aioseop_keywords'    => 'kubota, fuel filter, L26Y',
+	'_yoast_wpseo_focuskw'       => 'fuel filter',
+	'_aioseop_keywords'          => 'kubota, fuel filter, L26Y',
+	'_predictive_search_focuskw' => 'oil filter, kubota',
 );
 $kw = $focus->invoke( null, 101 );
 assert_test( in_array( 'fuel filter', $kw, true ), 'Yoast focuskw extracted' );
 assert_test( in_array( 'kubota', $kw, true ) && in_array( 'L26Y', $kw, true ), 'AIOSEO split + extracted' );
+assert_test( in_array( 'oil filter', $kw, true ), 'Predictive Search focuskw extracted' );
+assert_test( 1 === count( array_keys( $kw, 'kubota', true ) ), 'kubota deduped across AIOSEO + Predictive Search' );
 assert_test( 1 === count( array_keys( $kw, 'fuel filter', true ) ), 'duplicate keyword deduped' );
 assert_test( array() === $focus->invoke( null, 999 ), 'no SEO meta -> empty' );
 

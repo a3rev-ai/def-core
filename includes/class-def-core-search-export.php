@@ -235,24 +235,36 @@ final class DEF_Core_Search_Export {
 	// ── Helpers ──────────────────────────────────────────────────────────
 
 	/**
-	 * Focus keywords from common SEO plugins (Yoast + legacy AIOSEO postmeta).
-	 * AIOSEO v4 stores keywords in its own table — a future enhancement.
+	 * Focus keywords from common SEO plugins + our Predictive Search.
+	 * - Yoast: `_yoast_wpseo_focuskw` (a single focus-keyword phrase).
+	 * - AIOSEO (legacy) + Predictive Search: comma-separated keyword lists.
+	 *   Predictive Search stores `_predictive_search_focuskw` in its own tables
+	 *   via a get_post_metadata filter, so get_post_meta() resolves it when the
+	 *   PS plugin is active (and returns '' when it isn't — harmless).
+	 * (AIOSEO v4 stores keywords in its own table — a future enhancement.)
 	 */
 	private static function focus_keywords( int $post_id ): array {
 		$keywords = array();
-		$yoast    = get_post_meta( $post_id, '_yoast_wpseo_focuskw', true );
+
+		// Yoast: a single focus-keyword phrase.
+		$yoast = get_post_meta( $post_id, '_yoast_wpseo_focuskw', true );
 		if ( is_string( $yoast ) && '' !== $yoast ) {
 			$keywords[] = $yoast;
 		}
-		$aioseo = get_post_meta( $post_id, '_aioseop_keywords', true );
-		if ( is_string( $aioseo ) && '' !== $aioseo ) {
-			foreach ( explode( ',', $aioseo ) as $kw ) {
-				$kw = trim( $kw );
-				if ( '' !== $kw ) {
-					$keywords[] = $kw;
+
+		// AIOSEO (legacy) + Predictive Search: comma-separated keyword lists.
+		foreach ( array( '_aioseop_keywords', '_predictive_search_focuskw' ) as $meta_key ) {
+			$value = get_post_meta( $post_id, $meta_key, true );
+			if ( is_string( $value ) && '' !== $value ) {
+				foreach ( explode( ',', $value ) as $kw ) {
+					$kw = trim( $kw );
+					if ( '' !== $kw ) {
+						$keywords[] = $kw;
+					}
 				}
 			}
 		}
+
 		return array_values( array_unique( $keywords ) );
 	}
 
