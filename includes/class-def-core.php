@@ -63,6 +63,7 @@ final class DEF_Core {
 		DEF_Core_Connection_Config::init();
 		DEF_Core_OAuth::init();
 		DEF_Core_Export::init();
+		DEF_Core_Search_Export::init();
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Knowledge_Exclusion::init();
 		DEF_Core_Admin_API::init();
@@ -144,6 +145,7 @@ final class DEF_Core {
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-search-export.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-export.php';
 		// Page Context Build Plan V1.1 Sub-PR C: server-side page-context
 		// detection helpers; consumed by wp_localize_script (frontend) to
