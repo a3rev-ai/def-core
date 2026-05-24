@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.5.0
+Stable tag: 3.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.5.1 - 2026-05-25 =
+* UI: Customer Chat shows "Searching..." while the `search` tool runs, instead of the generic "Processing..." — an accurate status label alongside the existing per-tool ones (e.g. "Fetching products..."). One-line addition to the Customer Chat tool-status map; no behavioural change.
 
 = 3.5.0 - 2026-05-22 =
 * Feature: Search-index export endpoint (`GET /wp-json/def-core/v1/search/export`) for the DEF Search Tool. Serves a metadata-shaped feed — products, posts, pages, CPTs, and taxonomy terms (categories/tags/brands as their own result objects) — that DEF indexes into the deterministic catalogue/site `search` index, separate from the content-heavy knowledge/chunk export. Emits `object_type`, taxonomy names + terms, focus keywords, and (for products) SKU, rolled-up variation SKUs, price/sale/stock, and attributes. Honours `_def_exclude_from_ingestion` at the source and reuses the existing pull + `before_delete_post` delete-tracking path. New class `DEF_Core_Search_Export`; `DEF_Core_Export::collect_taxonomy_terms()` made public for reuse.

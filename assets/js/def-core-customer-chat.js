@@ -109,6 +109,7 @@
 		'extract_upload_content': 'Analyzing file...',
 		'escalate_to_human':      'Preparing escalation...',
 		'retrieve':               'Working on it...',
+		'search':                 'Searching...',
 		'render_product_cards':   'Fetching products...',
 		// V3.0 (Spec V1.2 §6): spawn_sub_agent is no longer surfaced to
 		// Customer Chat — joe.yaml does not declare it as a tool, so this
