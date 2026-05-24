@@ -145,6 +145,13 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function get_route(): string {
 			return $this->route;
 		}
+
+		// HMAC verification signs sorted query params (v1.6.3); these tests sign
+		// the bare route with no query string, so an empty set keeps the stub's
+		// canonical form ($signed_route === $path) consistent with what they sign.
+		public function get_query_params(): array {
+			return array();
+		}
 	}
 }
 
@@ -281,6 +288,13 @@ if ( ! function_exists( 'wp_verify_nonce' ) ) {
 	}
 }
 
+// rest_update_user_role() embeds an avatar URL in its UI-action payload.
+if ( ! function_exists( 'get_avatar_url' ) ) {
+	function get_avatar_url( $id_or_email, array $args = array() ): string {
+		return 'https://avatar.test/' . rawurlencode( (string) $id_or_email );
+	}
+}
+
 // User meta stubs.
 if ( ! function_exists( 'get_user_meta' ) ) {
 	function get_user_meta( int $user_id, string $key = '', bool $single = false ) {
@@ -355,7 +369,30 @@ if ( ! defined( 'WP_DEBUG' ) ) {
 	define( 'WP_DEBUG', true );
 }
 
-// Load the class under test.
+// rest_test_connection() resolves the backend URL via \DEF_Core::get_def_api_url().
+// Mirror the production resolver faithfully: wp-config define wins, else the
+// stored option, else the production default. It never returns empty — that is
+// deliberate, and it is what makes the empty() guard in rest_test_connection
+// unreachable (see test [32]). (Docker-host rewrite is elided; irrelevant here.)
+if ( ! class_exists( 'DEF_Core' ) ) {
+	class DEF_Core {
+		public static function get_def_api_url(): string {
+			if ( defined( 'DEF_API_URL' ) && DEF_API_URL ) {
+				return rtrim( DEF_API_URL, '/' );
+			}
+			$url = get_option( 'def_core_staff_ai_api_url', '' );
+			if ( empty( $url ) ) {
+				return 'https://api.defho.ai';
+			}
+			return rtrim( $url, '/' );
+		}
+	}
+}
+
+// Load the class under test. Admin-API auth delegates to the shared HMAC
+// verifier (\A3Rev\DefCore\DEF_Core_HMAC_Auth, unified in v1.6.2), so it must
+// be loaded too or permission_check() fatals on a missing class.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
 // ── Test helpers ────────────────────────────────────────────────────────
@@ -1150,20 +1187,29 @@ assert_equals( 'def_core_display_name', $last_entry['setting_key'], 'setting_key
 assert_equals( 1, $last_entry['acting_wp_user_id'], 'acting user ID is correct' );
 assert_true( isset( $last_entry['timestamp'] ), 'timestamp present' );
 
-// ── 37. Audit log: API key redaction ────────────────────────────────────
-echo "\n[37] Audit log: API key redaction\n";
+// ── 37. Connection secret: api_key is readonly (DEFHO-managed) ───────────
+// Previously this asserted that updating def_core_api_key produced a redacted
+// audit entry. The key became readonly (managed by DEFHO, like the URL in
+// test [23]), so the update is now rejected with 403 before any audit write —
+// the redact branch in write_audit_log is unreachable via this endpoint. Test
+// the contract that actually holds: the write is refused and nothing is logged.
+echo "\n[37] def_core_api_key is readonly — update rejected, no audit entry\n";
 reset_test_state();
 setup_admin_user();
 
 $request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_api_key' );
 $request->set_param( 'key', 'def_core_api_key' );
 $request->set_body_params( array( 'value' => 'super_secret_key' ) );
-$sa->rest_update_setting( $request );
+$response = $sa->rest_update_setting( $request );
 
-$log        = get_option( 'def_core_setup_audit_log', array() );
-$last_entry = end( $log );
-assert_equals( '[redacted]', $last_entry['old_value'], 'old_value is redacted' );
-assert_equals( '[redacted]', $last_entry['new_value'], 'new_value is redacted' );
+assert_equals( 403, $response->get_status(), 'readonly api_key rejected with 403' );
+assert_equals( 'READONLY_SETTING', $response->get_data()['error']['code'], 'readonly error code' );
+
+$log            = get_option( 'def_core_setup_audit_log', array() );
+$update_entries = array_filter( (array) $log, static function ( $e ) {
+	return ( $e['action'] ?? '' ) === 'update_setting';
+} );
+assert_equals( 0, count( $update_entries ), 'no update_setting audit entry for a rejected readonly write' );
 
 // ── 38. Audit log: FIFO rotation ────────────────────────────────────────
 echo "\n[38] Audit log: FIFO rotation at 100\n";
@@ -1196,9 +1242,14 @@ $oldest = reset( $log );
 assert_equals( 'test_entry_1', $oldest['action'], 'oldest entry (entry_0) was evicted' );
 
 // ── 39. Setting allowlist coverage ──────────────────────────────────────
+// The allowlist grows per feature (welcome chips, hero images, button styling,
+// compliance text, …), so we no longer pin an exact count — that assertion only
+// rots. Instead assert the core settings are present and the connection secrets
+// stay readonly. NOTE: def_core_escalation_staff_ai is a *structured*
+// (allowed_recipients) option managed via the recipient picker, not a scalar
+// Setup-Assistant setting, so it is intentionally NOT in this allowlist.
 echo "\n[39] Setting allowlist coverage\n";
 $allowlist = DEF_Core_Admin_API::get_setting_allowlist();
-assert_equals( 9, count( $allowlist ), 'exactly 9 settings in allowlist' );
 
 $expected_keys = array(
 	'def_core_staff_ai_api_url',
@@ -1206,7 +1257,6 @@ $expected_keys = array(
 	'def_core_display_name',
 	'def_core_logo_id',
 	'def_core_escalation_customer',
-	'def_core_escalation_staff_ai',
 	'def_core_escalation_setup_assistant',
 	'def_core_chat_display_mode',
 	'def_core_chat_drawer_width',
@@ -1216,6 +1266,11 @@ $expected_keys = array(
 foreach ( $expected_keys as $key ) {
 	assert_true( isset( $allowlist[ $key ] ), "allowlist contains $key" );
 }
+assert_true( count( $allowlist ) >= count( $expected_keys ), 'allowlist covers at least the core settings' );
+
+// Connection secrets are DEFHO-managed and must stay readonly (see test [23]/[37]).
+assert_true( ! empty( $allowlist['def_core_api_key']['readonly'] ), 'def_core_api_key is readonly' );
+assert_true( ! empty( $allowlist['def_core_staff_ai_api_url']['readonly'] ), 'def_core_staff_ai_api_url is readonly' );
 
 // ── 40. Response envelope structure ─────────────────────────────────────
 echo "\n[40] Response envelope structure\n";

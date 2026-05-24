@@ -4,7 +4,7 @@
  *
  * Verifies the outbound bridge client behaviour:
  * - URL construction (base URL + endpoint)
- * - Auth headers (JWT Bearer token)
+ * - Auth headers (BFF proxy: X-DEF-API-Key + identity, no JWT — see v2.0.9 / 0be0102)
  * - Error mapping (401/403 → fail-closed, 429 → backoff, 5xx → service error)
  * - No secrets/tokens in user-visible error messages
  * - Escalation service auth (X-DEF-AUTH constant-time comparison)
@@ -180,6 +180,50 @@ if ( ! function_exists( 'hash_equals' ) ) {
 	// Built-in PHP function.
 }
 
+// Staff AI resolves the backend URL via \DEF_Core::get_def_api_url_internal().
+// Mirror the production server-side resolver: stored option (rtrim'd), else the
+// production default. Reading the option lets these tests drive the base URL via
+// update_option( 'def_core_staff_ai_api_url', … ) and exercises trailing-slash
+// normalisation, instead of fataling on a missing DEF_Core class.
+if ( ! class_exists( 'DEF_Core' ) ) {
+	class DEF_Core {
+		public static function get_def_api_url_internal(): ?string {
+			if ( defined( 'DEF_API_URL' ) && DEF_API_URL ) {
+				return rtrim( DEF_API_URL, '/' );
+			}
+			$url = get_option( 'def_core_staff_ai_api_url', '' );
+			if ( empty( $url ) ) {
+				return 'https://api.defho.ai';
+			}
+			return rtrim( $url, '/' );
+		}
+	}
+}
+
+// backend_request() attaches the acting user's DEF capabilities (X-DEF-User-
+// Capabilities). Mirror DEF_Core_Tools::get_user_def_capabilities() minimally —
+// it just maps the three DEF caps through WP_User::has_cap() (driven here by
+// $_wp_test_user_caps).
+if ( ! class_exists( 'DEF_Core_Tools' ) ) {
+	class DEF_Core_Tools {
+		public static function get_user_def_capabilities( WP_User $user ): array {
+			$caps = array();
+			foreach ( array( 'def_admin_access', 'def_staff_access', 'def_management_access' ) as $cap ) {
+				if ( $user->has_cap( $cap ) ) {
+					$caps[] = $cap;
+				}
+			}
+			return $caps;
+		}
+	}
+}
+
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( string $show = '' ): string {
+		return 'Test Site';
+	}
+}
+
 // Load classes.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-ai.php';
@@ -203,6 +247,11 @@ echo "=== Bridge Contract Tests ===\n";
 // ── Setup ───────────────────────────────────────────────────────────────
 _wp_test_reset_options();
 _wp_test_seed_rsa_keys();
+
+// BFF proxy auth (v2.0.9): backend_request() requires a configured API key, or
+// it short-circuits with staff_ai_not_configured before any HTTP call. Seed one
+// so the request reaches the (stubbed) wp_remote_* layer under test.
+update_option( 'def_core_api_key', 'test-api-key-bridge' );
 
 $user = new WP_User( 42 );
 $user->user_email = 'staff@example.com';
@@ -252,35 +301,31 @@ assert_equals(
 	'trailing slash stripped — no double slash'
 );
 
-// ── 3. Auth header (Bearer JWT) ─────────────────────────────────────────
-echo "\n[3] Auth header present and well-formed\n";
+// ── 3. Auth headers (BFF proxy: API key + identity, no JWT) ──────────────
+// The Staff AI bridge moved off JWT Bearer to BFF proxy auth in v2.0.9
+// (commit 0be0102): backend_request() carries X-DEF-API-Key plus the acting
+// user's ID and DEF capabilities — no Authorization/JWT. The per-field identity
+// header contract (display name, email, roles, Unicode) is covered in detail by
+// test-proxy-identity-headers.php; here we assert the core auth set.
+echo "\n[3] BFF proxy auth headers present (no JWT)\n";
 $call = ! empty( $_wp_test_remote_calls ) ? $_wp_test_remote_calls[0] : null;
 assert_true( $call !== null, 'HTTP call was captured' );
+$headers = $call ? ( $call['args']['headers'] ?? array() ) : array();
 if ( $call ) {
-	$headers = $call['args']['headers'] ?? array();
-	assert_true( isset( $headers['Authorization'] ), 'Authorization header present' );
-	$auth_val = $headers['Authorization'] ?? '';
-	assert_true( strpos( $auth_val, 'Bearer ' ) === 0, 'Authorization starts with Bearer' );
-
-	$token_part = substr( $auth_val, 7 );
-	$token_parts = explode( '.', $token_part );
-	assert_equals( 3, count( $token_parts ), 'token is valid JWT format (3 parts)' );
-
-	// Verify JWT payload contains required claims.
-	$payload_json = base64_decode( strtr( $token_parts[1], '-_', '+/' ) . '==' );
-	$payload = json_decode( $payload_json, true );
-	assert_equals( '42', $payload['sub'], 'JWT sub = user ID' );
-	assert_equals( 'staff@example.com', $payload['email'], 'JWT email present' );
-	assert_equals( 'staff_ai', $payload['channel'], 'JWT channel = staff_ai' );
-	assert_true( in_array( 'def_staff_access', $payload['capabilities'] ?? array() ), 'JWT capabilities include def_staff_access' );
-	assert_true( isset( $payload['iss'] ), 'JWT iss present' );
-	assert_equals( 'digital-employee-framework', $payload['aud'], 'JWT aud correct' );
+	assert_true( ! isset( $headers['Authorization'] ), 'no JWT Bearer Authorization header (BFF proxy auth)' );
+	assert_equals( 'test-api-key-bridge', $headers['X-DEF-API-Key'] ?? null, 'X-DEF-API-Key carries the configured key' );
+	assert_equals( '42', $headers['X-DEF-User'] ?? null, 'X-DEF-User = acting user ID' );
+	assert_true( isset( $headers['X-DEF-User-Capabilities'] ), 'X-DEF-User-Capabilities header present' );
+	assert_true(
+		strpos( $headers['X-DEF-User-Capabilities'] ?? '', 'def_staff_access' ) !== false,
+		'capabilities include def_staff_access'
+	);
 }
 
 // ── 4. Content-Type header ──────────────────────────────────────────────
 echo "\n[4] Content-Type header\n";
-assert_equals( 'application/json', $headers['Content-Type'], 'Content-Type is application/json' );
-assert_equals( 'application/json', $headers['Accept'], 'Accept is application/json' );
+assert_equals( 'application/json', $headers['Content-Type'] ?? null, 'Content-Type is application/json' );
+assert_equals( 'application/json', $headers['Accept'] ?? null, 'Accept is application/json' );
 
 // ── 5. Error mapping: 401/403 → fail-closed ─────────────────────────────
 echo "\n[5] 401/403 → fail-closed error\n";
