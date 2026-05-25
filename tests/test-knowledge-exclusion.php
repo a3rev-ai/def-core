@@ -61,6 +61,36 @@ if ( ! defined( 'DEF_CORE_PLUGIN_URL' ) ) {
 	define( 'DEF_CORE_PLUGIN_URL', 'https://example.test/' );
 }
 
+// Per-item deindex path collaborators: a mock export class that records the
+// exclusion-change tracking, a $wpdb that records post_modified bumps, and
+// clean_post_cache. (record_exclusion_transition() calls these at runtime.)
+global $_wp_test_tracked_exclusions;
+$_wp_test_tracked_exclusions = array();
+
+if ( ! class_exists( 'DEF_Core_Knowledge_Export' ) ) {
+	class DEF_Core_Knowledge_Export {
+		public static function track_exclusion_change( int $post_id, string $post_type, bool $excluded ): void {
+			global $_wp_test_tracked_exclusions;
+			$_wp_test_tracked_exclusions[] = array( $post_id, $post_type, $excluded );
+		}
+	}
+}
+
+class _Def_Test_WPDB {
+	public $posts = 'wp_posts';
+	public $calls = array();
+	public function update( $table, $data, $where, $fmt = null, $wfmt = null ) {
+		$this->calls[] = array( $table, $data, $where );
+		return 1;
+	}
+}
+global $wpdb;
+$wpdb = new _Def_Test_WPDB();
+
+if ( ! function_exists( 'clean_post_cache' ) ) {
+	function clean_post_cache( $id ) {}
+}
+
 require_once __DIR__ . '/../includes/class-def-core-knowledge-exclusion.php';
 
 $pass = 0;
@@ -186,6 +216,60 @@ foreach ( $cases as $c ) {
 		$assert( ! $is_set, "save_post: {$c['name']}" );
 	}
 }
+
+// 7. Per-item deindex on flag change ----------------------------------------
+global $_wp_test_tracked_exclusions, $wpdb;
+$_wp_test_get_post_type = array( 700 => 'product', 701 => 'attachment' );
+
+// Supported type → records the transition AND bumps post_modified (this item).
+$_wp_test_tracked_exclusions = array();
+$wpdb->calls                 = array();
+DEF_Core_Knowledge_Exclusion::record_exclusion_transition( 700, true );
+$assert(
+	count( $_wp_test_tracked_exclusions ) === 1
+		&& $_wp_test_tracked_exclusions[0] === array( 700, 'product', true )
+		&& count( $wpdb->calls ) === 1
+		&& ( $wpdb->calls[0][2]['ID'] ?? null ) === 700,
+	'record_exclusion_transition: tracks excluded + bumps post_modified'
+);
+
+// Unsupported type (attachment) → no tracking, no modified bump.
+$_wp_test_tracked_exclusions = array();
+$wpdb->calls                 = array();
+DEF_Core_Knowledge_Exclusion::record_exclusion_transition( 701, true );
+$assert(
+	count( $_wp_test_tracked_exclusions ) === 0 && count( $wpdb->calls ) === 0,
+	'record_exclusion_transition: skips unsupported post type'
+);
+
+// Meta-write hook ignores unrelated meta keys (fires for ALL post meta).
+$_wp_test_tracked_exclusions = array();
+DEF_Core_Knowledge_Exclusion::on_exclusion_meta_write( 1, 700, '_some_other_meta', '1' );
+$assert( count( $_wp_test_tracked_exclusions ) === 0, 'meta-write hook ignores unrelated keys' );
+
+// Value mapping: '1'/true = excluded; '0'/'' = included (re-included).
+$map = array(
+	array( '1', true ),
+	array( 1, true ),
+	array( true, true ),
+	array( '0', false ),
+	array( '', false ),
+	array( false, false ),
+);
+foreach ( $map as $i => $case ) {
+	$_wp_test_tracked_exclusions = array();
+	DEF_Core_Knowledge_Exclusion::on_exclusion_meta_write( 1, 700, '_def_exclude_from_ingestion', $case[0] );
+	$got = $_wp_test_tracked_exclusions[0][2] ?? null;
+	$assert( $got === $case[1], "meta-write value " . var_export( $case[0], true ) . " → excluded=" . var_export( $case[1], true ) );
+}
+
+// Deleting the flag === back to included.
+$_wp_test_tracked_exclusions = array();
+DEF_Core_Knowledge_Exclusion::on_exclusion_meta_delete( array( 1 ), 700, '_def_exclude_from_ingestion', '1' );
+$assert(
+	( $_wp_test_tracked_exclusions[0][2] ?? null ) === false,
+	'meta-delete → excluded=false (re-included)'
+);
 
 echo "\n=== Results: {$pass} passed, {$fail} failed ===\n";
 exit( $fail > 0 ? 1 : 0 );

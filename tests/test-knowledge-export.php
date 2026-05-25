@@ -44,6 +44,29 @@ if ( ! function_exists( 'get_post_types' ) ) {
 	}
 }
 
+// Minimal REST/Query stubs so content_deleted() can run without a WP bootstrap.
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+	class WP_REST_Request {
+		private $params;
+		public function __construct( array $params = array() ) { $this->params = $params; }
+		public function get_param( string $key ) { return $this->params[ $key ] ?? null; }
+	}
+}
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data;
+		public $status;
+		public function __construct( $data = null, int $status = 200 ) { $this->data = $data; $this->status = $status; }
+		public function get_data() { return $this->data; }
+	}
+}
+if ( ! class_exists( 'WP_Query' ) ) {
+	class WP_Query {
+		public $posts = array();
+		public function __construct( array $args = array() ) { $this->posts = array(); }
+	}
+}
+
 // Load the class under test.
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/../' );
@@ -223,6 +246,64 @@ assert_test(
 assert_test(
 	! in_array( 'custom_css', $types, true ),
 	'Excludes custom_css type'
+);
+
+echo "\n";
+
+// ── Test: Exclusion-change tracking + /content/deleted excluded_ids ─────
+echo "Exclusion Deindex Feed Tests:\n";
+
+// track_exclusion_change appends and prunes entries older than 90 days.
+_wp_test_reset_options();
+DEF_Core_Knowledge_Export::track_exclusion_change( 500, 'product', true );
+DEF_Core_Knowledge_Export::track_exclusion_change( 500, 'product', false );
+$tracked = get_option( 'def_core_exclusion_changes', array() );
+assert_test(
+	count( $tracked ) === 2 && $tracked[0]['excluded'] === true && $tracked[1]['excluded'] === false,
+	'track_exclusion_change records both directions in order'
+);
+
+// An entry older than 90 days is pruned on the next write.
+update_option( 'def_core_exclusion_changes', array(
+	array( 'id' => 999, 'type' => 'post', 'excluded' => true, 'time' => gmdate( 'c', strtotime( '-200 days' ) ) ),
+) );
+DEF_Core_Knowledge_Export::track_exclusion_change( 501, 'page', true );
+$tracked = get_option( 'def_core_exclusion_changes', array() );
+$ids     = array_map( static fn( $e ) => $e['id'], $tracked );
+assert_test(
+	! in_array( 999, $ids, true ) && in_array( 501, $ids, true ),
+	'track_exclusion_change prunes entries older than 90 days'
+);
+
+// content_deleted reports NET-latest excluded items only (re-included drop out,
+// pre-`since` entries excluded).
+_wp_test_reset_options();
+update_option( 'def_core_exclusion_changes', array(
+	array( 'id' => 200, 'type' => 'product', 'excluded' => true,  'time' => '2026-05-01T00:00:00+00:00' ),
+	array( 'id' => 100, 'type' => 'post',    'excluded' => true,  'time' => '2026-05-01T00:00:00+00:00' ),
+	array( 'id' => 100, 'type' => 'post',    'excluded' => false, 'time' => '2026-05-02T00:00:00+00:00' ), // re-included → out
+	array( 'id' => 300, 'type' => 'page',    'excluded' => false, 'time' => '2026-05-01T00:00:00+00:00' ),
+	array( 'id' => 300, 'type' => 'page',    'excluded' => true,  'time' => '2026-05-03T00:00:00+00:00' ), // latest excluded → in
+	array( 'id' => 400, 'type' => 'product', 'excluded' => true,  'time' => '2025-01-01T00:00:00+00:00' ), // before since → out
+) );
+$resp     = DEF_Core_Knowledge_Export::content_deleted( new WP_REST_Request( array( 'since' => '2026-01-01T00:00:00+00:00' ) ) );
+$data     = $resp->get_data();
+$excluded = $data['excluded_ids'] ?? array();
+$ex_ids   = array_map( static fn( $e ) => $e['id'], $excluded );
+sort( $ex_ids );
+assert_test(
+	array_key_exists( 'excluded_ids', $data ),
+	'content_deleted response includes excluded_ids'
+);
+assert_test(
+	$ex_ids === array( 200, 300 ),
+	'excluded_ids = net-latest excluded only (re-included + pre-since dropped)'
+);
+$type_for_300 = '';
+foreach ( $excluded as $e ) { if ( $e['id'] === 300 ) { $type_for_300 = $e['type']; } }
+assert_test(
+	$type_for_300 === 'page',
+	'excluded_ids carries the post type (search index object_type)'
 );
 
 echo "\n";
