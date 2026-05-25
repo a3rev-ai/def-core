@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.6.0 - 2026/05/25 =
+* Feature: Chat-driven sale attribution. Stamps the originating Customer Chat thread id onto WooCommerce orders (`_def_chat_id` order meta) so chat-influenced sales can be attributed back to the conversation later (DEF Chat-Triage Phase 2). A product-card click carries the id via a `?def_chat=` query param (read once on page load, then removed via a redirect); an in-chat add-to-cart sends it via an `X-DEF-Chat-ID` request header. Both store it in the WooCommerce session, and `woocommerce_checkout_create_order` + `woocommerce_store_api_checkout_order_processed` copy it onto the resulting order. The id is an internal analytics marker — never shown to customers and never used for authentication/authorization. New `DEF_Core_Chat_Attribution` class.
+
 = 3.5.1 - 2026/05/25 =
 * UI: Customer Chat shows "Searching..." while the `search` tool runs, instead of the generic "Processing..." — an accurate status label alongside the existing per-tool ones (e.g. "Fetching products..."). One-line addition to the Customer Chat tool-status map; no behavioural change.
 

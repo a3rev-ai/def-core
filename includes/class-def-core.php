@@ -69,6 +69,7 @@ final class DEF_Core {
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
 		DEF_Core_Logs_Page::init();
+		DEF_Core_Chat_Attribution::init();
 
 		// Schedule log cleanup cron.
 		DEF_Core_Logger::schedule_cleanup();
@@ -163,6 +164,9 @@ final class DEF_Core {
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
+
+		// Chat-driven sale attribution (stamps _def_chat_id onto orders).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-chat-attribution.php';
 
 		// Plugin inited action hook.
 		add_action(
