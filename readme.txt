@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.5.1
+Stable tag: 3.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.6.0 - 2026-05-25 =
+* Feature: Chat-driven sale attribution — stamps the originating Customer Chat thread id onto WooCommerce orders (`_def_chat_id` order meta) so chat-influenced sales can be attributed later. A product-card click carries the id (read once, then stripped); an in-chat add-to-cart sends it via a header; both store it in the WooCommerce session and the order hooks copy it onto the order. Internal analytics marker only — never shown to customers or used for authentication.
 
 = 3.5.1 - 2026-05-25 =
 * UI: Customer Chat shows "Searching..." while the `search` tool runs, instead of the generic "Processing..." — an accurate status label alongside the existing per-tool ones (e.g. "Fetching products..."). One-line addition to the Customer Chat tool-status map; no behavioural change.

@@ -2420,6 +2420,9 @@
 			var cartToken = localStorage.getItem('def:wc_cart_token') || '';
 			if (cartToken) headers['Cart-Token'] = cartToken;
 		} catch (e) {}
+		// Stamp the originating chat so an in-chat add-to-cart can be attributed
+		// to this conversation later (internal analytics; DEF_Core_Chat_Attribution).
+		if (threadId) headers['X-DEF-Chat-ID'] = threadId;
 
 		fetch(url, {
 			method: 'POST',

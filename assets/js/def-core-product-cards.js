@@ -121,12 +121,25 @@
 		return section;
 	}
 
+	// Append the originating Customer Chat thread id to a product link so a sale
+	// that follows the click can be attributed back to the chat (internal
+	// analytics — see DEF_Core_Chat_Attribution). Customer channel only; a no-op
+	// when there's no thread id yet.
+	function chatStampedUrl(url, options) {
+		if (!url || (options && options.channel === 'staff_ai')) return url;
+		var threadId = '';
+		try { threadId = localStorage.getItem('a3rev_thread_id') || ''; } catch (e) {}
+		if (!threadId) return url;
+		var sep = url.indexOf('?') === -1 ? '?' : '&';
+		return url + sep + 'def_chat=' + encodeURIComponent(threadId);
+	}
+
 	function renderCard(card, options) {
 		var article = document.createElement('article');
 		article.className = 'def-cc-result-card';
 		article.setAttribute('role', 'listitem');
 
-		var safeUrl = safeLinkHref(card.url);
+		var safeUrl = safeLinkHref(chatStampedUrl(card.url, options));
 
 		// Image link — aria-hidden so the title link is the sole accessible name
 		// (avoids screen-reader announcing the same destination twice per card).
@@ -176,7 +189,7 @@
 			return renderEditProductLink(card);
 		}
 		if (ADD_TO_CART_TYPES.indexOf(card.product_type) === -1 || !card.in_stock) {
-			return renderViewProductLink(card);
+			return renderViewProductLink(card, options);
 		}
 		return renderAddToCartButton(card);
 	}
@@ -192,9 +205,9 @@
 		return btn;
 	}
 
-	function renderViewProductLink(card) {
+	function renderViewProductLink(card, options) {
 		var link = document.createElement('a');
-		link.href = safeLinkHref(card.url);
+		link.href = safeLinkHref(chatStampedUrl(card.url, options));
 		link.className = 'def-cc-result-card-view';
 		link.textContent = 'View product →';
 		link.setAttribute('aria-label', 'View ' + card.title);
