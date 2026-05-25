@@ -243,10 +243,36 @@ final class DEF_Core_Knowledge_Export {
 			}
 		}
 
+		// Exclusion-flag changes (tracked via _def_exclude_from_ingestion meta
+		// writes). Resolve the NET-latest state per id so a re-included item is
+		// NOT reported as excluded — only items whose latest state is excluded
+		// emit into excluded_ids for the search index to drop.
+		$exclusion_tracked = get_option( 'def_core_exclusion_changes', array() );
+		$latest_exclusion  = array();
+		foreach ( (array) $exclusion_tracked as $entry ) {
+			if ( ! isset( $entry['id'], $entry['time'] ) || strtotime( $entry['time'] ) < strtotime( $since ) ) {
+				continue;
+			}
+			$id = (int) $entry['id'];
+			if ( ! isset( $latest_exclusion[ $id ] ) || strtotime( $entry['time'] ) >= strtotime( $latest_exclusion[ $id ]['time'] ) ) {
+				$latest_exclusion[ $id ] = $entry;
+			}
+		}
+		$excluded_ids = array();
+		foreach ( $latest_exclusion as $entry ) {
+			if ( ! empty( $entry['excluded'] ) ) {
+				$excluded_ids[] = array(
+					'id'   => (int) $entry['id'],
+					'type' => $entry['type'] ?? 'unknown',
+				);
+			}
+		}
+
 		return new \WP_REST_Response( array(
 			'deleted_ids'    => $deleted_ids,
 			'trashed_ids'    => $trashed_ids,
 			'status_changes' => $status_changes,
+			'excluded_ids'   => $excluded_ids,
 			'since'          => $since,
 		), 200 );
 	}
@@ -658,6 +684,40 @@ final class DEF_Core_Knowledge_Export {
 		} );
 
 		update_option( 'def_core_status_transitions', array_values( $tracked ), false );
+	}
+
+	/**
+	 * Track a change to the `_def_exclude_from_ingestion` flag for the
+	 * /content/deleted feed's `excluded_ids`. Both directions are recorded so
+	 * content_deleted() can resolve the NET-latest state per id (a re-included
+	 * item must drop out of excluded_ids, or it would flap: re-added by the
+	 * upsert feed, then re-deleted by a stale exclude event).
+	 *
+	 * Called from DEF_Core_Knowledge_Exclusion on every flag write.
+	 *
+	 * @param int    $post_id   Post id.
+	 * @param string $post_type Post type (matches the search index object_type).
+	 * @param bool   $excluded  True when the item is now excluded.
+	 */
+	public static function track_exclusion_change( int $post_id, string $post_type, bool $excluded ): void {
+		$tracked = get_option( 'def_core_exclusion_changes', array() );
+		if ( ! is_array( $tracked ) ) {
+			$tracked = array();
+		}
+		$tracked[] = array(
+			'id'       => $post_id,
+			'type'     => $post_type,
+			'excluded' => $excluded,
+			'time'     => gmdate( 'c' ),
+		);
+
+		// Prune entries older than 90 days.
+		$cutoff  = strtotime( '-90 days' );
+		$tracked = array_filter( $tracked, function ( $e ) use ( $cutoff ) {
+			return isset( $e['time'] ) && strtotime( $e['time'] ) > $cutoff;
+		} );
+
+		update_option( 'def_core_exclusion_changes', array_values( $tracked ), false );
 	}
 
 	// =========================================================================

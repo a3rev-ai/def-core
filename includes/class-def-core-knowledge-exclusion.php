@@ -3,9 +3,18 @@
  * Per-item exclusion from Digital Employee knowledge ingestion.
  *
  * Stores `_def_exclude_from_ingestion` post meta (REST-exposed). DEF
- * backend's wp_sync skips flagged items + removes prior chunks on next
- * Sync Now — Full. Admin surfaces: Gutenberg sidebar, classic meta box,
- * Quick Edit, bulk action, list column indicator.
+ * backend's wp_sync skips flagged items + removes them from the indexes.
+ * Admin surfaces: Gutenberg sidebar, classic meta box, Quick Edit, bulk
+ * action, list column indicator.
+ *
+ * Per-item deindex (no Full Sync required): a change to the flag is detected
+ * at the meta-write itself (covers every edit surface — Gutenberg REST,
+ * classic, Quick Edit, bulk, programmatic) and:
+ *  - records the transition for the `/content/deleted` feed's `excluded_ids`,
+ *    which the DEF Search index reads to drop the stale object; and
+ *  - bumps `post_modified` so the next INCREMENTAL content/products export
+ *    re-fetches the item — the chunk (knowledge) index then deindexes it
+ *    (still flagged) or re-ingests it (re-included) without a Full Sync.
  *
  * @package def-core
  */
@@ -30,6 +39,14 @@ class DEF_Core_Knowledge_Exclusion {
 		add_action( 'admin_init', array( __CLASS__, 'register_admin_hooks' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_admin_scripts' ) );
 		add_action( 'save_post', array( __CLASS__, 'save_post' ), 10, 1 );
+
+		// Detect flag changes at the meta write itself so every edit surface is
+		// covered (Gutenberg saves the flag via REST, NOT the save_post form
+		// handler). Records the transition + bumps post_modified for per-item
+		// deindex. Registered unconditionally (REST / WP-CLI / cron can write meta).
+		add_action( 'added_post_meta', array( __CLASS__, 'on_exclusion_meta_write' ), 10, 4 );
+		add_action( 'updated_post_meta', array( __CLASS__, 'on_exclusion_meta_write' ), 10, 4 );
+		add_action( 'deleted_post_meta', array( __CLASS__, 'on_exclusion_meta_delete' ), 10, 4 );
 	}
 
 	public static function register_meta(): void {
@@ -58,6 +75,96 @@ class DEF_Core_Knowledge_Exclusion {
 
 	public static function is_excluded( $post_id ): bool {
 		return (bool) get_post_meta( (int) $post_id, self::META_KEY, true );
+	}
+
+	// Per-item deindex on flag change -------------------------------------
+
+	/**
+	 * Fired on added_post_meta / updated_post_meta. WP passes
+	 * ($meta_id, $object_id, $meta_key, $meta_value).
+	 *
+	 * @param int    $meta_id    Meta row id (unused).
+	 * @param int    $post_id    Post the meta belongs to.
+	 * @param string $meta_key   Meta key being written.
+	 * @param mixed  $meta_value New meta value.
+	 */
+	public static function on_exclusion_meta_write( $meta_id, $post_id, $meta_key, $meta_value ): void {
+		if ( $meta_key !== self::META_KEY ) {
+			return;
+		}
+		// Truthy '1'/true/1 = excluded; '' / '0' / false = included.
+		$excluded = ! empty( $meta_value ) && '0' !== (string) $meta_value;
+		self::record_exclusion_transition( (int) $post_id, $excluded );
+	}
+
+	/**
+	 * Fired on deleted_post_meta (flag removed === back to included). WP passes
+	 * ($meta_ids, $object_id, $meta_key, $meta_value).
+	 *
+	 * @param array  $meta_ids   Meta row ids (unused).
+	 * @param int    $post_id    Post the meta belonged to.
+	 * @param string $meta_key   Meta key removed.
+	 * @param mixed  $meta_value Prior value (unused).
+	 */
+	public static function on_exclusion_meta_delete( $meta_ids, $post_id, $meta_key, $meta_value ): void {
+		if ( $meta_key !== self::META_KEY ) {
+			return;
+		}
+		self::record_exclusion_transition( (int) $post_id, false );
+	}
+
+	/**
+	 * Record an exclusion-flag transition for the deindex feed and bump
+	 * post_modified so the next incremental sync re-evaluates this item only.
+	 *
+	 * @param int  $post_id  Post id.
+	 * @param bool $excluded True when the item is now excluded.
+	 */
+	public static function record_exclusion_transition( int $post_id, bool $excluded ): void {
+		if ( $post_id <= 0 || wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		$post_type = get_post_type( $post_id );
+		if ( ! $post_type || ! in_array( $post_type, self::get_supported_post_types(), true ) ) {
+			return;
+		}
+
+		// Feed the DEF Search index's deindex path (/content/deleted → excluded_ids).
+		// The chunk (knowledge) index instead deindexes via /content/export, so it
+		// needs the item re-fetched — the post_modified bump below handles that.
+		if ( class_exists( 'DEF_Core_Knowledge_Export' ) ) {
+			DEF_Core_Knowledge_Export::track_exclusion_change( $post_id, (string) $post_type, $excluded );
+		}
+
+		self::touch_post_modified( $post_id );
+	}
+
+	/**
+	 * Bump post_modified / post_modified_gmt to now so the item re-enters the
+	 * incremental content/products export window. Direct SQL (not wp_update_post)
+	 * to avoid re-entrancy with the in-progress save — no save_post /
+	 * transition_post_status / meta hooks refire.
+	 *
+	 * @param int $post_id Post id.
+	 */
+	private static function touch_post_modified( int $post_id ): void {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'update' ) ) {
+			return;
+		}
+		$wpdb->update(
+			$wpdb->posts,
+			array(
+				'post_modified'     => current_time( 'mysql' ),
+				'post_modified_gmt' => current_time( 'mysql', true ),
+			),
+			array( 'ID' => $post_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		if ( function_exists( 'clean_post_cache' ) ) {
+			clean_post_cache( $post_id );
+		}
 	}
 
 	public static function register_admin_hooks(): void {
@@ -163,7 +270,7 @@ class DEF_Core_Knowledge_Exclusion {
 			<?php esc_html_e( 'Exclude from Digital Employee knowledge', 'digital-employees' ); ?>
 		</label></p>
 		<p class="description">
-			<?php esc_html_e( 'When checked, this item is skipped during knowledge ingestion. If previously indexed, it will be removed on the next Sync Now — Full from the Tenant Portal.', 'digital-employees' ); ?>
+			<?php esc_html_e( 'When checked, this item is excluded from Digital Employee knowledge. If it was already indexed, it is removed on the next sync — this item only, no Full Sync needed.', 'digital-employees' ); ?>
 		</p>
 		<?php
 	}
@@ -236,7 +343,7 @@ class DEF_Core_Knowledge_Exclusion {
 		printf(
 			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
 			esc_html( sprintf(
-				'%d items %s Digital Employee knowledge. Run a Full Sync from the Tenant Portal to apply.',
+				'%d items %s Digital Employee knowledge. Applied per item on the next sync — no Full Sync needed.',
 				$count, $verb
 			) )
 		);

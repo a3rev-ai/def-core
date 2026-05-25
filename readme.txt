@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.6.0
+Stable tag: 3.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.6.1 - 2026-05-25 =
+* Fix: marking an item "Exclude from Digital Employee knowledge" now removes it from the live indexes on the next sync — this item only, no Full Sync needed. Previously the flag only filtered the item out of future export pulls, so anything already indexed before being excluded lingered in DEF's `search` index and the chatbot kept recommending it (across recommend / add-to-cart / all tools). The change is now caught at the meta write itself (Gutenberg, classic editor, Quick Edit, bulk action, programmatic), reported in the `/content/deleted` feed under a new `excluded_ids` array (net-latest state — a re-included item drops out), and `post_modified` is bumped so the incremental content/products export re-fetches it (the knowledge/chunk index deindexes the flagged item, or re-ingests it when re-included). Pairs with the DEF backend's new search-index delete pass. Admin copy updated to reflect per-item, no-Full-Sync behaviour.
 
 = 3.6.0 - 2026-05-25 =
 * Feature: Chat-driven sale attribution — stamps the originating Customer Chat thread id onto WooCommerce orders (`_def_chat_id` order meta) so chat-influenced sales can be attributed later. A product-card click carries the id (read once, then stripped); an in-chat add-to-cart sends it via a header; both store it in the WooCommerce session and the order hooks copy it onto the order. Internal analytics marker only — never shown to customers or used for authentication.
