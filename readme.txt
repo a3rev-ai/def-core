@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.6.2
+Stable tag: 3.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.6.3 - 2026-05-26 =
+* Improvement: raised the Site Intelligence REST passthrough response cap (used by Staff AI's `wc_rest_call` / `wp_rest_call` tools) from 100KB to 250KB (~60K tokens), so catalogue/list operations complete in a single pass instead of being truncated too aggressively for large-context models. Oversized responses still truncate gracefully with a paginate note.
 
 = 3.6.2 - 2026-05-26 =
 * Fix: products flagged "Exclude from Digital Employee knowledge" could still be added to cart. The chatbot resolves a product name → ID for add-to-cart via the live tool endpoint `/tools/wc/products` (`wc_get_products_list()`), which had NO exclusion filter — so an excluded product was still resolvable even though it was correctly hidden from the search index. The endpoint now filters out `_def_exclude_from_ingestion` products (meta_query + in-loop guard), and toggling the flag busts the cached product list immediately (covers Bulk / Quick-Edit, which don't fire the WC product hooks). Staff AI's `wc/v3` passthrough and the knowledge/chunk export endpoints are intentionally unchanged.
