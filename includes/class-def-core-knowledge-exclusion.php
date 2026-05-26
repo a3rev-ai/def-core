@@ -137,6 +137,15 @@ class DEF_Core_Knowledge_Exclusion {
 		}
 
 		self::touch_post_modified( $post_id );
+
+		// A product leaving/joining DEF must refresh the cached product list the
+		// add-to-cart tool reads (/tools/wc/products), so an excluded product is
+		// no longer resolvable for cart. Bulk / Quick-Edit toggles update meta
+		// directly and do NOT fire the woocommerce_update_product hook that
+		// normally busts this cache — so do it here.
+		if ( 'product' === $post_type && class_exists( 'DEF_Core_Cache' ) ) {
+			DEF_Core_Cache::on_product_changed();
+		}
 	}
 
 	/**
