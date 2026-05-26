@@ -23,6 +23,7 @@ function t(key, fallback) {
 
 	// SSE streaming config — BFF proxy (WordPress handles auth)
 	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
+	const statusUrl = StaffAIConfig.statusUrl || '';
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -233,6 +234,40 @@ function t(key, fallback) {
 		localStorage.setItem('staff-ai-theme', isDark ? 'dark' : 'light');
 	}
 	themeToggle.addEventListener('click', toggleTheme);
+
+	// Model switcher (per-session, sticky in localStorage — mirrors theme toggle).
+	// The option list is fetched from /staff-ai/status (DEF is the single source of
+	// truth); the chosen model rides in the chat request and DEF validates it.
+	const modelSelect = document.getElementById('modelSelect');
+	let selectedModel = localStorage.getItem('staff-ai-model') || '';
+	if (modelSelect) {
+		modelSelect.addEventListener('change', function () {
+			selectedModel = modelSelect.value;
+			localStorage.setItem('staff-ai-model', selectedModel);
+		});
+		if (statusUrl) {
+			fetch(statusUrl, { headers: { 'X-WP-Nonce': nonce }, credentials: 'same-origin' })
+				.then(function (r) { return r.ok ? r.json() : null; })
+				.then(function (data) {
+					var models = (data && data.available_models) || [];
+					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
+					var ids = [];
+					models.forEach(function (m) {
+						var opt = document.createElement('option');
+						opt.value = m.id;
+						opt.textContent = m.label + (m.description ? ' — ' + m.description : '');
+						modelSelect.appendChild(opt);
+						ids.push(m.id);
+					});
+					// Restore the sticky pick if still offered, else default to the
+					// first (most capable) — which is the employee default too.
+					modelSelect.value = (ids.indexOf(selectedModel) !== -1) ? selectedModel : ids[0];
+					selectedModel = modelSelect.value;
+					modelSelect.hidden = false;
+				})
+				.catch(function () { /* non-fatal: switcher stays hidden, default model applies */ });
+		}
+	}
 
 	// Header overflow menu (mobile)
 	const overflowToggle = document.getElementById('headerOverflowToggle');
@@ -1328,6 +1363,7 @@ function t(key, fallback) {
 			}
 
 			var requestBody = { messages: reqMessages };
+			if (selectedModel) requestBody.model_id = selectedModel;
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 				requestBody.continue_thread = true;

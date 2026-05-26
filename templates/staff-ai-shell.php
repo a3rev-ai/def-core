@@ -273,6 +273,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 										<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
 									</svg>
 								</button>
+								<select class="model-select" id="modelSelect" hidden aria-label="<?php echo esc_attr__( 'AI model', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Choose the AI model for this session', 'digital-employees' ); ?>"></select>
 								<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'digital-employees' ); ?>">
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 										<line x1="22" y1="2" x2="11" y2="13"></line>
@@ -402,6 +403,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
+		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
 		userName: <?php echo wp_json_encode( $first_name ); ?>,
 		tips: <?php
 			$tips = array(
