@@ -45,9 +45,12 @@ class DEF_Core_Site_Tools {
 
 	/**
 	 * Maximum response body size to return (bytes).
-	 * Prevents oversized payloads from blowing up the LLM context window.
+	 * Sized to be generous for catalogue/list operations (~60K tokens) while
+	 * still leaving room in the LLM context window for the conversation and the
+	 * reply. Oversized responses are truncated gracefully (a `truncated` flag +
+	 * paginate note), so the model can page rather than fail.
 	 */
-	private const MAX_RESPONSE_BYTES = 100000; // 100KB
+	private const MAX_RESPONSE_BYTES = 250000; // 250KB (~60K tokens)
 
 	/**
 	 * Route character allowlist regex. Only alphanumeric, underscore, hyphen, and
