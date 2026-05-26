@@ -867,6 +867,26 @@ body {
 	padding-top: 8px;
 }
 
+/* Model switcher (B) — margin-left:auto keeps upload on the left and groups the
+   model dropdown with the send button on the right. */
+.model-select {
+	margin-left: auto;
+	margin-right: 8px;
+	max-width: 220px;
+	padding: 5px 8px;
+	font-size: 12px;
+	font-family: inherit;
+	color: var(--text-secondary);
+	background: var(--bg-input);
+	border: 1px solid var(--border-medium);
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.model-select:hover {
+	border-color: var(--border-hover);
+}
+
 .composer:focus-within {
 	border-color: var(--border-focus);
 }

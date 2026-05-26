@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.6.3
+Stable tag: 3.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.7.0 - 2026-05-26 =
+* Feature: Staff AI model switcher. A dropdown in the chat composer toolbar lets staff pick which AI model handles the current session — Opus 4.7 (most capable), Sonnet 4.6 (responsive everyday work), or Haiku 4.5 (fastest / cheapest) — so they can match model cost to the task (e.g. route bulk catalogue grunt-work to Haiku). The choice is remembered per browser (localStorage) and sent with each chat request as `model_id`; the DEF backend validates it against the registered, switcher-eligible models and falls back to the channel default if unset or unrecognised. The dropdown is populated from the `/staff-ai/status` endpoint's new `available_models` list, so it only ever offers models the backend actually has configured.
 
 = 3.6.3 - 2026-05-26 =
 * Improvement: raised the Site Intelligence REST passthrough response cap (used by Staff AI's `wc_rest_call` / `wp_rest_call` tools) from 100KB to 250KB (~60K tokens), so catalogue/list operations complete in a single pass instead of being truncated too aggressively for large-context models. Oversized responses still truncate gracefully with a paginate note.

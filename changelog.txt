@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.7.0 - 2026/05/26 =
+* Feature: Staff AI model switcher. A dropdown in the chat composer toolbar lets staff pick which AI model handles the current session — Opus 4.7 (most capable), Sonnet 4.6 (responsive everyday work), or Haiku 4.5 (fastest / cheapest) — so model cost can be matched to the task (e.g. route bulk catalogue grunt-work to Haiku). The choice persists per browser via localStorage and is sent with each chat request as `model_id`; the DEF backend validates it against the registered switcher-eligible models and falls back to the channel default if unset or unrecognised. The dropdown is populated from the `/staff-ai/status` endpoint's new `available_models` list, so it only offers models the backend has configured.
+
 = 3.6.3 - 2026/05/26 =
 * Improvement: raised the Site Intelligence REST passthrough response cap (`/wp-json/def-core/v1/site/rest-passthrough`, used by Staff AI's `wc_rest_call` / `wp_rest_call` tools) from 100KB to 250KB (~60K tokens). Catalogue/list operations — e.g. auditing products by price or description — were being truncated too aggressively for modern large-context models, forcing the assistant into repeated pagination. The higher cap lets typical list operations complete in a single pass while still leaving room in the model's context window for the conversation and reply; oversized responses continue to truncate gracefully (a `truncated` flag + paginate note the DEF backend surfaces).
 

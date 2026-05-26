@@ -142,6 +142,13 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// NOTE: GET /staff-ai/status is ALSO registered (diagnostic-only) in
+		// DEF_Core_Staff_AI::register_rest_routes(). This passthrough wins dispatch
+		// because DEF_Core_Routes::init() runs before DEF_Core_Staff_AI::init() in
+		// DEF_Core::init() (so it registers first, and WordPress matches the first
+		// method handler). The model switcher's `available_models` is only on THIS
+		// (passthrough) response, so this ordering is load-bearing — do not reorder
+		// those init() calls without moving the dropdown to a dedicated route.
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/status',

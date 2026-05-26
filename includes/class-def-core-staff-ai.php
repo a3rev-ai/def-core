@@ -185,6 +185,11 @@ final class DEF_Core_Staff_AI
 
 		// Status/test endpoint for debugging connection issues.
 		// Uses manage_options cap so admins can diagnose without needing staff_ai access.
+		// NOTE: this shares the path GET /staff-ai/status with the BFF passthrough in
+		// DEF_Core_Routes (which registers first and therefore wins dispatch — see the
+		// note there). This diagnostic handler is effectively shadowed at that path; it
+		// returns a richer debug payload (api_url, token_generation) and is intentionally
+		// NOT the one the Staff-AI UI consumes for the model switcher's available_models.
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/status',
