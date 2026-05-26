@@ -750,18 +750,36 @@ final class DEF_Core_Tools {
 			0, // User ID 0 for public/shared cache.
 			3600, // 1 hour - products change less frequently (should be cached for an hour).
 			function () {
-				// Get all published products.
-				$args = array(
-					'status'  => 'publish',
-					'limit'   => -1,
-					'orderby' => 'title',
-					'order'   => 'ASC',
+				// Get all published products, EXCLUDING any flagged out of DEF
+				// ingestion (`_def_exclude_from_ingestion`). This is the live path
+				// the chatbot uses to resolve a name → product ID for add-to-cart,
+				// so an excluded product must not be resolvable here either — not
+				// just hidden from the Azure search index. Mirrors the
+				// search-export filter; the in-loop guard below is the guarantee
+				// in case wc_get_products() doesn't honour meta_query.
+				$exclude_meta = '_def_exclude_from_ingestion'; // DEF_Core_Knowledge_Exclusion::META_KEY.
+				$args         = array(
+					'status'     => 'publish',
+					'limit'      => -1,
+					'orderby'    => 'title',
+					'order'      => 'ASC',
+					'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+						'relation' => 'OR',
+						array( 'key' => $exclude_meta, 'compare' => 'NOT EXISTS' ),
+						array( 'key' => $exclude_meta, 'value' => '1', 'compare' => '!=' ),
+					),
 				);
 
 				$products_data = array();
 				$products      = wc_get_products( $args );
 
 				foreach ( $products as $product ) {
+					// Defense in depth: never expose an excluded product to the
+					// tool/LLM layer, regardless of meta_query support.
+					if ( get_post_meta( $product->get_id(), $exclude_meta, true ) ) {
+						continue;
+					}
+
 					$product_info = array(
 						'id'   => $product->get_id(),
 						'name' => $product->get_name(),
