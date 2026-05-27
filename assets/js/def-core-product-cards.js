@@ -27,8 +27,13 @@
 	var sectionsRenderedThisTurn = 0;
 
 	// V1.2 §7.3 — DOMPurify allowlist for WC `price_html` (sale markup, etc.)
+	// `div` is included so WC Subscriptions' block-level recurring-price line
+	// (e.g. `<div class="a3-product-price-annually">Billed annually at …</div>`)
+	// keeps its own line. Without it DOMPurify unwraps the div and the text
+	// collides with the preceding span — "/ monthBilled annually at …". `div`
+	// carries no script/event surface; `class` is the only attr allowed.
 	var SUBTITLE_SANITIZE_CONFIG = {
-		ALLOWED_TAGS: ['span', 'sub', 'sup', 'small', 'bdi', 'del', 'ins', 'strong', 'em'],
+		ALLOWED_TAGS: ['span', 'div', 'sub', 'sup', 'small', 'bdi', 'del', 'ins', 'strong', 'em'],
 		ALLOWED_ATTR: ['class'],
 		FORBID_ATTR: ['style']
 	};

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.7.1 - 2026/05/27 =
+* Fix: chat product cards showed subscription prices run together — "$8.25 / monthBilled annually at $99.00" — with no break before the recurring-price line. WooCommerce returns that detail as a block element (`<div class="a3-product-price-annually">Billed annually at …</div>`), but the card subtitle's DOMPurify allowlist (`def-core-product-cards.js`) didn't permit `<div>`, so the tag was unwrapped and its text collided with the preceding "/ month" span. `div` is now allowed (it carries no script/event surface; `class` remains the only permitted attribute), so the recurring-price line keeps its own line, and `def-core-product-cards.css` styles it smaller + muted beneath the per-period price.
+
 = 3.7.0 - 2026/05/26 =
 * Feature: Staff AI model switcher. A dropdown in the chat composer toolbar lets staff pick which AI model handles the current session — Opus 4.7 (most capable), Sonnet 4.6 (responsive everyday work), or Haiku 4.5 (fastest / cheapest) — so model cost can be matched to the task (e.g. route bulk catalogue grunt-work to Haiku). The choice persists per browser via localStorage and is sent with each chat request as `model_id`; the DEF backend validates it against the registered switcher-eligible models and falls back to the channel default if unset or unrecognised. The dropdown is populated from the `/staff-ai/status` endpoint's new `available_models` list, so it only offers models the backend has configured.
 
