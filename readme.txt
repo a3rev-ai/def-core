@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.7.2
+Stable tag: 3.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.8.0 - 2026-05-27 =
+* Feature: Auto-sync push "nudge". When you add, edit, or delete content (posts, pages, products, or other synced types), the plugin now pings the Digital Employee backend so the knowledge index refreshes within about a minute, instead of waiting for the periodic background sync. A burst of edits (e.g. a bulk product update) is debounced into a single nudge via a ~45-second delayed WP-Cron event, so 50 edits trigger one incremental sync, not 50. The ping carries no content — just the site signal, authenticated with the existing connection API key (`X-DEF-API-Key`) over the same channel Customer Chat / Staff AI already use — and is best-effort: a missed ping is still caught by the scheduled background sync and the Full Re-sync reconcile.
 
 = 3.7.2 - 2026-05-28 =
 * Improvement: refreshed the Customer Chat visual design — the conversation sits on a soft tinted background with assistant replies in white cards and visitor messages in a light-grey bubble, so replies and rich content (tables, product cards) stand out. Plus clearer markdown, a compact tool-status pill, a slim streaming caret, a subtle message entrance, and tighter mobile spacing.

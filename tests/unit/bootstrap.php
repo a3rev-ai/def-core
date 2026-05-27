@@ -135,7 +135,60 @@ if ( ! function_exists( 'activate_plugin' ) ) {
 	}
 }
 
+// ── WP-Cron + post stubs (stateful via $_wp_test_* globals) ─────────────
+
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( string $hook, array $args = array() ) {
+		global $_wp_test_cron;
+		return $_wp_test_cron[ $hook ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( int $timestamp, string $hook, array $args = array() ): bool {
+		global $_wp_test_cron, $_wp_test_cron_scheduled;
+		$_wp_test_cron[ $hook ]    = $timestamp;
+		$_wp_test_cron_scheduled[] = array( 'hook' => $hook, 'timestamp' => $timestamp, 'args' => $args );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'get_post_type' ) ) {
+	function get_post_type( $post = null ) {
+		global $_wp_test_post_types;
+		return $_wp_test_post_types[ (int) $post ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'wp_is_post_revision' ) ) {
+	function wp_is_post_revision( $post ) {
+		global $_wp_test_revisions;
+		return ! empty( $_wp_test_revisions[ (int) $post ] );
+	}
+}
+
+if ( ! function_exists( 'wp_is_post_autosave' ) ) {
+	function wp_is_post_autosave( $post ) {
+		global $_wp_test_autosaves;
+		return ! empty( $_wp_test_autosaves[ (int) $post ] );
+	}
+}
+
 // ── Stub classes ────────────────────────────────────────────────────────
+
+if ( ! class_exists( 'WP_Post' ) ) {
+	class WP_Post {
+		public $ID = 0;
+		public $post_type = 'post';
+		public $post_status = 'publish';
+
+		public function __construct( array $props = array() ) {
+			foreach ( $props as $key => $value ) {
+				$this->$key = $value;
+			}
+		}
+	}
+}
 
 if ( ! class_exists( 'WP_Error' ) ) {
 	class WP_Error {
@@ -250,6 +303,16 @@ $_wp_test_remote_responses   = array();
 $_wp_test_active_plugins     = array();
 $_wp_test_deleted_transients = array();
 
+// Sync-nudge test state (WP-Cron + post stubs above read these).
+global $_wp_test_cron, $_wp_test_cron_scheduled, $_wp_test_post_types,
+	$_wp_test_revisions, $_wp_test_autosaves, $_wp_test_exported_types;
+$_wp_test_cron           = array();
+$_wp_test_cron_scheduled = array();
+$_wp_test_post_types     = array();
+$_wp_test_revisions      = array();
+$_wp_test_autosaves      = array();
+$_wp_test_exported_types = array();
+
 // ── Load source classes under test ──────────────────────────────────────
 // Note: Encryption is already loaded by wp-stubs.php.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
@@ -264,3 +327,17 @@ if ( ! function_exists( 'wp_get_current_user' ) ) {
 	function wp_get_current_user() { return (object) array( 'ID' => 0 ); }
 }
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
+
+// Minimal DEF_Core_Knowledge_Export stub — the sync-nudge relevance gate calls
+// get_exported_post_types(); the real (heavy REST) class isn't needed for unit
+// tests. Returns the per-test list in $_wp_test_exported_types.
+if ( ! class_exists( 'DEF_Core_Knowledge_Export' ) ) {
+	class DEF_Core_Knowledge_Export {
+		public static function get_exported_post_types(): array {
+			global $_wp_test_exported_types;
+			return is_array( $_wp_test_exported_types ) ? $_wp_test_exported_types : array();
+		}
+	}
+}
+
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-sync-nudge.php';

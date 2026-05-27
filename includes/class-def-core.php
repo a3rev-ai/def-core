@@ -66,6 +66,7 @@ final class DEF_Core {
 		DEF_Core_Search_Export::init();
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Knowledge_Exclusion::init();
+		DEF_Core_Sync_Nudge::init();
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
 		DEF_Core_Logs_Page::init();
@@ -155,6 +156,9 @@ final class DEF_Core {
 
 		// Per-item exclusion from knowledge ingestion (v3.1.0).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-exclusion.php';
+
+		// Event-driven sync nudge — debounced push to DEF on content change (Phase B).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-sync-nudge.php';
 
 		// Admin REST API (settings, users, connection, chat proxy).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
