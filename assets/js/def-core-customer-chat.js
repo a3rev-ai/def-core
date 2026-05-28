@@ -412,10 +412,19 @@
 			messages.appendChild(banner);
 		}
 
-		// Greeting with capabilities.
-		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
-		var greetingIcon = createAssistantIcon();
-		greetingEl.appendChild(greetingIcon);
+		// Greeting with capabilities. Honour the avatar-grouping rule — for the
+		// welcome greeting `shouldGroupAvatar()` returns true (no prior messages),
+		// so the avatar is skipped and the widget header is the implicit speaker
+		// indicator. v3.11.0 added grouping at appendMessage + the streaming
+		// path; this manually-built welcome bypassed both, so 3.11.0 still
+		// showed the welcome avatar.
+		var greetingGrouped = shouldGroupAvatar();
+		var greetingClasses = 'def-cc-message def-cc-message--assistant' + (greetingGrouped ? ' def-cc-message--continuation' : '');
+		var greetingEl = el('div', greetingClasses);
+		if (!greetingGrouped) {
+			var greetingIcon = createAssistantIcon();
+			greetingEl.appendChild(greetingIcon);
+		}
 		var greetingContent = el('div', 'def-cc-message-content');
 
 		var bizName = config.displayName || '';
@@ -2598,12 +2607,17 @@
 	}
 
 	function showThinking() {
-		var msgEl = el(
-			'div',
-			'def-cc-message def-cc-message--assistant def-cc-message--thinking'
-		);
-		var icon = createAssistantIcon();
-		msgEl.appendChild(icon);
+		// Honour avatar grouping — if the prior message is from Joe (or we're
+		// at the start of the conversation, where the header serves), the
+		// thinking indicator skips its avatar too. Same fix as the welcome
+		// greeting path — manually built, missed v3.11.0's appendMessage gate.
+		var grouped = shouldGroupAvatar();
+		var classes = 'def-cc-message def-cc-message--assistant def-cc-message--thinking' + (grouped ? ' def-cc-message--continuation' : '');
+		var msgEl = el('div', classes);
+		if (!grouped) {
+			var icon = createAssistantIcon();
+			msgEl.appendChild(icon);
+		}
 
 		var content = el('div', 'def-cc-message-content');
 		content.innerHTML =
