@@ -109,6 +109,49 @@ final class DEF_Core_Export {
 	}
 
 	/**
+	 * Normalize an incoming `modified_after` / `since` ISO-8601 timestamp to a
+	 * plain MySQL DATETIME string in UTC, suitable for passing to a WP_Query
+	 * `date_query` clause that filters on `post_modified_gmt`.
+	 *
+	 * Bug this works around: WP_Date_Query::build_mysql_datetime() (WordPress
+	 * core) takes a string with an explicit timezone offset, parses it into a
+	 * DateTime (which correctly carries that offset), then calls
+	 * setTimezone( wp_timezone() ) on it before formatting. When the WordPress
+	 * site timezone is NOT UTC (e.g. Asia/Ho_Chi_Minh, +07:00), the formatted
+	 * string is shifted by the site offset — but the column we're comparing
+	 * against (`post_modified_gmt`) stays in UTC. The result is a comparison
+	 * that's silently off by N hours and returns the wrong rows (in practice
+	 * zero rows on a site whose offset is ahead of UTC, since every freshly
+	 * modified item's GMT timestamp is "earlier" than the shifted watermark).
+	 *
+	 * By stripping the explicit offset here and re-emitting in `Y-m-d H:i:s`
+	 * (UTC), WP_Date_Query's setTimezone() call becomes a no-op (the string
+	 * is treated as already being in site time, and re-formatted in site time
+	 * yields the same characters). The literal SQL value stays in UTC and the
+	 * comparison against `post_modified_gmt` is correct.
+	 *
+	 * @param string $raw The raw value, e.g. `2026-05-28T10:00:13.592528+00:00`.
+	 *                    Empty string is returned unchanged.
+	 * @return string Normalized `Y-m-d H:i:s` in UTC, or the raw input if it
+	 *                cannot be parsed (in which case WP's own strtotime
+	 *                fallback handles it — same as the pre-fix behaviour).
+	 */
+	public static function normalize_modified_after_for_date_query( string $raw ): string {
+		if ( '' === $raw ) {
+			return '';
+		}
+		try {
+			// Second arg is the fallback timezone when $raw has no explicit
+			// offset; assuming UTC is safe for our callers (DEF/DEFHO emit
+			// ISO-with-offset; a bare "Y-m-d H:i:s" we treat as already-UTC).
+			$dt = new \DateTimeImmutable( $raw, new \DateTimeZone( 'UTC' ) );
+		} catch ( \Exception ) {
+			return $raw;
+		}
+		return $dt->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
 	 * Export publishable site content.
 	 *
 	 * Returns pages, posts, and public custom post types in a structured
@@ -153,10 +196,13 @@ final class DEF_Core_Export {
 		);
 
 		// Incremental sync: only fetch content modified after timestamp.
+		// Normalize to MySQL UTC datetime so WP_Date_Query doesn't TZ-shift
+		// the watermark into site_tz and silently miss rows when comparing
+		// against post_modified_gmt (the v3.12.1 fix).
 		if ( ! empty( $modified_after ) ) {
 			$query_args['date_query'] = array(
 				array(
-					'after'  => $modified_after,
+					'after'  => self::normalize_modified_after_for_date_query( $modified_after ),
 					'column' => 'post_modified_gmt',
 				),
 			);
@@ -295,9 +341,11 @@ final class DEF_Core_Export {
 		);
 
 		if ( ! empty( $modified_after ) ) {
+			// See normalize_modified_after_for_date_query() — strips ISO TZ
+			// offset so WP_Date_Query doesn't shift the watermark into site_tz.
 			$query_args['date_query'] = array(
 				array(
-					'after'  => $modified_after,
+					'after'  => self::normalize_modified_after_for_date_query( $modified_after ),
 					'column' => 'post_modified_gmt',
 				),
 			);
