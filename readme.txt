@@ -121,7 +121,7 @@ Chat messages, user display name, and session context — only when a user activ
 == Changelog ==
 
 = 3.11.1 - 2026-05-28 =
-* Fix: v3.11.0's avatar-grouping rule missed the welcome greeting and the thinking-indicator paths (both build their message manually, bypassing the gated `appendMessage`). Both now honour the same grouping rule, so the welcome message no longer shows a redundant avatar under the header.
+* Polish: dropped the per-message Joe avatar from the chat stream entirely — the widget header already carries the avatar at the top of the panel for the whole conversation, so repeating it above every reply (and especially below the header on the welcome) was visual noise. v3.11.0's grouping rule didn't actually help in real alternating chats where every Joe turn follows a user message; v3.11.1 makes the header the sole Joe indicator. The header avatar is untouched.
 
 = 3.11.0 - 2026-05-28 =
 * Polish: Customer Chat avatar grouping — when Joe sends two or more replies in a row, only the FIRST shows the brand avatar; follow-up replies in the same turn read as continuations, cutting visual repetition in long threads. The welcome/first message also skips its avatar (the widget header already shows Joe's avatar right above it). Tool-status pills mid-turn don't break the grouping (still Joe speaking); a user message does. Applies on live streaming and on history rehydration. (Skipping 3.10.0 — WordPress version_compare mis-orders "10" segments.)
