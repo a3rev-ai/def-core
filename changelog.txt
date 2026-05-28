@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.9.0 - 2026/05/28 =
+* Feature: Customer Chat button label is now a free-text field — you can set any label you like, e.g. "Ask Joe", "AI Assist", "Get Help", or anything else that fits your brand. Previously the admin could only choose between "Chat" and "AI" via a radio. The setting is now a text input (≤30 chars) in **Chat Settings → Button Label**, and applies to both the floating button and any `[def_chat_button]` shortcode placement. Existing tenants who configured "Chat" or "AI" keep their value unchanged — no action required.
+
 = 3.8.0 - 2026/05/27 =
 * Feature: Auto-sync push "nudge". When you add, edit, or delete content (posts, pages, products, or other synced types), the plugin now pings the Digital Employee backend so the knowledge index refreshes within about a minute, instead of waiting for the periodic background sync. A burst of edits (e.g. a bulk product update) is debounced into a single nudge via a ~45-second delayed WP-Cron event, so 50 edits trigger one incremental sync, not 50. The ping carries no content — just the site signal, authenticated with the existing connection API key (`X-DEF-API-Key`) over the same channel Customer Chat / Staff AI already use — and is best-effort: a missed ping is still caught by the scheduled background sync and the Full Re-sync reconcile. New `DEF_Core_Sync_Nudge` class, hooked on `save_post`, `before_delete_post`, `transition_post_status`, and `woocommerce_update_product`, reusing the same post-type relevance filter as the knowledge export (revisions, autosaves, and non-synced types never nudge).
 

@@ -522,31 +522,18 @@ $first_tab = 'branding';
 			</div>
 
 			<div class="def-core-field">
-				<label><?php esc_html_e( 'Button Label', 'digital-employees' ); ?></label>
-				<div class="def-core-radio-group">
-					<label class="def-core-radio-label">
-						<input
-							type="radio"
-							name="def_core_chat_button_label"
-							data-setting="def_core_chat_button_label"
-							value="Chat"
-							<?php checked( $button_settings['label'], 'Chat' ); ?>
-						/>
-						<strong><?php esc_html_e( 'Chat', 'digital-employees' ); ?></strong>
-					</label>
-					<label class="def-core-radio-label">
-						<input
-							type="radio"
-							name="def_core_chat_button_label"
-							data-setting="def_core_chat_button_label"
-							value="AI"
-							<?php checked( $button_settings['label'], 'AI' ); ?>
-						/>
-						<strong><?php esc_html_e( 'AI', 'digital-employees' ); ?></strong>
-					</label>
-				</div>
+				<label for="def_core_chat_button_label"><?php esc_html_e( 'Button Label', 'digital-employees' ); ?></label>
+				<input
+					type="text"
+					id="def_core_chat_button_label"
+					data-setting="def_core_chat_button_label"
+					value="<?php echo esc_attr( $button_settings['label'] ); ?>"
+					class="regular-text"
+					maxlength="30"
+					placeholder="<?php esc_attr_e( 'Chat', 'digital-employees' ); ?>"
+				/>
 				<p class="description">
-					<?php esc_html_e( 'Text label shown on the chat button (applies to both the floating button and shortcode placements).', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Text label shown on the chat button — e.g. "Chat", "Ask Joe", "AI Assist", "Get Help". Applies to both the floating button and any [def_chat_button] shortcode placement. Leave empty to use the default "Chat".', 'digital-employees' ); ?>
 				</p>
 			</div>
 
