@@ -45,7 +45,7 @@
 		'escalation_setup_assistant': { id: 'escalation_setup_assistant',  max_length: 320 },
 		'chat_display_mode':          { type: 'radio', name: 'def_core_chat_display_mode', max_length: 10 },
 		'chat_button_icon':           { type: 'radio', name: 'def_core_chat_button_icon', max_length: 10 },
-		'chat_button_label':          { type: 'radio', name: 'def_core_chat_button_label', max_length: 10 }
+		'chat_button_label':          { id: 'def_core_chat_button_label', max_length: 30 }
 	};
 
 	var TOOL_STATUS_LABELS = {

@@ -962,8 +962,14 @@ final class DEF_Core_Admin {
 	}
 
 	public static function sanitize_button_label( $value ): string {
-		$value = sanitize_text_field( (string) $value );
-		return in_array( $value, array( 'Chat', 'AI' ), true ) ? $value : 'Chat';
+		// Free-text label (e.g. "Chat", "Ask Joe", "AI Assist"). Strip HTML +
+		// control chars via sanitize_text_field, trim, truncate to 30 chars
+		// (defense-in-depth alongside the validator), and normalise empty to
+		// the default "Chat" so every renderer (loader, shortcode) sees a
+		// usable value without its own fallback dance.
+		$value = trim( sanitize_text_field( (string) $value ) );
+		$value = mb_substr( $value, 0, 30 );
+		return '' === $value ? 'Chat' : $value;
 	}
 
 	/**

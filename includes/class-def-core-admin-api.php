@@ -1426,9 +1426,13 @@ final class DEF_Core_Admin_API {
 	 * @since 2.2.0
 	 */
 	private function validate_button_label( $value ) {
-		if ( ! in_array( $value, array( 'Chat', 'AI' ), true ) ) {
-			return 'Button label must be "Chat" or "AI".';
+		if ( ! is_string( $value ) ) {
+			return 'Button label must be a string.';
 		}
+		if ( mb_strlen( $value ) > 30 ) {
+			return 'Button label must be 30 characters or fewer.';
+		}
+		// Empty is allowed — the sanitiser normalises it to the default "Chat".
 		return true;
 	}
 
