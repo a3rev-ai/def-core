@@ -267,6 +267,45 @@
 			'  animation: def-cc-spin 0.8s linear infinite;' +
 			'}' +
 			'@keyframes def-cc-spin { to { transform: rotate(360deg); } }' +
+			/* Greeting Bubble (v3.12.0) — proactive pop-up above the launcher */
+			'.def-cc-greeting-bubble {' +
+			'  position: fixed; bottom: 72px; right: 16px; z-index: 999997;' +
+			'  max-width: 280px; padding: 14px 16px;' +
+			'  background: #ffffff; border-radius: 14px;' +
+			'  box-shadow: 0 10px 28px rgba(0,0,0,0.18);' +
+			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
+			'  font-size: 14px; line-height: 1.45; color: #1f2937;' +
+			'  cursor: pointer; display: flex; align-items: flex-start; gap: 10px;' +
+			'  animation: def-cc-greeting-enter 0.3s ease both;' +
+			'}' +
+			'.def-cc-greeting-bubble--left { right: auto; left: 16px; }' +
+			'.def-cc-greeting-bubble:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }' +
+			'.def-cc-greeting-bubble-logo { flex-shrink: 0; width: 32px; height: 32px; border-radius: 6px; overflow: hidden; }' +
+			'.def-cc-greeting-bubble-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }' +
+			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; margin: 0; }' +
+			'.def-cc-greeting-bubble-close {' +
+			'  position: absolute; top: -8px; right: -8px;' +
+			'  width: 22px; height: 22px; padding: 0;' +
+			'  background: #ffffff; border: 1px solid #e5e7eb; border-radius: 50%;' +
+			'  cursor: pointer; font-size: 14px; line-height: 1; color: #6b7280;' +
+			'  display: flex; align-items: center; justify-content: center;' +
+			'  box-shadow: 0 2px 6px rgba(0,0,0,0.1);' +
+			'  opacity: 0; transition: opacity 0.15s ease;' +
+			'}' +
+			'.def-cc-greeting-bubble:hover .def-cc-greeting-bubble-close,' +
+			'.def-cc-greeting-bubble-close:focus-visible { opacity: 1; }' +
+			/* Tail pointing down to the launcher */
+			'.def-cc-greeting-bubble::after {' +
+			'  content: ""; position: absolute; bottom: -7px; right: 28px;' +
+			'  width: 14px; height: 14px;' +
+			'  background: #ffffff; transform: rotate(45deg);' +
+			'  box-shadow: 3px 3px 6px rgba(0,0,0,0.04);' +
+			'}' +
+			'.def-cc-greeting-bubble--left::after { right: auto; left: 28px; }' +
+			'@keyframes def-cc-greeting-enter {' +
+			'  from { opacity: 0; transform: translateY(8px); }' +
+			'  to { opacity: 1; transform: translateY(0); }' +
+			'}' +
 			/* Mobile */
 			'@media (max-width: 480px) {' +
 			'  .def-cc-trigger { padding: 10px 12px; }' +
@@ -277,11 +316,13 @@
 			/* Spotlight goes full-screen on mobile — same intent as Modal. */
 			'  .def-cc-shell--spotlight { top: 0; left: 0; width: 100vw; height: 100vh; border-radius: 0; transform: translate(0, 24px); }' +
 			'  .def-cc-shell--spotlight.def-cc-panel--open { transform: translate(0, 0); }' +
+			'  .def-cc-greeting-bubble { max-width: calc(100vw - 88px); font-size: 13px; padding: 12px 14px; }' +
+			'  .def-cc-greeting-bubble-close { opacity: 1; }' +
 			'}' +
 			/* Reduced motion */
 			'@media (prefers-reduced-motion: reduce) {' +
-			'  .def-cc-panel, .def-cc-trigger, .def-cc-backdrop { transition: none; }' +
-			'  .def-cc-loading-spinner, .def-cc-trigger-icon--sparkle svg, .def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: none; }' +
+			'  .def-cc-panel, .def-cc-trigger, .def-cc-backdrop, .def-cc-greeting-bubble-close { transition: none; }' +
+			'  .def-cc-greeting-bubble, .def-cc-loading-spinner, .def-cc-trigger-icon--sparkle svg, .def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: none; }' +
 			'}'
 		);
 	}
@@ -454,6 +495,11 @@
 	}
 
 	function openPanel() {
+		// Tear down the greeting bubble on any open path (launcher click, header
+		// trigger, restored state) — opening the chat is engagement, no need to
+		// re-prompt. Idempotent if the bubble isn't showing or was already dismissed.
+		dismissGreetingBubble();
+
 		if (!panel) {
 			createPanel();
 		}
@@ -671,6 +717,91 @@
 	// Expose destroy for SPA/PJAX navigations.
 	window.DEFCustomerChatLoader = { destroy: destroy };
 
+	// ─── Greeting Bubble (v3.12.0) ─────────────────────────────────
+
+	var GREETING_DISMISSED_KEY = 'def:greeting_dismissed_at';
+	var GREETING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+	var GREETING_DELAY_MS = 5000;
+
+	function maybeShowGreetingBubble() {
+		if (!config.greetingBubbleEnabled) return;
+		if (!config.greetingBubbleText) return;
+		if (!config.showFloatingButton) return;
+
+		// 24h TTL on dismissal — survives cross-session within the window.
+		try {
+			var dismissedAt = parseInt(localStorage.getItem(GREETING_DISMISSED_KEY) || '0', 10);
+			if (dismissedAt && Date.now() - dismissedAt < GREETING_TTL_MS) return;
+		} catch (e) { /* localStorage unavailable — fall through */ }
+
+		setTimeout(function () {
+			if (isOpen) return; // user opened the chat during the delay → skip
+			showGreetingBubble();
+		}, GREETING_DELAY_MS);
+	}
+
+	function showGreetingBubble() {
+		if (!shadowRoot) return;
+		if (shadowRoot.querySelector('.def-cc-greeting-bubble')) return; // already showing
+		shadowRoot.appendChild(createGreetingBubble());
+	}
+
+	function createGreetingBubble() {
+		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
+		var bubble = document.createElement('div');
+		bubble.className = 'def-cc-greeting-bubble' + (pos === 'left' ? ' def-cc-greeting-bubble--left' : '');
+		bubble.setAttribute('role', 'button');
+		bubble.setAttribute('tabindex', '0');
+		bubble.setAttribute('aria-label', 'Open chat');
+
+		if (config.logoUrl) {
+			var logoWrap = document.createElement('div');
+			logoWrap.className = 'def-cc-greeting-bubble-logo';
+			var img = document.createElement('img');
+			img.src = config.logoUrl;
+			img.alt = '';
+			img.setAttribute('aria-hidden', 'true');
+			logoWrap.appendChild(img);
+			bubble.appendChild(logoWrap);
+		}
+
+		var text = document.createElement('div');
+		text.className = 'def-cc-greeting-bubble-text';
+		text.textContent = config.greetingBubbleText; // CSS white-space: pre-line preserves newlines
+		bubble.appendChild(text);
+
+		var close = document.createElement('button');
+		close.className = 'def-cc-greeting-bubble-close';
+		close.type = 'button';
+		close.setAttribute('aria-label', 'Dismiss greeting');
+		close.textContent = '×'; // ×
+		close.addEventListener('click', function (e) {
+			e.stopPropagation();
+			dismissGreetingBubble();
+		});
+		bubble.appendChild(close);
+
+		// Click anywhere else on the bubble → open the chat (openPanel tears the bubble down).
+		bubble.addEventListener('click', openPanel);
+		bubble.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				openPanel();
+			}
+		});
+
+		return bubble;
+	}
+
+	function dismissGreetingBubble() {
+		if (!shadowRoot) return;
+		var bubble = shadowRoot.querySelector('.def-cc-greeting-bubble');
+		if (bubble) bubble.remove();
+		try {
+			localStorage.setItem(GREETING_DISMISSED_KEY, String(Date.now()));
+		} catch (e) { /* best-effort dismissal */ }
+	}
+
 	// ─── Init ───────────────────────────────────────────────────────
 
 	function init() {
@@ -678,6 +809,7 @@
 		createTrigger();
 		initHeaderButtons();
 		bindEvents();
+		maybeShowGreetingBubble();
 
 		// Restore open state from previous page view.
 		var stored = getStoredState();

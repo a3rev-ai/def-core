@@ -558,6 +558,40 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Greeting Bubble', 'digital-employees' ); ?></h2>
+
+			<div class="def-core-field def-core-checkbox-field">
+				<label>
+					<input
+						type="checkbox"
+						id="def_core_chat_greeting_bubble_enabled"
+						data-setting="def_core_chat_greeting_bubble_enabled"
+						value="1"
+						<?php checked( $button_settings['greeting_bubble_enabled'] ); ?>
+					/>
+					<?php esc_html_e( 'Show greeting bubble above the chat button', 'digital-employees' ); ?>
+				</label>
+				<p class="description">
+					<?php esc_html_e( 'A proactive pop-up appears above the chat button about 5 seconds after the page loads, inviting visitors to chat. Clicking the bubble opens the chat; the × button dismisses it. Dismissals are remembered for 24 hours.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_greeting_bubble_text"><?php esc_html_e( 'Greeting Text', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_greeting_bubble_text"
+					data-setting="def_core_chat_greeting_bubble_text"
+					rows="3"
+					maxlength="200"
+					class="large-text"
+				><?php echo esc_textarea( $button_settings['greeting_bubble_text'] ); ?></textarea>
+				<p class="description">
+					<?php esc_html_e( 'Text shown inside the greeting bubble (max 200 characters). Line breaks are preserved. Leave blank to hide the bubble.', 'digital-employees' ); ?>
+				</p>
+			</div>
+		</div>
+
+		<div class="def-core-card">
 			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
 
 			<div class="def-core-field">

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.11.1
+Stable tag: 3.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.12.0 - 2026-05-28 =
+* Feature: Customer Chat now shows a Podium-style pop-up greeting bubble next to the floating launcher, so visitors notice the assistant straight away instead of having to discover the button. The bubble appears 5 seconds after page load, carries a configurable greeting (default "Hi! I'm your AI assistant / I'm here to help!"), and points at the launcher with a small tail. Clicking the bubble opens the chat; clicking × dismisses it for 24 hours on that browser. Auto-suppresses when the chat is already open, the launcher is hidden, the text is empty, or it's been dismissed in the last 24 hours. Default ON for new installs — toggle in Settings → Customer Chat → Greeting Bubble (enabled checkbox + 200-char text field). Mobile: narrower with the same tail. Honours `prefers-reduced-motion`.
 
 = 3.11.1 - 2026-05-28 =
 * Polish: dropped the per-message Joe avatar from the chat stream entirely — the widget header already carries the avatar at the top of the panel for the whole conversation, so repeating it above every reply (and especially below the header on the welcome) was visual noise. v3.11.0's grouping rule didn't actually help in real alternating chats where every Joe turn follows a user message; v3.11.1 makes the header the sole Joe indicator. The header avatar is untouched.

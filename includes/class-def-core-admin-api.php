@@ -238,6 +238,18 @@ final class DEF_Core_Admin_API {
 			'validate'  => 'validate_button_label',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_greeting_bubble_enabled' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_greeting_bubble_text' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_greeting_bubble_text',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
+			'read_mode' => 'value',
+		),
 	);
 
 	/**
@@ -1434,6 +1446,43 @@ final class DEF_Core_Admin_API {
 		}
 		// Empty is allowed — the sanitiser normalises it to the default "Chat".
 		return true;
+	}
+
+	/**
+	 * Validate the greeting bubble text — free-text with optional line breaks,
+	 * bounded at 200 characters. Empty is allowed (admin's way to hide the
+	 * bubble without toggling the on/off switch).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 3.12.0
+	 */
+	private function validate_greeting_bubble_text( $value ) {
+		if ( ! is_string( $value ) ) {
+			return 'Greeting bubble text must be a string.';
+		}
+		if ( mb_strlen( $value ) > 200 ) {
+			return 'Greeting bubble text must be 200 characters or fewer.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate a boolean setting. Accepts the shapes JSON parsing actually
+	 * produces (true/false), plus the '0'/'1' string forms WP options use.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 3.12.0
+	 */
+	private function validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return true;
+		}
+		if ( $value === '0' || $value === '1' || $value === 0 || $value === 1 ) {
+			return true;
+		}
+		return 'Value must be a boolean.';
 	}
 
 	// ─── Rate Limiting ──────────────────────────────────────────────────
