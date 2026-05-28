@@ -2011,9 +2011,16 @@
 					if (!streamEl) {
 						hideThinking(thinkingEl);
 							if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
-						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
-						var icon = createAssistantIcon();
-						msgEl.appendChild(icon);
+						// Avatar grouping: same rule as appendMessage — if the
+						// previous message is also from Joe, this streamed bubble
+						// is a continuation (no avatar).
+						var grouped = isLastMessageAssistant();
+						var streamClasses = 'def-cc-message def-cc-message--assistant def-cc-message--streaming' + (grouped ? ' def-cc-message--continuation' : '');
+						var msgEl = el('div', streamClasses);
+						if (!grouped) {
+							var icon = createAssistantIcon();
+							msgEl.appendChild(icon);
+						}
 						var contentEl = el('div', 'def-cc-message-content');
 						msgEl.appendChild(contentEl);
 						els.messages.appendChild(msgEl);
@@ -2478,10 +2485,40 @@
 			});
 	}
 
-	function appendMessage(role, content) {
-		var msgEl = el('div', 'def-cc-message def-cc-message--' + role);
+	/**
+	 * Avatar grouping: is the most recent message in the stream a real
+	 * assistant message? Walks backwards through els.messages.children,
+	 * skipping non-message siblings (tool-status pills, speaker dividers,
+	 * welcome banner/chips — anything without the .def-cc-message class) and
+	 * the transient .def-cc-message--thinking placeholder. Returns true if
+	 * the first real message it finds is from the assistant — the new
+	 * message will then be marked a continuation (no avatar). Returns false
+	 * if the prior message is from the user (which "breaks" a Joe run) or if
+	 * there are no prior messages at all (first message of the conversation).
+	 */
+	function isLastMessageAssistant() {
+		if (!els.messages) return false;
+		var children = els.messages.children;
+		for (var i = children.length - 1; i >= 0; i--) {
+			var node = children[i];
+			if (!node.classList) continue;
+			if (!node.classList.contains('def-cc-message')) continue; // tool-status, dividers, banner, chips
+			if (node.classList.contains('def-cc-message--thinking')) continue; // transient placeholder
+			if (node.classList.contains('def-cc-message--user')) return false; // user breaks the Joe run
+			if (node.classList.contains('def-cc-message--assistant')) return true;
+		}
+		return false;
+	}
 
-		if (role === 'assistant') {
+	function appendMessage(role, content) {
+		// Avatar grouping: only the FIRST of a consecutive-assistant run shows
+		// the brand avatar. Subsequent messages in the same run skip it +
+		// carry the .def-cc-message--continuation class for future styling.
+		var grouped = (role === 'assistant') && isLastMessageAssistant();
+		var classes = 'def-cc-message def-cc-message--' + role + (grouped ? ' def-cc-message--continuation' : '');
+		var msgEl = el('div', classes);
+
+		if (role === 'assistant' && !grouped) {
 			var icon = createAssistantIcon();
 			msgEl.appendChild(icon);
 		}
