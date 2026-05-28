@@ -109,6 +109,23 @@
 	color: #6b7280;
 }
 
+/* WC sale prices include `.screen-reader-text` spans ("Original price was: …",
+   "Current price is: …") for accessibility. A normal WC theme hides them, but
+   the widget's shadow DOM has no such rule, so they rendered visibly and ran
+   into the del/ins amounts ("…$18.00.$16.00Current price is:…"). Clip them the
+   standard accessible way — hidden visually, still announced by screen readers. */
+.def-cc-result-card-subtitle .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .def-cc-result-card-title {
 	margin-top: 8px;
 	font-size: 15px;

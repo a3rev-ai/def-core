@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.7.0
+Stable tag: 3.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,14 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.7.2 - 2026-05-28 =
+* Improvement: refreshed the Customer Chat visual design — the conversation sits on a soft tinted background with assistant replies in white cards and visitor messages in a light-grey bubble, so replies and rich content (tables, product cards) stand out. Plus clearer markdown, a compact tool-status pill, a slim streaming caret, a subtle message entrance, and tighter mobile spacing.
+* Improvement: the "Button Color" branding setting now themes the whole chat widget (send button, accents, focus states), not just the floating launcher button. Message text and links stay neutral for readability.
+* Fix: product card sale prices no longer show WooCommerce's screen-reader text run-together; just the original (struck-through) and sale price now show.
+
+= 3.7.1 - 2026-05-27 =
+* Fix: chat product cards showed subscription prices run together ("$8.25 / monthBilled annually at $99.00"); the recurring-price line now sits on its own line, smaller and muted.
 
 = 3.7.0 - 2026-05-26 =
 * Feature: Staff AI model switcher. A dropdown in the chat composer toolbar lets staff pick which AI model handles the current session — Opus 4.7 (most capable), Sonnet 4.6 (responsive everyday work), or Haiku 4.5 (fastest / cheapest) — so they can match model cost to the task (e.g. route bulk catalogue grunt-work to Haiku). The choice is remembered per browser (localStorage) and sent with each chat request as `model_id`; the DEF backend validates it against the registered, switcher-eligible models and falls back to the channel default if unset or unrecognised. The dropdown is populated from the `/staff-ai/status` endpoint's new `available_models` list, so it only ever offers models the backend actually has configured.

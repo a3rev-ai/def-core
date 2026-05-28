@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.7.2 - 2026/05/28 =
+* Improvement: refreshed the Customer Chat visual design for a cleaner, more premium feel. The conversation now sits on a soft tinted background with each assistant reply in a white "card" and the visitor's messages in a light-grey bubble, so replies — and rich content like tables and product cards — stand out clearly. The brand avatar sits above each reply, markdown (bold, code blocks, blockquotes, tables) reads more clearly, the in-progress tool indicator is a compact pill, the streaming cursor is a slim caret, new messages fade in subtly, and mobile spacing is tighter.
+* Improvement: the "Button Color" branding setting now themes the whole chat widget — the send button, interactive accents, and focus rings — not just the floating launcher. Previously the in-panel accents were a fixed blue regardless of the configured brand color; message text and links stay neutral for readability.
+* Fix: product card sale prices no longer show WooCommerce's accessibility (screen-reader) text run-together — e.g. "$18.00.$16.00Current price is: $16.00." The redundant text is now correctly hidden, leaving just the original (struck-through) and the sale price.
+
 = 3.7.1 - 2026/05/27 =
 * Fix: chat product cards showed subscription prices run together — "$8.25 / monthBilled annually at $99.00" — with no break before the recurring-price line. WooCommerce returns that detail as a block element (`<div class="a3-product-price-annually">Billed annually at …</div>`), but the card subtitle's DOMPurify allowlist (`def-core-product-cards.js`) didn't permit `<div>`, so the tag was unwrapped and its text collided with the preceding "/ month" span. `div` is now allowed (it carries no script/event surface; `class` remains the only permitted attribute), so the recurring-price line keeps its own line, and `def-core-product-cards.css` styles it smaller + muted beneath the per-period price.
 

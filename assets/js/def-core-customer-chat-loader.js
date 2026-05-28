@@ -84,6 +84,17 @@
 
 		shadowRoot = host.attachShadow({ mode: 'open' });
 
+		// Brand the in-panel accents from the tenant's button colour — the same
+		// source the floating trigger uses — so the whole widget is brand-
+		// consistent, not just the launcher. Set as inline custom properties on
+		// the host, which override the stylesheet's :host defaults and flow into
+		// the shadow tree: the send button, submit buttons, input focus border,
+		// spinners, and (via color-mix on --def-cc-primary) the focus rings all
+		// follow. Markdown links keep their own distinct blue for affordance.
+		var accent = config.buttonColor || '#111827';
+		host.style.setProperty('--def-cc-primary', accent);
+		host.style.setProperty('--def-cc-primary-hover', config.buttonHoverColor || accent);
+
 		// Inject minimal trigger button CSS inline (full chat CSS loaded lazily).
 		var style = document.createElement('style');
 		style.textContent = getTriggerCSS();
