@@ -421,7 +421,7 @@ $first_tab = 'branding';
 					<span class="def-core-color-value"><?php echo esc_html( $button_settings['color'] ); ?></span>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'Background color for the chat button (applies to both the floating button and any [def_chat_button] shortcode placement).', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Brand color for the widget: the floating chat button, the [def_chat_button] shortcode, and the chat panel accents (send button, focus states).', 'digital-employees' ); ?>
 				</p>
 			</div>
 

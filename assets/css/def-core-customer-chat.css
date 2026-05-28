@@ -33,7 +33,7 @@
 	--def-cc-radius-lg: 16px;
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
-	--def-cc-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.15);
+	--def-cc-focus-ring: 0 0 0 3px color-mix(in srgb, var(--def-cc-primary) 15%, transparent);
 	--def-cc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 	--def-cc-font-mono: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 	--def-cc-z-trigger: 999998;
@@ -424,6 +424,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	background: #edf0f5;
 }
 
 /* ─── Message Bubbles ───────────────────────────────────────────── */
@@ -432,6 +433,18 @@
 	max-width: 85%;
 	display: flex;
 	flex-direction: column;
+	animation: def-cc-fade-in-up 0.25s ease both;
+}
+
+@keyframes def-cc-fade-in-up {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .def-cc-message--user {
@@ -440,8 +453,9 @@
 
 .def-cc-message--assistant {
 	align-self: flex-start;
-	flex-direction: row;
-	gap: 8px;
+	flex-direction: column;
+	gap: 6px;
+	max-width: 92%;
 }
 
 .def-cc-message-icon {
@@ -467,14 +481,18 @@
 }
 
 .def-cc-message--user .def-cc-message-content {
-	background: var(--def-cc-primary);
-	color: #ffffff;
+	background: #e2e6ec;
+	color: #111827;
+	border: 1px solid var(--def-cc-border);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	border-bottom-right-radius: 4px;
 }
 
 .def-cc-message--assistant .def-cc-message-content {
-	background: var(--def-cc-bg-hover);
-	color: var(--def-cc-text);
+	background: #ffffff;
+	color: #111827;
+	border: 1px solid var(--def-cc-border);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	border-bottom-left-radius: 4px;
 }
 
@@ -531,7 +549,7 @@
 .def-cc-message-content code {
 	font-family: var(--def-cc-font-mono);
 	font-size: 0.9em;
-	background: rgba(0, 0, 0, 0.06);
+	background: rgba(0, 0, 0, 0.08);
 	padding: 2px 5px;
 	border-radius: 4px;
 }
@@ -541,7 +559,8 @@
 }
 
 .def-cc-message-content pre {
-	background: rgba(0, 0, 0, 0.04);
+	background: rgba(0, 0, 0, 0.06);
+	border: 1px solid var(--def-cc-border-input);
 	border-radius: 6px;
 	padding: 10px 12px;
 	overflow-x: auto;
@@ -568,11 +587,11 @@
 }
 
 .def-cc-message-content strong {
-	font-weight: 600;
+	font-weight: 700;
 }
 
 .def-cc-message-content blockquote {
-	border-left: 3px solid var(--def-cc-border);
+	border-left: 4px solid var(--def-cc-border-input);
 	padding-left: 10px;
 	margin: 0.5em 0;
 	color: var(--def-cc-text-light);
@@ -587,7 +606,7 @@
 
 .def-cc-message-content th,
 .def-cc-message-content td {
-	border: 1px solid var(--def-cc-border);
+	border: 1px solid var(--def-cc-border-input);
 	padding: 6px 8px;
 	text-align: left;
 }
@@ -1423,8 +1442,8 @@
 }
 
 .def-cc-message--assistant .def-cc-message-file {
-	background: #ffffff;
-	border-color: var(--def-cc-border);
+	background: var(--def-cc-bg-hover);
+	border-color: var(--def-cc-border-input);
 }
 
 /* ─── Screen Reader Only ────────────────────────────────────────── */
@@ -1456,6 +1475,9 @@
 		transition: none;
 	}
 
+	.def-cc-message,
+	.cc-tool-status,
+	.def-cc-message--streaming .def-cc-message-content::after,
 	.def-cc-thinking-dots span,
 	.def-cc-loading-spinner,
 	.def-cc-escalation-spinner-ring,
@@ -1479,6 +1501,10 @@
 
 	.def-cc-message {
 		max-width: 95%;
+	}
+
+	.def-cc-messages {
+		padding: 12px;
 	}
 
 	.def-cc-shell--modal {
@@ -1512,14 +1538,20 @@
 /* ─── Streaming Cursor (Phase 9 text_delta) ────────────────────── */
 
 .def-cc-message--streaming .def-cc-message-content::after {
-	content: '\258B';
-	display: inline;
-	color: currentColor;
-	animation: def-cc-blink 0.7s step-end infinite;
+	content: '';
+	display: inline-block;
+	width: 2px;
+	height: 1.05em;
+	margin-left: 2px;
+	vertical-align: text-bottom;
+	background: currentColor;
+	border-radius: 1px;
+	animation: def-cc-blink 1s ease-in-out infinite;
 }
 
 @keyframes def-cc-blink {
-	50% { opacity: 0; }
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.2; }
 }
 
 /* ─── SSE Streaming Tool Status (Phase 9 PR 2) ────────────────── */
@@ -1527,38 +1559,43 @@
 .cc-tool-status {
 	display: flex;
 	align-items: center;
+	align-self: flex-start;
 	gap: 8px;
-	padding: 4px 0;
-	margin: 4px 0;
+	padding: 6px 10px;
+	margin: 2px 0;
 	font-size: 13px;
-	color: var(--text-secondary, #666);
+	color: var(--def-cc-text-light);
+	background: var(--def-cc-bg-alt);
+	border: 1px solid var(--def-cc-border);
+	border-radius: var(--def-cc-radius-sm);
+	animation: def-cc-fade-in-up 0.25s ease both;
 }
 
 .cc-tool-status .cc-spinner {
 	width: 14px;
 	height: 14px;
-	border: 2px solid var(--border-light, #e0e0e0);
-	border-top-color: var(--accent-primary, #4a90d9);
+	border: 2px solid var(--def-cc-border);
+	border-top-color: var(--def-cc-primary);
 	border-radius: 50%;
 	animation: cc-spin 0.8s linear infinite;
 }
 
 .cc-tool-done .cc-checkmark {
-	color: var(--accent-success, #22c55e);
+	color: var(--def-cc-success);
 	font-weight: bold;
 }
 
 .cc-tool-done .cc-tool-label {
-	color: var(--accent-success, #22c55e);
+	color: var(--def-cc-success);
 }
 
 .cc-tool-failed .cc-checkmark {
-	color: var(--accent-error, #ef4444);
+	color: var(--def-cc-danger);
 	font-weight: bold;
 }
 
 .cc-tool-failed .cc-tool-label {
-	color: var(--accent-error, #ef4444);
+	color: var(--def-cc-danger);
 }
 
 /* ─── Toast notifications (wp_rest_call feedback) ─────────────── */
@@ -1774,6 +1811,11 @@
  * tenant who uploads a taller image gets cropped, but the
  * recommended aspect renders fully. */
 @media (max-width: 480px) {
+	.def-cc-welcome-banner {
+		width: calc(100% + 24px);
+		margin: -12px -12px 12px -12px;
+	}
+
 	.def-cc-welcome-banner img {
 		max-height: 160px;
 	}
@@ -1790,11 +1832,12 @@
 .def-cc-message-icon--img {
 	background: transparent !important;
 	overflow: hidden;
+	border-radius: 6px; /* square-ish: a circle crops a logo's corners (e.g. Joe's ears) */
 }
 
 .def-cc-message-icon--img img {
 	display: block;
 	width: 100%;
 	height: 100%;
-	object-fit: cover;
+	object-fit: contain; /* show the whole logo, don't crop to fill */
 }
