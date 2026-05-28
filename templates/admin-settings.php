@@ -572,7 +572,7 @@ $first_tab = 'branding';
 					<?php esc_html_e( 'Show greeting bubble above the chat button', 'digital-employees' ); ?>
 				</label>
 				<p class="description">
-					<?php esc_html_e( 'A proactive pop-up appears above the chat button about 5 seconds after the page loads, inviting visitors to chat. Click the bubble opens the chat; the × button dismisses it. Dismissals are remembered for 24 hours.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'A proactive pop-up appears above the chat button about 5 seconds after the page loads, inviting visitors to chat. Clicking the bubble opens the chat; the × button dismisses it. Dismissals are remembered for 24 hours.', 'digital-employees' ); ?>
 				</p>
 			</div>
 

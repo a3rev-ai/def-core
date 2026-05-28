@@ -495,6 +495,11 @@
 	}
 
 	function openPanel() {
+		// Tear down the greeting bubble on any open path (launcher click, header
+		// trigger, restored state) — opening the chat is engagement, no need to
+		// re-prompt. Idempotent if the bubble isn't showing or was already dismissed.
+		dismissGreetingBubble();
+
 		if (!panel) {
 			createPanel();
 		}
@@ -713,12 +718,6 @@
 	window.DEFCustomerChatLoader = { destroy: destroy };
 
 	// ─── Greeting Bubble (v3.12.0) ─────────────────────────────────
-	//
-	// Proactive pop-up above the floating launcher. Click anywhere on the
-	// bubble → opens the chat. Click the close button → dismiss for 24h
-	// via localStorage. Suppression rules: skip if disabled, empty text,
-	// launcher hidden, dismissed-within-24h, or chat already open when
-	// the delay fires. Delay is 5 seconds, hardcoded.
 
 	var GREETING_DISMISSED_KEY = 'def:greeting_dismissed_at';
 	var GREETING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -782,19 +781,12 @@
 		});
 		bubble.appendChild(close);
 
-		// Click anywhere else on the bubble → open the chat + dismiss (so it doesn't re-show).
-		bubble.addEventListener('click', function () {
-			openPanel();
-			dismissGreetingBubble();
-		});
-		// Keyboard: Enter / Space → open; Escape → dismiss only.
+		// Click anywhere else on the bubble → open the chat (openPanel tears the bubble down).
+		bubble.addEventListener('click', openPanel);
 		bubble.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				openPanel();
-				dismissGreetingBubble();
-			} else if (e.key === 'Escape') {
-				dismissGreetingBubble();
 			}
 		});
 

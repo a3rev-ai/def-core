@@ -240,11 +240,14 @@ final class DEF_Core_Admin_API {
 		),
 		'def_core_chat_greeting_bubble_enabled' => array(
 			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
 			'read_mode' => 'value',
 		),
 		'def_core_chat_greeting_bubble_text' => array(
 			'type'      => 'string',
 			'validate'  => 'validate_greeting_bubble_text',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
 			'read_mode' => 'value',
 		),
 	);
@@ -1462,6 +1465,24 @@ final class DEF_Core_Admin_API {
 			return 'Greeting bubble text must be 200 characters or fewer.';
 		}
 		return true;
+	}
+
+	/**
+	 * Validate a boolean setting. Accepts the shapes JSON parsing actually
+	 * produces (true/false), plus the '0'/'1' string forms WP options use.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 3.12.0
+	 */
+	private function validate_boolean( $value ) {
+		if ( is_bool( $value ) ) {
+			return true;
+		}
+		if ( $value === '0' || $value === '1' || $value === 0 || $value === 1 ) {
+			return true;
+		}
+		return 'Value must be a boolean.';
 	}
 
 	// ─── Rate Limiting ──────────────────────────────────────────────────
