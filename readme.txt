@@ -121,7 +121,7 @@ Chat messages, user display name, and session context — only when a user activ
 == Changelog ==
 
 = 3.11.0 - 2026-05-28 =
-* Polish: Customer Chat avatar grouping — when Joe sends two or more replies in a row, only the FIRST shows the brand avatar; follow-up replies in the same turn read as continuations, cutting visual repetition in long threads. Tool-status pills mid-turn don't break the grouping (still Joe speaking); a user message does. Applies on live streaming and on history rehydration. (Skipping 3.10.0 — WordPress version_compare mis-orders "10" segments.)
+* Polish: Customer Chat avatar grouping — when Joe sends two or more replies in a row, only the FIRST shows the brand avatar; follow-up replies in the same turn read as continuations, cutting visual repetition in long threads. The welcome/first message also skips its avatar (the widget header already shows Joe's avatar right above it). Tool-status pills mid-turn don't break the grouping (still Joe speaking); a user message does. Applies on live streaming and on history rehydration. (Skipping 3.10.0 — WordPress version_compare mis-orders "10" segments.)
 
 = 3.9.0 - 2026-05-28 =
 * Feature: Customer Chat button label is now free-text — set any label you like (e.g. "Ask Joe", "AI Assist", "Get Help"). Previously limited to a "Chat" / "AI" radio; now a text input (≤30 chars) in Chat Settings → Button Label, applied to both the floating button and any `[def_chat_button]` shortcode. Existing "Chat" / "AI" values persist; no action required.

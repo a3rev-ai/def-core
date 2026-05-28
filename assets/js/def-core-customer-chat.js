@@ -2012,9 +2012,10 @@
 						hideThinking(thinkingEl);
 							if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						// Avatar grouping: same rule as appendMessage — if the
-						// previous message is also from Joe, this streamed bubble
-						// is a continuation (no avatar).
-						var grouped = isLastMessageAssistant();
+						// previous message is also from Joe (or there's no prior
+						// message at all), this streamed bubble is a continuation
+						// (no avatar).
+						var grouped = shouldGroupAvatar();
 						var streamClasses = 'def-cc-message def-cc-message--assistant def-cc-message--streaming' + (grouped ? ' def-cc-message--continuation' : '');
 						var msgEl = el('div', streamClasses);
 						if (!grouped) {
@@ -2486,17 +2487,25 @@
 	}
 
 	/**
-	 * Avatar grouping: is the most recent message in the stream a real
-	 * assistant message? Walks backwards through els.messages.children,
-	 * skipping non-message siblings (tool-status pills, speaker dividers,
-	 * welcome banner/chips — anything without the .def-cc-message class) and
-	 * the transient .def-cc-message--thinking placeholder. Returns true if
-	 * the first real message it finds is from the assistant — the new
-	 * message will then be marked a continuation (no avatar). Returns false
-	 * if the prior message is from the user (which "breaks" a Joe run) or if
-	 * there are no prior messages at all (first message of the conversation).
+	 * Avatar grouping: should the new assistant message SKIP its own avatar?
+	 *
+	 * Returns true (skip avatar) when it would be redundant — one of:
+	 *   1. The most recent real message is from the assistant (consecutive
+	 *      Joe run — only the FIRST of the run shows the avatar).
+	 *   2. There are NO prior messages at all — this IS the first message of
+	 *      the conversation (the welcome greeting). The widget header sits
+	 *      right above it and already shows Joe's avatar, so stacking another
+	 *      one two inches below the header reads as silly visual repetition.
+	 *
+	 * Returns false (show avatar) when a user message breaks the run — that
+	 * is a real speaker change, and the avatar belongs above Joe's first
+	 * reply back to the user.
+	 *
+	 * Walks els.messages.children backwards, skipping non-message siblings
+	 * (tool-status pills, speaker dividers, welcome banner/chips) and the
+	 * transient .def-cc-message--thinking placeholder.
 	 */
-	function isLastMessageAssistant() {
+	function shouldGroupAvatar() {
 		if (!els.messages) return false;
 		var children = els.messages.children;
 		for (var i = children.length - 1; i >= 0; i--) {
@@ -2507,14 +2516,15 @@
 			if (node.classList.contains('def-cc-message--user')) return false; // user breaks the Joe run
 			if (node.classList.contains('def-cc-message--assistant')) return true;
 		}
-		return false;
+		return true; // No prior messages — first message of conversation; header is the speaker indicator.
 	}
 
 	function appendMessage(role, content) {
 		// Avatar grouping: only the FIRST of a consecutive-assistant run shows
-		// the brand avatar. Subsequent messages in the same run skip it +
-		// carry the .def-cc-message--continuation class for future styling.
-		var grouped = (role === 'assistant') && isLastMessageAssistant();
+		// the brand avatar (and the first message of the whole conversation
+		// also skips it — the header avatar already sits right above). All
+		// other in-run messages carry .def-cc-message--continuation.
+		var grouped = (role === 'assistant') && shouldGroupAvatar();
 		var classes = 'def-cc-message def-cc-message--' + role + (grouped ? ' def-cc-message--continuation' : '');
 		var msgEl = el('div', classes);
 
