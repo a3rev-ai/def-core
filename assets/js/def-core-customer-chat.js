@@ -414,8 +414,6 @@
 
 		// Greeting with capabilities.
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
-		var greetingIcon = createAssistantIcon();
-		greetingEl.appendChild(greetingIcon);
 		var greetingContent = el('div', 'def-cc-message-content');
 
 		var bizName = config.displayName || '';
@@ -2011,17 +2009,7 @@
 					if (!streamEl) {
 						hideThinking(thinkingEl);
 							if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
-						// Avatar grouping: same rule as appendMessage — if the
-						// previous message is also from Joe (or there's no prior
-						// message at all), this streamed bubble is a continuation
-						// (no avatar).
-						var grouped = shouldGroupAvatar();
-						var streamClasses = 'def-cc-message def-cc-message--assistant def-cc-message--streaming' + (grouped ? ' def-cc-message--continuation' : '');
-						var msgEl = el('div', streamClasses);
-						if (!grouped) {
-							var icon = createAssistantIcon();
-							msgEl.appendChild(icon);
-						}
+						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
 						var contentEl = el('div', 'def-cc-message-content');
 						msgEl.appendChild(contentEl);
 						els.messages.appendChild(msgEl);
@@ -2486,52 +2474,11 @@
 			});
 	}
 
-	/**
-	 * Avatar grouping: should the new assistant message SKIP its own avatar?
-	 *
-	 * Returns true (skip avatar) when it would be redundant — one of:
-	 *   1. The most recent real message is from the assistant (consecutive
-	 *      Joe run — only the FIRST of the run shows the avatar).
-	 *   2. There are NO prior messages at all — this IS the first message of
-	 *      the conversation (the welcome greeting). The widget header sits
-	 *      right above it and already shows Joe's avatar, so stacking another
-	 *      one two inches below the header reads as silly visual repetition.
-	 *
-	 * Returns false (show avatar) when a user message breaks the run — that
-	 * is a real speaker change, and the avatar belongs above Joe's first
-	 * reply back to the user.
-	 *
-	 * Walks els.messages.children backwards, skipping non-message siblings
-	 * (tool-status pills, speaker dividers, welcome banner/chips) and the
-	 * transient .def-cc-message--thinking placeholder.
-	 */
-	function shouldGroupAvatar() {
-		if (!els.messages) return false;
-		var children = els.messages.children;
-		for (var i = children.length - 1; i >= 0; i--) {
-			var node = children[i];
-			if (!node.classList) continue;
-			if (!node.classList.contains('def-cc-message')) continue; // tool-status, dividers, banner, chips
-			if (node.classList.contains('def-cc-message--thinking')) continue; // transient placeholder
-			if (node.classList.contains('def-cc-message--user')) return false; // user breaks the Joe run
-			if (node.classList.contains('def-cc-message--assistant')) return true;
-		}
-		return true; // No prior messages — first message of conversation; header is the speaker indicator.
-	}
-
 	function appendMessage(role, content) {
-		// Avatar grouping: only the FIRST of a consecutive-assistant run shows
-		// the brand avatar (and the first message of the whole conversation
-		// also skips it — the header avatar already sits right above). All
-		// other in-run messages carry .def-cc-message--continuation.
-		var grouped = (role === 'assistant') && shouldGroupAvatar();
-		var classes = 'def-cc-message def-cc-message--' + role + (grouped ? ' def-cc-message--continuation' : '');
-		var msgEl = el('div', classes);
-
-		if (role === 'assistant' && !grouped) {
-			var icon = createAssistantIcon();
-			msgEl.appendChild(icon);
-		}
+		// No per-message avatar on assistant bubbles — the widget header
+		// carries Joe's avatar across the whole conversation, so repeating
+		// it above every reply was visual noise (v3.11.1).
+		var msgEl = el('div', 'def-cc-message def-cc-message--' + role);
 
 		var contentEl = el('div', 'def-cc-message-content');
 
@@ -2602,8 +2549,6 @@
 			'div',
 			'def-cc-message def-cc-message--assistant def-cc-message--thinking'
 		);
-		var icon = createAssistantIcon();
-		msgEl.appendChild(icon);
 
 		var content = el('div', 'def-cc-message-content');
 		content.innerHTML =
@@ -2623,39 +2568,7 @@
 		}
 	}
 
-	// ─── 7. ASSISTANT ICON ────────────────────────────────────────
-
-	function createAssistantIcon() {
-		var iconEl = el('div', 'def-cc-message-icon');
-		iconEl.setAttribute('aria-hidden', 'true');
-		// Use the configured logo when available — same logo from Branding
-		// tab. Falls back to display-name initials, or "AI" as a last resort.
-		// Independent of the header `logoShow` toggle: that toggle controls
-		// whether the logo appears in the chat header, not whether it's the
-		// AI's identity in message bubbles.
-		if (config.logoUrl) {
-			iconEl.classList.add('def-cc-message-icon--img');
-			var img = document.createElement('img');
-			img.src = config.logoUrl;
-			img.alt = '';
-			img.setAttribute('aria-hidden', 'true');
-			iconEl.appendChild(img);
-		} else {
-			var initials = '';
-			var name = (config.displayName || '').trim();
-			if (name) {
-				var parts = name.split(/\s+/);
-				initials = (parts[0][0] || '').toUpperCase();
-				if (parts.length > 1 && parts[parts.length - 1][0]) {
-					initials += parts[parts.length - 1][0].toUpperCase();
-				}
-			}
-			iconEl.textContent = initials || 'AI';
-		}
-		return iconEl;
-	}
-
-	// ─── 8. ESCALATION FORM ───────────────────────────────────────
+	// ─── 7. ESCALATION FORM ───────────────────────────────────────
 
 	function showEscalation(reason) {
 		if (!els.escalationOverlay) return;
