@@ -214,14 +214,17 @@ final class DEF_Core_Knowledge_Export {
 			}
 		}
 
-		// Trashed posts (still in DB with status = 'trash').
+		// Trashed posts (still in DB with status = 'trash'). Normalize $since
+		// for date_query so WP_Date_Query doesn't TZ-shift it into site_tz
+		// when comparing against post_modified_gmt (UTC). See
+		// DEF_Core_Export::normalize_modified_after_for_date_query().
 		$trashed_query = new \WP_Query( array(
 			'post_type'      => self::get_exported_post_types(),
 			'post_status'    => 'trash',
 			'posts_per_page' => 500,
 			'date_query'     => array(
 				array(
-					'after'  => $since,
+					'after'  => DEF_Core_Export::normalize_modified_after_for_date_query( $since ),
 					'column' => 'post_modified_gmt',
 				),
 			),
@@ -341,9 +344,12 @@ final class DEF_Core_Knowledge_Export {
 		);
 
 		if ( ! empty( $modified_after ) ) {
+			// See DEF_Core_Export::normalize_modified_after_for_date_query() —
+			// strips ISO TZ offset so WP_Date_Query doesn't shift the watermark
+			// into site_tz when comparing against post_modified_gmt (UTC).
 			$query_args['date_query'] = array(
 				array(
-					'after'  => $modified_after,
+					'after'  => DEF_Core_Export::normalize_modified_after_for_date_query( $modified_after ),
 					'column' => 'post_modified_gmt',
 				),
 			);

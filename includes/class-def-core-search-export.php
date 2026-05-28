@@ -109,8 +109,14 @@ final class DEF_Core_Search_Export {
 			),
 		);
 		if ( '' !== $modified_after ) {
+			// See DEF_Core_Export::normalize_modified_after_for_date_query() —
+			// strips ISO TZ offset so WP_Date_Query doesn't shift the watermark
+			// into site_tz when comparing against post_modified_gmt (UTC).
 			$query_args['date_query'] = array(
-				array( 'after' => $modified_after, 'column' => 'post_modified_gmt' ),
+				array(
+					'after'  => DEF_Core_Export::normalize_modified_after_for_date_query( $modified_after ),
+					'column' => 'post_modified_gmt',
+				),
 			);
 		}
 
