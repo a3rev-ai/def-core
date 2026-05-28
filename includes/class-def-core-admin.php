@@ -101,6 +101,14 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_button_label',
 			),
+			'def_core_chat_greeting_bubble_enabled' => array(
+				'type'     => 'bool',
+				'sanitize' => 'sanitize_bool_setting',
+			),
+			'def_core_chat_greeting_bubble_text' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_greeting_bubble_text',
+			),
 			'def_core_chat_button_icon_id' => array(
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_id',
@@ -500,6 +508,8 @@ final class DEF_Core_Admin {
 			'label'         => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'icon_id'       => (int) get_option( 'def_core_chat_button_icon_id', 0 ),
 			'show_floating' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
+			'greeting_bubble_enabled' => '0' !== get_option( 'def_core_chat_greeting_bubble_enabled', '1' ),
+			'greeting_bubble_text'    => get_option( 'def_core_chat_greeting_bubble_text', "Hi! I'm your AI assistant\nI'm here to help!" ),
 		);
 
 		// Icon preview URL for admin.
@@ -970,6 +980,20 @@ final class DEF_Core_Admin {
 		$value = trim( sanitize_text_field( (string) $value ) );
 		$value = mb_substr( $value, 0, 30 );
 		return '' === $value ? 'Chat' : $value;
+	}
+
+	/**
+	 * Sanitize the greeting-bubble text. Uses sanitize_textarea_field so
+	 * admin-entered line breaks are preserved (the loader renders the text
+	 * with CSS `white-space: pre-line`). Trimmed + truncated to 200 chars as
+	 * defense-in-depth alongside the validator. Empty is preserved (admin's
+	 * way to hide the bubble without toggling the on/off switch).
+	 *
+	 * @since 3.12.0
+	 */
+	public static function sanitize_greeting_bubble_text( $value ): string {
+		$value = trim( sanitize_textarea_field( (string) $value ) );
+		return mb_substr( $value, 0, 200 );
 	}
 
 	/**

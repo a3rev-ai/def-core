@@ -238,6 +238,15 @@ final class DEF_Core_Admin_API {
 			'validate'  => 'validate_button_label',
 			'read_mode' => 'value',
 		),
+		'def_core_chat_greeting_bubble_enabled' => array(
+			'type'      => 'boolean',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_greeting_bubble_text' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_greeting_bubble_text',
+			'read_mode' => 'value',
+		),
 	);
 
 	/**
@@ -1433,6 +1442,25 @@ final class DEF_Core_Admin_API {
 			return 'Button label must be 30 characters or fewer.';
 		}
 		// Empty is allowed — the sanitiser normalises it to the default "Chat".
+		return true;
+	}
+
+	/**
+	 * Validate the greeting bubble text — free-text with optional line breaks,
+	 * bounded at 200 characters. Empty is allowed (admin's way to hide the
+	 * bubble without toggling the on/off switch).
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 * @since 3.12.0
+	 */
+	private function validate_greeting_bubble_text( $value ) {
+		if ( ! is_string( $value ) ) {
+			return 'Greeting bubble text must be a string.';
+		}
+		if ( mb_strlen( $value ) > 200 ) {
+			return 'Greeting bubble text must be 200 characters or fewer.';
+		}
 		return true;
 	}
 
