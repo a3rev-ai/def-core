@@ -71,6 +71,11 @@ if ( ! class_exists( 'WP_Query' ) ) {
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/../' );
 }
+// content_deleted's trashed_query (and the topics/forums export above it) now
+// reach into DEF_Core_Export::normalize_modified_after_for_date_query() to
+// strip the ISO timezone offset before handing it to WP_Date_Query. Load that
+// class first so the static call resolves under standalone tests.
+require_once __DIR__ . '/../includes/class-def-core-export.php';
 require_once __DIR__ . '/../includes/class-def-core-knowledge-export.php';
 
 // ── Test Runner ────────────────────────────────────────────────────────
