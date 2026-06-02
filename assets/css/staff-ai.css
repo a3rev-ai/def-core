@@ -942,8 +942,8 @@ body {
 }
 
 /* Inline web-citation pills (web_search / web_fetch). Claude-style: a small
-   text pill sits in the answer; hovering shows a preview card (title + favicon +
-   site); one click opens the source. */
+   text pill sits in the answer; hovering shows a preview card (title + site);
+   one click opens the source. */
 .def-cite {
 	display: inline-flex;
 	align-items: center;
@@ -1006,18 +1006,8 @@ body {
 }
 
 .def-cite-bubble-site {
-	display: flex;
-	align-items: center;
-	gap: 6px;
 	font-size: 12px;
 	color: var(--text-secondary);
-}
-
-.def-cite-bubble-favicon {
-	width: 16px;
-	height: 16px;
-	border-radius: 3px;
-	flex-shrink: 0;
 }
 
 .composer:focus-within {

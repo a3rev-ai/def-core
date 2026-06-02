@@ -855,7 +855,7 @@ function t(key, fallback) {
 	// ships an id->{title,url,domain} lookup on the 'sources' tool_output. After
 	// the answer's markdown is rendered AND DOMPurify-sanitized, we swap each
 	// [src_N] token for a clickable pill (one click opens the source) with a
-	// hover preview (title + favicon + site). Built via the DOM (never innerHTML)
+	// hover preview (title + site name). Built via the DOM (never innerHTML)
 	// so untrusted title/url/domain stay inert text/attributes, and only in plain
 	// text nodes (never inside code/pre or an existing link).
 	var CITE_TOKEN_RE = /\[(src_\d+)\]/g;
@@ -869,11 +869,6 @@ function t(key, fallback) {
 			});
 		});
 		return map;
-	}
-
-	function faviconUrl(domain) {
-		return 'https://www.google.com/s2/favicons?domain=' +
-			encodeURIComponent(domain || '') + '&sz=32';
 	}
 
 	// Best-effort display name from a domain (e.g. lexology.com -> "Lexology").
@@ -913,7 +908,7 @@ function t(key, fallback) {
 		label.textContent = siteLabel;
 		pill.appendChild(label);
 
-		// Hover preview bubble: page title (top), favicon + site (bottom).
+		// Hover preview bubble: page title (top), site name (bottom).
 		var bubble = document.createElement('span');
 		bubble.className = 'def-cite-bubble';
 		if (title) {
@@ -924,19 +919,7 @@ function t(key, fallback) {
 		}
 		var bSite = document.createElement('span');
 		bSite.className = 'def-cite-bubble-site';
-		var fav = document.createElement('img');
-		fav.className = 'def-cite-bubble-favicon';
-		fav.src = faviconUrl(domain);
-		fav.alt = '';
-		fav.width = 16;
-		fav.height = 16;
-		fav.loading = 'lazy';
-		fav.referrerPolicy = 'no-referrer';  // don't leak the staff-app URL to the favicon host
-		fav.setAttribute('aria-hidden', 'true');
-		var bName = document.createElement('span');
-		bName.textContent = siteLabel;
-		bSite.appendChild(fav);
-		bSite.appendChild(bName);
+		bSite.textContent = siteLabel;
 		bubble.appendChild(bSite);
 		pill.appendChild(bubble);
 		return pill;
