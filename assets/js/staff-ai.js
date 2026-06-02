@@ -876,12 +876,30 @@ function t(key, fallback) {
 			encodeURIComponent(domain || '') + '&sz=32';
 	}
 
+	// Best-effort display name from a domain (e.g. lexology.com -> "Lexology").
+	// The provider gives us no publisher name, so we capitalize the brand label
+	// of the registrable domain. Common case (foo.com / sub.foo.org) is exact;
+	// multi-part TLDs (co.uk, gov.au) step one label left. Real casing
+	// (WooCommerce) and curated names aren't recoverable — falls back to the raw
+	// domain on any odd shape.
+	var _TLD_WORDS = { co: 1, com: 1, gov: 1, org: 1, net: 1, edu: 1, ac: 1 };
+	function siteNameFromDomain(domain) {
+		if (!domain) return '';
+		var parts = domain.split('.').filter(Boolean);
+		if (parts.length < 2) return domain;
+		var idx = parts.length - 2;  // second-to-last label = brand for foo.com
+		if (idx > 0 && _TLD_WORDS[parts[idx]]) idx -= 1;  // co.uk / gov.au -> step left
+		var label = parts[idx];
+		if (!label) return domain;
+		return label.charAt(0).toUpperCase() + label.slice(1);
+	}
+
 	function buildCitationPill(src) {
 		var href = safeHttpHref(src && src.url);
 		if (!href) return null;  // unsafe/missing URL — caller drops the token
 		var domain = (src.domain || '').trim();
 		var title = (src.title || '').trim();
-		var siteLabel = domain || href;
+		var siteLabel = siteNameFromDomain(domain) || domain || href;
 
 		// The pill IS the link — a single click opens the source.
 		var pill = document.createElement('a');
