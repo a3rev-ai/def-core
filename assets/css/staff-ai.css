@@ -887,35 +887,58 @@ body {
 	border-color: var(--border-hover);
 }
 
-/* Web search session toggle — a pill that highlights when active (off by default). */
-.web-search-toggle {
+/* Web search session toggle — an iOS-style sliding switch + label (off by default). */
+.web-search-switch {
 	display: inline-flex;
 	align-items: center;
-	gap: 5px;
+	gap: 8px;
 	margin-right: 8px;
-	padding: 5px 10px;
+	padding: 4px 6px;
 	font-size: 12px;
 	font-family: inherit;
 	color: var(--text-secondary);
-	background: var(--bg-input);
-	border: 1px solid var(--border-medium);
-	border-radius: 6px;
+	background: transparent;
+	border: none;
 	cursor: pointer;
 }
 
-.web-search-toggle svg {
-	width: 15px;
-	height: 15px;
+.web-search-switch-label {
+	white-space: nowrap;
 }
 
-.web-search-toggle:hover {
-	border-color: var(--border-hover);
+.web-search-switch-track {
+	position: relative;
+	flex: 0 0 auto;
+	width: 34px;
+	height: 18px;
+	border-radius: 9px;
+	background: var(--border-medium);
+	transition: background 0.15s ease;
 }
 
-.web-search-toggle.active {
-	color: #fff;
+.web-search-switch-knob {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+	transition: transform 0.15s ease;
+}
+
+/* ON state (driven by aria-checked — the JS toggles it). */
+.web-search-switch[aria-checked="true"] {
+	color: var(--text-heading);
+}
+
+.web-search-switch[aria-checked="true"] .web-search-switch-track {
 	background: var(--accent-green);
-	border-color: var(--accent-green);
+}
+
+.web-search-switch[aria-checked="true"] .web-search-switch-knob {
+	transform: translateX(16px);
 }
 
 /* Web search Sources block (web_search tool output). */

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.13.0
+Stable tag: 3.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.13.1 - 2026-06-02 =
+* Polish: the Staff AI "Web Search" control is now a proper iOS-style ON/OFF sliding toggle with a "Web Search" label (was a pill button), and its hover tooltip is state-aware (says whether it's ON or OFF). Behaviour unchanged: off by default, in-memory only, shown only when the workspace's Web Search master switch is enabled.
 
 = 3.13.0 - 2026-06-02 =
 * Feature: Staff AI web search (off by default). With a Web Search provider key + the master switch enabled on the Tenant Portal, a "Search" toggle appears in the Staff AI composer. Turn it on for a session and the assistant can search the live web, returning a "Sources" block with the pages used. The toggle is per-session and in-memory only — it resets OFF on every reload / new chat. Source links are scheme-validated (http/https only) and titles render as plain text, since web content is untrusted. Customer Chat (Joe) is unaffected.
