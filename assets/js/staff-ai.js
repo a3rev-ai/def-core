@@ -249,8 +249,12 @@ function t(key, fallback) {
 	if (webSearchToggle) {
 		webSearchToggle.addEventListener('click', function () {
 			webSearchEnabled = !webSearchEnabled;
-			webSearchToggle.classList.toggle('active', webSearchEnabled);
-			webSearchToggle.setAttribute('aria-pressed', webSearchEnabled ? 'true' : 'false');
+			// aria-checked drives the iOS-switch styling + a11y (role="switch").
+			webSearchToggle.setAttribute('aria-checked', webSearchEnabled ? 'true' : 'false');
+			// State-aware tooltip so hovering tells you whether it's on or off.
+			webSearchToggle.title = webSearchEnabled
+				? t('webSearchOn', 'Web search is ON for this session — the assistant may search the web')
+				: t('webSearchOff', 'Web search is OFF — turn on to let the assistant search the web this session');
 		});
 	}
 	if (modelSelect) {
