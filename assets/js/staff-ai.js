@@ -240,6 +240,19 @@ function t(key, fallback) {
 	// truth); the chosen model rides in the chat request and DEF validates it.
 	const modelSelect = document.getElementById('modelSelect');
 	let selectedModel = localStorage.getItem('staff-ai-model') || '';
+	// Web search session toggle. Deliberately in-memory only (NOT sticky): it is
+	// off by default and resets OFF on every reload / new chat — persisting it
+	// would contradict off-by-default. The control is shown only when the tenant
+	// master switch (/status.web_search_enabled) is on.
+	const webSearchToggle = document.getElementById('webSearchToggle');
+	let webSearchEnabled = false;
+	if (webSearchToggle) {
+		webSearchToggle.addEventListener('click', function () {
+			webSearchEnabled = !webSearchEnabled;
+			webSearchToggle.classList.toggle('active', webSearchEnabled);
+			webSearchToggle.setAttribute('aria-pressed', webSearchEnabled ? 'true' : 'false');
+		});
+	}
 	if (modelSelect) {
 		modelSelect.addEventListener('change', function () {
 			selectedModel = modelSelect.value;
@@ -249,7 +262,12 @@ function t(key, fallback) {
 			fetch(statusUrl, { headers: { 'X-WP-Nonce': nonce }, credentials: 'same-origin' })
 				.then(function (r) { return r.ok ? r.json() : null; })
 				.then(function (data) {
-					var models = (data && data.available_models) || [];
+					if (!data) return;
+					// Reveal the web-search toggle only if the tenant master switch is on.
+					if (webSearchToggle && data.web_search_enabled) {
+						webSearchToggle.hidden = false;
+					}
+					var models = data.available_models || [];
 					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
 					var ids = [];
 					models.forEach(function (m) {
@@ -744,6 +762,11 @@ function t(key, fallback) {
 			return window.DefResultCards.renderSection(tool, { channel: 'staff_ai' });
 		}
 
+		// Web search Sources block (Staff-AI web_search tool).
+		if (tool && tool.result_type === 'sources') {
+			return renderSourcesSection(tool);
+		}
+
 		// Escalation offer — inline suggestion card
 		if (tool.type === 'escalation_offer') {
 			const card = document.createElement('div');
@@ -801,6 +824,56 @@ function t(key, fallback) {
 		card.appendChild(info);
 		card.appendChild(download);
 
+		return card;
+	}
+
+	// Render the web-search Sources block. Source URLs/titles are UNTRUSTED
+	// provider data: titles go in via textContent (no HTML), and hrefs are
+	// scheme-validated to http(s) so a poisoned `javascript:`/`data:` URL can't
+	// become a clickable sink.
+	function safeHttpHref(url) {
+		if (typeof url !== 'string') return '';
+		try {
+			var u = new URL(url, window.location.origin);
+			return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function renderSourcesSection(tool) {
+		var sources = (tool && tool.sources) || [];
+		if (!sources.length) return null;
+		var card = document.createElement('div');
+		card.className = 'web-sources-card';
+
+		var heading = document.createElement('div');
+		heading.className = 'web-sources-heading';
+		heading.textContent = t('sources', 'Sources');
+		card.appendChild(heading);
+
+		var list = document.createElement('ol');
+		list.className = 'web-sources-list';
+		sources.forEach(function (s) {
+			var href = safeHttpHref(s && s.url);
+			if (!href) return;  // skip a source with an unsafe/missing URL
+			var li = document.createElement('li');
+			var a = document.createElement('a');
+			a.href = href;
+			a.target = '_blank';
+			a.rel = 'noopener noreferrer';
+			a.textContent = (s.title || s.domain || href);
+			li.appendChild(a);
+			if (s.domain) {
+				var dom = document.createElement('span');
+				dom.className = 'web-sources-domain';
+				dom.textContent = ' — ' + s.domain;
+				li.appendChild(dom);
+			}
+			list.appendChild(li);
+		});
+		if (!list.childNodes.length) return null;
+		card.appendChild(list);
 		return card;
 	}
 
@@ -1310,6 +1383,7 @@ function t(key, fallback) {
 			if (fileIds.length > 0) {
 				requestBody.file_ids = fileIds;
 			}
+			if (webSearchEnabled) requestBody.web_search_enabled = true;
 
 			const result = await apiRequest('/chat', {
 				method: 'POST',
@@ -1364,6 +1438,7 @@ function t(key, fallback) {
 
 			var requestBody = { messages: reqMessages };
 			if (selectedModel) requestBody.model_id = selectedModel;
+			if (webSearchEnabled) requestBody.web_search_enabled = true;
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 				requestBody.continue_thread = true;

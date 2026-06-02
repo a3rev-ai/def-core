@@ -887,6 +887,66 @@ body {
 	border-color: var(--border-hover);
 }
 
+/* Web search session toggle — a pill that highlights when active (off by default). */
+.web-search-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin-right: 8px;
+	padding: 5px 10px;
+	font-size: 12px;
+	font-family: inherit;
+	color: var(--text-secondary);
+	background: var(--bg-input);
+	border: 1px solid var(--border-medium);
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.web-search-toggle svg {
+	width: 15px;
+	height: 15px;
+}
+
+.web-search-toggle:hover {
+	border-color: var(--border-hover);
+}
+
+.web-search-toggle.active {
+	color: #fff;
+	background: var(--accent-green);
+	border-color: var(--accent-green);
+}
+
+/* Web search Sources block (web_search tool output). */
+.web-sources-card {
+	margin-top: 8px;
+	padding: 10px 14px;
+	background: var(--bg-input);
+	border: 1px solid var(--border-medium);
+	border-radius: 8px;
+}
+
+.web-sources-heading {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	margin-bottom: 6px;
+}
+
+.web-sources-list {
+	margin: 0;
+	padding-left: 18px;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.web-sources-domain {
+	color: var(--text-secondary);
+}
+
 .composer:focus-within {
 	border-color: var(--border-focus);
 }
