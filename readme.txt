@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.12.1
+Stable tag: 3.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.13.0 - 2026-06-02 =
+* Feature: Staff AI web search (off by default). With a Web Search provider key + the master switch enabled on the Tenant Portal, a "Search" toggle appears in the Staff AI composer. Turn it on for a session and the assistant can search the live web, returning a "Sources" block with the pages used. The toggle is per-session and in-memory only — it resets OFF on every reload / new chat. Source links are scheme-validated (http/https only) and titles render as plain text, since web content is untrusted. Customer Chat (Joe) is unaffected.
 
 = 3.12.1 - 2026-05-28 =
 * Fix: auto-sync incremental + delete-tracking exports returned zero rows on sites whose WordPress timezone is not UTC. The DEF backend sends the "modified after" watermark as ISO-8601 with an explicit timezone offset; WordPress's `WP_Date_Query` was converting that value into the site's local timezone before building the SQL, but the column it compared against (`post_modified_gmt`) stays in UTC, so recently-edited content silently failed to match the filter on sites running in any non-UTC timezone. The export endpoints now normalize the watermark to a plain UTC datetime string before handing it to `date_query`. Affects content, products, forums, search, and trashed-posts queries.

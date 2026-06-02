@@ -274,6 +274,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 									</svg>
 								</button>
 								<select class="model-select" id="modelSelect" hidden aria-label="<?php echo esc_attr__( 'AI model', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Choose the AI model for this session', 'digital-employees' ); ?>"></select>
+								<button type="button" class="web-search-toggle" id="webSearchToggle" hidden aria-pressed="false"
+									aria-label="<?php echo esc_attr__( 'Search the web', 'digital-employees' ); ?>"
+									title="<?php echo esc_attr__( 'Let the assistant search the web for this session', 'digital-employees' ); ?>">
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+										stroke-linecap="round" stroke-linejoin="round">
+										<circle cx="12" cy="12" r="10"></circle>
+										<line x1="2" y1="12" x2="22" y2="12"></line>
+										<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+									</svg>
+									<span><?php echo esc_html__( 'Search', 'digital-employees' ); ?></span>
+								</button>
 								<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'digital-employees' ); ?>">
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 										<line x1="22" y1="2" x2="11" y2="13"></line>
