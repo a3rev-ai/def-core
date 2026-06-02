@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.13.1
+Stable tag: 3.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.14.0 - 2026-06-03 =
+* Polish: Staff AI web search results now appear as inline citations in the answer text (Claude-style) instead of a separate "Sources" list. Each cited source is a small pill placed right after the claim it supports — hover it to preview the page title, site, and favicon; click it to open the source in a new tab. Only the sources the answer actually used are shown, exactly where they're used. Source links remain scheme-validated (http/https only) and all titles/sites render as plain text, since web content is untrusted.
 
 = 3.13.1 - 2026-06-02 =
 * Polish: the Staff AI "Web Search" control is now a proper iOS-style ON/OFF sliding toggle with a "Web Search" label (was a pill button), and its hover tooltip is state-aware (says whether it's ON or OFF). Behaviour unchanged: off by default, in-memory only, shown only when the workspace's Web Search master switch is enabled.
