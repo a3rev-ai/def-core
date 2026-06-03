@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.14.3
+Stable tag: 3.14.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.14.4 - 2026-06-03 =
+* Fix: Staff AI web-search citation pills (and result cards) disappeared on switching conversations or reopening Staff AI. The conversation-load proxy was discarding the backend's tool_outputs (always sent an empty array), so the widget had nothing to rebuild citations from on reload. It now passes them through, so citations and cards persist. (Pairs with the DEF backend change.)
 
 = 3.14.3 - 2026-06-03 =
 * Change: removed the Staff AI web-search composer toggle. Web search is now governed solely by the workspace (tenant) master switch — when it's on, the assistant decides for itself when to search the web, like every other tool, instead of the user arming a per-session toggle first. So it can answer questions needing current info without flipping a switch. No change when the master switch is off.
