@@ -274,7 +274,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 									</svg>
 								</button>
 								<select class="model-select" id="modelSelect" hidden aria-label="<?php echo esc_attr__( 'AI model', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Choose the AI model for this session', 'digital-employees' ); ?>"></select>
-								<button type="button" class="web-search-switch" id="webSearchToggle" hidden role="switch" aria-checked="false" aria-label="<?php echo esc_attr__( 'Web search', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Web search is OFF — turn on to let the assistant search the web this session', 'digital-employees' ); ?>"><span class="web-search-switch-label"><?php echo esc_html__( 'Web Search', 'digital-employees' ); ?></span><span class="web-search-switch-track"><span class="web-search-switch-knob"></span></span></button>
 								<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'digital-employees' ); ?>">
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 										<line x1="22" y1="2" x2="11" y2="13"></line>
