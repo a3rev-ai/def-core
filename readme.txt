@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.14.1
+Stable tag: 3.14.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 3.14.2 - 2026-06-03 =
+* Polish: the web-citation hover bubble now matches Claude's citation card — it stays open when you move the pointer onto it (closes when you move away), the inner row highlights while the pointer is on the popup, the drop shadow is removed, and the colours use the app's light/dark theme.
 
 = 3.14.1 - 2026-06-03 =
 * Fix: the inline web-citation hover bubble (3.14.0) never showed — hovering a citation pill only underlined it. The pill's `overflow: hidden` (used to truncate long labels) was clipping the pop-up bubble, which sits above the pill. Truncation moved to the label and the clip removed, so the bubble now appears on hover as intended.

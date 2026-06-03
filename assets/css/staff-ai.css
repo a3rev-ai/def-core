@@ -983,12 +983,34 @@ body {
 	z-index: 60;
 	width: max-content;
 	max-width: min(280px, 80vw);
-	padding: 10px 12px;
-	background: var(--bg-panel, var(--bg-input));
-	border: 1px solid var(--border-medium);
-	border-radius: 8px;
-	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+	padding: 4px;
+	background: var(--bg-modal);
+	border: 1px solid var(--border-light);
+	border-radius: 10px;
 	white-space: normal;
+}
+
+/* Transparent bridge across the gap down to the pill, so the bubble persists
+   when the pointer moves up onto it (and closes when it moves away). */
+.def-cite-bubble::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	height: 8px;
+}
+
+/* Inner content row — highlights once the pointer is on the popup (clickable
+   affordance, like Claude's citation card). */
+.def-cite-bubble-inner {
+	display: block;
+	padding: 8px 10px;
+	border-radius: 7px;
+}
+
+.def-cite-bubble:hover .def-cite-bubble-inner {
+	background: var(--bg-input);
 }
 
 /* Pills near the right edge: flip the bubble to right-aligned (set by JS on

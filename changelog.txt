@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.14.2 - 2026/06/03 =
+* Polish: the web-citation hover bubble now matches Claude's citation card — the bubble stays open when you move the pointer up onto it (a transparent bridge spans the gap; it closes when you move away), the inner row highlights while the pointer is on the popup (clickable affordance), the drop shadow is removed, and the surface/highlight colours use the app's theme (clean panel background, subtle row highlight) in both light and dark mode.
+
 = 3.14.1 - 2026/06/03 =
 * Fix: the inline web-citation hover bubble (added in 3.14.0) never appeared — hovering a citation pill only underlined it. The pill had `overflow: hidden` (to truncate long labels), which clipped the pop-up bubble since the bubble is positioned above the pill, outside its box. Moved the truncation onto the label itself and removed the clip, so the bubble now shows on hover/focus as intended.
 
