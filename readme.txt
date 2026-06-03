@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.15.0
+Stable tag: 3.14.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, and session context — only when a user activ
 
 == Changelog ==
 
-= 3.15.0 - 2026-06-03 =
+= 3.14.3 - 2026-06-03 =
 * Change: removed the Staff AI web-search composer toggle. Web search is now governed solely by the workspace (tenant) master switch — when it's on, the assistant decides for itself when to search the web, like every other tool, instead of the user arming a per-session toggle first. So it can answer questions needing current info without flipping a switch. No change when the master switch is off.
 
 = 3.14.2 - 2026-06-03 =
