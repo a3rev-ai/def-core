@@ -908,19 +908,24 @@ function t(key, fallback) {
 		label.textContent = siteLabel;
 		pill.appendChild(label);
 
-		// Hover preview bubble: page title (top), site name (bottom).
+		// Hover preview bubble: page title (top), site name (bottom). Content sits
+		// in an inner wrapper that highlights when the pointer is on the popup
+		// (clickable affordance — matches Claude's citation card).
 		var bubble = document.createElement('span');
 		bubble.className = 'def-cite-bubble';
+		var inner = document.createElement('span');
+		inner.className = 'def-cite-bubble-inner';
 		if (title) {
 			var bTitle = document.createElement('span');
 			bTitle.className = 'def-cite-bubble-title';
 			bTitle.textContent = title;
-			bubble.appendChild(bTitle);
+			inner.appendChild(bTitle);
 		}
 		var bSite = document.createElement('span');
 		bSite.className = 'def-cite-bubble-site';
 		bSite.textContent = siteLabel;
-		bubble.appendChild(bSite);
+		inner.appendChild(bSite);
+		bubble.appendChild(inner);
 		pill.appendChild(bubble);
 
 		// Edge-aware bubble: a left-anchored bubble overflows the right edge when
