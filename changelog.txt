@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 3.14.4 - 2026/06/03 =
+* Fix: Staff AI web-search citation pills (and result cards) disappeared when you switched conversations or reopened Staff AI. The conversation-load proxy was discarding the backend's tool_outputs (it always sent an empty array), so the widget had nothing to rebuild the inline citations from on history reload. It now passes the backend's tool_outputs through, so citations and cards persist across reloads. (Pairs with the DEF backend change that persists + returns them.)
+
 = 3.14.3 - 2026/06/03 =
 * Change: removed the Staff AI web-search composer toggle. Web search is now governed solely by the workspace (tenant) master switch — when it's on, the assistant decides for itself when to search the web (like every other tool), instead of the user having to arm a per-session toggle first. This means the assistant can answer questions that need current information without you flipping a switch, and it can no longer be "on the workspace but off for this chat". No change when the master switch is off.
 

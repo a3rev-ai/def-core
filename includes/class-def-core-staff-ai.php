@@ -505,7 +505,10 @@ final class DEF_Core_Staff_AI
 					'role'         => $msg['role'] ?? 'user',
 					'content'      => $msg['content'] ?? '',
 					'timestamp'    => $msg['timestamp'] ?? '',
-					'tool_outputs' => array(), // Will be parsed from content if needed.
+					// Pass through replay-safe tool_outputs from the backend (web citation
+					// sources, result cards) so the widget rebuilds inline pills / cards
+					// on history reload.
+					'tool_outputs' => ( isset($msg['tool_outputs']) && is_array($msg['tool_outputs']) ) ? $msg['tool_outputs'] : array(),
 				);
 			}
 		}
