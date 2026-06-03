@@ -240,23 +240,6 @@ function t(key, fallback) {
 	// truth); the chosen model rides in the chat request and DEF validates it.
 	const modelSelect = document.getElementById('modelSelect');
 	let selectedModel = localStorage.getItem('staff-ai-model') || '';
-	// Web search session toggle. Deliberately in-memory only (NOT sticky): it is
-	// off by default and resets OFF on every reload / new chat — persisting it
-	// would contradict off-by-default. The control is shown only when the tenant
-	// master switch (/status.web_search_enabled) is on.
-	const webSearchToggle = document.getElementById('webSearchToggle');
-	let webSearchEnabled = false;
-	if (webSearchToggle) {
-		webSearchToggle.addEventListener('click', function () {
-			webSearchEnabled = !webSearchEnabled;
-			// aria-checked drives the iOS-switch styling + a11y (role="switch").
-			webSearchToggle.setAttribute('aria-checked', webSearchEnabled ? 'true' : 'false');
-			// State-aware tooltip so hovering tells you whether it's on or off.
-			webSearchToggle.title = webSearchEnabled
-				? t('webSearchOn', 'Web search is ON for this session — the assistant may search the web')
-				: t('webSearchOff', 'Web search is OFF — turn on to let the assistant search the web this session');
-		});
-	}
 	if (modelSelect) {
 		modelSelect.addEventListener('change', function () {
 			selectedModel = modelSelect.value;
@@ -267,10 +250,6 @@ function t(key, fallback) {
 				.then(function (r) { return r.ok ? r.json() : null; })
 				.then(function (data) {
 					if (!data) return;
-					// Reveal the web-search toggle only if the tenant master switch is on.
-					if (webSearchToggle && data.web_search_enabled) {
-						webSearchToggle.hidden = false;
-					}
 					var models = data.available_models || [];
 					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
 					var ids = [];
@@ -1493,7 +1472,6 @@ function t(key, fallback) {
 			if (fileIds.length > 0) {
 				requestBody.file_ids = fileIds;
 			}
-			if (webSearchEnabled) requestBody.web_search_enabled = true;
 
 			const result = await apiRequest('/chat', {
 				method: 'POST',
@@ -1548,7 +1526,6 @@ function t(key, fallback) {
 
 			var requestBody = { messages: reqMessages };
 			if (selectedModel) requestBody.model_id = selectedModel;
-			if (webSearchEnabled) requestBody.web_search_enabled = true;
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 				requestBody.continue_thread = true;
