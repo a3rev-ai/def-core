@@ -991,6 +991,13 @@ body {
 	white-space: normal;
 }
 
+/* Pills near the right edge: flip the bubble to right-aligned (set by JS on
+   hover/focus) so it doesn't clip off-screen. */
+.def-cite-bubble-flip {
+	left: auto;
+	right: 0;
+}
+
 .def-cite:hover .def-cite-bubble,
 .def-cite:focus .def-cite-bubble {
 	display: block;

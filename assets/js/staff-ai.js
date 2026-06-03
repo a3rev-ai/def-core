@@ -922,6 +922,17 @@ function t(key, fallback) {
 		bSite.textContent = siteLabel;
 		bubble.appendChild(bSite);
 		pill.appendChild(bubble);
+
+		// Edge-aware bubble: a left-anchored bubble overflows the right edge when
+		// the pill sits near the end of a line. On hover/focus, measure the pill
+		// and flip the bubble to right-aligned if it would clip (CSS alone can't
+		// know the pill's position; the CSS anchor API isn't broadly supported).
+		function placeBubble() {
+			var r = pill.getBoundingClientRect();
+			bubble.classList.toggle('def-cite-bubble-flip', r.left + 280 > window.innerWidth - 12);
+		}
+		pill.addEventListener('mouseenter', placeBubble);
+		pill.addEventListener('focus', placeBubble);
 		return pill;
 	}
 
