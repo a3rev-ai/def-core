@@ -960,7 +960,6 @@ body {
 	text-decoration: none;
 	vertical-align: baseline;
 	white-space: nowrap;
-	overflow: hidden;
 }
 
 .def-cite:hover {
@@ -972,6 +971,7 @@ body {
 .def-cite-label {
 	overflow: hidden;
 	text-overflow: ellipsis;
+	min-width: 0;
 }
 
 /* Hover preview bubble — hidden until the pill is hovered/focused. */
