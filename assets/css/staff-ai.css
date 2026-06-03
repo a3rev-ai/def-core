@@ -941,32 +941,79 @@ body {
 	transform: translateX(16px);
 }
 
-/* Web search Sources block (web_search tool output). */
-.web-sources-card {
-	margin-top: 8px;
-	padding: 10px 14px;
-	background: var(--bg-input);
+/* Inline web-citation pills (web_search / web_fetch). Claude-style: a small
+   text pill sits in the answer; hovering shows a preview card (title + site);
+   one click opens the source. */
+.def-cite {
+	display: inline-flex;
+	align-items: center;
+	position: relative;
+	max-width: 220px;
+	margin: 0 1px;
+	padding: 0 7px;
 	border: 1px solid var(--border-medium);
-	border-radius: 8px;
+	border-radius: 10px;
+	background: var(--bg-input);
+	color: var(--text-secondary);
+	font-size: 11px;
+	line-height: 18px;
+	text-decoration: none;
+	vertical-align: baseline;
+	white-space: nowrap;
+	overflow: hidden;
 }
 
-.web-sources-heading {
-	font-size: 12px;
+.def-cite:hover {
+	background: var(--border-light);
+	color: var(--text-primary);
+	border-color: var(--border-focus);
+}
+
+.def-cite-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Hover preview bubble — hidden until the pill is hovered/focused. */
+.def-cite-bubble {
+	display: none;
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 0;
+	z-index: 60;
+	width: max-content;
+	max-width: min(280px, 80vw);
+	padding: 10px 12px;
+	background: var(--bg-panel, var(--bg-input));
+	border: 1px solid var(--border-medium);
+	border-radius: 8px;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+	white-space: normal;
+}
+
+/* Pills near the right edge: flip the bubble to right-aligned (set by JS on
+   hover/focus) so it doesn't clip off-screen. */
+.def-cite-bubble-flip {
+	left: auto;
+	right: 0;
+}
+
+.def-cite:hover .def-cite-bubble,
+.def-cite:focus .def-cite-bubble {
+	display: block;
+}
+
+.def-cite-bubble-title {
+	display: block;
+	font-size: 13px;
 	font-weight: 600;
-	color: var(--text-secondary);
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	color: var(--text-primary);
+	line-height: 1.35;
 	margin-bottom: 6px;
 }
 
-.web-sources-list {
-	margin: 0;
-	padding-left: 18px;
-	font-size: 13px;
-	line-height: 1.6;
-}
-
-.web-sources-domain {
+.def-cite-bubble-site {
+	font-size: 12px;
 	color: var(--text-secondary);
 }
 

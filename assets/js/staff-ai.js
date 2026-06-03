@@ -717,6 +717,8 @@ function t(key, fallback) {
 				// Render markdown for assistant messages, plain text for user messages.
 				if (msg.role === 'assistant') {
 					content.innerHTML = renderMarkdown(msg.content);
+					// Inline web-citation pills from [src_N] markers (see done handler).
+					applyCitations(content, buildCitationMap(msg.tool_outputs));
 				} else {
 					content.textContent = msg.content;
 				}
@@ -724,6 +726,7 @@ function t(key, fallback) {
 				// Render tool outputs if present
 				if (msg.tool_outputs && msg.tool_outputs.length > 0) {
 					msg.tool_outputs.forEach(function(tool) {
+						if (tool && tool.result_type === 'sources') return;  // rendered inline as pills
 						const card = createToolOutputCard(tool);
 						if (card) {
 							content.appendChild(card);
@@ -766,9 +769,11 @@ function t(key, fallback) {
 			return window.DefResultCards.renderSection(tool, { channel: 'staff_ai' });
 		}
 
-		// Web search Sources block (Staff-AI web_search tool).
+		// Web search/fetch sources are NOT a card — they render as inline
+		// citation pills in the answer text (see applyCitations). A 'sources'
+		// tool_output reaching here is a no-op; callers skip it explicitly.
 		if (tool && tool.result_type === 'sources') {
-			return renderSourcesSection(tool);
+			return null;
 		}
 
 		// Escalation offer — inline suggestion card
@@ -831,10 +836,8 @@ function t(key, fallback) {
 		return card;
 	}
 
-	// Render the web-search Sources block. Source URLs/titles are UNTRUSTED
-	// provider data: titles go in via textContent (no HTML), and hrefs are
-	// scheme-validated to http(s) so a poisoned `javascript:`/`data:` URL can't
-	// become a clickable sink.
+	// Scheme-validate a URL to http(s) so a poisoned `javascript:`/`data:` URL
+	// from untrusted provider data can't become a clickable sink.
 	function safeHttpHref(url) {
 		if (typeof url !== 'string') return '';
 		try {
@@ -845,40 +848,138 @@ function t(key, fallback) {
 		}
 	}
 
-	function renderSourcesSection(tool) {
-		var sources = (tool && tool.sources) || [];
-		if (!sources.length) return null;
-		var card = document.createElement('div');
-		card.className = 'web-sources-card';
+	// =============================================
+	// Inline web citations — Claude-style source pills
+	// =============================================
+	// The model cites web_search/web_fetch results inline as [src_N]; the tool
+	// ships an id->{title,url,domain} lookup on the 'sources' tool_output. After
+	// the answer's markdown is rendered AND DOMPurify-sanitized, we swap each
+	// [src_N] token for a clickable pill (one click opens the source) with a
+	// hover preview (title + site name). Built via the DOM (never innerHTML)
+	// so untrusted title/url/domain stay inert text/attributes, and only in plain
+	// text nodes (never inside code/pre or an existing link).
+	var CITE_TOKEN_RE = /\[(src_\d+)\]/g;
 
-		var heading = document.createElement('div');
-		heading.className = 'web-sources-heading';
-		heading.textContent = t('sources', 'Sources');
-		card.appendChild(heading);
-
-		var list = document.createElement('ol');
-		list.className = 'web-sources-list';
-		sources.forEach(function (s) {
-			var href = safeHttpHref(s && s.url);
-			if (!href) return;  // skip a source with an unsafe/missing URL
-			var li = document.createElement('li');
-			var a = document.createElement('a');
-			a.href = href;
-			a.target = '_blank';
-			a.rel = 'noopener noreferrer';
-			a.textContent = (s.title || s.domain || href);
-			li.appendChild(a);
-			if (s.domain) {
-				var dom = document.createElement('span');
-				dom.className = 'web-sources-domain';
-				dom.textContent = ' — ' + s.domain;
-				li.appendChild(dom);
-			}
-			list.appendChild(li);
+	function buildCitationMap(toolOutputs) {
+		var map = {};
+		(toolOutputs || []).forEach(function (o) {
+			if (!o || o.result_type !== 'sources' || !o.sources) return;
+			o.sources.forEach(function (s) {
+				if (s && s.source_id) map[s.source_id] = s;
+			});
 		});
-		if (!list.childNodes.length) return null;
-		card.appendChild(list);
-		return card;
+		return map;
+	}
+
+	// Best-effort display name from a domain (e.g. lexology.com -> "Lexology").
+	// The provider gives us no publisher name, so we capitalize the brand label
+	// of the registrable domain. Common case (foo.com / sub.foo.org) is exact;
+	// multi-part TLDs (co.uk, gov.au) step one label left. Real casing
+	// (WooCommerce) and curated names aren't recoverable — falls back to the raw
+	// domain on any odd shape.
+	var _TLD_WORDS = { co: 1, com: 1, gov: 1, org: 1, net: 1, edu: 1, ac: 1 };
+	function siteNameFromDomain(domain) {
+		if (!domain) return '';
+		var parts = domain.split('.').filter(Boolean);
+		if (parts.length < 2) return domain;
+		var idx = parts.length - 2;  // second-to-last label = brand for foo.com
+		if (idx > 0 && _TLD_WORDS[parts[idx]]) idx -= 1;  // co.uk / gov.au -> step left
+		var label = parts[idx];
+		if (!label) return domain;
+		return label.charAt(0).toUpperCase() + label.slice(1);
+	}
+
+	function buildCitationPill(src) {
+		var href = safeHttpHref(src && src.url);
+		if (!href) return null;  // unsafe/missing URL — caller drops the token
+		var domain = (src.domain || '').trim();
+		var title = (src.title || '').trim();
+		var siteLabel = siteNameFromDomain(domain) || domain || href;
+
+		// The pill IS the link — a single click opens the source.
+		var pill = document.createElement('a');
+		pill.className = 'def-cite';
+		pill.href = href;
+		pill.target = '_blank';
+		pill.rel = 'noopener noreferrer';
+
+		var label = document.createElement('span');
+		label.className = 'def-cite-label';
+		label.textContent = siteLabel;
+		pill.appendChild(label);
+
+		// Hover preview bubble: page title (top), site name (bottom).
+		var bubble = document.createElement('span');
+		bubble.className = 'def-cite-bubble';
+		if (title) {
+			var bTitle = document.createElement('span');
+			bTitle.className = 'def-cite-bubble-title';
+			bTitle.textContent = title;
+			bubble.appendChild(bTitle);
+		}
+		var bSite = document.createElement('span');
+		bSite.className = 'def-cite-bubble-site';
+		bSite.textContent = siteLabel;
+		bubble.appendChild(bSite);
+		pill.appendChild(bubble);
+
+		// Edge-aware bubble: a left-anchored bubble overflows the right edge when
+		// the pill sits near the end of a line. On hover/focus, measure the pill
+		// and flip the bubble to right-aligned if it would clip (CSS alone can't
+		// know the pill's position; the CSS anchor API isn't broadly supported).
+		function placeBubble() {
+			var r = pill.getBoundingClientRect();
+			bubble.classList.toggle('def-cite-bubble-flip', r.left + 280 > window.innerWidth - 12);
+		}
+		pill.addEventListener('mouseenter', placeBubble);
+		pill.addEventListener('focus', placeBubble);
+		return pill;
+	}
+
+	function applyCitations(rootEl, map) {
+		if (!rootEl || !map) return;
+		// Collect candidate text nodes first (don't mutate during traversal).
+		// Skip tokens inside code/pre (a literal "[src_1]" in shown code) and
+		// inside an existing link.
+		var walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+			acceptNode: function (node) {
+				if (!node.nodeValue || node.nodeValue.indexOf('[src_') === -1) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				var p = node.parentNode;
+				while (p && p !== rootEl) {
+					var tag = p.nodeName;
+					if (tag === 'CODE' || tag === 'PRE' || tag === 'A') {
+						return NodeFilter.FILTER_REJECT;
+					}
+					p = p.parentNode;
+				}
+				return NodeFilter.FILTER_ACCEPT;
+			}
+		});
+		var targets = [];
+		var n;
+		while ((n = walker.nextNode())) targets.push(n);
+
+		targets.forEach(function (node) {
+			var text = node.nodeValue;
+			var frag = document.createDocumentFragment();
+			var lastIndex = 0;
+			var m;
+			CITE_TOKEN_RE.lastIndex = 0;
+			while ((m = CITE_TOKEN_RE.exec(text))) {
+				var before = text.slice(lastIndex, m.index);
+				if (before) frag.appendChild(document.createTextNode(before));
+				var pill = map[m[1]] ? buildCitationPill(map[m[1]]) : null;
+				if (pill) frag.appendChild(pill);
+				// Unknown id or unsafe URL -> drop the token (no broken "[src_5]").
+				lastIndex = m.index + m[0].length;
+			}
+			if (lastIndex === 0) return;  // no token matched
+			var rest = text.slice(lastIndex);
+			if (rest) frag.appendChild(document.createTextNode(rest));
+			node.parentNode.replaceChild(frag, node);
+		});
 	}
 
 	// =============================================
@@ -1665,7 +1766,11 @@ function t(key, fallback) {
 							if (streamEl.parentNode) {
 								streamEl.parentNode.classList.remove('message-streaming');
 							}
+							// Web citations render inline in the answer (pills), not
+							// as a card — swap [src_N] markers before appending cards.
+							applyCitations(streamEl, buildCitationMap(toolOutputs));
 							toolOutputs.forEach(function(tool) {
+								if (tool && tool.result_type === 'sources') return;  // inline pills, not a card
 								var card = createToolOutputCard(tool);
 								// Skip nulls — DefResultCards.renderSection can return null
 								// (empty result_cards, frontend cap reached, DOMPurify missing,
