@@ -69,6 +69,7 @@ final class DEF_Core {
 		DEF_Core_Sync_Nudge::init();
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
+		DEF_Core_SEO_Meta::init();
 		DEF_Core_Logs_Page::init();
 		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
@@ -167,6 +168,7 @@ final class DEF_Core {
 
 		// Site Intelligence Tools — REST passthrough for Staff AI.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-site-tools.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-seo-meta.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';
