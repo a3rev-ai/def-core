@@ -226,6 +226,35 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_download_file'),
 			)
 		);
+
+		// Content Agent review queue (PR-6): list pending staged drafts, apply, dismiss.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/drafts',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_content_drafts'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/drafts/(?P<id>[a-zA-Z0-9_-]+)/apply',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_apply_content_draft'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/drafts/(?P<id>[a-zA-Z0-9_-]+)/dismiss',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_dismiss_content_draft'),
+			)
+		);
 	}
 
 	/**
@@ -478,6 +507,55 @@ final class DEF_Core_Staff_AI
 			),
 			200
 		);
+	}
+
+	/**
+	 * REST handler: list pending Content Agent drafts (PR-6 review queue).
+	 *
+	 * Proxies to DEF GET /api/staff-ai/content/drafts and passes the draft fields
+	 * through unchanged (proposed/source carry the diff the UI renders).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_list_content_drafts( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/drafts' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$drafts = ( isset( $result['drafts'] ) && is_array( $result['drafts'] ) ) ? $result['drafts'] : array();
+		return new \WP_REST_Response( array( 'success' => true, 'drafts' => $drafts ), 200 );
+	}
+
+	/**
+	 * REST handler: apply a draft live (PR-6). The DEF write runs as THIS user, so
+	 * WordPress's own current_user_can gates the product edit.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({status: applied|stale|apply_failed}).
+	 */
+	public static function rest_apply_content_draft( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/drafts/' . rawurlencode( $id ) . '/apply' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: dismiss a draft (PR-6).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({status: dismissed}).
+	 */
+	public static function rest_dismiss_content_draft( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/drafts/' . rawurlencode( $id ) . '/dismiss' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
 	}
 
 	/**
