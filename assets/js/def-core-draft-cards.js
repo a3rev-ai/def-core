@@ -114,6 +114,39 @@
 		return head;
 	}
 
+	// "Focus keyphrase: …" badge — the human-set SEO target this draft optimizes
+	// for. Value set via textContent. Hidden when absent (older drafts).
+	function renderKeyphrase(draft) {
+		var kp = draft.focus_keyphrase && String(draft.focus_keyphrase).trim();
+		if (!kp) { return null; }
+		var wrap = el('div', 'def-draft-keyphrase');
+		wrap.appendChild(el('span', 'def-draft-keyphrase-label', 'Focus keyphrase'));
+		wrap.appendChild(el('span', 'def-draft-keyphrase-value', kp));
+		return wrap;
+	}
+
+	// Yoast-style SEO checklist (green ✓ / red ✗) the agent self-assessed for the
+	// proposed content. Labels are untrusted LLM text → textContent. Hidden when
+	// the backend supplied none.
+	function renderChecklist(draft) {
+		var items = Array.isArray(draft.checklist) ? draft.checklist : null;
+		if (!items || !items.length) { return null; }
+		var wrap = el('div', 'def-draft-checklist');
+		wrap.appendChild(el('div', 'def-draft-checklist-head', 'SEO checklist'));
+		var ul = document.createElement('ul');
+		ul.className = 'def-draft-checklist-list';
+		items.forEach(function (c) {
+			if (!c || typeof c !== 'object') { return; }
+			var pass = !!c.pass;
+			var li = el('li', 'def-draft-check ' + (pass ? 'def-draft-check--pass' : 'def-draft-check--fail'));
+			li.appendChild(el('span', 'def-draft-check-mark', pass ? '✓' : '✗'));
+			li.appendChild(el('span', 'def-draft-check-label', String(c.label || c.id || '')));
+			ul.appendChild(li);
+		});
+		wrap.appendChild(ul);
+		return wrap;
+	}
+
 	// Collapsible "Why this change?" strip (collapsed by default). Only rendered
 	// when the backend supplied a rationale; the text is set via textContent.
 	function renderExplainer(draft) {
@@ -283,7 +316,13 @@
 
 		card.appendChild(renderHead(draft));
 
+		var keyphrase = renderKeyphrase(draft);
+		if (keyphrase) { card.appendChild(keyphrase); }
+
 		renderDiff(card, draft);
+
+		var checklist = renderChecklist(draft);
+		if (checklist) { card.appendChild(checklist); }
 
 		var actions = el('div', 'def-draft-actions');
 		var approve = el('button', 'button button-primary def-draft-approve', 'Approve & publish');
