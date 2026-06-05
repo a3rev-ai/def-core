@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.0.1
+Stable tag: 4.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.1.0 - 2026-06-05 =
+* Feature: Content Drafts — edit before publishing. An "Edit" button on each draft turns the Proposed content into editable fields, so you can tweak the AI's wording before approving. Approving then publishes your edited version. You can only change the values of the fields the draft touched (no new fields), and the live write still runs as you.
 
 = 4.0.1 - 2026-06-05 =
 * Polish: Content Drafts review queue. Each card now shows the product name (linked to the product editor, with a "View live" link to the public page) instead of just the product ID, and a collapsible "Why this change?" strip surfaces a short explanation of the proposed change when the Content Agent provides one.

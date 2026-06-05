@@ -550,12 +550,30 @@ final class DEF_Core_Staff_AI
 	 * REST handler: apply a draft live (PR-6). The DEF write runs as THIS user, so
 	 * WordPress's own current_user_can gates the product edit.
 	 *
+	 * Optionally forwards reviewer edits {proposed:{field:value}} (PR-C). Only the
+	 * content allowlist is forwarded; DEF re-validates (edits may change the value
+	 * of an already-touched field, not introduce new ones).
+	 *
 	 * @return \WP_REST_Response|\WP_Error Response ({status: applied|stale|apply_failed}).
 	 */
 	public static function rest_apply_content_draft( \WP_REST_Request $request )
 	{
-		$id     = sanitize_text_field( $request->get_param( 'id' ) );
-		$result = self::backend_request( 'POST', '/api/staff-ai/content/drafts/' . rawurlencode( $id ) . '/apply' );
+		$id   = sanitize_text_field( $request->get_param( 'id' ) );
+		$body = array();
+		$params = $request->get_json_params();
+		if ( is_array( $params ) && isset( $params['proposed'] ) && is_array( $params['proposed'] ) ) {
+			$allowed  = array( 'description', 'short_description', 'name' );
+			$proposed = array();
+			foreach ( $params['proposed'] as $field => $value ) {
+				if ( in_array( $field, $allowed, true ) && is_string( $value ) ) {
+					$proposed[ $field ] = $value;
+				}
+			}
+			if ( ! empty( $proposed ) ) {
+				$body['proposed'] = $proposed;
+			}
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/drafts/' . rawurlencode( $id ) . '/apply', $body );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

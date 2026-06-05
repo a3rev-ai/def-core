@@ -24,12 +24,14 @@
 		name: 'Name'
 	};
 
-	function api(path, method) {
-		return fetch(cfg.restBase + path, {
+	function api(path, method, body) {
+		var opts = {
 			method: method || 'GET',
 			headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
 			credentials: 'same-origin'
-		}).then(function (r) {
+		};
+		if (body !== undefined) { opts.body = JSON.stringify(body); }
+		return fetch(cfg.restBase + path, opts).then(function (r) {
 			return r.json().then(function (data) {
 				if (!r.ok) {
 					throw new Error((data && (data.message || data.detail)) || ('HTTP ' + r.status));
@@ -162,6 +164,7 @@
 			cols.appendChild(cur);
 
 			var prop = el('div', 'def-draft-col def-draft-col-proposed');
+			prop.setAttribute('data-field', key);
 			prop.appendChild(el('div', 'def-draft-col-head', 'Proposed'));
 			prop.appendChild(renderPreview(proposed[key], isHtml));
 			cols.appendChild(prop);
@@ -182,14 +185,57 @@
 		card.querySelectorAll('button').forEach(function (b) { b.disabled = disabled; });
 	}
 
+	// Swap each Proposed preview for a textarea holding the raw value, so the
+	// reviewer can tweak the wording before publishing.
+	function enterEditMode(card, draft) {
+		if (card.getAttribute('data-editing') === '1') { return; }
+		card.setAttribute('data-editing', '1');
+		var proposed = draft.proposed || {};
+		Object.keys(proposed).forEach(function (key) {
+			var col = card.querySelector('.def-draft-col-proposed[data-field="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+			if (!col) { return; }
+			var preview = col.querySelector('.def-draft-preview');
+			if (!preview) { return; }
+			var ta = document.createElement('textarea');
+			ta.className = 'def-draft-edit';
+			ta.setAttribute('data-field', key);
+			ta.value = proposed[key] == null ? '' : String(proposed[key]);
+			col.replaceChild(ta, preview);
+		});
+		var editBtn = card.querySelector('.def-draft-edit-toggle');
+		if (editBtn) { editBtn.remove(); }
+		var approve = card.querySelector('.def-draft-approve');
+		if (approve) { approve.textContent = 'Publish edited version'; }
+	}
+
+	// In edit mode, gather the textarea values into the apply body; else undefined
+	// (apply the draft as-staged).
+	function collectEdits(card, draft) {
+		if (card.getAttribute('data-editing') !== '1') { return undefined; }
+		var proposed = {};
+		Object.keys(draft.proposed || {}).forEach(function (key) {
+			var ta = card.querySelector('textarea.def-draft-edit[data-field="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
+			if (ta) { proposed[key] = ta.value; }
+		});
+		return { proposed: proposed };
+	}
+
 	function onApply(card, draft) {
+		var body = collectEdits(card, draft);
+		// DEF ignores blank edits (keeps the staged value), which would silently
+		// diverge from what the reviewer sees. Block an empty field with a clear
+		// message instead of publishing something they didn't intend.
+		if (body && Object.keys(body.proposed).some(function (k) { return !String(body.proposed[k]).trim(); })) {
+			setNotice(card, 'Proposed content can’t be empty — add text, or Dismiss the draft.', 'warning');
+			return;
+		}
 		disableActions(card, true);
 		setNotice(card, 'Applying…', 'info');
-		api('/drafts/' + encodeURIComponent(draft.id) + '/apply', 'POST').then(function (res) {
+		api('/drafts/' + encodeURIComponent(draft.id) + '/apply', 'POST', body).then(function (res) {
 			var status = res && res.status;
 			if (status === 'applied') {
 				card.classList.add('def-draft-card--done');
-				setNotice(card, 'Applied — your product is updated.', 'success');
+				setNotice(card, res.edited ? 'Published your edited version.' : 'Applied — your product is updated.', 'success');
 				var doneActions = card.querySelector('.def-draft-actions');
 				if (doneActions) { doneActions.remove(); }
 			} else if (status === 'stale') {
@@ -242,9 +288,12 @@
 		var actions = el('div', 'def-draft-actions');
 		var approve = el('button', 'button button-primary def-draft-approve', 'Approve & publish');
 		approve.addEventListener('click', function () { onApply(card, draft); });
+		var edit = el('button', 'button def-draft-edit-toggle', 'Edit');
+		edit.addEventListener('click', function () { enterEditMode(card, draft); });
 		var dismiss = el('button', 'button def-draft-dismiss', 'Dismiss');
 		dismiss.addEventListener('click', function () { onDismiss(card, draft); });
 		actions.appendChild(approve);
+		actions.appendChild(edit);
 		actions.appendChild(dismiss);
 		card.appendChild(actions);
 
