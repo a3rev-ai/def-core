@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 3.14.4
+Stable tag: 4.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.0.0 - 2026-06-05 =
+* Feature: Content Agent review queue. A new "Content Drafts" page under Digital Employees lists the product-content improvements the Content Agent has drafted on its scheduled runs, shows the current-vs-proposed diff for each touched field, and lets staff approve (publish live) or dismiss. Nothing is written to your site until you approve it; the live write runs as you, so your WordPress permissions govern it. Draft content is sanitized before display.
 
 = 3.14.4 - 2026-06-03 =
 * Fix: Staff AI web-search citation pills (and result cards) disappeared on switching conversations or reopening Staff AI. The conversation-load proxy was discarding the backend's tool_outputs (always sent an empty array), so the widget had nothing to rebuild citations from on reload. It now passes them through, so citations and cards persist. (Pairs with the DEF backend change.)

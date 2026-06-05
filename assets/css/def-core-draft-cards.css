@@ -1,0 +1,132 @@
+/* Content Agent review queue — draft cards (def-core PR-6). wp-admin context. */
+
+#def-draft-cards-root {
+	margin-top: 16px;
+}
+
+.def-draft-loading,
+.def-draft-empty-state,
+.def-draft-error {
+	color: #646970;
+	padding: 16px 0;
+}
+.def-draft-error {
+	color: #b32d2e;
+}
+
+.def-draft-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+	padding: 16px;
+	margin-bottom: 16px;
+}
+.def-draft-card--stale {
+	border-left-color: #dba617;
+}
+.def-draft-card--failed {
+	border-left-color: #b32d2e;
+}
+.def-draft-card--done {
+	opacity: 0.65;
+	border-left-color: #646970;
+}
+
+.def-draft-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 12px;
+}
+.def-draft-title {
+	font-weight: 600;
+	font-size: 14px;
+	text-transform: capitalize;
+}
+.def-draft-date {
+	font-size: 12px;
+	color: #646970;
+}
+
+.def-draft-field {
+	margin-bottom: 12px;
+}
+.def-draft-field-label {
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #50575e;
+	margin-bottom: 4px;
+}
+.def-draft-cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+@media (max-width: 782px) {
+	.def-draft-cols {
+		grid-template-columns: 1fr;
+	}
+}
+.def-draft-col-head {
+	font-size: 11px;
+	text-transform: uppercase;
+	color: #646970;
+	margin-bottom: 2px;
+}
+.def-draft-col-proposed .def-draft-col-head {
+	color: #1d6e3b;
+	font-weight: 600;
+}
+.def-draft-preview {
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	padding: 8px 10px;
+	font-size: 13px;
+	line-height: 1.5;
+	max-height: 220px;
+	overflow: auto;
+	background: #f6f7f7;
+	word-break: break-word;
+}
+.def-draft-col-proposed .def-draft-preview {
+	background: #f0f6f1;
+	border-color: #c6e1c6;
+}
+.def-draft-preview img {
+	max-width: 100%;
+	height: auto;
+}
+.def-draft-empty {
+	color: #8c8f94;
+}
+
+.def-draft-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.def-draft-notice {
+	margin-top: 12px;
+	padding: 8px 12px;
+	border-radius: 3px;
+	font-size: 13px;
+}
+.def-draft-notice-info {
+	background: #f0f6fc;
+	color: #2271b1;
+}
+.def-draft-notice-success {
+	background: #edfaef;
+	color: #1d6e3b;
+}
+.def-draft-notice-warning {
+	background: #fcf9e8;
+	color: #8a6d00;
+}
+.def-draft-notice-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}

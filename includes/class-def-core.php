@@ -70,6 +70,7 @@ final class DEF_Core {
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
 		DEF_Core_Logs_Page::init();
+		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
 
 		// Schedule log cleanup cron.
@@ -144,6 +145,7 @@ final class DEF_Core {
 		// Structured logger + logs viewer page.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logger.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logs-page.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-content-drafts-page.php';
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
@@ -327,6 +329,22 @@ final class DEF_Core {
 			'def-core-admin',
 			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-admin.js',
 			array(),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
+		// Content Agent review queue (PR-6) — draft cards on the Content Drafts
+		// admin page. Depends on DOMPurify to sanitize untrusted draft HTML.
+		wp_register_style(
+			'def-core-draft-cards',
+			DEF_CORE_PLUGIN_URL . 'assets/css/def-core-draft-cards.css',
+			array( 'def-core-admin' ),
+			DEF_CORE_VERSION
+		);
+		wp_register_script(
+			'def-core-draft-cards',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-draft-cards.js',
+			array( 'def-core-purify' ),
 			DEF_CORE_VERSION,
 			array( 'in_footer' => true )
 		);

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.0.0 - 2026/06/05 =
+* Feature: Content Agent review queue. A new "Content Drafts" page under Digital Employees lists the product-content improvements the Content Agent has drafted on its scheduled runs, shows the current-vs-proposed diff for each touched field, and lets staff approve (publish live) or dismiss. Nothing is written to your site until you approve it; the live write runs as you, so your WordPress permissions govern it. Draft content is sanitized before display.
+
 = 3.14.4 - 2026/06/03 =
 * Fix: Staff AI web-search citation pills (and result cards) disappeared when you switched conversations or reopened Staff AI. The conversation-load proxy was discarding the backend's tool_outputs (it always sent an empty array), so the widget had nothing to rebuild the inline citations from on history reload. It now passes the backend's tool_outputs through, so citations and cards persist across reloads. (Pairs with the DEF backend change that persists + returns them.)
 
