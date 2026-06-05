@@ -60,6 +60,81 @@
 		return FIELD_LABELS[key] || key;
 	}
 
+	// Validate a URL to http(s) before using it as an href (the title/view links
+	// come from the BFF, but we never trust a string into href without a scheme check).
+	function safeHref(url) {
+		if (typeof url !== 'string' || !url) { return null; }
+		try {
+			var u = new URL(url, window.location.origin);
+			return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	function linkEl(text, href, className) {
+		var a = document.createElement('a');
+		if (className) { a.className = className; }
+		a.textContent = text;
+		a.href = href;
+		a.target = '_blank';
+		a.rel = 'noopener noreferrer';
+		return a;
+	}
+
+	// Header: product title (linked to the editor when the user can edit), the
+	// item id, and a "View live" link to the public product page.
+	function renderHead(draft) {
+		var head = el('div', 'def-draft-head');
+		var left = el('div', 'def-draft-head-left');
+
+		var name = (draft.title && String(draft.title).trim()) ||
+			((draft.item_type || 'item') + ' #' + (draft.item_id != null ? draft.item_id : '?'));
+		var editHref = safeHref(draft.edit_url);
+		left.appendChild(editHref
+			? linkEl(name, editHref, 'def-draft-title def-draft-title-link')
+			: el('div', 'def-draft-title', name));
+
+		var sub = el('div', 'def-draft-sub');
+		sub.appendChild(el('span', 'def-draft-sub-id',
+			(draft.item_type || 'item') + ' #' + (draft.item_id != null ? draft.item_id : '?')));
+		var viewHref = safeHref(draft.view_url);
+		if (viewHref) {
+			sub.appendChild(document.createTextNode(' · '));
+			sub.appendChild(linkEl('View live ↗', viewHref, 'def-draft-view-link'));
+		}
+		left.appendChild(sub);
+		head.appendChild(left);
+
+		if (draft.created_at) {
+			head.appendChild(el('div', 'def-draft-date', String(draft.created_at).slice(0, 10)));
+		}
+		return head;
+	}
+
+	// Collapsible "Why this change?" strip (collapsed by default). Only rendered
+	// when the backend supplied a rationale; the text is set via textContent.
+	function renderExplainer(draft) {
+		var rationale = draft.rationale && String(draft.rationale).trim();
+		if (!rationale) { return null; }
+		var wrap = el('div', 'def-draft-explainer');
+		var btn = el('button', 'def-draft-why-toggle', 'Why this change?');
+		btn.type = 'button';
+		btn.setAttribute('aria-expanded', 'false');
+		var body = el('div', 'def-draft-why-body');
+		body.appendChild(el('p', null, rationale));
+		body.style.display = 'none';
+		btn.addEventListener('click', function () {
+			var open = body.style.display !== 'none';
+			body.style.display = open ? 'none' : 'block';
+			btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+			btn.classList.toggle('def-draft-why-open', !open);
+		});
+		wrap.appendChild(btn);
+		wrap.appendChild(body);
+		return wrap;
+	}
+
 	function renderPreview(value, isHtml) {
 		var box = el('div', 'def-draft-preview');
 		if (value == null || value === '') {
@@ -160,14 +235,7 @@
 	function renderCard(draft) {
 		var card = el('div', 'def-draft-card');
 
-		var head = el('div', 'def-draft-head');
-		var title = el('div', 'def-draft-title',
-			(draft.item_type || 'item') + ' #' + (draft.item_id != null ? draft.item_id : '?'));
-		head.appendChild(title);
-		if (draft.created_at) {
-			head.appendChild(el('div', 'def-draft-date', draft.created_at.slice(0, 10)));
-		}
-		card.appendChild(head);
+		card.appendChild(renderHead(draft));
 
 		renderDiff(card, draft);
 
@@ -179,6 +247,9 @@
 		actions.appendChild(approve);
 		actions.appendChild(dismiss);
 		card.appendChild(actions);
+
+		var explainer = renderExplainer(draft);
+		if (explainer) { card.appendChild(explainer); }
 
 		return card;
 	}
