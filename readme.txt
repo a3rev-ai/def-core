@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.1.0
+Stable tag: 4.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.2.0 - 2026-06-05 =
+* Feature (infrastructure): SEO-meta bridge for the Content Agent. A new internal endpoint lets the Content Agent read an item's focus keyphrase + meta description / SEO title from the active SEO plugin (Yoast first; Rank Math next) and write back the optimized meta description / SEO title plus a private "optimized" stamp. The focus keyphrase and slug are never changed by the agent. No visible change on its own — it backs the upcoming keyphrase-anchored optimization.
 
 = 4.1.0 - 2026-06-05 =
 * Feature: Content Drafts — edit before publishing. An "Edit" button on each draft turns the Proposed content into editable fields, so you can tweak the AI's wording before approving. Approving then publishes your edited version. You can only change the values of the fields the draft touched (no new fields), and the live write still runs as you.
