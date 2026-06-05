@@ -163,6 +163,18 @@ a.def-draft-title-link:hover {
 .def-draft-empty {
 	color: #8c8f94;
 }
+.def-draft-edit {
+	width: 100%;
+	min-height: 160px;
+	box-sizing: border-box;
+	border: 1px solid #2271b1;
+	border-radius: 3px;
+	padding: 8px 10px;
+	font-size: 13px;
+	line-height: 1.5;
+	font-family: inherit;
+	resize: vertical;
+}
 
 .def-draft-actions {
 	display: flex;
