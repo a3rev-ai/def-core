@@ -353,11 +353,40 @@
 		drafts.forEach(function (d) { root.appendChild(renderCard(d)); });
 	}
 
+	// Compact "needs a focus keyphrase" panel — items the agent skipped because no
+	// keyphrase is set. Rendered above the drafts; each links to its editor.
+	function renderNeedsKeyphrase(items) {
+		if (!Array.isArray(items) || !items.length) { return; }
+		var panel = el('div', 'def-draft-needs-kp');
+		panel.appendChild(el('div', 'def-draft-needs-kp-head',
+			items.length + (items.length === 1 ? ' item needs' : ' items need') +
+			' a focus keyphrase before the Content Agent can optimize it. Set one in your SEO plugin:'));
+		var ul = document.createElement('ul');
+		ul.className = 'def-draft-needs-kp-list';
+		items.forEach(function (it) {
+			if (!it || typeof it !== 'object') { return; }
+			var li = document.createElement('li');
+			var name = (it.title && String(it.title).trim()) ||
+				((it.item_type || 'item') + ' #' + (it.item_id != null ? it.item_id : '?'));
+			var editHref = safeHref(it.edit_url);
+			li.appendChild(editHref ? linkEl(name, editHref, 'def-draft-needs-kp-link')
+				: el('span', null, name));
+			ul.appendChild(li);
+		});
+		panel.appendChild(ul);
+		root.insertBefore(panel, root.firstChild);
+	}
+
 	api('/drafts', 'GET').then(function (res) {
 		render((res && res.drafts) || []);
 	}).catch(function (e) {
 		root.removeAttribute('data-loading');
 		root.innerHTML = '';
 		root.appendChild(el('p', 'def-draft-error', 'Could not load drafts: ' + (e.message || 'error')));
+	}).then(function () {
+		// Best-effort, after the drafts render — a failure here must not block the queue.
+		return api('/needs-keyphrase', 'GET').then(function (res) {
+			renderNeedsKeyphrase((res && res.items) || []);
+		}).catch(function () { /* ignore — the queue still works */ });
 	});
 })();
