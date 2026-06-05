@@ -163,6 +163,32 @@ a.def-draft-title-link:hover {
 .def-draft-empty {
 	color: #8c8f94;
 }
+/* "Needs a focus keyphrase" panel */
+.def-draft-needs-kp {
+	background: #fcf9e8;
+	border: 1px solid #f0e6b8;
+	border-left: 4px solid #dba617;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin-bottom: 16px;
+}
+.def-draft-needs-kp-head {
+	font-size: 13px;
+	color: #6a5b00;
+	margin-bottom: 6px;
+}
+.def-draft-needs-kp-list {
+	margin: 0;
+	padding-left: 18px;
+	columns: 2;
+	font-size: 13px;
+}
+@media (max-width: 782px) {
+	.def-draft-needs-kp-list { columns: 1; }
+}
+.def-draft-needs-kp-link { text-decoration: none; }
+.def-draft-needs-kp-link:hover { text-decoration: underline; }
+
 /* Focus keyphrase badge */
 .def-draft-keyphrase {
 	display: inline-flex;

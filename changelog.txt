@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.2.2 - 2026/06/06 =
+* Tweak: Content Drafts now shows a "needs a focus keyphrase" panel listing the products the Content Agent skipped because no focus keyphrase is set — each links straight to the product editor so you can set one. Once you do, the next scheduled run optimizes it automatically.
+
 = 4.2.1 - 2026/06/06 =
 * Tweak: Content Drafts now show the focus keyphrase each draft is optimized for and a Yoast-style SEO checklist (green/red) the agent self-assessed for the proposed content — so you can see at a glance what was optimized and how. Shown when the Content Agent provides them (keyphrase-anchored optimization, paired with the DEF backend).
 

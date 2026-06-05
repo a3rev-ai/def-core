@@ -237,6 +237,16 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_list_content_drafts'),
 			)
 		);
+		// Items skipped for lack of a focus keyphrase (the human must set one).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/needs-keyphrase',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_needs_keyphrase'),
+			)
+		);
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/content/drafts/(?P<id>[a-zA-Z0-9_-]+)/apply',
@@ -544,6 +554,34 @@ final class DEF_Core_Staff_AI
 		unset( $draft );
 
 		return new \WP_REST_Response( array( 'success' => true, 'drafts' => $drafts ), 200 );
+	}
+
+	/**
+	 * REST handler: list items the Content Agent skipped for lack of a focus
+	 * keyphrase. Enriched with the local title + edit link so the human can jump
+	 * to the editor and set one.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_list_needs_keyphrase( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/needs-keyphrase' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$items = ( isset( $result['items'] ) && is_array( $result['items'] ) ) ? $result['items'] : array();
+		foreach ( $items as &$item ) {
+			$item_id = isset( $item['item_id'] ) ? (int) $item['item_id'] : 0;
+			if ( $item_id > 0 && get_post_status( $item_id ) ) {
+				$title            = get_the_title( $item_id );
+				$item['title']    = is_string( $title ) ? $title : '';
+				$edit_url         = get_edit_post_link( $item_id, 'raw' );
+				$item['edit_url'] = $edit_url ? $edit_url : '';
+			}
+		}
+		unset( $item );
+
+		return new \WP_REST_Response( array( 'success' => true, 'items' => $items ), 200 );
 	}
 
 	/**
