@@ -39,14 +39,76 @@
 	align-items: baseline;
 	margin-bottom: 12px;
 }
+.def-draft-head-left {
+	min-width: 0;
+}
 .def-draft-title {
 	font-weight: 600;
-	font-size: 14px;
-	text-transform: capitalize;
+	font-size: 15px;
+}
+a.def-draft-title-link {
+	text-decoration: none;
+}
+a.def-draft-title-link:hover {
+	text-decoration: underline;
+}
+.def-draft-sub {
+	font-size: 12px;
+	color: #646970;
+	margin-top: 2px;
+}
+.def-draft-view-link {
+	text-decoration: none;
+}
+.def-draft-view-link:hover {
+	text-decoration: underline;
 }
 .def-draft-date {
 	font-size: 12px;
 	color: #646970;
+	white-space: nowrap;
+	padding-left: 12px;
+}
+
+/* "Why this change?" explainer strip */
+.def-draft-explainer {
+	margin-top: 12px;
+	border-top: 1px solid #f0f0f1;
+	padding-top: 10px;
+}
+.def-draft-why-toggle {
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	color: #2271b1;
+	font-size: 13px;
+	font-weight: 600;
+}
+.def-draft-why-toggle:hover {
+	color: #135e96;
+}
+.def-draft-why-toggle::before {
+	content: '\25B6'; /* ▶ */
+	display: inline-block;
+	font-size: 10px;
+	margin-right: 6px;
+	transition: transform 0.15s ease;
+}
+.def-draft-why-toggle.def-draft-why-open::before {
+	transform: rotate(90deg);
+}
+.def-draft-why-body {
+	margin-top: 8px;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #3c434a;
+	background: #f6f7f7;
+	border-radius: 3px;
+	padding: 10px 12px;
+}
+.def-draft-why-body p {
+	margin: 0;
 }
 
 .def-draft-field {

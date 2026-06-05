@@ -524,6 +524,25 @@ final class DEF_Core_Staff_AI
 			return $result;
 		}
 		$drafts = ( isset( $result['drafts'] ) && is_array( $result['drafts'] ) ) ? $result['drafts'] : array();
+
+		// Enrich each draft with the local product title + links. The draft's
+		// item_id IS the WordPress product post ID, so we resolve title/links here
+		// (in WP) rather than round-tripping the backend — always accurate, no extra
+		// call. get_edit_post_link returns '' when the current user can't edit, so
+		// the title simply falls back to plain text client-side.
+		foreach ( $drafts as &$draft ) {
+			$item_id = isset( $draft['item_id'] ) ? (int) $draft['item_id'] : 0;
+			if ( $item_id > 0 && get_post_status( $item_id ) ) {
+				$title             = get_the_title( $item_id );
+				$draft['title']    = is_string( $title ) ? $title : '';
+				$edit_url          = get_edit_post_link( $item_id, 'raw' );
+				$draft['edit_url'] = $edit_url ? $edit_url : '';
+				$view_url          = get_permalink( $item_id );
+				$draft['view_url'] = $view_url ? $view_url : '';
+			}
+		}
+		unset( $draft );
+
 		return new \WP_REST_Response( array( 'success' => true, 'drafts' => $drafts ), 200 );
 	}
 

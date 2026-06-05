@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.0.0
+Stable tag: 4.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.0.1 - 2026-06-05 =
+* Polish: Content Drafts review queue. Each card now shows the product name (linked to the product editor, with a "View live" link to the public page) instead of just the product ID, and a collapsible "Why this change?" strip surfaces a short explanation of the proposed change when the Content Agent provides one.
 
 = 4.0.0 - 2026-06-05 =
 * Feature: Content Agent review queue. A new "Content Drafts" page under Digital Employees lists the product-content improvements the Content Agent has drafted on its scheduled runs, shows the current-vs-proposed diff for each touched field, and lets staff approve (publish live) or dismiss. Nothing is written to your site until you approve it; the live write runs as you, so your WordPress permissions govern it. Draft content is sanitized before display.
