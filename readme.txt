@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.2.0
+Stable tag: 4.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.2.1 - 2026-06-06 =
+* Tweak: Content Drafts now show the focus keyphrase each draft is optimized for and a Yoast-style SEO checklist (green/red) the agent self-assessed for the proposed content — so you can see at a glance what was optimized and how. Shown when the Content Agent provides them (keyphrase-anchored optimization, paired with the DEF backend).
 
 = 4.2.0 - 2026-06-05 =
 * Feature (infrastructure): SEO-meta bridge for the Content Agent. A new internal endpoint lets the Content Agent read an item's focus keyphrase + meta description / SEO title from the active SEO plugin (Yoast first; Rank Math next) and write back the optimized meta description / SEO title plus a private "optimized" stamp. The focus keyphrase and slug are never changed by the agent. No visible change on its own — it backs the upcoming keyphrase-anchored optimization.

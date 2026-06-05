@@ -163,6 +163,71 @@ a.def-draft-title-link:hover {
 .def-draft-empty {
 	color: #8c8f94;
 }
+/* Focus keyphrase badge */
+.def-draft-keyphrase {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 4px 10px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 3px;
+	font-size: 13px;
+}
+.def-draft-keyphrase-label {
+	text-transform: uppercase;
+	font-size: 11px;
+	font-weight: 600;
+	color: #2271b1;
+}
+.def-draft-keyphrase-value {
+	font-weight: 600;
+	color: #1d2327;
+}
+
+/* SEO checklist (Yoast-style) */
+.def-draft-checklist {
+	margin: 12px 0 0;
+	padding-top: 10px;
+	border-top: 1px solid #f0f0f1;
+}
+.def-draft-checklist-head {
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #50575e;
+	margin-bottom: 6px;
+}
+.def-draft-checklist-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 2px 16px;
+}
+@media (max-width: 782px) {
+	.def-draft-checklist-list {
+		grid-template-columns: 1fr;
+	}
+}
+.def-draft-check {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+.def-draft-check-mark {
+	font-weight: 700;
+	width: 1em;
+	flex: none;
+}
+.def-draft-check--pass .def-draft-check-mark { color: #1d6e3b; }
+.def-draft-check--fail .def-draft-check-mark { color: #b32d2e; }
+.def-draft-check--fail .def-draft-check-label { color: #50575e; }
+
 .def-draft-edit {
 	width: 100%;
 	min-height: 160px;
