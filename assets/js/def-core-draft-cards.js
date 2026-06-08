@@ -21,7 +21,11 @@
 	var FIELD_LABELS = {
 		description: 'Description',
 		short_description: 'Short description',
-		name: 'Name'
+		name: 'Name',
+		// SEO-plugin meta — the backend now captures the current value into `source`
+		// so the "Current" column shows the live Yoast meta (Bug B), not (empty).
+		meta_description: 'Meta description',
+		seo_title: 'SEO title'
 	};
 
 	function api(path, method, body) {
@@ -207,6 +211,38 @@
 		});
 	}
 
+	// Body text edits (Adapter G): the agent rewrote individual text nodes only —
+	// the page's design blocks, images and layout are preserved untouched. Show each
+	// node's before -> after so the reviewer sees exactly what changes.
+	function renderBodyEdits(card, draft) {
+		var be = draft.block_edit;
+		var patches = (be && Array.isArray(be.patches)) ? be.patches : null;
+		if (!patches || !patches.length) { return; }
+		var wrap = el('div', 'def-draft-body-edits');
+		wrap.appendChild(el('div', 'def-draft-field-label',
+			'Body text edits (' + patches.length + ')'));
+		wrap.appendChild(el('div', 'def-draft-body-note',
+			'Only the text below changes — the page’s design blocks, images and layout are preserved.'));
+		patches.forEach(function (p) {
+			if (!p || typeof p !== 'object') { return; }
+			var isAlt = p.field === 'alt';
+			var row = el('div', 'def-draft-field');
+			if (isAlt) { row.appendChild(el('div', 'def-draft-node-label', 'Image alt text')); }
+			var cols = el('div', 'def-draft-cols');
+			var cur = el('div', 'def-draft-col');
+			cur.appendChild(el('div', 'def-draft-col-head', 'Current'));
+			cur.appendChild(renderPreview(p.before, !isAlt)); // inner_html sanitized; alt as text
+			cols.appendChild(cur);
+			var prop = el('div', 'def-draft-col def-draft-col-proposed');
+			prop.appendChild(el('div', 'def-draft-col-head', 'Proposed'));
+			prop.appendChild(renderPreview(p.after, !isAlt));
+			cols.appendChild(prop);
+			row.appendChild(cols);
+			wrap.appendChild(row);
+		});
+		card.appendChild(wrap);
+	}
+
 	function setNotice(card, message, kind) {
 		var existing = card.querySelector('.def-draft-notice');
 		if (existing) { existing.remove(); }
@@ -218,63 +254,23 @@
 		card.querySelectorAll('button').forEach(function (b) { b.disabled = disabled; });
 	}
 
-	// Swap each Proposed preview for a textarea holding the raw value, so the
-	// reviewer can tweak the wording before publishing.
-	function enterEditMode(card, draft) {
-		if (card.getAttribute('data-editing') === '1') { return; }
-		card.setAttribute('data-editing', '1');
-		var proposed = draft.proposed || {};
-		Object.keys(proposed).forEach(function (key) {
-			var col = card.querySelector('.def-draft-col-proposed[data-field="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
-			if (!col) { return; }
-			var preview = col.querySelector('.def-draft-preview');
-			if (!preview) { return; }
-			var ta = document.createElement('textarea');
-			ta.className = 'def-draft-edit';
-			ta.setAttribute('data-field', key);
-			ta.value = proposed[key] == null ? '' : String(proposed[key]);
-			col.replaceChild(ta, preview);
-		});
-		var editBtn = card.querySelector('.def-draft-edit-toggle');
-		if (editBtn) { editBtn.remove(); }
-		var approve = card.querySelector('.def-draft-approve');
-		if (approve) { approve.textContent = 'Publish edited version'; }
-	}
-
-	// In edit mode, gather the textarea values into the apply body; else undefined
-	// (apply the draft as-staged).
-	function collectEdits(card, draft) {
-		if (card.getAttribute('data-editing') !== '1') { return undefined; }
-		var proposed = {};
-		Object.keys(draft.proposed || {}).forEach(function (key) {
-			var ta = card.querySelector('textarea.def-draft-edit[data-field="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
-			if (ta) { proposed[key] = ta.value; }
-		});
-		return { proposed: proposed };
-	}
-
 	function onApply(card, draft) {
-		var body = collectEdits(card, draft);
-		// DEF ignores blank edits (keeps the staged value), which would silently
-		// diverge from what the reviewer sees. Block an empty field with a clear
-		// message instead of publishing something they didn't intend.
-		if (body && Object.keys(body.proposed).some(function (k) { return !String(body.proposed[k]).trim(); })) {
-			setNotice(card, 'Proposed content can’t be empty — add text, or Dismiss the draft.', 'warning');
-			return;
-		}
 		disableActions(card, true);
 		setNotice(card, 'Applying…', 'info');
-		api('/drafts/' + encodeURIComponent(draft.id) + '/apply', 'POST', body).then(function (res) {
+		api('/drafts/' + encodeURIComponent(draft.id) + '/apply', 'POST').then(function (res) {
 			var status = res && res.status;
 			if (status === 'applied') {
 				card.classList.add('def-draft-card--done');
-				setNotice(card, res.edited ? 'Published your edited version.' : 'Applied — your product is updated.', 'success');
+				setNotice(card, 'Applied — your product is updated.', 'success');
 				var doneActions = card.querySelector('.def-draft-actions');
 				if (doneActions) { doneActions.remove(); }
 			} else if (status === 'stale') {
 				card.classList.add('def-draft-card--stale');
-				setNotice(card, 'A field changed on the live product since this was drafted (' +
-					(res.field || 'unknown') + '). Not applied — dismiss it and let the next run re-draft.', 'warning');
+				// SEO-meta drift returns `field`; body drift returns `stale_paths`.
+				var what = res.field ||
+					((Array.isArray(res.stale_paths) && res.stale_paths.length) ? 'the body text' : 'a field');
+				setNotice(card, 'The live product changed since this was drafted (' + what +
+					'). Not applied — dismiss it and let the next run re-draft.', 'warning');
 				disableActions(card, false);
 				toApplyDisabled(card);
 			} else if (status === 'apply_failed') {
@@ -319,7 +315,8 @@
 		var keyphrase = renderKeyphrase(draft);
 		if (keyphrase) { card.appendChild(keyphrase); }
 
-		renderDiff(card, draft);
+		renderDiff(card, draft);          // SEO meta (current -> proposed)
+		renderBodyEdits(card, draft);     // body text node edits (Adapter G)
 
 		var checklist = renderChecklist(draft);
 		if (checklist) { card.appendChild(checklist); }
@@ -327,12 +324,9 @@
 		var actions = el('div', 'def-draft-actions');
 		var approve = el('button', 'button button-primary def-draft-approve', 'Approve & publish');
 		approve.addEventListener('click', function () { onApply(card, draft); });
-		var edit = el('button', 'button def-draft-edit-toggle', 'Edit');
-		edit.addEventListener('click', function () { enterEditMode(card, draft); });
 		var dismiss = el('button', 'button def-draft-dismiss', 'Dismiss');
 		dismiss.addEventListener('click', function () { onDismiss(card, draft); });
 		actions.appendChild(approve);
-		actions.appendChild(edit);
 		actions.appendChild(dismiss);
 		card.appendChild(actions);
 
