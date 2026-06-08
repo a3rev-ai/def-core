@@ -142,6 +142,53 @@ assert_test( 'old' === call_priv( $ref, 'image_alt', array( $ib ) ), 'image_alt 
 $spliced = call_priv( $ref, 'splice_image_alt', array( $ib, 'a better alt' ) );
 assert_test( 'a better alt' === $spliced['attrs']['alt'] && false !== strpos( $spliced['innerHTML'], 'alt="a better alt"' ), 'splice_image_alt updates attr + <img> tag' );
 
+// ── walk(): paths agree with node_at (raw indices), nesting, locking ────
+function run_walk( ReflectionClass $ref, array $blocks ): array {
+	$m = $ref->getMethod( 'walk' );
+	$m->setAccessible( true );
+	$nodes  = array();
+	$locked = array();
+	$args   = array( $blocks, '', &$nodes, &$locked ); // by-ref out params
+	$m->invokeArgs( null, $args );
+	return array( $nodes, $locked );
+}
+$mk_p  = function ( $t ) { return array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerHTML' => "<p>$t</p>", 'innerContent' => array( "<p>$t</p>" ), 'innerBlocks' => array() ); };
+$mk_li = function ( $t ) { return array( 'blockName' => 'core/list-item', 'attrs' => array(), 'innerHTML' => "<li>$t</li>", 'innerContent' => array( "<li>$t</li>" ), 'innerBlocks' => array() ); };
+$mk_ws = array( 'blockName' => null, 'attrs' => array(), 'innerHTML' => "\n\n", 'innerContent' => array( "\n\n" ), 'innerBlocks' => array() );
+$paths_of = function ( array $nodes ) { return array_map( static function ( $n ) { return $n['path']; }, $nodes ); };
+
+// Nameless whitespace block between two paragraphs: walk MUST emit raw indices
+// (0 and 2), because node_at/set_node resolve by raw array position. This is the
+// contract the whole addressing scheme rests on.
+list( $nodes, $locked ) = run_walk( $ref, array( $mk_p( 'a' ), $mk_ws, $mk_p( 'b' ) ) );
+assert_test( $paths_of( $nodes ) === array( '0', '2' ), 'walk emits raw indices across a nameless gap (0,2 — matches node_at)' );
+
+// core/list → recurse to list-item leaves at 1.0 / 1.1.
+$list = array( 'blockName' => 'core/list', 'attrs' => array(), 'innerHTML' => '', 'innerContent' => array(), 'innerBlocks' => array( $mk_li( 'one' ), $mk_li( 'two' ) ) );
+list( $nodes, $locked ) = run_walk( $ref, array( $mk_p( 'intro' ), $list ) );
+assert_test( $paths_of( $nodes ) === array( '0', '1.0', '1.1' ), 'walk recurses core/list → list-item paths 1.0, 1.1' );
+
+// A list-item that itself has innerBlocks (nested sub-list) must be LOCKED, not
+// exposed — editing it as one string would drop the sub-list.
+$li_nested = array( 'blockName' => 'core/list-item', 'attrs' => array(), 'innerHTML' => '<li>parent</li>', 'innerContent' => array( '<li>parent', null, '</li>' ), 'innerBlocks' => array( $list ) );
+$outer     = array( 'blockName' => 'core/list', 'attrs' => array(), 'innerHTML' => '', 'innerContent' => array(), 'innerBlocks' => array( $li_nested ) );
+list( $nodes, $locked ) = run_walk( $ref, array( $outer ) );
+assert_test( ! in_array( '0.0', $paths_of( $nodes ), true ), 'nested-list-item (has innerBlocks) is NOT exposed as editable' );
+assert_test( 1 === count( array_filter( $locked, static function ( $l ) { return 0 === strpos( $l, '0.0 ' ); } ) ), 'nested-list-item is locked' );
+
+// Custom block: locked, not exposed, NOT recursed into.
+$cpt = array( 'blockName' => 'a3-blockpress/iconlist', 'attrs' => array( 'blockID' => 'x' ), 'innerHTML' => '<section>...</section>', 'innerContent' => array( '<section>...</section>' ), 'innerBlocks' => array() );
+list( $nodes, $locked ) = run_walk( $ref, array( $mk_p( 'a' ), $cpt ) );
+assert_test( $paths_of( $nodes ) === array( '0' ) && 1 === count( $locked ) && false !== strpos( $locked[0], 'a3-blockpress/iconlist' ), 'custom block locked, not exposed' );
+
+// Image block exposes an alt node.
+$imgb = array( 'blockName' => 'core/image', 'attrs' => array( 'id' => 9, 'alt' => 'cap' ), 'innerHTML' => '<figure><img alt="cap"/></figure>', 'innerContent' => array(), 'innerBlocks' => array() );
+list( $nodes, $locked ) = run_walk( $ref, array( $imgb ) );
+assert_test( 1 === count( $nodes ) && 'alt' === $nodes[0]['field'] && 'cap' === $nodes[0]['alt'], 'walk exposes image alt node' );
+
+// Link-set equality (post-review): a NEW href must be rejected, not just loss.
+assert_test( false === call_priv( $ref, 'links_preserved', array( '<p>plain text</p>', 'plain <a href="https://evil.com">x</a> text' ) ), 'links_preserved rejects an ADDED href (injection guard)' );
+
 // ── Summary ────────────────────────────────────────────────────────────
 echo "\n=== Summary ===\n";
 echo "{$passed} passed, {$failed} failed\n";

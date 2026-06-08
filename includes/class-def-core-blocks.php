@@ -52,7 +52,10 @@ final class DEF_Core_Blocks {
 
 	/**
 	 * Inline tags the LLM may keep/move inside an editable node. Everything else in
-	 * a returned patch is stripped by wp_kses before it is spliced in.
+	 * a returned patch is stripped by wp_kses before it is spliced in. Note: any
+	 * non-whitelisted inline markup already present in a node (e.g. <code>, <sup>)
+	 * is also dropped IF that node is edited (the manifest exposes the stripped form
+	 * and base_sha is taken over it); untouched nodes are never altered.
 	 *
 	 * @return array<string,array<string,bool>>
 	 */
@@ -164,6 +167,13 @@ final class DEF_Core_Blocks {
 			wp_set_current_user( $original );
 			return new \WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
+		// Per-post authorization: the manifest exposes the full body, so require the
+		// user's own edit cap (not just the global staff tier) — the agent only ever
+		// manifests items it is allowed to edit.
+		if ( ! current_user_can( 'edit_post', $item_id ) ) {
+			wp_set_current_user( $original );
+			return new \WP_Error( 'rest_forbidden', 'Cannot read this item.', array( 'status' => 403 ) );
+		}
 		$content = (string) $post->post_content;
 		$format  = self::detect_format( $item_id, $content );
 		if ( 'gutenberg' !== $format ) {
@@ -213,6 +223,13 @@ final class DEF_Core_Blocks {
 			$path = '' === $prefix ? (string) $i : $prefix . '.' . $i;
 
 			if ( in_array( $name, self::EDITABLE_TEXT_BLOCKS, true ) ) {
+				// An editable text block must be a LEAF. A core/list-item with a nested
+				// sub-list has innerBlocks (and a multi-part innerContent with null
+				// markers); editing it as one string would drop the sub-list. Lock it.
+				if ( ! empty( $b['innerBlocks'] ) ) {
+					$locked[] = $path . ' (' . $name . ' — has nested blocks)';
+					continue;
+				}
 				$inner = self::extract_inner( (string) ( $b['innerHTML'] ?? '' ) );
 				if ( null !== $inner ) {
 					$nodes[] = array(
@@ -263,11 +280,7 @@ final class DEF_Core_Blocks {
 	public static function rest_apply( \WP_REST_Request $request ) {
 		$original = get_current_user_id();
 		$item_id  = (int) $request->get_param( 'item_id' );
-		// Writes content → require the user's own edit capability (same as SEO write).
-		$gate = self::set_user_or_forbid( self::req_user_id( $request ), 'def_staff_access' );
-		if ( ! is_wp_error( $gate ) && ! current_user_can( 'edit_post', $item_id ) ) {
-			$gate = new \WP_Error( 'rest_forbidden', 'Cannot edit this item.', array( 'status' => 403 ) );
-		}
+		$gate     = self::set_user_or_forbid( self::req_user_id( $request ), 'def_staff_access' );
 		if ( is_wp_error( $gate ) ) {
 			wp_set_current_user( $original );
 			return $gate;
@@ -277,10 +290,19 @@ final class DEF_Core_Blocks {
 			wp_set_current_user( $original );
 			return new \WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
+		// Writes content → require the user's own edit capability (same as SEO write).
+		if ( ! current_user_can( 'edit_post', $item_id ) ) {
+			wp_set_current_user( $original );
+			return new \WP_Error( 'rest_forbidden', 'Cannot edit this item.', array( 'status' => 403 ) );
+		}
 
 		$body                 = $request->get_json_params();
 		$expected_fingerprint = isset( $body['fingerprint'] ) ? (string) $body['fingerprint'] : '';
 		$patches              = isset( $body['patches'] ) && is_array( $body['patches'] ) ? $body['patches'] : array();
+		if ( ! $patches ) {
+			wp_set_current_user( $original );
+			return new \WP_REST_Response( array( 'status' => 'invalid', 'reason' => 'no patches' ), 200 );
+		}
 
 		$content = (string) $post->post_content;
 		if ( 'gutenberg' !== self::detect_format( $item_id, $content ) ) {
@@ -415,7 +437,7 @@ final class DEF_Core_Blocks {
 
 	/** "5.1" → [5,1]; rejects anything but digits/dots. */
 	private static function path_indices( string $path ): ?array {
-		if ( '' === $path || ! preg_match( '/^\d+(\.\d+)*$/', $path ) ) {
+		if ( '' === $path || ! preg_match( '/^\d+(\.\d+)*$/D', $path ) ) {
 			return null;
 		}
 		return array_map( 'intval', explode( '.', $path ) );
@@ -509,16 +531,18 @@ final class DEF_Core_Blocks {
 		return $block;
 	}
 
-	/** Every href in $source must be present in $patched (link-loss guard). */
+	/**
+	 * The set of links must be IDENTICAL across the edit: every source href must
+	 * survive (no link loss) AND no new href may appear (an LLM/garbled patch must
+	 * not be able to inject an off-domain link into live published content). Only
+	 * the surrounding text may change.
+	 */
 	private static function links_preserved( string $source, string $patched ): bool {
-		$src = self::hrefs( $source );
-		$pat = self::hrefs( $patched );
-		foreach ( $src as $href ) {
-			if ( ! in_array( $href, $pat, true ) ) {
-				return false;
-			}
-		}
-		return true;
+		$src = array_values( array_unique( self::hrefs( $source ) ) );
+		$pat = array_values( array_unique( self::hrefs( $patched ) ) );
+		sort( $src );
+		sort( $pat );
+		return $src === $pat;
 	}
 
 	/** @return array<int,string> */
