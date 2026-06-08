@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.2.2
+Stable tag: 4.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.3.0 - 2026-06-08 =
+* Feature (infrastructure): block-safe content edit bridge for the Content Agent (Adapter G — Gutenberg). New internal endpoints let the agent edit an item's body WITHOUT corrupting Gutenberg block markup: it never rewrites serialized blocks — instead it receives an editable-text manifest and applies surgical text patches that preserve every block wrapper, attribute, custom block (e.g. a3 BlockPress) and inner markup byte-for-byte, validated and re-serialized on your site. Content built with classic editor / Elementor / Divi / other builders is detected and left untouched (the agent does SEO metadata only for those). No visible change on its own — it backs the upcoming safe body optimization and content creation.
 
 = 4.2.2 - 2026-06-06 =
 * Tweak: Content Drafts now shows a "needs a focus keyphrase" panel listing the products the Content Agent skipped because no focus keyphrase is set — each links straight to the product editor so you can set one. Once you do, the next scheduled run optimizes it automatically.
