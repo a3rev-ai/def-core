@@ -21,7 +21,11 @@
 	var FIELD_LABELS = {
 		description: 'Description',
 		short_description: 'Short description',
-		name: 'Name'
+		name: 'Name',
+		// SEO-plugin meta — the backend now captures the current value into `source`
+		// so the "Current" column shows the live Yoast meta (Bug B), not (empty).
+		meta_description: 'Meta description',
+		seo_title: 'SEO title'
 	};
 
 	function api(path, method, body) {

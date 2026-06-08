@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.2.2
+Stable tag: 4.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.2.3 - 2026-06-08 =
+* Fix: Content Drafts now show the *current* meta description / SEO title in the "Current" column (previously blank), so you can see the existing SEO meta a draft would replace before you approve it.
 
 = 4.2.2 - 2026-06-06 =
 * Tweak: Content Drafts now shows a "needs a focus keyphrase" panel listing the products the Content Agent skipped because no focus keyphrase is set — each links straight to the product editor so you can set one. Once you do, the next scheduled run optimizes it automatically.
