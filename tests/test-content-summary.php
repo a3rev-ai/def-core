@@ -106,6 +106,18 @@ assert_same( 10, $mixed['by_type']['post']['needs_keyphrase'], 'post needs_keyph
 assert_same( 0, $mixed['by_type']['page']['good'], 'non-array buckets → zeros' );
 assert_same( 0, $mixed['totals']['total_reviewed'], 'missing totals → total_reviewed 0' );
 
+// A bucket value that is itself an array must coerce to 0 without a PHP warning
+// (is_scalar guard), not the misleading 1 that (int)array yields.
+$arr = DEF_Core_Staff_AI::normalize_summary_payload( array(
+	'summary' => array(
+		'by_type' => array( 'product' => array( 'good' => array( 1, 2, 3 ), 'optimized' => 4 ) ),
+		'totals'  => array( 'total_reviewed' => array( 9 ) ),
+	),
+) );
+assert_same( 0, $arr['by_type']['product']['good'], 'array bucket value → 0 (no warning, not 1)' );
+assert_same( 4, $arr['by_type']['product']['optimized'], 'sibling scalar still coerced' );
+assert_same( 0, $arr['totals']['total_reviewed'], 'array total_reviewed → 0' );
+
 // ── 4. a3rev sanity values pass through intact ──────────────────────────
 echo "[4] a3rev sanity values\n";
 $a3 = DEF_Core_Staff_AI::normalize_summary_payload( array(

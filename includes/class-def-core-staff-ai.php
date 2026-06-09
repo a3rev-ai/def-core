@@ -741,7 +741,9 @@ final class DEF_Core_Staff_AI
 		$totals = self::normalize_coverage_buckets( isset( $summary['totals'] ) ? $summary['totals'] : array() );
 		// total_reviewed is the only sanctioned denominator (never "all content").
 		$totals_in                = ( isset( $summary['totals'] ) && is_array( $summary['totals'] ) ) ? $summary['totals'] : array();
-		$totals['total_reviewed'] = isset( $totals_in['total_reviewed'] ) ? max( 0, (int) $totals_in['total_reviewed'] ) : 0;
+		$totals['total_reviewed'] = ( isset( $totals_in['total_reviewed'] ) && is_scalar( $totals_in['total_reviewed'] ) )
+			? max( 0, (int) $totals_in['total_reviewed'] )
+			: 0;
 
 		return array(
 			'by_type' => $by_type,
@@ -761,7 +763,12 @@ final class DEF_Core_Staff_AI
 		$buckets = is_array( $buckets ) ? $buckets : array();
 		$out     = array();
 		foreach ( self::COVERAGE_BUCKET_KEYS as $key ) {
-			$out[ $key ] = isset( $buckets[ $key ] ) ? max( 0, (int) $buckets[ $key ] ) : 0;
+			// Guard is_scalar before the int-cast so an array value (garbled
+			// payload) can't raise an "Array to int conversion" warning or coerce
+			// to a misleading 1 — it cleanly becomes 0.
+			$out[ $key ] = ( isset( $buckets[ $key ] ) && is_scalar( $buckets[ $key ] ) )
+				? max( 0, (int) $buckets[ $key ] )
+				: 0;
 		}
 		return $out;
 	}

@@ -426,7 +426,8 @@
 		var panel = el('div', 'def-draft-needs-kp');
 		panel.appendChild(el('div', 'def-draft-needs-kp-head',
 			total + (total === 1 ? ' item needs' : ' items need') +
-			' a focus keyphrase before the Content Agent can optimize them. Set one in your SEO plugin:'));
+			' a focus keyphrase before the Content Agent can optimize ' +
+			(total === 1 ? 'it' : 'them') + '. Set one in your SEO plugin:'));
 
 		typeOrder(seen).forEach(function (type) {
 			var groupItems = groups[type];
@@ -533,9 +534,19 @@
 			typeOrder(Object.keys(byType)).forEach(function (t) {
 				var buckets = byType[t];
 				if (!buckets || typeof buckets !== 'object') { return; }
-				if (num(buckets.total) <= 0) { return; } // no reviewed content of this type
 				var parts = buildBucketParts(buckets);
-				if (!parts) { return; }
+				var total = num(buckets.total);
+				// Skip only a genuinely empty type (nothing to show AND nothing
+				// reviewed). Gating on `total` alone would drop a type that has
+				// displayable buckets but a missing/zero total.
+				if (!parts && total <= 0) { return; }
+				if (!parts) {
+					// Reviewed content exists but lands entirely outside the displayed
+					// buckets (e.g. all 'other') — show a minimal reviewed count rather
+					// than silently dropping the type. A discrete count, not a ratio.
+					parts = el('span', 'def-draft-coverage-parts');
+					parts.appendChild(el('span', 'def-draft-coverage-stat', total + ' reviewed'));
+				}
 				var row = el('div', 'def-draft-coverage-row');
 				row.appendChild(el('span', 'def-draft-coverage-type', typeLabel(t) + ':'));
 				row.appendChild(parts);
