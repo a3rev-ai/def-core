@@ -195,7 +195,16 @@ class DEF_Core_HMAC_Auth {
 			update_option( self::WF_ALLOWLIST_OPTION, $seen, false );
 		} catch ( \Throwable $e ) {
 			// Best-effort only: never let WAF-allowlisting break a valid request.
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// Surface via the plugin's structured logger (visible on the admin
+			// Logs page) so an operator can see why DEF traffic might still be
+			// throttled; fall back to error_log under WP_DEBUG if the logger
+			// isn't loaded.
+			if ( class_exists( '\DEF_Core_Logger' ) ) {
+				\DEF_Core_Logger::error(
+					\DEF_Core_Logger::SOURCE_AUTH,
+					'Wordfence IP allowlisting failed: ' . $e->getMessage()
+				);
+			} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( 'DEF_Core_HMAC_Auth: Wordfence allowlist failed: ' . $e->getMessage() );
 			}
 		}
