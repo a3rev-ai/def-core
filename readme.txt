@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.5.0
+Stable tag: 4.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.5.1 - 2026-06-09 =
+* Fix (infrastructure): the Content Agent's block-edit bridge now honors the per-item "exclude from ingestion" flag. An excluded item can no longer be body-edited or published by the agent: the editable-text manifest reports the item as excluded so the agent skips it before generating, and the apply (live-write) endpoint refuses an excluded item outright — before any change is parsed or written. This is the authoritative server-side guard, reusing the existing exclusion flag (no new setting); non-excluded items are unaffected.
 
 = 4.5.0 - 2026-06-09 =
 * Feature: Content Drafts page goes per-content-type. The top status strip now shows your CURRENT content coverage broken down by type (Products / Posts / Pages / custom types) — e.g. "Products: ✅ 9 good · ✍️ 2 optimized · 📋 3 awaiting review · 🔑 20 need a keyphrase" — plus an overall line, with zero buckets hidden to reduce noise. This replaces the previous per-run counts, which froze at the last run's numbers and drifted from reality as drafts were applied/dismissed; a small "Last run <time>" freshness line remains. As always it shows discrete counts, never a ratio. The "needs a focus keyphrase" panel is now grouped by content type into collapsible sections (collapsed by default) with a count header each — e.g. "▸ Products (20)", "▸ Posts (10)", "▸ Pages (10)" — so it stays compact as the list grows; expand a section to see and jump to each item's editor.
