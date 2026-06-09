@@ -174,14 +174,19 @@ final class DEF_Core_Blocks {
 			wp_set_current_user( $original );
 			return new \WP_Error( 'rest_forbidden', 'Cannot read this item.', array( 'status' => 403 ) );
 		}
-		$content = (string) $post->post_content;
-		$format  = self::detect_format( $item_id, $content );
+		// Ingestion-exclusion flag (the existing _def_exclude_from_ingestion meta).
+		// Surfaced so DEF's writer can skip an excluded item before generating; the
+		// authoritative refusal lives at the apply write-boundary (rest_apply).
+		$excluded = (bool) \DEF_Core_Knowledge_Exclusion::is_excluded( $item_id );
+		$content  = (string) $post->post_content;
+		$format   = self::detect_format( $item_id, $content );
 		if ( 'gutenberg' !== $format ) {
 			wp_set_current_user( $original );
 			return new \WP_REST_Response( array(
 				'format'        => $format,
 				'adapter'       => null,
 				'body_editable' => false,
+				'excluded'      => $excluded,
 				'reason'        => 'no safe body adapter for format: ' . $format,
 				'nodes'         => array(),
 				'locked'        => array(),
@@ -198,6 +203,7 @@ final class DEF_Core_Blocks {
 			'format'        => 'gutenberg',
 			'adapter'       => 'G',
 			'body_editable' => true,
+			'excluded'      => $excluded,
 			'nodes'         => $nodes,
 			'locked'        => $locked,
 			'block_count'   => self::count_named( $blocks ),
@@ -294,6 +300,16 @@ final class DEF_Core_Blocks {
 		if ( ! current_user_can( 'edit_post', $item_id ) ) {
 			wp_set_current_user( $original );
 			return new \WP_Error( 'rest_forbidden', 'Cannot edit this item.', array( 'status' => 403 ) );
+		}
+		// Authoritative write-boundary guard: an item flagged for ingestion
+		// exclusion must NEVER be content-edited/published by the Content Agent.
+		// Refuse here — before any body parse, parse/serialize, or wp_update_post —
+		// so neither DEF nor a human (nor a future auto-publish) can write an edit
+		// to an excluded item. This is the def-core half of "leave it alone"; the
+		// DEF stream additionally skips the audit upstream.
+		if ( \DEF_Core_Knowledge_Exclusion::is_excluded( $item_id ) ) {
+			wp_set_current_user( $original );
+			return new \WP_REST_Response( array( 'status' => 'excluded' ), 200 );
 		}
 
 		$body                 = $request->get_json_params();
