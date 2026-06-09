@@ -237,6 +237,17 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_list_content_drafts'),
 			)
 		);
+		// Content Agent "Create New" (Engine 2): on-demand create request. The agent
+		// generates a draft asynchronously; it surfaces in the review queue above.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/create',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_content_create'),
+			)
+		);
 		// Last audit-run timestamp for the Content Drafts freshness line (read-only).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -547,6 +558,42 @@ final class DEF_Core_Staff_AI
 	 *
 	 * @return \WP_REST_Response|\WP_Error Response.
 	 */
+	/**
+	 * REST handler: on-demand "Create New" request (Content Agent Engine 2).
+	 *
+	 * Proxies DEF POST /api/staff-ai/content/create with the user's keyphrase. DEF
+	 * generates a fully-optimized draft asynchronously; it then appears in the
+	 * Content Drafts review queue (kind = 'create') for approval. No synchronous
+	 * wait — this just acknowledges the request.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_content_create( \WP_REST_Request $request )
+	{
+		$params    = $request->get_json_params();
+		$keyphrase = ( is_array( $params ) && isset( $params['keyphrase'] ) && is_string( $params['keyphrase'] ) )
+			? trim( $params['keyphrase'] )
+			: '';
+		if ( '' === $keyphrase ) {
+			return new \WP_Error(
+				'invalid_keyphrase',
+				__( 'A keyphrase is required to generate a post.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/create', array( 'keyphrase' => $keyphrase ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$payload = array( 'success' => true );
+		if ( is_array( $result ) ) {
+			$payload = array_merge( $payload, $result );
+		}
+		return new \WP_REST_Response( $payload, 200 );
+	}
+
 	public static function rest_list_content_drafts( \WP_REST_Request $request )
 	{
 		$result = self::backend_request( 'GET', '/api/staff-ai/content/drafts' );
