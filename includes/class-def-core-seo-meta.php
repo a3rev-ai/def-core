@@ -169,6 +169,18 @@ final class DEF_Core_SEO_Meta {
 			wp_set_current_user( $original );
 			return new \WP_Error( 'rest_forbidden', 'Cannot edit this item.', array( 'status' => 403 ) );
 		}
+		// Authoritative write-boundary guard: an item flagged for ingestion
+		// exclusion must NEVER be edited/published by the Content Agent. This is the
+		// metadata-only counterpart to the block-edit guard in DEF_Core_Blocks::
+		// rest_apply — a metadata-only draft (no body patches) writes SEO meta here,
+		// so it needs the same refusal. Bail before any update_post_meta so neither
+		// DEF nor a human (nor a future auto-publish) can write to an excluded item.
+		// (The GET/read path is intentionally NOT guarded — the audit reads it and
+		// skips excluded items upstream.)
+		if ( \DEF_Core_Knowledge_Exclusion::is_excluded( $item_id ) ) {
+			wp_set_current_user( $original );
+			return new \WP_REST_Response( array( 'status' => 'excluded' ), 200 );
+		}
 
 		list( $plugin, $keys ) = self::active_plugin();
 		$written = array();
