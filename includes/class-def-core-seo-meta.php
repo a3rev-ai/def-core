@@ -92,6 +92,48 @@ final class DEF_Core_SEO_Meta {
 		return array( 'none', array() );
 	}
 
+	/**
+	 * Write SEO meta for a freshly CREATED post (Content Agent "Create New").
+	 *
+	 * Unlike rest_write (which serves EDITS and deliberately never touches the
+	 * focus keyphrase — that's human-owned strategy for existing items), a created
+	 * post's keyphrase IS the human's chosen target for the generate request, so
+	 * we set it here. Writes meta description / SEO title / focus keyphrase via the
+	 * active SEO plugin's keys, plus the private "optimized" stamp. Fields not
+	 * supplied are skipped; with no SEO plugin active ($keys empty) only the stamp
+	 * is written. Caller is responsible for capability/exclusion gating.
+	 *
+	 * @param int   $item_id New post ID.
+	 * @param array $fields  { meta_description?, seo_title?, focus_keyphrase? }.
+	 * @return array { plugin: string, written: string[] }
+	 */
+	public static function apply_create_meta( int $item_id, array $fields ): array {
+		list( $plugin, $keys ) = self::active_plugin();
+		$written = array();
+		if ( $keys ) {
+			if ( isset( $fields['meta_description'] ) && is_string( $fields['meta_description'] ) ) {
+				update_post_meta( $item_id, $keys['metadesc'], sanitize_textarea_field( $fields['meta_description'] ) );
+				$written[] = 'meta_description';
+			}
+			if ( isset( $fields['seo_title'] ) && is_string( $fields['seo_title'] ) ) {
+				update_post_meta( $item_id, $keys['title'], sanitize_text_field( $fields['seo_title'] ) );
+				$written[] = 'seo_title';
+			}
+			if ( isset( $fields['focus_keyphrase'] ) && is_string( $fields['focus_keyphrase'] ) && '' !== trim( $fields['focus_keyphrase'] ) ) {
+				update_post_meta( $item_id, $keys['focus'], sanitize_text_field( $fields['focus_keyphrase'] ) );
+				$written[] = 'focus_keyphrase';
+			}
+		}
+		$has_keyphrase = isset( $fields['focus_keyphrase'] ) && is_string( $fields['focus_keyphrase'] ) && '' !== trim( $fields['focus_keyphrase'] );
+		if ( $written || $has_keyphrase ) {
+			update_post_meta( $item_id, '_def_content_optimized_at', gmdate( 'c' ) );
+			if ( $has_keyphrase ) {
+				update_post_meta( $item_id, '_def_optimized_keyphrase', sanitize_text_field( $fields['focus_keyphrase'] ) );
+			}
+		}
+		return array( 'plugin' => $plugin, 'written' => $written );
+	}
+
 	private static function set_user_or_forbid( int $user_id ) {
 		wp_set_current_user( $user_id );
 		if ( ! current_user_can( 'def_staff_access' ) && ! current_user_can( 'def_management_access' ) ) {

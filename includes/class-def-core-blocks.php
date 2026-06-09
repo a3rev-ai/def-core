@@ -85,6 +85,13 @@ final class DEF_Core_Blocks {
 			'callback'            => array( __CLASS__, 'rest_apply' ),
 			'permission_callback' => array( __CLASS__, 'permission_check' ),
 		) );
+		// Content Agent "Create New" (Engine 2, Wave 1): serialize authored semantic
+		// content to core blocks and create a brand-new WP DRAFT post.
+		register_rest_route( 'def-core/v1', '/content/create-post', array(
+			'methods'             => 'POST',
+			'callback'            => array( __CLASS__, 'rest_create_post' ),
+			'permission_callback' => array( __CLASS__, 'permission_check' ),
+		) );
 	}
 
 	// ---------------------------------------------------------------- auth ----
@@ -408,6 +415,210 @@ final class DEF_Core_Blocks {
 			'block_count'        => self::count_named( $blocks ),
 			'patched_paths'      => array_map( static function ( $p ) { return (string) ( $p['path'] ?? '' ); }, $patches ),
 		), 200 );
+	}
+
+	// --------------------------------------------------------- POST create ----
+
+	/**
+	 * POST /content/create-post — create a brand-new WP DRAFT from authored
+	 * semantic-block JSON (Content Agent "Create New", Engine 2 Wave 1).
+	 *
+	 * Body: { title, slug?, content (semantic-block JSON), status:'draft',
+	 *         focus_keyphrase?, meta_description?, seo_title? }.
+	 *
+	 * CREATE is the inverse of the edit bridge and simpler: there is no existing
+	 * markup to preserve, so we serialize the authored semantic nodes to core
+	 * Gutenberg blocks (paragraph / heading / list / image placeholder), sanitize
+	 * the serialized body with wp_kses_post (authored content is never trusted),
+	 * insert as a DRAFT, then set the SEO meta + focus keyphrase. Returns
+	 * { post_id, edit_link }.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_create_post( \WP_REST_Request $request ) {
+		$original = get_current_user_id();
+		$gate     = self::set_user_or_forbid( self::req_user_id( $request ), 'def_staff_access' );
+		if ( is_wp_error( $gate ) ) {
+			wp_set_current_user( $original );
+			return $gate;
+		}
+		// CREATE capability: the WP cap to create a 'post' (create_posts → edit_posts).
+		$pt         = get_post_type_object( 'post' );
+		$create_cap = ( $pt && isset( $pt->cap->create_posts ) ) ? $pt->cap->create_posts : 'edit_posts';
+		if ( ! current_user_can( $create_cap ) ) {
+			wp_set_current_user( $original );
+			return new \WP_Error( 'rest_forbidden', 'Cannot create posts.', array( 'status' => 403 ) );
+		}
+
+		$body  = $request->get_json_params();
+		$body  = is_array( $body ) ? $body : array();
+		$title = ( isset( $body['title'] ) && is_string( $body['title'] ) ) ? sanitize_text_field( $body['title'] ) : '';
+		if ( '' === $title ) {
+			wp_set_current_user( $original );
+			return new \WP_REST_Response( array( 'status' => 'invalid', 'reason' => 'missing title' ), 200 );
+		}
+		$semantic = ( isset( $body['content'] ) && is_array( $body['content'] ) ) ? $body['content'] : array();
+
+		// Semantic JSON → core blocks → serialized body, then sanitize. Authored
+		// content is untrusted; wp_kses_post preserves block delimiter comments.
+		$content = wp_kses_post( serialize_blocks( self::semantic_to_blocks( $semantic ) ) );
+
+		$postarr = array(
+			'post_type'    => 'post',
+			'post_status'  => 'draft',
+			'post_title'   => $title,
+			'post_content' => $content,
+		);
+		$slug = ( isset( $body['slug'] ) && is_string( $body['slug'] ) ) ? sanitize_title( $body['slug'] ) : '';
+		if ( '' !== $slug ) {
+			$postarr['post_name'] = $slug;
+		}
+
+		$post_id = wp_insert_post( $postarr, true );
+		if ( is_wp_error( $post_id ) || ! $post_id ) {
+			wp_set_current_user( $original );
+			$code = is_wp_error( $post_id ) ? $post_id->get_error_code() : 'insert_failed';
+			return new \WP_REST_Response( array( 'status' => 'create_failed', 'reason' => $code ), 200 );
+		}
+		$post_id = (int) $post_id;
+
+		// SEO meta + focus keyphrase (reuse the SEO-meta bridge). Unlike an EDIT,
+		// a created post's focus keyphrase IS the human's chosen target, so it's set.
+		\DEF_Core_SEO_Meta::apply_create_meta( $post_id, array(
+			'meta_description' => $body['meta_description'] ?? null,
+			'seo_title'        => $body['seo_title'] ?? null,
+			'focus_keyphrase'  => $body['focus_keyphrase'] ?? null,
+		) );
+
+		$edit_link = get_edit_post_link( $post_id, 'raw' );
+		wp_set_current_user( $original );
+		return new \WP_REST_Response( array(
+			'status'    => 'created',
+			'post_id'   => $post_id,
+			'edit_link' => $edit_link ? $edit_link : '',
+		), 200 );
+	}
+
+	/**
+	 * Serialize authored semantic-block JSON into an array of core Gutenberg block
+	 * structures (for serialize_blocks()). Supports paragraph, heading, list, and
+	 * image placeholder; an unknown node with text falls back to a paragraph, and
+	 * anything else is skipped. All authored text passes through the same inline
+	 * allowlist as the edit bridge, so only safe inline markup survives in a node.
+	 *
+	 * @param array $nodes Authored semantic nodes.
+	 * @return array<int,array> Block structures.
+	 */
+	private static function semantic_to_blocks( array $nodes ): array {
+		$blocks = array();
+		foreach ( $nodes as $node ) {
+			if ( ! is_array( $node ) ) {
+				continue;
+			}
+			$type = ( isset( $node['type'] ) && is_string( $node['type'] ) ) ? $node['type'] : '';
+			$text = ( isset( $node['text'] ) && is_string( $node['text'] ) ) ? $node['text'] : '';
+			switch ( $type ) {
+				case 'heading':
+					$level = isset( $node['level'] ) ? (int) $node['level'] : 2;
+					if ( $level < 1 || $level > 6 ) {
+						$level = 2;
+					}
+					$blocks[] = self::make_heading_block( $level, self::clean_inline( $text ) );
+					break;
+				case 'list':
+					$items = ( isset( $node['items'] ) && is_array( $node['items'] ) ) ? $node['items'] : array();
+					if ( empty( $items ) ) {
+						break;
+					}
+					$blocks[] = self::make_list_block( ! empty( $node['ordered'] ), $items );
+					break;
+				case 'image':
+				case 'image-placeholder':
+					$alt      = ( isset( $node['alt'] ) && is_string( $node['alt'] ) ) ? $node['alt'] : '';
+					$blocks[] = self::make_image_placeholder_block( $alt );
+					break;
+				case 'paragraph':
+				default:
+					if ( '' === trim( $text ) ) {
+						break;
+					}
+					$blocks[] = self::make_paragraph_block( self::clean_inline( $text ) );
+					break;
+			}
+		}
+		return $blocks;
+	}
+
+	/** Sanitize authored inline text to the editable inline subset (no block tags). */
+	private static function clean_inline( string $text ): string {
+		return wp_kses( $text, self::inline_allowed() );
+	}
+
+	private static function make_paragraph_block( string $inner ): array {
+		$html = '<p>' . $inner . '</p>';
+		return array(
+			'blockName'    => 'core/paragraph',
+			'attrs'        => array(),
+			'innerBlocks'  => array(),
+			'innerHTML'    => $html,
+			'innerContent' => array( $html ),
+		);
+	}
+
+	private static function make_heading_block( int $level, string $inner ): array {
+		$tag   = 'h' . $level;
+		$html  = '<' . $tag . ' class="wp-block-heading">' . $inner . '</' . $tag . '>';
+		$attrs = ( 2 === $level ) ? array() : array( 'level' => $level );
+		return array(
+			'blockName'    => 'core/heading',
+			'attrs'        => $attrs,
+			'innerBlocks'  => array(),
+			'innerHTML'    => $html,
+			'innerContent' => array( $html ),
+		);
+	}
+
+	private static function make_list_block( bool $ordered, array $items ): array {
+		$tag         = $ordered ? 'ol' : 'ul';
+		$inner_items = array();
+		foreach ( $items as $item ) {
+			if ( ! is_string( $item ) ) {
+				continue;
+			}
+			$li_html       = '<li>' . self::clean_inline( $item ) . '</li>';
+			$inner_items[] = array(
+				'blockName'    => 'core/list-item',
+				'attrs'        => array(),
+				'innerBlocks'  => array(),
+				'innerHTML'    => $li_html,
+				'innerContent' => array( $li_html ),
+			);
+		}
+		// innerContent interleaves the wrapper open/close with one null per inner block.
+		$inner_content = array_merge(
+			array( '<' . $tag . ' class="wp-block-list">' ),
+			array_fill( 0, count( $inner_items ), null ),
+			array( '</' . $tag . '>' )
+		);
+		return array(
+			'blockName'    => 'core/list',
+			'attrs'        => $ordered ? array( 'ordered' => true ) : array(),
+			'innerBlocks'  => $inner_items,
+			'innerHTML'    => '<' . $tag . ' class="wp-block-list"></' . $tag . '>',
+			'innerContent' => $inner_content,
+		);
+	}
+
+	/** Empty core/image placeholder — images are a later wave; this reserves the slot + alt. */
+	private static function make_image_placeholder_block( string $alt ): array {
+		$html = '<figure class="wp-block-image"><img src="" alt="' . esc_attr( $alt ) . '"/></figure>';
+		return array(
+			'blockName'    => 'core/image',
+			'attrs'        => array(),
+			'innerBlocks'  => array(),
+			'innerHTML'    => $html,
+			'innerContent' => array( $html ),
+		);
 	}
 
 	// ------------------------------------------------------- tree helpers ----

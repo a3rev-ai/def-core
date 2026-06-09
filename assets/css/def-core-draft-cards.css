@@ -379,3 +379,77 @@ a.def-draft-title-link:hover {
 	color: #6a5b00;
 	font-weight: 600;
 }
+
+/* "Create a post" control */
+.def-draft-create-panel {
+	margin-bottom: 16px;
+	padding: 12px 16px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+}
+.def-draft-create-label {
+	display: block;
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 6px;
+}
+.def-draft-create-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.def-draft-create-input {
+	flex: 1 1 320px;
+	min-width: 220px;
+}
+.def-draft-create-status {
+	margin-top: 8px;
+	font-size: 13px;
+	color: #50697f;
+	min-height: 1em;
+}
+.def-draft-create-status--ok { color: #1d6e3b; }
+.def-draft-create-status--warn { color: #8a6d00; }
+
+/* CREATE review card */
+.def-draft-card--create {
+	border-left: 4px solid #2271b1;
+}
+.def-draft-create-badge {
+	display: inline-block;
+	margin-bottom: 4px;
+	padding: 1px 8px;
+	border-radius: 10px;
+	background: #2271b1;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+.def-draft-create-body {
+	margin: 4px 0 8px;
+	padding: 10px 12px;
+	background: #fafafa;
+	border: 1px solid #e6e6e8;
+	border-radius: 3px;
+	max-height: 320px;
+	overflow: auto;
+}
+.def-draft-create-body p { margin: 0 0 8px; }
+.def-draft-create-h { margin: 8px 0 4px; font-size: 15px; }
+.def-draft-create-list { margin: 0 0 8px 18px; }
+.def-draft-create-img {
+	margin: 8px 0;
+	padding: 10px;
+	background: #f0f0f1;
+	border: 1px dashed #c3c4c7;
+	border-radius: 3px;
+	color: #646970;
+	font-size: 13px;
+	text-align: center;
+}
+.def-draft-edit-link { font-weight: 600; }

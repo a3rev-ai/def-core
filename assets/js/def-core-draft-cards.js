@@ -255,10 +255,38 @@
 	}
 
 	function onApply(card, draft) {
+		var isCreate = draft && draft.kind === 'create';
 		disableActions(card, true);
-		setNotice(card, 'Applying…', 'info');
+		setNotice(card, isCreate ? 'Creating…' : 'Applying…', 'info');
 		api('/drafts/' + encodeURIComponent(draft.id) + '/apply', 'POST').then(function (res) {
 			var status = res && res.status;
+			if (isCreate) {
+				// Create success: DEF orchestrated the create-post call; a new WP draft
+				// now exists. Show its editor link. (Success = a created/applied status
+				// or an edit_link in the response.)
+				if (status === 'created' || status === 'applied' || (res && res.edit_link)) {
+					card.classList.add('def-draft-card--done');
+					setNotice(card, 'Draft created.', 'success');
+					var editHref = res && safeHref(res.edit_link);
+					if (editHref) {
+						var notice = card.querySelector('.def-draft-notice');
+						if (notice) {
+							notice.appendChild(document.createTextNode(' '));
+							notice.appendChild(linkEl('Edit the new post ↗', editHref, 'def-draft-edit-link'));
+						}
+					}
+					var createdActions = card.querySelector('.def-draft-actions');
+					if (createdActions) { createdActions.remove(); }
+				} else if (status === 'create_failed') {
+					card.classList.add('def-draft-card--failed');
+					setNotice(card, 'Could not create the post: ' + (res.reason || res.error || 'unknown error') + '.', 'error');
+					disableActions(card, false);
+				} else {
+					setNotice(card, 'Unexpected response.', 'error');
+					disableActions(card, false);
+				}
+				return;
+			}
 			if (status === 'applied') {
 				card.classList.add('def-draft-card--done');
 				setNotice(card, 'Applied — your product is updated.', 'success');
@@ -307,7 +335,115 @@
 		});
 	}
 
+	// A single proposed-meta field for a CREATE card (no current→proposed diff —
+	// it's a brand-new post). Plain text via textContent.
+	function createField(label, value) {
+		var row = el('div', 'def-draft-field');
+		row.appendChild(el('div', 'def-draft-field-label', label));
+		var box = el('div', 'def-draft-preview');
+		if (value == null || String(value) === '') {
+			box.appendChild(el('em', 'def-draft-empty', '(empty)'));
+		} else {
+			box.textContent = String(value); // escaped — meta is plain text
+		}
+		row.appendChild(box);
+		return row;
+	}
+
+	// Render the proposed body of a CREATE draft from its semantic-block JSON. The
+	// STRUCTURE (which tag) comes from the trusted JSON shape; the per-node TEXT is
+	// untrusted authored content, so it's sanitized with DOMPurify (sanitize()).
+	function renderCreateBody(body) {
+		var wrap = el('div', 'def-draft-create-body');
+		if (!Array.isArray(body) || !body.length) {
+			wrap.appendChild(el('em', 'def-draft-empty', '(no body content)'));
+			return wrap;
+		}
+		body.forEach(function (node) {
+			if (!node || typeof node !== 'object') { return; }
+			var type = node.type;
+			if (type === 'heading') {
+				var lvl = num(node.level) || 2;
+				if (lvl < 1 || lvl > 6) { lvl = 2; }
+				var h = document.createElement('h' + lvl);
+				h.className = 'def-draft-create-h';
+				h.innerHTML = sanitize(node.text); // sanitized authored text
+				wrap.appendChild(h);
+			} else if (type === 'list') {
+				var items = Array.isArray(node.items) ? node.items : [];
+				var listEl = document.createElement(node.ordered ? 'ol' : 'ul');
+				listEl.className = 'def-draft-create-list';
+				items.forEach(function (it) {
+					if (typeof it !== 'string') { return; }
+					var li = document.createElement('li');
+					li.innerHTML = sanitize(it); // sanitized authored text
+					listEl.appendChild(li);
+				});
+				wrap.appendChild(listEl);
+			} else if (type === 'image' || type === 'image-placeholder') {
+				// Images are a later wave — show a labelled placeholder (textContent).
+				wrap.appendChild(el('div', 'def-draft-create-img',
+					'🖼 ' + (node.alt ? String(node.alt) : 'Image') + ' (added in a later step)'));
+			} else {
+				var text = (typeof node.text === 'string') ? node.text : '';
+				if (!text.trim()) { return; }
+				var p = document.createElement('p');
+				p.innerHTML = sanitize(text); // sanitized authored text
+				wrap.appendChild(p);
+			}
+		});
+		return wrap;
+	}
+
+	// CREATE review card: the full PROPOSED new post (no diff — it's new).
+	function renderCreateCard(draft) {
+		var card = el('div', 'def-draft-card def-draft-card--create');
+
+		var head = el('div', 'def-draft-head');
+		var left = el('div', 'def-draft-head-left');
+		left.appendChild(el('span', 'def-draft-create-badge', 'New post'));
+		left.appendChild(el('div', 'def-draft-title',
+			(draft.title && String(draft.title).trim()) || '(untitled)'));
+		if (draft.slug) {
+			var sub = el('div', 'def-draft-sub');
+			sub.appendChild(el('span', 'def-draft-sub-id', '/' + String(draft.slug)));
+			left.appendChild(sub);
+		}
+		head.appendChild(left);
+		card.appendChild(head);
+
+		var keyphrase = renderKeyphrase(draft); // reads draft.focus_keyphrase
+		if (keyphrase) { card.appendChild(keyphrase); }
+
+		card.appendChild(createField('SEO title', draft.seo_title));
+		card.appendChild(createField('Meta description', draft.meta_description));
+
+		card.appendChild(el('div', 'def-draft-field-label', 'Body preview'));
+		card.appendChild(renderCreateBody(draft.body));
+
+		var checklist = renderChecklist(draft);
+		if (checklist) { card.appendChild(checklist); }
+
+		var actions = el('div', 'def-draft-actions');
+		var approve = el('button', 'button button-primary def-draft-approve', 'Approve & create draft');
+		approve.addEventListener('click', function () { onApply(card, draft); });
+		var dismiss = el('button', 'button def-draft-dismiss', 'Dismiss');
+		dismiss.addEventListener('click', function () { onDismiss(card, draft); });
+		actions.appendChild(approve);
+		actions.appendChild(dismiss);
+		card.appendChild(actions);
+
+		var explainer = renderExplainer(draft);
+		if (explainer) { card.appendChild(explainer); }
+
+		return card;
+	}
+
 	function renderCard(draft) {
+		if (draft && draft.kind === 'create') {
+			return renderCreateCard(draft);
+		}
+
 		var card = el('div', 'def-draft-card');
 
 		card.appendChild(renderHead(draft));
@@ -571,6 +707,65 @@
 
 		root.insertBefore(strip, root.firstChild);
 	}
+
+	// "Create a post" control — a keyphrase input + Generate button that asks DEF
+	// to generate a new optimized post. The draft then appears in the queue (kind
+	// 'create'). Rendered into its own host outside the cards root, so the drafts
+	// fetch's root.innerHTML reset never wipes it. Only shown when the user can
+	// create posts (the bridge re-checks the capability server-side).
+	function renderCreateControl() {
+		if (!cfg.canCreate) { return; }
+		var host = document.getElementById('def-draft-create');
+		if (!host) { return; }
+
+		var panel = el('div', 'def-draft-create-panel');
+		panel.appendChild(el('label', 'def-draft-create-label', 'Create a new post'));
+
+		var rowEl = el('div', 'def-draft-create-row');
+		var input = document.createElement('input');
+		input.type = 'text';
+		input.className = 'def-draft-create-input regular-text';
+		input.setAttribute('placeholder', 'Focus keyphrase, e.g. best running shoes');
+		var btn = el('button', 'button button-primary def-draft-create-btn', 'Generate');
+		btn.type = 'button';
+		var status = el('div', 'def-draft-create-status');
+
+		function submit() {
+			var kp = input.value.trim();
+			if (!kp) {
+				status.className = 'def-draft-create-status def-draft-create-status--warn';
+				status.textContent = 'Enter a keyphrase first.';
+				return;
+			}
+			btn.disabled = true;
+			input.disabled = true;
+			status.className = 'def-draft-create-status';
+			status.textContent = 'Requesting…';
+			api('/create', 'POST', { keyphrase: kp }).then(function () {
+				status.className = 'def-draft-create-status def-draft-create-status--ok';
+				status.textContent = 'Your draft is being generated and will appear in Content Drafts shortly.';
+				input.value = '';
+			}).catch(function (e) {
+				status.className = 'def-draft-create-status def-draft-create-status--warn';
+				status.textContent = (e && e.message) || 'Could not start generation.';
+			}).then(function () {
+				btn.disabled = false;
+				input.disabled = false;
+			});
+		}
+		btn.addEventListener('click', submit);
+		input.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') { e.preventDefault(); submit(); }
+		});
+
+		rowEl.appendChild(input);
+		rowEl.appendChild(btn);
+		panel.appendChild(rowEl);
+		panel.appendChild(status);
+		host.appendChild(panel);
+	}
+
+	renderCreateControl();
 
 	api('/drafts', 'GET').then(function (res) {
 		render((res && res.drafts) || []);

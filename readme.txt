@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.5.1
+Stable tag: 4.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.6.0 - 2026-06-09 =
+* Feature: the Content Agent can now CREATE brand-new posts on demand. On the Content Drafts page, enter a focus keyphrase and click Generate — the agent writes a fully-optimized new post (title, SEO title, meta description, focus keyphrase, and a structured body) and it appears in the review queue as a "New post" card. Review the proposed title, slug, SEO meta, body preview and the agent's Yoast-style self-assessment, then Approve to create it as a WordPress DRAFT (nothing is published — you get an editor link to finish and publish), or Dismiss. The new post's body is built from safe core Gutenberg blocks and the authored content is sanitized before it's stored. (Images, scheduling and social are later waves.)
 
 = 4.5.1 - 2026-06-09 =
 * Fix (infrastructure): the Content Agent's content-edit bridge now honors the per-item "exclude from ingestion" flag at every live-write boundary. An excluded item can no longer be body-edited or have its SEO meta written/published by the agent: the editable-text manifest reports the item as excluded so the agent skips it before generating, and both write endpoints — the block-edit apply and the SEO-meta write (used by metadata-only drafts) — refuse an excluded item outright, before anything is parsed or written. This is the authoritative server-side guard, reusing the existing exclusion flag (no new setting); the read paths and non-excluded items are unaffected.

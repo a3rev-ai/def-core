@@ -60,13 +60,20 @@ final class DEF_Core_Content_Drafts_Page {
 		wp_enqueue_style( 'def-core-admin' );
 		wp_enqueue_style( 'def-core-draft-cards' );
 		wp_enqueue_script( 'def-core-draft-cards' );
+		// The "Create a post" control creates a brand-new WP draft, so gate it on
+		// the post-creation capability (resolved here; the bridge re-checks server-side).
+		$post_type   = get_post_type_object( 'post' );
+		$create_cap  = ( $post_type && isset( $post_type->cap->create_posts ) ) ? $post_type->cap->create_posts : 'edit_posts';
+		$can_create  = current_user_can( $create_cap );
+
 		wp_localize_script(
 			'def-core-draft-cards',
 			'DefDraftCards',
 			array(
-				// REST base for the Staff-AI content BFF routes (list / apply / dismiss).
-				'restBase' => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/content' ) ),
-				'nonce'    => wp_create_nonce( 'wp_rest' ),
+				// REST base for the Staff-AI content BFF routes (list / apply / dismiss / create).
+				'restBase'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/content' ) ),
+				'nonce'     => wp_create_nonce( 'wp_rest' ),
+				'canCreate' => $can_create ? 1 : 0,
 			)
 		);
 
@@ -74,8 +81,9 @@ final class DEF_Core_Content_Drafts_Page {
 		<div class="wrap def-core-wrap" style="max-width: 1000px;">
 			<h1><?php esc_html_e( 'Content Drafts', 'digital-employees' ); ?></h1>
 			<p class="description">
-				<?php esc_html_e( 'Improvements the Content Agent has drafted for your products. Review each one and approve to publish it live, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
+				<?php esc_html_e( 'Content the Content Agent has drafted for you — improvements to existing items and brand-new posts you request below. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
 			</p>
+			<div id="def-draft-create"></div>
 			<div id="def-draft-cards-root" data-loading="1">
 				<p class="def-draft-loading"><?php esc_html_e( 'Loading drafts…', 'digital-employees' ); ?></p>
 			</div>
