@@ -397,16 +397,20 @@
 
 	// CREATE review card: the full PROPOSED new post (no diff — it's new).
 	function renderCreateCard(draft) {
+		// The new post's content (title/slug/SEO/body) lives in draft.proposed — the
+		// same envelope edit drafts use; only keyphrase/checklist/rationale are
+		// top-level. (Reading these off the top level left the card blank.)
+		var p = (draft && draft.proposed) || {};
 		var card = el('div', 'def-draft-card def-draft-card--create');
 
 		var head = el('div', 'def-draft-head');
 		var left = el('div', 'def-draft-head-left');
 		left.appendChild(el('span', 'def-draft-create-badge', 'New post'));
 		left.appendChild(el('div', 'def-draft-title',
-			(draft.title && String(draft.title).trim()) || '(untitled)'));
-		if (draft.slug) {
+			(p.title && String(p.title).trim()) || '(untitled)'));
+		if (p.slug) {
 			var sub = el('div', 'def-draft-sub');
-			sub.appendChild(el('span', 'def-draft-sub-id', '/' + String(draft.slug)));
+			sub.appendChild(el('span', 'def-draft-sub-id', '/' + String(p.slug)));
 			left.appendChild(sub);
 		}
 		head.appendChild(left);
@@ -415,11 +419,11 @@
 		var keyphrase = renderKeyphrase(draft); // reads draft.focus_keyphrase
 		if (keyphrase) { card.appendChild(keyphrase); }
 
-		card.appendChild(createField('SEO title', draft.seo_title));
-		card.appendChild(createField('Meta description', draft.meta_description));
+		card.appendChild(createField('SEO title', p.seo_title));
+		card.appendChild(createField('Meta description', p.meta_description));
 
 		card.appendChild(el('div', 'def-draft-field-label', 'Body preview'));
-		card.appendChild(renderCreateBody(draft.body));
+		card.appendChild(renderCreateBody(p.body));
 
 		var checklist = renderChecklist(draft);
 		if (checklist) { card.appendChild(checklist); }
