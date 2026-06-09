@@ -177,9 +177,37 @@ a.def-draft-title-link:hover {
 	color: #6a5b00;
 	margin-bottom: 6px;
 }
+/* Collapsible per-type sections — collapsed by default; the count is the
+   actionable info, expand to see/visit the titles. */
+.def-draft-needs-kp-section {
+	border-top: 1px solid #f0e6b8;
+}
+.def-draft-needs-kp-section:first-of-type {
+	border-top: none;
+}
+.def-draft-needs-kp-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding: 6px 0;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+	color: #6a5b00;
+	text-align: left;
+}
+.def-draft-needs-kp-toggle:hover { color: #4a3f00; }
+.def-draft-needs-kp-arrow {
+	display: inline-block;
+	width: 12px;
+	color: #b08800;
+}
 .def-draft-needs-kp-list {
-	margin: 0;
-	padding-left: 18px;
+	margin: 0 0 8px;
+	padding-left: 26px;
 	columns: 2;
 	font-size: 13px;
 }
@@ -296,12 +324,8 @@ a.def-draft-title-link:hover {
 	color: #b32d2e;
 }
 
-/* "Last run" status strip — activity breakdown of the most recent audit run. */
-.def-draft-last-run {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 4px 10px;
+/* Coverage status strip — current-state breakdown per content type + freshness. */
+.def-draft-coverage {
 	margin-bottom: 16px;
 	padding: 10px 14px;
 	background: #f0f6fc;
@@ -311,38 +335,47 @@ a.def-draft-title-link:hover {
 	font-size: 13px;
 	color: #1d3a52;
 }
-.def-draft-last-run--empty {
-	background: #f6f7f7;
-	border-color: #dcdcde;
-	border-left-color: #8c8f94;
-	color: #646970;
+.def-draft-coverage-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 8px;
+	padding: 2px 0;
 }
-.def-draft-last-run--running {
-	background: #fcf9e8;
-	border-color: #f0e6b8;
-	border-left-color: #dba617;
-	color: #6a5b00;
+.def-draft-coverage-row--overall {
+	margin-top: 2px;
+	padding-top: 6px;
+	border-top: 1px solid #d5e3f0;
 }
-.def-draft-last-run-label {
+.def-draft-coverage-type {
 	font-weight: 600;
+	min-width: 80px;
 }
-.def-draft-last-run-detail {
-	color: #646970;
-}
-.def-draft-last-run-parts {
+.def-draft-coverage-parts {
 	display: inline-flex;
 	flex-wrap: wrap;
 	align-items: baseline;
 	gap: 2px 4px;
 }
-.def-draft-last-run-stat {
+.def-draft-coverage-stat {
 	white-space: nowrap;
 }
-.def-draft-last-run-parts .def-draft-last-run-stat + .def-draft-last-run-stat::before {
+.def-draft-coverage-parts .def-draft-coverage-stat + .def-draft-coverage-stat::before {
 	content: "·";
 	margin: 0 6px 0 2px;
 	color: #aebfce;
 }
-.def-draft-last-run-stat--warn {
+.def-draft-coverage-stat--warn {
 	color: #8a6d00;
+}
+.def-draft-coverage-fresh {
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid #d5e3f0;
+	font-size: 12px;
+	color: #50697f;
+}
+.def-draft-coverage-fresh--running {
+	color: #6a5b00;
+	font-weight: 600;
 }

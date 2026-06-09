@@ -63,12 +63,13 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test that the Content Drafts "last run" status-strip route is registered.
+	 * Test that the Content Drafts status-strip routes are registered.
 	 */
-	public function test_content_last_run_route_registered(): void {
-		$route = '/a3-ai/v1/staff-ai/content/last-run';
-		$this->assertArrayHasKey( $route, $this->routes, 'content/last-run route missing' );
-		$this->assertContains( 'GET', $this->get_route_methods( $route ), 'content/last-run should accept GET' );
+	public function test_content_status_routes_registered(): void {
+		foreach ( array( '/a3-ai/v1/staff-ai/content/last-run', '/a3-ai/v1/staff-ai/content/summary' ) as $route ) {
+			$this->assertArrayHasKey( $route, $this->routes, "$route route missing" );
+			$this->assertContains( 'GET', $this->get_route_methods( $route ), "$route should accept GET" );
+		}
 	}
 
 	/**

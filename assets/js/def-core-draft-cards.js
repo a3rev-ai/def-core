@@ -347,18 +347,42 @@
 		drafts.forEach(function (d) { root.appendChild(renderCard(d)); });
 	}
 
-	// Compact "needs a focus keyphrase" panel — items the agent skipped because no
-	// keyphrase is set. Rendered above the drafts; each links to its editor.
-	function renderNeedsKeyphrase(items) {
-		if (!Array.isArray(items) || !items.length) { return; }
-		var panel = el('div', 'def-draft-needs-kp');
-		panel.appendChild(el('div', 'def-draft-needs-kp-head',
-			items.length + (items.length === 1 ? ' item needs' : ' items need') +
-			' a focus keyphrase before the Content Agent can optimize it. Set one in your SEO plugin:'));
+	// Friendly plural label for a content type. Known core types are mapped; an
+	// unknown CPT slug is title-cased and lightly pluralized (the count is the
+	// actionable part, not perfect grammar).
+	var TYPE_LABELS = { product: 'Products', post: 'Posts', page: 'Pages' };
+	function typeLabel(key) {
+		if (TYPE_LABELS[key]) { return TYPE_LABELS[key]; }
+		var k = String(key || 'other');
+		var titled = k.charAt(0).toUpperCase() + k.slice(1);
+		return /s$/i.test(titled) ? titled : (titled + 's');
+	}
+
+	// Stable, friendly ordering: product, post, page, then the rest alphabetically.
+	function typeOrder(keys) {
+		var pref = ['product', 'post', 'page'];
+		var known = pref.filter(function (k) { return keys.indexOf(k) !== -1; });
+		var rest = keys.filter(function (k) { return pref.indexOf(k) === -1; }).sort();
+		return known.concat(rest);
+	}
+
+	// One collapsible "▸ Products (20)" section for the needs-keyphrase panel,
+	// collapsed by default. Item titles link to the WP editor (textContent only).
+	function buildNeedsKpSection(label, groupItems) {
+		var section = el('div', 'def-draft-needs-kp-section');
+
+		var btn = el('button', 'def-draft-needs-kp-toggle');
+		btn.type = 'button';
+		btn.setAttribute('aria-expanded', 'false');
+		var arrow = el('span', 'def-draft-needs-kp-arrow', '▸');
+		btn.appendChild(arrow);
+		btn.appendChild(el('span', 'def-draft-needs-kp-toggle-label',
+			label + ' (' + groupItems.length + ')'));
+
 		var ul = document.createElement('ul');
 		ul.className = 'def-draft-needs-kp-list';
-		items.forEach(function (it) {
-			if (!it || typeof it !== 'object') { return; }
+		ul.style.display = 'none';
+		groupItems.forEach(function (it) {
 			var li = document.createElement('li');
 			var name = (it.title && String(it.title).trim()) ||
 				((it.item_type || 'item') + ' #' + (it.item_id != null ? it.item_id : '?'));
@@ -367,7 +391,51 @@
 				: el('span', null, name));
 			ul.appendChild(li);
 		});
-		panel.appendChild(ul);
+
+		btn.addEventListener('click', function () {
+			var open = ul.style.display !== 'none';
+			ul.style.display = open ? 'none' : 'block';
+			arrow.textContent = open ? '▸' : '▾';
+			btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+		});
+
+		section.appendChild(btn);
+		section.appendChild(ul);
+		return section;
+	}
+
+	// "Needs a focus keyphrase" panel — items the agent skipped because no keyphrase
+	// is set, grouped by content type into collapsible sections (collapsed by
+	// default so the panel stays compact as the list grows). Rendered above drafts.
+	function renderNeedsKeyphrase(items) {
+		if (!Array.isArray(items) || !items.length) { return; }
+
+		// Group by item_type, preserving each item's order within its group.
+		var groups = {};
+		var seen = [];
+		var total = 0;
+		items.forEach(function (it) {
+			if (!it || typeof it !== 'object') { return; }
+			total++;
+			var type = (typeof it.item_type === 'string' && it.item_type) ? it.item_type : 'other';
+			if (!groups[type]) { groups[type] = []; seen.push(type); }
+			groups[type].push(it);
+		});
+		if (!total) { return; }
+
+		var panel = el('div', 'def-draft-needs-kp');
+		panel.appendChild(el('div', 'def-draft-needs-kp-head',
+			total + (total === 1 ? ' item needs' : ' items need') +
+			' a focus keyphrase before the Content Agent can optimize ' +
+			(total === 1 ? 'it' : 'them') + '. Set one in your SEO plugin:'));
+
+		typeOrder(seen).forEach(function (type) {
+			var groupItems = groups[type];
+			if (groupItems && groupItems.length) {
+				panel.appendChild(buildNeedsKpSection(typeLabel(type), groupItems));
+			}
+		});
+
 		root.insertBefore(panel, root.firstChild);
 	}
 
@@ -393,88 +461,114 @@
 		}
 	}
 
-	// "Last run" status strip: a readable ACTIVITY BREAKDOWN of the most recent
-	// Content Agent audit run, pinned to the top of the page.
-	//
-	// Hard requirement: never render a ratio like "1/84 optimized". Most audited
-	// items legitimately PASS and need no work, so a fraction implies false
-	// pending work. We only ever show discrete activity counts.
-	//
-	// Untrusted-data discipline: every value goes in via el()'s textContent or
-	// Number() — backend strings/ints are never written as innerHTML.
-	function renderLastRun(lastRun) {
-		var strip = el('div', 'def-draft-last-run');
+	// Current-state coverage buckets, in display order. Each is hidden when 0.
+	// Labels are static UI strings; only the count comes from the backend.
+	var COVERAGE_BUCKETS = [
+		{ key: 'good',            icon: '✅', text: function (n) { return n + ' good'; } },
+		{ key: 'optimized',       icon: '✍️', text: function (n) { return n + ' optimized'; } },
+		{ key: 'awaiting_review', icon: '📋', text: function (n) { return n + ' awaiting review'; } },
+		{ key: 'needs_work',      icon: '🔧', text: function (n) { return n + (n === 1 ? ' needs work' : ' need work'); } },
+		{ key: 'needs_keyphrase', icon: '🔑', text: function (n) { return n + (n === 1 ? ' needs a keyphrase' : ' need a keyphrase'); } },
+		{ key: 'dismissed',       icon: '🚫', text: function (n) { return n + ' dismissed'; } },
+		{ key: 'errored',         icon: '⚠️', text: function (n) { return n + ' errored'; }, warn: true }
+	];
 
-		// No run has happened yet.
+	// Build the "· ✅ 9 good · 🔑 20 need a keyphrase" run of stat chips for one
+	// bucket map, hiding every zero bucket. Returns null when nothing is > 0.
+	function buildBucketParts(buckets) {
+		buckets = (buckets && typeof buckets === 'object') ? buckets : {};
+		var parts = el('span', 'def-draft-coverage-parts');
+		var shown = 0;
+		COVERAGE_BUCKETS.forEach(function (b) {
+			var n = num(buckets[b.key]);
+			if (n <= 0) { return; }
+			shown++;
+			parts.appendChild(el('span',
+				'def-draft-coverage-stat' + (b.warn ? ' def-draft-coverage-stat--warn' : ''),
+				b.icon + ' ' + b.text(n)));
+		});
+		return shown ? parts : null;
+	}
+
+	// Small "Last run <time>" freshness line (from /last-run). Deliberately NO
+	// per-run count breakdown — those froze stale against the live queue. Shows
+	// "Running…" in flight and "No runs yet" before the first run.
+	function buildFreshnessLine(lastRun) {
+		var line = el('div', 'def-draft-coverage-fresh');
 		if (!lastRun || typeof lastRun !== 'object') {
-			strip.classList.add('def-draft-last-run--empty');
-			strip.appendChild(el('span', 'def-draft-last-run-label', 'No runs yet'));
-			strip.appendChild(el('span', 'def-draft-last-run-detail',
-				'No scheduled audit has run yet.'));
-			root.insertBefore(strip, root.firstChild);
-			return;
+			line.textContent = 'No runs yet';
+			return line;
 		}
-
 		var startedAt = (typeof lastRun.started_at === 'string') ? lastRun.started_at : '';
 		var finishedAt = (typeof lastRun.finished_at === 'string') ? lastRun.finished_at : '';
 		var status = (typeof lastRun.status === 'string') ? lastRun.status.toLowerCase() : '';
-		// A terminal status lets us leave the spinner even if the backend never
-		// wrote finished_at (e.g. an aborted/failed/crashed run) — otherwise such a
-		// run would show "Running…" forever.
+		// Terminal status leaves the spinner even if finished_at was never written.
 		var terminal = /^(complete|finish|done|fail|error|abort|cancel|timed)/.test(status);
-
-		// In flight: started, not finished, and not reported terminal. A null
-		// finished_at is the backend's own in-flight signal.
 		if (startedAt && !finishedAt && !terminal) {
-			strip.classList.add('def-draft-last-run--running');
-			strip.appendChild(el('span', 'def-draft-last-run-label', 'Running…'));
-			strip.appendChild(el('span', 'def-draft-last-run-detail',
-				'The Content Agent is auditing your content now.'));
-			root.insertBefore(strip, root.firstChild);
-			return;
+			line.classList.add('def-draft-coverage-fresh--running');
+			line.textContent = 'Running…';
+			return line;
 		}
-
-		// Finished (or terminal) run → activity breakdown.
-		var counts = (lastRun.counts && typeof lastRun.counts === 'object') ? lastRun.counts : {};
-		var audited = num(counts.audited);
-		var staged = num(counts.staged);
-		var needsKp = num(counts.needs_keyphrase);
-		var errored = num(counts.errored);
-
-		// Prefer the finish time; fall back to the start time for a terminal run
-		// that never recorded finished_at.
 		var when = formatRunTime(finishedAt || startedAt);
-		strip.appendChild(el('span', 'def-draft-last-run-label',
-			(when ? ('Last run ' + when) : 'Last run') + ':'));
+		line.textContent = when ? ('Last run ' + when) : 'Last run';
+		return line;
+	}
 
-		var parts = el('span', 'def-draft-last-run-parts');
+	// Status strip headline: the CURRENT-STATE coverage breakdown per content type
+	// (from /content/summary), plus a small last-run freshness line.
+	//
+	// Hard requirement: never a ratio/fraction. We show discrete bucket counts
+	// only — most content legitimately needs no work, so "N/total optimized" would
+	// imply false pending work. The only sanctioned denominator is "items
+	// reviewed", and we don't even surface that here.
+	//
+	// Untrusted-data discipline: every value reaches the DOM via el()'s textContent
+	// and num() — backend strings/ints are never written as innerHTML.
+	function renderCoverageStrip(summary, lastRun) {
+		var strip = el('div', 'def-draft-coverage');
 
-		// Always show what was looked at and what was produced.
-		parts.appendChild(el('span', 'def-draft-last-run-stat',
-			'audited ' + audited));
-		parts.appendChild(el('span', 'def-draft-last-run-stat',
-			'✍️ ' + staged + (staged === 1 ? ' new draft' : ' new drafts')));
+		var byType = (summary && typeof summary === 'object' && summary.by_type &&
+			typeof summary.by_type === 'object') ? summary.by_type : null;
 
-		// Only surface these when non-zero — zero is the happy path, and "0 errored"
-		// would just be noise.
-		if (needsKp > 0) {
-			parts.appendChild(el('span', 'def-draft-last-run-stat',
-				'🔑 ' + needsKp + (needsKp === 1 ? ' needs a keyphrase' : ' need a keyphrase')));
+		if (byType) {
+			typeOrder(Object.keys(byType)).forEach(function (t) {
+				var buckets = byType[t];
+				if (!buckets || typeof buckets !== 'object') { return; }
+				var parts = buildBucketParts(buckets);
+				var total = num(buckets.total);
+				// Skip only a genuinely empty type (nothing to show AND nothing
+				// reviewed). Gating on `total` alone would drop a type that has
+				// displayable buckets but a missing/zero total.
+				if (!parts && total <= 0) { return; }
+				if (!parts) {
+					// Reviewed content exists but lands entirely outside the displayed
+					// buckets (e.g. all 'other') — show a minimal reviewed count rather
+					// than silently dropping the type. A discrete count, not a ratio.
+					parts = el('span', 'def-draft-coverage-parts');
+					parts.appendChild(el('span', 'def-draft-coverage-stat', total + ' reviewed'));
+				}
+				var row = el('div', 'def-draft-coverage-row');
+				row.appendChild(el('span', 'def-draft-coverage-type', typeLabel(t) + ':'));
+				row.appendChild(parts);
+				strip.appendChild(row);
+			});
+
+			// Overall line (totals) — only meaningful when more than one type row
+			// was shown; otherwise it just duplicates the single type row.
+			if (strip.querySelectorAll('.def-draft-coverage-row').length > 1) {
+				var overallParts = buildBucketParts(summary.totals);
+				if (overallParts) {
+					var orow = el('div', 'def-draft-coverage-row def-draft-coverage-row--overall');
+					orow.appendChild(el('span', 'def-draft-coverage-type', 'Overall:'));
+					orow.appendChild(overallParts);
+					strip.appendChild(orow);
+				}
+			}
 		}
-		if (errored > 0) {
-			parts.appendChild(el('span', 'def-draft-last-run-stat def-draft-last-run-stat--warn',
-				'⚠️ ' + errored + ' errored'));
-		}
 
-		// Optional: content types whose audit couldn't run (transport error).
-		var failedTypes = Array.isArray(counts.audit_failed_types) ? counts.audit_failed_types : null;
-		if (failedTypes && failedTypes.length) {
-			parts.appendChild(el('span', 'def-draft-last-run-stat def-draft-last-run-stat--warn',
-				'⚠️ couldn’t audit ' + failedTypes.length +
-				(failedTypes.length === 1 ? ' content type' : ' content types')));
-		}
+		// Freshness line always renders (it's the one thing we always know).
+		strip.appendChild(buildFreshnessLine(lastRun));
 
-		strip.appendChild(parts);
 		root.insertBefore(strip, root.firstChild);
 	}
 
@@ -490,10 +584,16 @@
 			renderNeedsKeyphrase((res && res.items) || []);
 		}).catch(function () { /* ignore — the queue still works */ });
 	}).then(function () {
-		// Last-run status strip — best-effort, pinned to the very top (inserted
-		// last so it sits above the needs-keyphrase panel and the cards).
-		return api('/last-run', 'GET').then(function (res) {
-			renderLastRun(res && res.last_run);
+		// Coverage status strip — best-effort, pinned to the very top (inserted last
+		// so it sits above the needs-keyphrase panel and the cards). Pull current
+		// coverage (/summary) and last-run freshness (/last-run) independently; each
+		// resolves to null on failure so a missing endpoint just omits its part and
+		// the queue still renders.
+		return Promise.all([
+			api('/summary', 'GET').then(function (res) { return res && res.summary; }, function () { return null; }),
+			api('/last-run', 'GET').then(function (res) { return res && res.last_run; }, function () { return null; })
+		]).then(function (vals) {
+			renderCoverageStrip(vals[0], vals[1]);
 		}).catch(function () { /* ignore — the queue still works */ });
 	});
 })();

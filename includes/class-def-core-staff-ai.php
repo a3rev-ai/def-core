@@ -237,7 +237,7 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_list_content_drafts'),
 			)
 		);
-		// Last audit-run summary for the Content Drafts status strip (read-only).
+		// Last audit-run timestamp for the Content Drafts freshness line (read-only).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/content/last-run',
@@ -245,6 +245,16 @@ final class DEF_Core_Staff_AI
 				'methods'             => 'GET',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
 				'callback'            => array(__CLASS__, 'rest_content_last_run'),
+			)
+		);
+		// Current-state coverage breakdown (per content type) for the status strip.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/summary',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_content_summary'),
 			)
 		);
 		// Items skipped for lack of a focus keyphrase (the human must set one).
@@ -652,6 +662,115 @@ final class DEF_Core_Staff_AI
 			'started_at'  => $string_or_null( $last_run['started_at'] ?? null ),
 			'finished_at' => $string_or_null( $last_run['finished_at'] ?? null ),
 		);
+	}
+
+	/**
+	 * Bucket keys for the current-state coverage breakdown. Whitelisted so a
+	 * hostile/garbled backend payload can only ever produce these integer fields.
+	 */
+	const COVERAGE_BUCKET_KEYS = array(
+		'good',
+		'optimized',
+		'awaiting_review',
+		'needs_work',
+		'needs_keyphrase',
+		'dismissed',
+		'errored',
+		'other',
+		'total',
+	);
+
+	/**
+	 * REST handler: current-state content coverage breakdown, per content type,
+	 * for the Content Drafts status strip headline.
+	 *
+	 * Proxies DEF GET /api/staff-ai/content/summary and normalizes the payload
+	 * (see normalize_summary_payload). Returns summary = null when the backend has
+	 * no coverage data yet.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_content_summary( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/summary' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'summary' => self::normalize_summary_payload( $result ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Normalize the DEF /content/summary payload into a safe, predictable shape.
+	 *
+	 * Backend shape: {"summary": {"by_type": {"<type>": {<buckets>}, ...},
+	 * "totals": {<buckets>, "total_reviewed": N}}}. This whitelists the bucket
+	 * keys, coerces every bucket to a non-negative integer, keeps only string
+	 * type keys, and tolerates missing types/buckets. A missing or non-array
+	 * summary collapses to null (the strip then simply omits the coverage line).
+	 *
+	 * The buckets are surfaced as discrete counts; we never derive a ratio over
+	 * "all content" — the only legitimate denominator is items reviewed
+	 * (Steve's hard requirement), carried as totals.total_reviewed.
+	 *
+	 * @param mixed $payload Decoded backend response.
+	 * @return array|null Normalized summary, or null when there is none.
+	 */
+	public static function normalize_summary_payload( $payload ): ?array
+	{
+		if ( ! is_array( $payload ) || ! isset( $payload['summary'] ) || ! is_array( $payload['summary'] ) ) {
+			return null;
+		}
+		$summary = $payload['summary'];
+
+		$by_type_in = ( isset( $summary['by_type'] ) && is_array( $summary['by_type'] ) ) ? $summary['by_type'] : array();
+		$by_type    = array();
+		foreach ( $by_type_in as $type => $buckets ) {
+			if ( ! is_string( $type ) || '' === $type ) {
+				continue; // Drop malformed type keys.
+			}
+			$by_type[ $type ] = self::normalize_coverage_buckets( $buckets );
+		}
+
+		$totals = self::normalize_coverage_buckets( isset( $summary['totals'] ) ? $summary['totals'] : array() );
+		// total_reviewed is the only sanctioned denominator (never "all content").
+		$totals_in                = ( isset( $summary['totals'] ) && is_array( $summary['totals'] ) ) ? $summary['totals'] : array();
+		$totals['total_reviewed'] = ( isset( $totals_in['total_reviewed'] ) && is_scalar( $totals_in['total_reviewed'] ) )
+			? max( 0, (int) $totals_in['total_reviewed'] )
+			: 0;
+
+		return array(
+			'by_type' => $by_type,
+			'totals'  => $totals,
+		);
+	}
+
+	/**
+	 * Coerce one set of coverage buckets to a whitelisted map of non-negative
+	 * integers. Unknown keys are dropped; missing keys default to 0.
+	 *
+	 * @param mixed $buckets Raw per-type or totals bucket map.
+	 * @return array<string,int> Normalized buckets.
+	 */
+	private static function normalize_coverage_buckets( $buckets ): array
+	{
+		$buckets = is_array( $buckets ) ? $buckets : array();
+		$out     = array();
+		foreach ( self::COVERAGE_BUCKET_KEYS as $key ) {
+			// Guard is_scalar before the int-cast so an array value (garbled
+			// payload) can't raise an "Array to int conversion" warning or coerce
+			// to a misleading 1 — it cleanly becomes 0.
+			$out[ $key ] = ( isset( $buckets[ $key ] ) && is_scalar( $buckets[ $key ] ) )
+				? max( 0, (int) $buckets[ $key ] )
+				: 0;
+		}
+		return $out;
 	}
 
 	/**
