@@ -527,6 +527,9 @@ final class DEF_Core_Blocks {
 					break;
 				case 'list':
 					$items = ( isset( $node['items'] ) && is_array( $node['items'] ) ) ? $node['items'] : array();
+					// Filter to string items up front so a list of all non-strings is
+					// skipped entirely rather than emitting an empty <ul></ul>.
+					$items = array_values( array_filter( $items, 'is_string' ) );
 					if ( empty( $items ) ) {
 						break;
 					}
@@ -609,11 +612,18 @@ final class DEF_Core_Blocks {
 		);
 	}
 
-	/** Empty core/image placeholder — images are a later wave; this reserves the slot + alt. */
+	/**
+	 * Image placeholder. Images are a later wave, so rather than emit an empty
+	 * core/image (an image block with no src fails Gutenberg's block validation →
+	 * "Attempt Block Recovery" in the editor), we reserve the spot with a valid
+	 * placeholder paragraph carrying the intended alt text. The image wave will
+	 * replace these.
+	 */
 	private static function make_image_placeholder_block( string $alt ): array {
-		$html = '<figure class="wp-block-image"><img src="" alt="' . esc_attr( $alt ) . '"/></figure>';
+		$label = ( '' !== trim( $alt ) ) ? ( 'Image: ' . $alt ) : 'Image placeholder';
+		$html  = '<p><em>[' . esc_html( $label ) . ']</em></p>';
 		return array(
-			'blockName'    => 'core/image',
+			'blockName'    => 'core/paragraph',
 			'attrs'        => array(),
 			'innerBlocks'  => array(),
 			'innerHTML'    => $html,

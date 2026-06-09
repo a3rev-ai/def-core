@@ -117,6 +117,9 @@ if ( ! function_exists( 'wp_kses' ) ) {
 if ( ! function_exists( 'esc_attr' ) ) {
 	function esc_attr( $s ) { return str_replace( '"', '&quot;', (string) $s ); }
 }
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+}
 if ( ! function_exists( 'sanitize_title' ) ) {
 	function sanitize_title( $s ) {
 		$s = strtolower( trim( (string) $s ) );
@@ -162,8 +165,9 @@ $blocks = priv_static( 'DEF_Core_Blocks', 'semantic_to_blocks', array( array(
 	array( 'type' => 'image-placeholder', 'alt' => 'cat' ),
 	array( 'type' => 'paragraph', 'text' => '   ' ),   // blank → skipped
 	array( 'type' => 'mystery', 'text' => '' ),         // unknown, no text → skipped
+	array( 'type' => 'list', 'items' => array( 1, true ) ), // all non-string → skipped
 ) ) );
-assert_same( 4, count( $blocks ), 'four blocks emitted (blanks/unknowns skipped)' );
+assert_same( 4, count( $blocks ), 'four blocks emitted (blanks/unknowns/empty-list skipped)' );
 assert_same( 'core/heading', $blocks[0]['blockName'], 'heading block' );
 assert_true( false !== strpos( $blocks[0]['innerHTML'], '<h2 class="wp-block-heading">Hello</h2>' ), 'heading html' );
 assert_same( 'core/paragraph', $blocks[1]['blockName'], 'paragraph block' );
@@ -171,8 +175,10 @@ assert_same( '<p>World</p>', $blocks[1]['innerHTML'], 'paragraph html' );
 assert_same( 'core/list', $blocks[2]['blockName'], 'list block' );
 assert_same( 2, count( $blocks[2]['innerBlocks'] ), 'list has two list-items' );
 assert_same( 'core/list-item', $blocks[2]['innerBlocks'][0]['blockName'], 'list-item block' );
-assert_same( 'core/image', $blocks[3]['blockName'], 'image placeholder block' );
-assert_true( false !== strpos( $blocks[3]['innerHTML'], 'alt="cat"' ), 'image alt set' );
+// Image placeholder serializes to a VALID paragraph (empty-src core/image would
+// fail Gutenberg block validation); images are a later wave.
+assert_same( 'core/paragraph', $blocks[3]['blockName'], 'image placeholder → valid paragraph' );
+assert_true( false !== strpos( $blocks[3]['innerHTML'], 'Image: cat' ), 'image alt carried into placeholder' );
 
 // Heading level clamps and non-2 carries the level attr.
 $h3 = priv_static( 'DEF_Core_Blocks', 'semantic_to_blocks', array( array(
