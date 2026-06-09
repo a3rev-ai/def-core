@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.4.0
+Stable tag: 4.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,8 +120,8 @@ Chat messages, user display name, and session context — only when a user activ
 
 == Changelog ==
 
-= 4.4.0 - 2026-06-09 =
-* Feature (infrastructure): DEF backend traffic is now exempt from Wordfence throttling. When a bridge request passes HMAC signature verification, its egress IP is automatically added to the Wordfence allowlist — using Wordfence's own IP resolver and developer API, so it matches exactly what the firewall keys rate-limiting on. This keeps DEF's bursty authenticated audit/apply calls (which arrive from a large pool of rotating cloud egress IPs that a static allowlist can't track) from being rate-limited or blocked by the WAF. The allowlist is self-populating and de-duped — each IP is written to Wordfence config only the first time it's seen. It's a no-op on sites without Wordfence (no hard dependency), and the allowlisting is best-effort and isolated so it can never affect the authentication result. No pruning of rotated-out IPs (Wordfence exposes no clean removal API; the staleness risk is low and bounded by DEF's egress pool).
+= 4.3.2 - 2026-06-09 =
+* Tweak: DEF backend traffic is now exempt from Wordfence throttling. When a bridge request passes HMAC signature verification, its egress IP is automatically added to the Wordfence allowlist — using Wordfence's own IP resolver and developer API, so it matches exactly what the firewall keys rate-limiting on. This keeps DEF's bursty authenticated audit/apply calls (which arrive from a large pool of rotating cloud egress IPs that a static allowlist can't track) from being rate-limited or blocked by the WAF. The allowlist is self-populating and de-duped — each IP is written to Wordfence config only the first time it's seen. It's a no-op on sites without Wordfence (no hard dependency), and the allowlisting is best-effort and isolated so it can never affect the authentication result. No pruning of rotated-out IPs (Wordfence exposes no clean removal API; the staleness risk is low and bounded by DEF's egress pool).
 
 = 4.3.1 - 2026-06-08 =
 * Tweak: Content Drafts review card now shows the *current* meta description / SEO title (previously blank) and renders body changes as per-node "current → proposed" text diffs, with a note that the page's design blocks, images and layout are preserved. Removed the inline "Edit" button (body edits are now applied block-safely; tweak in the WordPress editor instead).
