@@ -29,6 +29,13 @@ class DEF_Core_HMAC_Auth {
 	private const TIMESTAMP_TOLERANCE = 300; // 5 minutes
 
 	/**
+	 * Option storing the set of egress IPs already added to Wordfence's
+	 * allowlist. Shape: array( ip => first_seen_unix_ts ). Used purely for
+	 * de-dupe so Wordfence config is written only once per IP.
+	 */
+	private const WF_ALLOWLIST_OPTION = 'def_core_wf_allowlisted_ips';
+
+	/**
 	 * Verify HMAC signature on a REST request.
 	 *
 	 * Validates: all headers present, timestamp fresh, body hash matches,
@@ -120,7 +127,78 @@ class DEF_Core_HMAC_Auth {
 			);
 		}
 
+		// Signature valid → this request provably holds the shared DEF secret,
+		// so its egress IP is a trusted DEF backend node. Ensure that IP is on
+		// the Wordfence allowlist so DEF's bursty audit/apply traffic (from a
+		// large pool of rotating Azure egress IPs) is never rate-limited or
+		// blocked by the WAF. Best-effort; never affects the auth result.
+		self::maybe_allowlist_wordfence_ip();
+
 		return true;
+	}
+
+	/**
+	 * On a verified bridge request, ensure the caller's egress IP is on the
+	 * Wordfence allowlist.
+	 *
+	 * Trust model: this runs ONLY after the HMAC signature has been verified
+	 * above, so the IP provably possesses the shared DEF secret. The passing
+	 * signature — not the IP itself — is the trust signal. (Admin-route user
+	 * capability checks happen later and are about *who* is acting, not about
+	 * whether the IP is a trusted DEF egress node, so allowlisting here on a
+	 * valid signature is intentional.)
+	 *
+	 * Properties:
+	 * - No hard Wordfence dependency: a no-op unless Wordfence is active and
+	 *   exposes the dev APIs we use (class_exists / method_exists guards).
+	 * - Uses Wordfence's own IP resolver (wfUtils::getIP) so the allowlisted
+	 *   value matches exactly what Wordfence keys rate-limiting on.
+	 * - De-duped via the WF_ALLOWLIST_OPTION option: Wordfence config is
+	 *   written only the first time each egress IP is seen.
+	 * - Fully wrapped in try/catch — an allowlisting failure must never turn
+	 *   an otherwise-valid request into an auth failure.
+	 *
+	 * No pruning: stale, rotated-out IPs are left on the allowlist. Wordfence
+	 * exposes no clean removal API, the staleness risk is low and bounded by
+	 * DEF's egress pool, and a self-populating allowlist is the whole point.
+	 *
+	 * @return void
+	 */
+	private static function maybe_allowlist_wordfence_ip(): void {
+		try {
+			// No-op unless Wordfence is active and exposes the APIs we rely on.
+			if ( ! class_exists( 'wordfence' ) || ! class_exists( 'wfUtils' ) ) {
+				return;
+			}
+			if ( ! method_exists( 'wfUtils', 'getIP' ) || ! method_exists( 'wordfence', 'whitelistIP' ) ) {
+				return;
+			}
+
+			// Resolve the client IP exactly as Wordfence does.
+			$ip = \wfUtils::getIP();
+			if ( ! is_string( $ip ) || '' === $ip ) {
+				return;
+			}
+
+			// De-dupe: only touch Wordfence config the first time each IP is seen.
+			$seen = get_option( self::WF_ALLOWLIST_OPTION, array() );
+			if ( ! is_array( $seen ) ) {
+				$seen = array();
+			}
+			if ( isset( $seen[ $ip ] ) ) {
+				return;
+			}
+
+			\wordfence::whitelistIP( $ip );
+
+			$seen[ $ip ] = time();
+			update_option( self::WF_ALLOWLIST_OPTION, $seen, false );
+		} catch ( \Throwable $e ) {
+			// Best-effort only: never let WAF-allowlisting break a valid request.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'DEF_Core_HMAC_Auth: Wordfence allowlist failed: ' . $e->getMessage() );
+			}
+		}
 	}
 
 	/**
