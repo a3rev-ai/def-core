@@ -134,6 +134,9 @@ assert_equals( false, get_option( $option_name, false ), 'no allowlist option wr
 if ( ! class_exists( 'wfUtils' ) ) {
 	class wfUtils {
 		public static function getIP() {
+			if ( ! empty( $GLOBALS['wf_throw_on_getip'] ) ) {
+				throw new \RuntimeException( 'simulated wfUtils::getIP failure' );
+			}
 			return $GLOBALS['wf_current_ip'] ?? '203.0.113.7';
 		}
 	}
@@ -141,6 +144,10 @@ if ( ! class_exists( 'wfUtils' ) ) {
 if ( ! class_exists( 'wordfence' ) ) {
 	class wordfence {
 		public static function whitelistIP( $ip ): void {
+			if ( ! empty( $GLOBALS['wf_throw_on_whitelist'] ) ) {
+				// Wordfence's real whitelistIP() throws on failure — simulate that.
+				throw new \Exception( 'simulated wordfence::whitelistIP failure' );
+			}
 			$GLOBALS['wf_whitelist_calls'][] = $ip;
 		}
 	}
@@ -148,6 +155,8 @@ if ( ! class_exists( 'wordfence' ) ) {
 
 $GLOBALS['wf_whitelist_calls'] = array();
 $GLOBALS['wf_current_ip']      = '203.0.113.7';
+$GLOBALS['wf_throw_on_whitelist'] = false;
+$GLOBALS['wf_throw_on_getip']     = false;
 
 // ── 2. Valid HMAC with Wordfence active: IP allowlisted once ────────────
 echo "[2] Valid HMAC: egress IP allowlisted in Wordfence\n";
@@ -195,6 +204,39 @@ assert_true( is_wp_error( $result ), 'tampered HMAC returns WP_Error' );
 assert_equals( 'HMAC_INVALID_SIGNATURE', $result->get_error_code(), 'error code is HMAC_INVALID_SIGNATURE' );
 assert_equals( array(), $GLOBALS['wf_whitelist_calls'], 'whitelistIP NOT called on invalid signature' );
 assert_equals( false, get_option( $option_name, false ), 'no allowlist option written on invalid signature' );
+
+// ── 6. Headline safety property: an allowlisting failure NEVER turns a ──
+//     valid request into an auth failure. Drives the catch(\Throwable) path.
+echo "[6] Allowlisting failure never breaks a valid request\n";
+
+// 6a. wordfence::whitelistIP() throws for a fresh, verified request.
+reset_options();
+clear_hmac_headers();
+update_option( 'def_core_api_key', $api_key );
+$GLOBALS['wf_whitelist_calls'] = array();
+$GLOBALS['wf_current_ip']      = '203.0.113.55'; // Fresh IP → attempts whitelistIP.
+$GLOBALS['wf_throw_on_whitelist'] = true;
+
+$result = DEF_Core_HMAC_Auth::verify_request( sign_valid_request( $api_key ) );
+assert_true( $result === true, 'verify_request still returns true when whitelistIP() throws' );
+$seen = get_option( $option_name, array() );
+assert_true(
+	! is_array( $seen ) || ! isset( $seen['203.0.113.55'] ),
+	'IP is NOT marked seen when the Wordfence write threw (so it retries next time)'
+);
+$GLOBALS['wf_throw_on_whitelist'] = false;
+
+// 6b. wfUtils::getIP() throws for a verified request.
+reset_options();
+clear_hmac_headers();
+update_option( 'def_core_api_key', $api_key );
+$GLOBALS['wf_whitelist_calls'] = array();
+$GLOBALS['wf_throw_on_getip']  = true;
+
+$result = DEF_Core_HMAC_Auth::verify_request( sign_valid_request( $api_key ) );
+assert_true( $result === true, 'verify_request still returns true when getIP() throws' );
+assert_equals( array(), $GLOBALS['wf_whitelist_calls'], 'whitelistIP not reached when getIP() throws' );
+$GLOBALS['wf_throw_on_getip'] = false;
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";

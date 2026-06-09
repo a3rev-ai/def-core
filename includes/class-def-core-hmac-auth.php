@@ -36,6 +36,14 @@ class DEF_Core_HMAC_Auth {
 	private const WF_ALLOWLIST_OPTION = 'def_core_wf_allowlisted_ips';
 
 	/**
+	 * Flag option recording that we've already warned about Wordfence being
+	 * active while the dev APIs we rely on are missing (a likely Wordfence
+	 * rename). Stores the first-seen unix timestamp; presence == "logged".
+	 * Keeps the warning one-time so a renamed API doesn't spam the log.
+	 */
+	private const WF_API_MISSING_FLAG_OPTION = 'def_core_wf_api_missing_logged';
+
+	/**
 	 * Verify HMAC signature on a REST request.
 	 *
 	 * Validates: all headers present, timestamp fresh, body hash matches,
@@ -171,6 +179,10 @@ class DEF_Core_HMAC_Auth {
 				return;
 			}
 			if ( ! method_exists( 'wfUtils', 'getIP' ) || ! method_exists( 'wordfence', 'whitelistIP' ) ) {
+				// Wordfence IS installed but the dev APIs we call are gone —
+				// most likely a future Wordfence rename. Signal once so the
+				// feature doesn't silently die with zero operator signal.
+				self::warn_wordfence_api_missing_once();
 				return;
 			}
 
@@ -207,6 +219,36 @@ class DEF_Core_HMAC_Auth {
 			} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( 'DEF_Core_HMAC_Auth: Wordfence allowlist failed: ' . $e->getMessage() );
 			}
+		}
+	}
+
+	/**
+	 * Warn exactly once that Wordfence is active but the dev APIs this feature
+	 * depends on (wfUtils::getIP / wordfence::whitelistIP) are unavailable.
+	 *
+	 * Without this, a future Wordfence rename would turn the whole egress-IP
+	 * allowlisting feature into a silent no-op — DEF traffic would start being
+	 * rate-limited again with zero signal to the operator. The warning is
+	 * de-duped via a flag option so it doesn't spam the log on every request.
+	 *
+	 * Runs inside the caller's try/catch, so a storage error here is harmless.
+	 *
+	 * @return void
+	 */
+	private static function warn_wordfence_api_missing_once(): void {
+		if ( get_option( self::WF_API_MISSING_FLAG_OPTION, false ) ) {
+			return;
+		}
+		update_option( self::WF_API_MISSING_FLAG_OPTION, time(), false );
+
+		$message = 'Wordfence is active but wfUtils::getIP()/wordfence::whitelistIP() are unavailable — '
+			. 'DEF egress-IP allowlisting is disabled (likely a Wordfence API change). '
+			. 'DEF backend traffic may be throttled by the WAF.';
+
+		if ( class_exists( '\DEF_Core_Logger' ) ) {
+			\DEF_Core_Logger::warning( \DEF_Core_Logger::SOURCE_AUTH, $message );
+		} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'DEF_Core_HMAC_Auth: ' . $message );
 		}
 	}
 
