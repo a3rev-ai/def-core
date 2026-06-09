@@ -410,16 +410,22 @@
 			strip.classList.add('def-draft-last-run--empty');
 			strip.appendChild(el('span', 'def-draft-last-run-label', 'No runs yet'));
 			strip.appendChild(el('span', 'def-draft-last-run-detail',
-				'The Content Agent stages improvements here after each scheduled run.'));
+				'No scheduled audit has run yet.'));
 			root.insertBefore(strip, root.firstChild);
 			return;
 		}
 
 		var startedAt = (typeof lastRun.started_at === 'string') ? lastRun.started_at : '';
 		var finishedAt = (typeof lastRun.finished_at === 'string') ? lastRun.finished_at : '';
+		var status = (typeof lastRun.status === 'string') ? lastRun.status.toLowerCase() : '';
+		// A terminal status lets us leave the spinner even if the backend never
+		// wrote finished_at (e.g. an aborted/failed/crashed run) — otherwise such a
+		// run would show "Running…" forever.
+		var terminal = /^(complete|finish|done|fail|error|abort|cancel|timed)/.test(status);
 
-		// In flight: started but not yet finished.
-		if (startedAt && !finishedAt) {
+		// In flight: started, not finished, and not reported terminal. A null
+		// finished_at is the backend's own in-flight signal.
+		if (startedAt && !finishedAt && !terminal) {
 			strip.classList.add('def-draft-last-run--running');
 			strip.appendChild(el('span', 'def-draft-last-run-label', 'Running…'));
 			strip.appendChild(el('span', 'def-draft-last-run-detail',
@@ -428,14 +434,16 @@
 			return;
 		}
 
-		// Finished run → activity breakdown.
+		// Finished (or terminal) run → activity breakdown.
 		var counts = (lastRun.counts && typeof lastRun.counts === 'object') ? lastRun.counts : {};
 		var audited = num(counts.audited);
 		var staged = num(counts.staged);
 		var needsKp = num(counts.needs_keyphrase);
 		var errored = num(counts.errored);
 
-		var when = formatRunTime(finishedAt);
+		// Prefer the finish time; fall back to the start time for a terminal run
+		// that never recorded finished_at.
+		var when = formatRunTime(finishedAt || startedAt);
 		strip.appendChild(el('span', 'def-draft-last-run-label',
 			(when ? ('Last run ' + when) : 'Last run') + ':'));
 
