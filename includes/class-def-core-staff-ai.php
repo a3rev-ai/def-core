@@ -237,6 +237,16 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_list_content_drafts'),
 			)
 		);
+		// Last audit-run summary for the Content Drafts status strip (read-only).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/last-run',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_content_last_run'),
+			)
+		);
 		// Items skipped for lack of a focus keyphrase (the human must set one).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -554,6 +564,94 @@ final class DEF_Core_Staff_AI
 		unset( $draft );
 
 		return new \WP_REST_Response( array( 'success' => true, 'drafts' => $drafts ), 200 );
+	}
+
+	/**
+	 * REST handler: the most recent Content Agent audit-run summary, for the
+	 * Content Drafts status strip.
+	 *
+	 * Proxies DEF GET /api/staff-ai/content/last-run and normalizes the payload
+	 * (see normalize_last_run_payload) so the client receives integer counts and
+	 * a predictable shape. Returns last_run = null when no run has happened.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_content_last_run( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/last-run' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'last_run' => self::normalize_last_run_payload( $result ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Normalize the DEF /content/last-run payload into a safe, predictable shape.
+	 *
+	 * The backend returns either {"last_run": null} (never run) or
+	 * {"last_run": {status, counts{...}, started_at, finished_at}}. This coerces
+	 * every count to a non-negative integer (the strip renders them as numbers
+	 * and must never be handed a string/float), keeps status/timestamps as
+	 * strings (or null), and drops anything malformed. A missing or non-array
+	 * last_run collapses to null so the UI shows "No runs yet".
+	 *
+	 * Note: counts are surfaced as a raw activity breakdown by design — we never
+	 * derive a ratio like "N/total optimized", because most audited items
+	 * legitimately pass and need no work, so a fraction would imply false pending
+	 * work (Steve's hard requirement).
+	 *
+	 * @param mixed $payload Decoded backend response.
+	 * @return array|null Normalized last_run, or null when there is no run.
+	 */
+	public static function normalize_last_run_payload( $payload ): ?array
+	{
+		if ( ! is_array( $payload ) || ! array_key_exists( 'last_run', $payload ) ) {
+			return null;
+		}
+		$last_run = $payload['last_run'];
+		if ( ! is_array( $last_run ) ) {
+			return null; // null (never run) or malformed → "No runs yet".
+		}
+
+		$counts_in = ( isset( $last_run['counts'] ) && is_array( $last_run['counts'] ) )
+			? $last_run['counts']
+			: array();
+
+		$counts = array();
+		foreach ( array( 'audited', 'flagged', 'staged', 'needs_keyphrase', 'skipped', 'errored' ) as $key ) {
+			$counts[ $key ] = isset( $counts_in[ $key ] ) ? max( 0, (int) $counts_in[ $key ] ) : 0;
+		}
+
+		// Optional: content types whose audit hit a transport error. Strings only.
+		if ( isset( $counts_in['audit_failed_types'] ) && is_array( $counts_in['audit_failed_types'] ) ) {
+			$failed_types = array();
+			foreach ( $counts_in['audit_failed_types'] as $type ) {
+				if ( is_string( $type ) && '' !== $type ) {
+					$failed_types[] = $type;
+				}
+			}
+			if ( ! empty( $failed_types ) ) {
+				$counts['audit_failed_types'] = array_values( $failed_types );
+			}
+		}
+
+		$string_or_null = static function ( $value ) {
+			return ( is_string( $value ) && '' !== $value ) ? $value : null;
+		};
+
+		return array(
+			'status'      => is_string( $last_run['status'] ?? null ) ? $last_run['status'] : '',
+			'counts'      => $counts,
+			'started_at'  => $string_or_null( $last_run['started_at'] ?? null ),
+			'finished_at' => $string_or_null( $last_run['finished_at'] ?? null ),
+		);
 	}
 
 	/**

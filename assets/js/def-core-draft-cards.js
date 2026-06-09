@@ -371,6 +371,113 @@
 		root.insertBefore(panel, root.firstChild);
 	}
 
+	// Coerce a backend count to a non-negative integer for display. The counts
+	// are ints over the wire, but never trust that — a string/float/NaN becomes 0.
+	function num(v) {
+		var n = Number(v);
+		return (isFinite(n) && n > 0) ? Math.floor(n) : 0;
+	}
+
+	// Format an ISO timestamp to a short, readable local time. Returns '' (caller
+	// hides the time) when the value isn't a usable date.
+	function formatRunTime(iso) {
+		if (typeof iso !== 'string' || !iso) { return ''; }
+		var d = new Date(iso);
+		if (isNaN(d.getTime())) { return ''; }
+		try {
+			return d.toLocaleString(undefined, {
+				month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+			});
+		} catch (e) {
+			return '';
+		}
+	}
+
+	// "Last run" status strip: a readable ACTIVITY BREAKDOWN of the most recent
+	// Content Agent audit run, pinned to the top of the page.
+	//
+	// Hard requirement: never render a ratio like "1/84 optimized". Most audited
+	// items legitimately PASS and need no work, so a fraction implies false
+	// pending work. We only ever show discrete activity counts.
+	//
+	// Untrusted-data discipline: every value goes in via el()'s textContent or
+	// Number() — backend strings/ints are never written as innerHTML.
+	function renderLastRun(lastRun) {
+		var strip = el('div', 'def-draft-last-run');
+
+		// No run has happened yet.
+		if (!lastRun || typeof lastRun !== 'object') {
+			strip.classList.add('def-draft-last-run--empty');
+			strip.appendChild(el('span', 'def-draft-last-run-label', 'No runs yet'));
+			strip.appendChild(el('span', 'def-draft-last-run-detail',
+				'No scheduled audit has run yet.'));
+			root.insertBefore(strip, root.firstChild);
+			return;
+		}
+
+		var startedAt = (typeof lastRun.started_at === 'string') ? lastRun.started_at : '';
+		var finishedAt = (typeof lastRun.finished_at === 'string') ? lastRun.finished_at : '';
+		var status = (typeof lastRun.status === 'string') ? lastRun.status.toLowerCase() : '';
+		// A terminal status lets us leave the spinner even if the backend never
+		// wrote finished_at (e.g. an aborted/failed/crashed run) — otherwise such a
+		// run would show "Running…" forever.
+		var terminal = /^(complete|finish|done|fail|error|abort|cancel|timed)/.test(status);
+
+		// In flight: started, not finished, and not reported terminal. A null
+		// finished_at is the backend's own in-flight signal.
+		if (startedAt && !finishedAt && !terminal) {
+			strip.classList.add('def-draft-last-run--running');
+			strip.appendChild(el('span', 'def-draft-last-run-label', 'Running…'));
+			strip.appendChild(el('span', 'def-draft-last-run-detail',
+				'The Content Agent is auditing your content now.'));
+			root.insertBefore(strip, root.firstChild);
+			return;
+		}
+
+		// Finished (or terminal) run → activity breakdown.
+		var counts = (lastRun.counts && typeof lastRun.counts === 'object') ? lastRun.counts : {};
+		var audited = num(counts.audited);
+		var staged = num(counts.staged);
+		var needsKp = num(counts.needs_keyphrase);
+		var errored = num(counts.errored);
+
+		// Prefer the finish time; fall back to the start time for a terminal run
+		// that never recorded finished_at.
+		var when = formatRunTime(finishedAt || startedAt);
+		strip.appendChild(el('span', 'def-draft-last-run-label',
+			(when ? ('Last run ' + when) : 'Last run') + ':'));
+
+		var parts = el('span', 'def-draft-last-run-parts');
+
+		// Always show what was looked at and what was produced.
+		parts.appendChild(el('span', 'def-draft-last-run-stat',
+			'audited ' + audited));
+		parts.appendChild(el('span', 'def-draft-last-run-stat',
+			'✍️ ' + staged + (staged === 1 ? ' new draft' : ' new drafts')));
+
+		// Only surface these when non-zero — zero is the happy path, and "0 errored"
+		// would just be noise.
+		if (needsKp > 0) {
+			parts.appendChild(el('span', 'def-draft-last-run-stat',
+				'🔑 ' + needsKp + (needsKp === 1 ? ' needs a keyphrase' : ' need a keyphrase')));
+		}
+		if (errored > 0) {
+			parts.appendChild(el('span', 'def-draft-last-run-stat def-draft-last-run-stat--warn',
+				'⚠️ ' + errored + ' errored'));
+		}
+
+		// Optional: content types whose audit couldn't run (transport error).
+		var failedTypes = Array.isArray(counts.audit_failed_types) ? counts.audit_failed_types : null;
+		if (failedTypes && failedTypes.length) {
+			parts.appendChild(el('span', 'def-draft-last-run-stat def-draft-last-run-stat--warn',
+				'⚠️ couldn’t audit ' + failedTypes.length +
+				(failedTypes.length === 1 ? ' content type' : ' content types')));
+		}
+
+		strip.appendChild(parts);
+		root.insertBefore(strip, root.firstChild);
+	}
+
 	api('/drafts', 'GET').then(function (res) {
 		render((res && res.drafts) || []);
 	}).catch(function (e) {
@@ -381,6 +488,12 @@
 		// Best-effort, after the drafts render — a failure here must not block the queue.
 		return api('/needs-keyphrase', 'GET').then(function (res) {
 			renderNeedsKeyphrase((res && res.items) || []);
+		}).catch(function () { /* ignore — the queue still works */ });
+	}).then(function () {
+		// Last-run status strip — best-effort, pinned to the very top (inserted
+		// last so it sits above the needs-keyphrase panel and the cards).
+		return api('/last-run', 'GET').then(function (res) {
+			renderLastRun(res && res.last_run);
 		}).catch(function () { /* ignore — the queue still works */ });
 	});
 })();

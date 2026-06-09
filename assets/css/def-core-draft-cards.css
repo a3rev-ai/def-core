@@ -295,3 +295,54 @@ a.def-draft-title-link:hover {
 	background: #fcf0f1;
 	color: #b32d2e;
 }
+
+/* "Last run" status strip — activity breakdown of the most recent audit run. */
+.def-draft-last-run {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	margin-bottom: 16px;
+	padding: 10px 14px;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+	font-size: 13px;
+	color: #1d3a52;
+}
+.def-draft-last-run--empty {
+	background: #f6f7f7;
+	border-color: #dcdcde;
+	border-left-color: #8c8f94;
+	color: #646970;
+}
+.def-draft-last-run--running {
+	background: #fcf9e8;
+	border-color: #f0e6b8;
+	border-left-color: #dba617;
+	color: #6a5b00;
+}
+.def-draft-last-run-label {
+	font-weight: 600;
+}
+.def-draft-last-run-detail {
+	color: #646970;
+}
+.def-draft-last-run-parts {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 4px;
+}
+.def-draft-last-run-stat {
+	white-space: nowrap;
+}
+.def-draft-last-run-parts .def-draft-last-run-stat + .def-draft-last-run-stat::before {
+	content: "·";
+	margin: 0 6px 0 2px;
+	color: #aebfce;
+}
+.def-draft-last-run-stat--warn {
+	color: #8a6d00;
+}

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.4.0 - 2026/06/09 =
+* Feature: Content Drafts now shows a "last run" status strip at the top of the page summarizing the Content Agent's most recent audit run — e.g. "Last run <time>: audited 84 · ✍️ 2 new drafts · 🔑 1 needs a keyphrase". It shows the run's activity breakdown (what was audited, how many new drafts were staged, how many items need a focus keyphrase, and any errors), never a ratio — most audited items legitimately pass and need no work, so a fraction would imply false pending work. Shows "Running…" while a run is in flight and "No runs yet" before the first run.
+
 = 4.3.2 - 2026/06/09 =
 * Tweak: DEF backend traffic is now exempt from Wordfence throttling. When a bridge request passes HMAC signature verification, its egress IP is automatically added to the Wordfence allowlist — using Wordfence's own IP resolver and developer API, so it matches exactly what the firewall keys rate-limiting on. This keeps DEF's bursty authenticated audit/apply calls (which arrive from a large pool of rotating cloud egress IPs that a static allowlist can't track) from being rate-limited or blocked by the WAF. The allowlist is self-populating and de-duped — each IP is written to Wordfence config only the first time it's seen. It's a no-op on sites without Wordfence (no hard dependency), and the allowlisting is best-effort and isolated so it can never affect the authentication result. No pruning of rotated-out IPs (Wordfence exposes no clean removal API; the staleness risk is low and bounded by DEF's egress pool).
 
