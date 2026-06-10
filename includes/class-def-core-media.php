@@ -161,6 +161,13 @@ final class DEF_Core_Media {
 		}
 
 		$b64 = ( isset( $body['image_b64'] ) && is_string( $body['image_b64'] ) ) ? $body['image_b64'] : '';
+		// Cheap pre-decode gate: an over-cap payload is rejected on string length
+		// (base64 inflates ~4/3, + slack for padding/whitespace) before spending
+		// memory on decoding it.
+		if ( strlen( $b64 ) > self::MAX_BYTES * 4 / 3 + 1024 ) {
+			wp_set_current_user( $original );
+			return new \WP_REST_Response( array( 'status' => 'invalid', 'reason' => 'image exceeds 10MB limit' ), 200 );
+		}
 		// Strict decode: any non-base64 character (or padding garbage) fails —
 		// no silent salvage of a corrupted payload.
 		$bytes = base64_decode( preg_replace( '/\s+/', '', $b64 ), true );
@@ -193,7 +200,12 @@ final class DEF_Core_Media {
 		}
 
 		$tmp = wp_tempnam( $filename );
-		if ( ! $tmp || false === file_put_contents( $tmp, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		// A partial write (disk full, quota) must fail too — a truncated file
+		// could pass type validation while sideloading a corrupt image.
+		if ( ! $tmp || strlen( $bytes ) !== file_put_contents( $tmp, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			if ( $tmp ) {
+				@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			}
 			wp_set_current_user( $original );
 			return new \WP_REST_Response( array( 'status' => 'sideload_failed', 'reason' => 'could not write temp file' ), 200 );
 		}

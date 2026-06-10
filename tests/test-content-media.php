@@ -116,7 +116,30 @@ if ( ! function_exists( 'update_post_meta' ) ) {
 	}
 }
 if ( ! function_exists( 'wp_tempnam' ) ) {
-	function wp_tempnam( $filename = '' ) { return tempnam( sys_get_temp_dir(), 'def' ); }
+	function wp_tempnam( $filename = '' ) {
+		if ( ! empty( $GLOBALS['t_tempnam_override'] ) ) { return $GLOBALS['t_tempnam_override']; }
+		return tempnam( sys_get_temp_dir(), 'def' );
+	}
+}
+$GLOBALS['t_tempnam_override'] = null;
+
+/**
+ * Stream wrapper simulating a disk-full temp file: accepts the first few bytes
+ * then refuses the rest, so file_put_contents returns a SHORT count (not false).
+ */
+class DEF_Test_Partial_Stream {
+	public $context;
+	private $written = 0;
+	public function stream_open( $path, $mode, $options, &$opened_path ) { return true; }
+	public function stream_write( $data ) {
+		if ( $this->written > 0 ) { return 0; } // refuse the remainder → partial write
+		$chunk = min( strlen( $data ), 8 );
+		$this->written += $chunk;
+		return $chunk;
+	}
+	public function stream_flush() { return true; }
+	public function stream_close() {}
+	public function unlink( $path ) { return true; }
 }
 if ( ! function_exists( 'wp_check_filetype_and_ext' ) ) {
 	// Mirror WP: trust the real bytes (finfo on the temp FILE), reconcile vs ext.
@@ -330,6 +353,32 @@ assert_same(
 	$GLOBALS['t_image_sizes']['def-social'] ?? null,
 	'add_image_size(def-social, 1200, 630, true)'
 );
+
+// ── 12. Oversize payload rejected BEFORE decoding (pre-decode guard) ────
+echo "[12] oversize base64 rejected before decode\n";
+$GLOBALS['t_sideloads'] = array();
+$data = DEF_Core_Media::rest_sideload( sideload_request( array(
+	// Over the pre-decode ceiling (MAX_BYTES*4/3 + 1024 ≈ 13.3MB of b64) AND
+	// not valid base64 ('!') — if the length guard fires first, as it must,
+	// the reason is the size cap, never the decoder.
+	'image_b64' => str_repeat( 'A', 14000000 ) . '!',
+) ) )->get_data();
+assert_same( 'invalid', $data['status'] ?? null, 'oversize b64 → invalid' );
+assert_same( 'image exceeds 10MB limit', $data['reason'] ?? null, 'rejected by the length guard, not the decoder' );
+assert_same( array(), $GLOBALS['t_sideloads'], 'no sideload' );
+
+// ── 13. Partial temp-file write fails closed ────────────────────────────
+echo "[13] partial temp write rejected\n";
+stream_wrapper_register( 'defpartial', 'DEF_Test_Partial_Stream' );
+$GLOBALS['t_tempnam_override'] = 'defpartial://tmp-image';
+$GLOBALS['t_sideloads']        = array();
+set_error_handler( function () { return true; } ); // mute the short-write notice
+$data = DEF_Core_Media::rest_sideload( sideload_request() )->get_data();
+restore_error_handler();
+$GLOBALS['t_tempnam_override'] = null;
+assert_same( 'sideload_failed', $data['status'] ?? null, 'short write → sideload_failed' );
+assert_same( 'could not write temp file', $data['reason'] ?? null, 'temp-write failure reason' );
+assert_same( array(), $GLOBALS['t_sideloads'], 'truncated file never reaches sideload' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
