@@ -267,7 +267,11 @@ class DEF_Core_Knowledge_Exclusion {
 			esc_html__( 'Digital Employees', 'digital-employees' ),
 			array( __CLASS__, 'render_classic_meta_box' ),
 			$post->post_type,
-			'side'
+			'side',
+			'default',
+			// The block editor has its own PluginDocumentSettingPanel for this
+			// meta — without this flag it ALSO renders the classic box.
+			array( '__back_compat_meta_box' => true )
 		);
 	}
 
