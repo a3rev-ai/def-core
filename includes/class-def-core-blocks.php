@@ -430,8 +430,9 @@ final class DEF_Core_Blocks {
 	 * markup to preserve, so we serialize the authored semantic nodes to core
 	 * Gutenberg blocks (paragraph / heading / list / image), sanitize the
 	 * serialized body with wp_kses_post (authored content is never trusted),
-	 * insert as a DRAFT, then set the SEO meta + focus keyphrase. Returns
-	 * { post_id, edit_link }.
+	 * insert as a DRAFT — born excluded from Digital Employee knowledge
+	 * (fail-closed; see the meta write below) — then set the SEO meta + focus
+	 * keyphrase. Returns { post_id, edit_link }.
 	 *
 	 * Wave 2 (images): `featured_media` (a DEF-sideloaded attachment id) sets
 	 * the post thumbnail + the Yoast social-image meta; an image node carrying
@@ -490,6 +491,14 @@ final class DEF_Core_Blocks {
 			return new \WP_REST_Response( array( 'status' => 'create_failed', 'reason' => $code ), 200 );
 		}
 		$post_id = (int) $post_id;
+
+		// Fail-closed Company-Knowledge default (Engine 2.5 safeguard): every
+		// AI-created draft is born EXCLUDED from Digital Employee knowledge, so
+		// unverified AI claims can never auto-ingest into Customer Chat. Opt-in
+		// is a human act: verify the images and every claim, then uncheck
+		// "Exclude from Digital Employee knowledge" in the editor. Same meta the
+		// editor checkbox reads (one source of truth, no new flag).
+		update_post_meta( $post_id, \DEF_Core_Knowledge_Exclusion::META_KEY, true );
 
 		// SEO meta + focus keyphrase (reuse the SEO-meta bridge). Unlike an EDIT,
 		// a created post's focus keyphrase IS the human's chosen target, so it's set.

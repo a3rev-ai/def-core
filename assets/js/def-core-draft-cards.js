@@ -28,6 +28,11 @@
 		seo_title: 'SEO title'
 	};
 
+	// Engine 2.5 fail-closed safeguard copy (design §6/§7) — shown on every
+	// create surface. Set via textContent only, never innerHTML.
+	var SAFEGUARD_COPY = 'AI-created posts are excluded from Company Knowledge until you expressly include them. ' +
+		"Review the images and verify every claim before unchecking 'Exclude from Digital Employee knowledge' on the post.";
+
 	function api(path, method, body) {
 		var opts = {
 			method: method || 'GET',
@@ -463,6 +468,11 @@
 		var checklist = renderChecklist(draft);
 		if (checklist) { card.appendChild(checklist); }
 
+		// Engine 2.5 safeguard signpost: the created draft is born excluded from
+		// Company Knowledge (fail-closed, set server-side at create); the WP-editor
+		// checkbox is the single control — this copy only points at it.
+		card.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
+
 		var actions = el('div', 'def-draft-actions');
 		var approve = el('button', 'button button-primary def-draft-approve', 'Approve & create draft');
 		approve.addEventListener('click', function () { onApply(card, draft); });
@@ -861,6 +871,7 @@
 		rowEl.appendChild(btn);
 		panel.appendChild(rowEl);
 		panel.appendChild(status);
+		panel.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
 		host.appendChild(panel);
 	}
 
