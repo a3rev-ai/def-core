@@ -25,7 +25,7 @@
 				title: __('Digital Employees', 'digital-employees'),
 			}, el(wp.components.CheckboxControl, {
 				label: __('Exclude from Digital Employee knowledge', 'digital-employees'),
-				help: __('Skipped during ingestion. If previously indexed, removed on next Sync Now — Full from the Tenant Portal.', 'digital-employees'),
+				help: __('When checked, this item is excluded from Digital Employee knowledge. If it was already indexed, it is removed on the next sync — this item only, no Full Sync needed.', 'digital-employees'),
 				checked: !!meta[META_KEY],
 				onChange: function (next) {
 					var u = {}; u[META_KEY] = !!next;
