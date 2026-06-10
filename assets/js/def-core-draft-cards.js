@@ -543,18 +543,24 @@
 
 	// After Generate, the create draft appears whenever DEF finishes generating
 	// — there's no push channel, so poll the drafts list every 10s for up to
-	// 3 minutes and re-render when a draft we haven't seen shows up (then stop).
+	// 10 minutes (image generation alone runs ~4 minutes) and re-render when a
+	// draft we haven't seen shows up (then stop). Hitting the deadline calls
+	// onDeadline so the status line can say so instead of silently going stale.
 	// Poll errors are swallowed: a transient failure just means the next tick
 	// tries again until the deadline.
 	var refreshTimer = null;
 	function stopDraftsRefresh() {
 		if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 	}
-	function startDraftsRefresh(onNewDraft) {
+	function startDraftsRefresh(onNewDraft, onDeadline) {
 		stopDraftsRefresh();
-		var deadline = Date.now() + 180000;
+		var deadline = Date.now() + 600000;
 		refreshTimer = setInterval(function () {
-			if (Date.now() > deadline) { stopDraftsRefresh(); return; }
+			if (Date.now() > deadline) {
+				stopDraftsRefresh();
+				if (onDeadline) { onDeadline(); }
+				return;
+			}
 			api('/drafts', 'GET').then(function (res) {
 				var drafts = (res && res.drafts) || [];
 				var hasNew = drafts.some(function (d) {
@@ -832,9 +838,11 @@
 				status.textContent = 'Your draft is being generated and will appear below shortly.';
 				input.value = '';
 				// Generation is async on the DEF side — poll until the new card
-				// lands (or 3 minutes pass), so no manual reload is needed.
+				// lands (or 10 minutes pass), so no manual reload is needed.
 				startDraftsRefresh(function () {
 					status.textContent = 'Your new draft is ready below.';
+				}, function () {
+					status.textContent = 'Still generating — your draft will appear under Content Drafts when ready; reload in a minute.';
 				});
 			}).catch(function (e) {
 				status.className = 'def-draft-create-status def-draft-create-status--warn';
