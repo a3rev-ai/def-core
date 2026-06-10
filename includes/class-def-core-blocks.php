@@ -424,14 +424,22 @@ final class DEF_Core_Blocks {
 	 * semantic-block JSON (Content Agent "Create New", Engine 2 Wave 1).
 	 *
 	 * Body: { title, slug?, content (semantic-block JSON), status:'draft',
-	 *         focus_keyphrase?, meta_description?, seo_title? }.
+	 *         focus_keyphrase?, meta_description?, seo_title?, featured_media? }.
 	 *
 	 * CREATE is the inverse of the edit bridge and simpler: there is no existing
 	 * markup to preserve, so we serialize the authored semantic nodes to core
-	 * Gutenberg blocks (paragraph / heading / list / image placeholder), sanitize
-	 * the serialized body with wp_kses_post (authored content is never trusted),
+	 * Gutenberg blocks (paragraph / heading / list / image), sanitize the
+	 * serialized body with wp_kses_post (authored content is never trusted),
 	 * insert as a DRAFT, then set the SEO meta + focus keyphrase. Returns
 	 * { post_id, edit_link }.
+	 *
+	 * Wave 2 (images): `featured_media` (a DEF-sideloaded attachment id) sets
+	 * the post thumbnail + the Yoast social-image meta; an image node carrying
+	 * `attachment_id` renders a real core/image block. Both are validated as
+	 * DEF-created attachments; the attachments a post uses are adopted
+	 * (post_parent → the new post) so they stop being orphans. Image nodes
+	 * WITHOUT an attachment_id keep the Wave-1 placeholder behaviour
+	 * (soft-degrade when a tenant has no image key).
 	 *
 	 * @return \WP_REST_Response|\WP_Error
 	 */
@@ -461,7 +469,8 @@ final class DEF_Core_Blocks {
 
 		// Semantic JSON → core blocks → serialized body, then sanitize. Authored
 		// content is untrusted; wp_kses_post preserves block delimiter comments.
-		$content = wp_kses_post( serialize_blocks( self::semantic_to_blocks( $semantic ) ) );
+		$blocks  = self::semantic_to_blocks( $semantic );
+		$content = wp_kses_post( serialize_blocks( $blocks ) );
 
 		$postarr = array(
 			'post_type'    => 'post',
@@ -489,6 +498,24 @@ final class DEF_Core_Blocks {
 			'seo_title'        => $body['seo_title'] ?? null,
 			'focus_keyphrase'  => $body['focus_keyphrase'] ?? null,
 		) );
+
+		// Wave 2 (images): featured image + Yoast social meta, then adopt every
+		// DEF-created attachment this post uses (they were sideloaded unattached;
+		// post_parent → this post stops them being orphans and makes them
+		// permanent — the media-delete bridge refuses attached items).
+		$featured = isset( $body['featured_media'] ) ? (int) $body['featured_media'] : 0;
+		$used_ids = self::collect_image_ids( $blocks );
+		if ( $featured > 0 && self::is_def_attachment( $featured ) ) {
+			set_post_thumbnail( $post_id, $featured );
+			\DEF_Core_SEO_Meta::apply_social_image_meta( $post_id, $featured );
+			$used_ids[] = $featured;
+		}
+		foreach ( array_unique( $used_ids ) as $att_id ) {
+			$att = get_post( $att_id );
+			if ( $att && 'attachment' === $att->post_type && 0 === (int) $att->post_parent ) {
+				wp_update_post( array( 'ID' => $att_id, 'post_parent' => $post_id ) );
+			}
+		}
 
 		$edit_link = get_edit_post_link( $post_id, 'raw' );
 		wp_set_current_user( $original );
@@ -537,8 +564,12 @@ final class DEF_Core_Blocks {
 					break;
 				case 'image':
 				case 'image-placeholder':
-					$alt      = ( isset( $node['alt'] ) && is_string( $node['alt'] ) ) ? $node['alt'] : '';
-					$blocks[] = self::make_image_placeholder_block( $alt );
+					$alt = ( isset( $node['alt'] ) && is_string( $node['alt'] ) ) ? $node['alt'] : '';
+					// With a valid DEF-sideloaded attachment → a real core/image
+					// block; otherwise (no image key / bad id) the Wave-1 placeholder.
+					$attachment_id = isset( $node['attachment_id'] ) ? (int) $node['attachment_id'] : 0;
+					$image         = $attachment_id > 0 ? self::make_image_block( $attachment_id, $alt ) : null;
+					$blocks[]      = $image ? $image : self::make_image_placeholder_block( $alt );
 					break;
 				case 'paragraph':
 				default:
@@ -629,6 +660,65 @@ final class DEF_Core_Blocks {
 			'innerHTML'    => $html,
 			'innerContent' => array( $html ),
 		);
+	}
+
+	/**
+	 * Real core/image block for a DEF-sideloaded attachment (Wave 2). Returns
+	 * null unless the id is a valid DEF-created attachment with a resolvable
+	 * URL — the caller then falls back to the placeholder paragraph. The `src`
+	 * is the WP attachment URL (never model text) and the markup mirrors what
+	 * Gutenberg itself serializes (wp-image-{id} + size class) so the block
+	 * validates cleanly in the editor.
+	 */
+	private static function make_image_block( int $attachment_id, string $alt ): ?array {
+		if ( ! self::is_def_attachment( $attachment_id ) ) {
+			return null;
+		}
+		$url = wp_get_attachment_image_url( $attachment_id, 'large' );
+		if ( ! $url ) {
+			$url = wp_get_attachment_url( $attachment_id );
+		}
+		if ( ! $url ) {
+			return null;
+		}
+		$html = '<figure class="wp-block-image size-large"><img src="' . esc_url( $url ) . '" alt="'
+			. esc_attr( sanitize_text_field( $alt ) ) . '" class="wp-image-' . $attachment_id . '"/></figure>';
+		return array(
+			'blockName'    => 'core/image',
+			'attrs'        => array(
+				'id'              => $attachment_id,
+				'sizeSlug'        => 'large',
+				'linkDestination' => 'none',
+			),
+			'innerBlocks'  => array(),
+			'innerHTML'    => $html,
+			'innerContent' => array( $html ),
+		);
+	}
+
+	/**
+	 * True iff the id is an existing attachment stamped _def_created — created
+	 * posts may only reference images DEF sideloaded, never arbitrary Media
+	 * Library items.
+	 */
+	private static function is_def_attachment( int $attachment_id ): bool {
+		if ( $attachment_id < 1 ) {
+			return false;
+		}
+		$post = get_post( $attachment_id );
+		return $post && 'attachment' === $post->post_type
+			&& (bool) get_post_meta( $attachment_id, \DEF_Core_Media::CREATED_META, true );
+	}
+
+	/** Attachment ids referenced by core/image blocks in an authored body. */
+	private static function collect_image_ids( array $blocks ): array {
+		$ids = array();
+		foreach ( $blocks as $b ) {
+			if ( 'core/image' === ( $b['blockName'] ?? null ) && isset( $b['attrs']['id'] ) ) {
+				$ids[] = (int) $b['attrs']['id'];
+			}
+		}
+		return $ids;
 	}
 
 	// ------------------------------------------------------- tree helpers ----

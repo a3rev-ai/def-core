@@ -71,6 +71,7 @@ final class DEF_Core {
 		DEF_Core_Site_Tools::init();
 		DEF_Core_SEO_Meta::init();
 		DEF_Core_Blocks::init();
+		DEF_Core_Media::init();
 		DEF_Core_Logs_Page::init();
 		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
@@ -171,6 +172,7 @@ final class DEF_Core {
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-site-tools.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-seo-meta.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-blocks.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-media.php';
 
 		// Routes (registers core tools and allows modules to register).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-routes.php';

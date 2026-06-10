@@ -134,6 +134,39 @@ final class DEF_Core_SEO_Meta {
 		return array( 'plugin' => $plugin, 'written' => $written );
 	}
 
+	/**
+	 * Write the Yoast social-share image meta on a freshly CREATED post from
+	 * its featured attachment (Content Agent create, Wave 2 images).
+	 *
+	 * Social cards want exactly 1200×630, so the URL comes from the `def-social`
+	 * exact-crop rendition (registered by DEF_Core_Media), falling back to the
+	 * full-size URL when the rendition is missing (e.g. a source smaller than
+	 * the crop). Yoast-only by design — these ARE Yoast meta keys; detection
+	 * reuses active_plugin(). A no-op under Rank Math / no SEO plugin.
+	 *
+	 * @param int $item_id       New post ID.
+	 * @param int $attachment_id Featured-image attachment ID.
+	 * @return bool Whether the meta was written.
+	 */
+	public static function apply_social_image_meta( int $item_id, int $attachment_id ): bool {
+		list( $plugin ) = self::active_plugin();
+		if ( 'yoast' !== $plugin ) {
+			return false;
+		}
+		$url = wp_get_attachment_image_url( $attachment_id, 'def-social' );
+		if ( ! $url ) {
+			$url = wp_get_attachment_image_url( $attachment_id, 'full' );
+		}
+		if ( ! $url ) {
+			return false;
+		}
+		update_post_meta( $item_id, '_yoast_wpseo_opengraph-image', esc_url_raw( $url ) );
+		update_post_meta( $item_id, '_yoast_wpseo_opengraph-image-id', (string) $attachment_id );
+		update_post_meta( $item_id, '_yoast_wpseo_twitter-image', esc_url_raw( $url ) );
+		update_post_meta( $item_id, '_yoast_wpseo_twitter-image-id', (string) $attachment_id );
+		return true;
+	}
+
 	private static function set_user_or_forbid( int $user_id ) {
 		wp_set_current_user( $user_id );
 		if ( ! current_user_can( 'def_staff_access' ) && ! current_user_can( 'def_management_access' ) ) {

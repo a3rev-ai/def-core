@@ -128,8 +128,62 @@ if ( ! function_exists( 'sanitize_title' ) ) {
 	}
 }
 
+// ── Wave-2 (images) stubs ───────────────────────────────────────────────
+// Attachment fixtures: id => [post_type, post_parent, def_created].
+$GLOBALS['t_attachments']     = array();
+$GLOBALS['t_thumbnails']      = array(); // captured set_post_thumbnail calls
+$GLOBALS['t_post_updates']    = array(); // captured wp_update_post calls
+$GLOBALS['t_has_social_size'] = true;    // def-social rendition resolvable?
+
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) {
+		$id = (int) $id;
+		if ( ! isset( $GLOBALS['t_attachments'][ $id ] ) ) { return null; }
+		$o              = new stdClass();
+		$o->ID          = $id;
+		$o->post_type   = $GLOBALS['t_attachments'][ $id ]['post_type'];
+		$o->post_parent = $GLOBALS['t_attachments'][ $id ]['post_parent'];
+		return $o;
+	}
+}
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key, $single = false ) {
+		if ( '_def_created' === $key ) {
+			return ! empty( $GLOBALS['t_attachments'][ (int) $id ]['def_created'] ) ? 1 : '';
+		}
+		return '';
+	}
+}
+if ( ! function_exists( 'wp_get_attachment_image_url' ) ) {
+	function wp_get_attachment_image_url( $id, $size = 'thumbnail' ) {
+		if ( 'def-social' === $size && empty( $GLOBALS['t_has_social_size'] ) ) {
+			return false; // rendition missing (e.g. source smaller than the crop)
+		}
+		return 'https://site.test/uploads/img-' . (int) $id . '-' . $size . '.png';
+	}
+}
+if ( ! function_exists( 'wp_get_attachment_url' ) ) {
+	function wp_get_attachment_url( $id ) { return 'https://site.test/uploads/img-' . (int) $id . '.png'; }
+}
+if ( ! function_exists( 'set_post_thumbnail' ) ) {
+	function set_post_thumbnail( $post_id, $att_id ) {
+		$GLOBALS['t_thumbnails'][] = array( 'post' => (int) $post_id, 'att' => (int) $att_id );
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_update_post' ) ) {
+	function wp_update_post( $arr, $wp_error = false ) {
+		$GLOBALS['t_post_updates'][] = $arr;
+		return $arr['ID'] ?? 0;
+	}
+}
+if ( ! function_exists( 'esc_url' ) ) {
+	function esc_url( $u ) { return (string) $u; }
+}
+
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-seo-meta.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-blocks.php';
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-media.php';
 
 $_SERVER['HTTP_X_DEF_USER'] = '5';
 
@@ -241,6 +295,94 @@ $req->set_json( array( 'content' => array( array( 'type' => 'paragraph', 'text' 
 $data = DEF_Core_Blocks::rest_create_post( $req )->get_data();
 assert_same( 'invalid', $data['status'], 'returns status=invalid' );
 assert_same( array(), $GLOBALS['t_inserts'], 'no insert when title missing' );
+
+// ── 5. Image nodes with an attachment_id render real core/image blocks ──
+echo "[5] image nodes: real block for DEF attachments, placeholder otherwise\n";
+$GLOBALS['t_attachments'] = array(
+	10 => array( 'post_type' => 'attachment', 'post_parent' => 0, 'def_created' => true ),
+	11 => array( 'post_type' => 'attachment', 'post_parent' => 0, 'def_created' => false ),
+);
+$blocks = priv_static( 'DEF_Core_Blocks', 'semantic_to_blocks', array( array(
+	array( 'type' => 'image', 'attachment_id' => 10, 'alt' => 'A "quoted" cat' ),
+	array( 'type' => 'image', 'attachment_id' => 11, 'alt' => 'not def-created' ),
+	array( 'type' => 'image', 'attachment_id' => 99, 'alt' => 'missing' ),
+	array( 'type' => 'image', 'alt' => 'no id (tenant without image key)' ),
+) ) );
+assert_same( 4, count( $blocks ), 'four blocks emitted' );
+assert_same( 'core/image', $blocks[0]['blockName'], 'valid DEF attachment → core/image' );
+assert_same( 10, $blocks[0]['attrs']['id'], 'image block carries the attachment id attr' );
+assert_true( false !== strpos( $blocks[0]['innerHTML'], 'wp-image-10' ), 'wp-image-{id} class present' );
+assert_true( false !== strpos( $blocks[0]['innerHTML'], 'src="https://site.test/uploads/img-10-large.png"' ), 'src is the WP attachment URL' );
+assert_true( false !== strpos( $blocks[0]['innerHTML'], 'alt="A &quot;quoted&quot; cat"' ), 'alt is escaped' );
+assert_same( 'core/paragraph', $blocks[1]['blockName'], 'non-DEF attachment → placeholder paragraph' );
+assert_same( 'core/paragraph', $blocks[2]['blockName'], 'missing attachment → placeholder paragraph' );
+assert_same( 'core/paragraph', $blocks[3]['blockName'], 'no attachment_id → Wave-1 placeholder' );
+assert_true( false !== strpos( $blocks[3]['innerHTML'], 'no id (tenant without image key)' ), 'placeholder keeps the alt label' );
+
+// ── 6. featured_media: thumbnail + Yoast social meta + adoption ─────────
+echo "[6] create-post sets featured image, social meta, and adopts attachments\n";
+$GLOBALS['t_can_create']  = true;
+$GLOBALS['t_inserts']     = array();
+$GLOBALS['t_meta_writes'] = array();
+$GLOBALS['t_thumbnails']  = array();
+$GLOBALS['t_post_updates'] = array();
+$GLOBALS['t_has_social_size'] = true;
+$GLOBALS['t_attachments'] = array(
+	20 => array( 'post_type' => 'attachment', 'post_parent' => 0, 'def_created' => true ), // featured
+	21 => array( 'post_type' => 'attachment', 'post_parent' => 0, 'def_created' => true ), // body image
+);
+$req = new WP_REST_Request( 'POST', '' );
+$req->set_json( array(
+	'title'          => 'Post With Images',
+	'content'        => array(
+		array( 'type' => 'paragraph', 'text' => 'Intro' ),
+		array( 'type' => 'image', 'attachment_id' => 21, 'alt' => 'inline' ),
+	),
+	'featured_media' => 20,
+) );
+$data = DEF_Core_Blocks::rest_create_post( $req )->get_data();
+assert_same( 'created', $data['status'], 'created' );
+assert_same( array( array( 'post' => 123, 'att' => 20 ) ), $GLOBALS['t_thumbnails'], 'set_post_thumbnail(new post, featured)' );
+$writes = array();
+foreach ( $GLOBALS['t_meta_writes'] as $w ) { $writes[ $w['key'] ] = $w['value']; }
+assert_same( 'https://site.test/uploads/img-20-def-social.png', $writes['_yoast_wpseo_opengraph-image'] ?? null, 'og:image from the def-social rendition' );
+assert_same( '20', $writes['_yoast_wpseo_opengraph-image-id'] ?? null, 'og:image id' );
+assert_same( 'https://site.test/uploads/img-20-def-social.png', $writes['_yoast_wpseo_twitter-image'] ?? null, 'twitter:image from the def-social rendition' );
+assert_same( '20', $writes['_yoast_wpseo_twitter-image-id'] ?? null, 'twitter:image id' );
+$adopted = array();
+foreach ( $GLOBALS['t_post_updates'] as $u ) { $adopted[ (int) $u['ID'] ] = (int) ( $u['post_parent'] ?? -1 ); }
+assert_same( 123, $adopted[20] ?? null, 'featured attachment adopted (post_parent → new post)' );
+assert_same( 123, $adopted[21] ?? null, 'body attachment adopted (post_parent → new post)' );
+
+// def-social rendition missing → social meta falls back to the full-size URL.
+$GLOBALS['t_meta_writes']     = array();
+$GLOBALS['t_has_social_size'] = false;
+$data = DEF_Core_Blocks::rest_create_post( $req )->get_data();
+$writes = array();
+foreach ( $GLOBALS['t_meta_writes'] as $w ) { $writes[ $w['key'] ] = $w['value']; }
+assert_same( 'https://site.test/uploads/img-20-full.png', $writes['_yoast_wpseo_opengraph-image'] ?? null, 'missing rendition → full-size URL fallback' );
+$GLOBALS['t_has_social_size'] = true;
+
+// ── 7. Invalid featured_media soft-degrades (no thumbnail, no social) ───
+echo "[7] invalid featured_media is ignored\n";
+$GLOBALS['t_meta_writes']  = array();
+$GLOBALS['t_thumbnails']   = array();
+$GLOBALS['t_post_updates'] = array();
+$GLOBALS['t_attachments']  = array(
+	30 => array( 'post_type' => 'attachment', 'post_parent' => 0, 'def_created' => false ), // NOT def-created
+);
+$req = new WP_REST_Request( 'POST', '' );
+$req->set_json( array(
+	'title'          => 'No Featured',
+	'content'        => array( array( 'type' => 'paragraph', 'text' => 'Body' ) ),
+	'featured_media' => 30,
+) );
+$data = DEF_Core_Blocks::rest_create_post( $req )->get_data();
+assert_same( 'created', $data['status'], 'still created' );
+assert_same( array(), $GLOBALS['t_thumbnails'], 'no thumbnail for a non-DEF attachment' );
+$keys = array_map( static function ( $w ) { return $w['key']; }, $GLOBALS['t_meta_writes'] );
+assert_true( ! in_array( '_yoast_wpseo_opengraph-image', $keys, true ), 'no social meta for a non-DEF attachment' );
+assert_same( array(), $GLOBALS['t_post_updates'], 'nothing adopted' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
