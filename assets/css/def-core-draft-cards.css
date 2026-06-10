@@ -453,3 +453,21 @@ a.def-draft-title-link:hover {
 	text-align: center;
 }
 .def-draft-edit-link { font-weight: 600; }
+
+/* CREATE card images (Wave 2) — featured + inline body images */
+.def-draft-create-featured { margin: 8px 0; }
+.def-draft-create-featured img,
+.def-draft-create-figure img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border: 1px solid #e6e6e8;
+	border-radius: 3px;
+}
+.def-draft-create-featured-label,
+.def-draft-create-figcaption {
+	margin-top: 4px;
+	font-size: 12px;
+	color: #646970;
+}
+.def-draft-create-figure { margin: 8px 0; }

@@ -381,9 +381,27 @@
 				});
 				wrap.appendChild(listEl);
 			} else if (type === 'image' || type === 'image-placeholder') {
-				// Images are a later wave — show a labelled placeholder (textContent).
-				wrap.appendChild(el('div', 'def-draft-create-img',
-					'🖼 ' + (node.alt ? String(node.alt) : 'Image') + ' (added in a later step)'));
+				// Wave 2: DEF stages the sideloaded image's WP attachment URL on the
+				// node. The src is ONLY ever that URL (scheme-checked via safeHref) —
+				// never model text; the alt goes through the attribute (DOM-escaped).
+				// No/invalid URL → the labelled placeholder (tenant without an image
+				// key still reviews a placeholder paragraph, matching the WP draft).
+				var imgSrc = safeHref(node.url);
+				if (imgSrc) {
+					var fig = el('figure', 'def-draft-create-figure');
+					var img = document.createElement('img');
+					img.src = imgSrc;
+					img.alt = node.alt ? String(node.alt) : '';
+					img.loading = 'lazy';
+					fig.appendChild(img);
+					if (node.alt) {
+						fig.appendChild(el('figcaption', 'def-draft-create-figcaption', String(node.alt)));
+					}
+					wrap.appendChild(fig);
+				} else {
+					wrap.appendChild(el('div', 'def-draft-create-img',
+						'🖼 ' + (node.alt ? String(node.alt) : 'Image') + ' (placeholder)'));
+				}
 			} else {
 				var text = (typeof node.text === 'string') ? node.text : '';
 				if (!text.trim()) { return; }
@@ -415,6 +433,23 @@
 		}
 		head.appendChild(left);
 		card.appendChild(head);
+
+		// Featured image (Wave 2): DEF stages the display URL alongside the
+		// proposed envelope — either featured_image_url (string) or a
+		// featured_image {url, alt} object. The src is the WP attachment URL
+		// only, scheme-checked via safeHref; alt is set via the attribute.
+		var fi = p.featured_image;
+		var fiUrl = safeHref(p.featured_image_url || (fi && typeof fi === 'object' ? fi.url : null));
+		if (fiUrl) {
+			var fwrap = el('div', 'def-draft-create-featured');
+			var fimg = document.createElement('img');
+			fimg.src = fiUrl;
+			fimg.alt = (fi && typeof fi === 'object' && fi.alt) ? String(fi.alt) : '';
+			fimg.loading = 'lazy';
+			fwrap.appendChild(fimg);
+			fwrap.appendChild(el('div', 'def-draft-create-featured-label', 'Featured image'));
+			card.appendChild(fwrap);
+		}
 
 		var keyphrase = renderKeyphrase(draft); // reads draft.focus_keyphrase
 		if (keyphrase) { card.appendChild(keyphrase); }
@@ -476,15 +511,62 @@
 		return card;
 	}
 
-	function render(drafts) {
-		root.removeAttribute('data-loading');
-		root.innerHTML = '';
+	// Draft ids seen in the last render — the post-Generate poll uses this to
+	// detect when the requested create draft has landed.
+	var knownDraftIds = {};
+	function rememberDraftIds(drafts) {
+		drafts.forEach(function (d) {
+			if (d && d.id != null) { knownDraftIds[String(d.id)] = 1; }
+		});
+	}
+
+	// Replace only the draft cards (and empty/error states), leaving the
+	// coverage strip / needs-keyphrase panel at the top intact — used by the
+	// post-Generate refresh, where those panels are already rendered.
+	function renderDraftsOnly(drafts) {
+		root.querySelectorAll('.def-draft-card, .def-draft-empty-state, .def-draft-error')
+			.forEach(function (n) { n.remove(); });
+		rememberDraftIds(drafts);
 		if (!drafts.length) {
 			root.appendChild(el('p', 'def-draft-empty-state',
 				'No drafts waiting for review. The Content Agent stages improvements here after each scheduled run.'));
 			return;
 		}
 		drafts.forEach(function (d) { root.appendChild(renderCard(d)); });
+	}
+
+	function render(drafts) {
+		root.removeAttribute('data-loading');
+		root.innerHTML = '';
+		renderDraftsOnly(drafts);
+	}
+
+	// After Generate, the create draft appears whenever DEF finishes generating
+	// — there's no push channel, so poll the drafts list every 10s for up to
+	// 3 minutes and re-render when a draft we haven't seen shows up (then stop).
+	// Poll errors are swallowed: a transient failure just means the next tick
+	// tries again until the deadline.
+	var refreshTimer = null;
+	function stopDraftsRefresh() {
+		if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+	}
+	function startDraftsRefresh(onNewDraft) {
+		stopDraftsRefresh();
+		var deadline = Date.now() + 180000;
+		refreshTimer = setInterval(function () {
+			if (Date.now() > deadline) { stopDraftsRefresh(); return; }
+			api('/drafts', 'GET').then(function (res) {
+				var drafts = (res && res.drafts) || [];
+				var hasNew = drafts.some(function (d) {
+					return d && d.id != null && !knownDraftIds[String(d.id)];
+				});
+				if (hasNew) {
+					stopDraftsRefresh();
+					renderDraftsOnly(drafts);
+					if (onNewDraft) { onNewDraft(); }
+				}
+			}).catch(function () { /* transient — keep polling until the deadline */ });
+		}, 10000);
 	}
 
 	// Friendly plural label for a content type. Known core types are mapped; an
@@ -747,8 +829,13 @@
 			status.textContent = 'Requesting…';
 			api('/create', 'POST', { keyphrase: kp }).then(function () {
 				status.className = 'def-draft-create-status def-draft-create-status--ok';
-				status.textContent = 'Your draft is being generated and will appear in Content Drafts shortly.';
+				status.textContent = 'Your draft is being generated and will appear below shortly.';
 				input.value = '';
+				// Generation is async on the DEF side — poll until the new card
+				// lands (or 3 minutes pass), so no manual reload is needed.
+				startDraftsRefresh(function () {
+					status.textContent = 'Your new draft is ready below.';
+				});
 			}).catch(function (e) {
 				status.className = 'def-draft-create-status def-draft-create-status--warn';
 				status.textContent = (e && e.message) || 'Could not start generation.';
