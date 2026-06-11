@@ -524,10 +524,15 @@
 	}
 
 	function renderCard(draft) {
-		if (draft && draft.kind === 'create') {
-			return renderCreateCard(draft);
+		var card = (draft && draft.kind === 'create') ? renderCreateCard(draft) : renderEditCard(draft);
+		// Anchor for the Clusters tab's "Review draft" jump (staged id === draft id).
+		if (draft && draft.id != null) {
+			card.dataset.draftId = String(draft.id);
 		}
+		return card;
+	}
 
+	function renderEditCard(draft) {
 		var card = el('div', 'def-draft-card');
 
 		card.appendChild(renderHead(draft));

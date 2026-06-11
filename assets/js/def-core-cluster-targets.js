@@ -1,9 +1,13 @@
 /**
- * Content Agent Engine 2.5 — Clusters tab (def-core PR 2.5-2).
+ * Content Agent — Clusters tab (Clusters UX v2).
  *
- * Target nomination (native WP item picker over the local search BFF route),
- * reference-URL management (max 5), and per-target keyphrase queue curation
- * (approve / edit / dismiss, manual add, Derive with poll-for-proposals).
+ * Master list of compact target rows (text search, needs-curation /
+ * needs-review / status / type filters, needs-attention-first sort, lazy
+ * render) with one-at-a-time inline-expand detail: reference-URL editor,
+ * Derive/Pause/Remove, and the keyphrase queue with approve / edit / dismiss,
+ * bulk "Dismiss remaining", and per-row lifecycle states (proposed → queued →
+ * in review → published / dismissed) derived client-side from fields the DEF
+ * API already returns.
  *
  * All model-authored text (phrase, rationale) and backend strings reach the
  * DOM via textContent only — this module has no innerHTML path.
@@ -22,6 +26,7 @@
 		"Review the images and verify every claim before unchecking 'Exclude from Digital Employee knowledge' on the post.";
 
 	var MAX_REFERENCE_URLS = 5;
+	var PAGE_SIZE = 25;
 
 	var INTENT_LABELS = {
 		definitional: 'Definitional',
@@ -96,6 +101,92 @@
 	function setStatus(node, message, kind) {
 		node.className = 'def-cluster-status' + (kind ? ' def-cluster-status--' + kind : '');
 		node.textContent = message || '';
+	}
+
+	function num(v) {
+		var n = Number(v);
+		return (isFinite(n) && n > 0) ? Math.floor(n) : 0;
+	}
+
+	// ── Keyphrase lifecycle (derived client-side; design §4) ────────────────
+	// proposed → awaiting curation; approved without a staged draft → queued;
+	// approved WITH staged_change_id → in review (a draft awaits the human —
+	// the most important state); written → published; dismissed → cleared.
+
+	function lifecycle(row) {
+		var s = (row && typeof row.status === 'string') ? row.status : 'other';
+		if (s === 'approved') { return row.staged_change_id ? 'in_review' : 'queued'; }
+		if (s === 'written') { return 'published'; }
+		return s;
+	}
+
+	// Normalize a target's keyphrase_counts. Older DEF responses don't split
+	// in_review out of approved — a missing in_review is 0, never NaN.
+	function normalizeCounts(raw) {
+		raw = (raw && typeof raw === 'object') ? raw : {};
+		return {
+			proposed: num(raw.proposed),
+			approved: num(raw.approved),
+			in_review: num(raw.in_review),
+			written: num(raw.written),
+			dismissed: num(raw.dismissed)
+		};
+	}
+
+	function countsFromRows(rows) {
+		var c = { proposed: 0, approved: 0, in_review: 0, written: 0, dismissed: 0 };
+		rows.forEach(function (r) {
+			var lc = lifecycle(r);
+			if (lc === 'proposed') { c.proposed++; }
+			else if (lc === 'queued') { c.approved++; }
+			else if (lc === 'in_review') { c.in_review++; }
+			else if (lc === 'published') { c.written++; }
+			else if (lc === 'dismissed') { c.dismissed++; }
+		});
+		return c;
+	}
+
+	// "9 proposed · 5 approved · 1 in review · 2 published · 4 dismissed",
+	// zero buckets omitted.
+	function countsSummary(c) {
+		var parts = [];
+		if (c.proposed) { parts.push(c.proposed + ' proposed'); }
+		if (c.approved) { parts.push(c.approved + ' approved'); }
+		if (c.in_review) { parts.push(c.in_review + ' in review'); }
+		if (c.written) { parts.push(c.written + ' published'); }
+		if (c.dismissed) { parts.push(c.dismissed + ' dismissed'); }
+		return parts.length ? parts.join(' · ') : 'no keyphrases yet';
+	}
+
+	function dateLabel(iso) {
+		if (typeof iso !== 'string' || !iso) { return ''; }
+		var d = new Date(iso);
+		if (isNaN(d.getTime())) { return ''; }
+		try {
+			return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+		} catch (e) {
+			return '';
+		}
+	}
+
+	// Jump to an in-review keyphrase's draft card on the Drafts tabs. The card
+	// carries data-draft-id (staged id === draft id); its tab panel tells us
+	// which tab to activate via the existing tab handler.
+	function jumpToDraft(stagedId) {
+		var id = String(stagedId == null ? '' : stagedId).replace(/[^a-zA-Z0-9_-]/g, '');
+		var card = id ? document.querySelector('.def-draft-card[data-draft-id="' + id + '"]') : null;
+		var panel = card ? card.closest('.def-draft-tab-panel') : null;
+		// Cluster posts are new posts, so their review cards live on the Create tab.
+		var tabName = (panel && panel.id.indexOf('def-tab-') === 0) ? panel.id.slice(8) : 'create';
+		var tab = document.querySelector('.def-draft-tabs [data-def-tab="' + tabName + '"]');
+		if (tab) { tab.click(); }
+		if (card) {
+			card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			card.classList.add('def-draft-card--jumped');
+			setTimeout(function () { card.classList.remove('def-draft-card--jumped'); }, 2500);
+		} else {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
 	}
 
 	// ── Nominate panel: native WP item picker (pages + posts + products) ────
@@ -271,29 +362,41 @@
 		return panel;
 	}
 
-	// ── Keyphrase queue ─────────────────────────────────────────────────────
-
-	var STATUS_ORDER = ['proposed', 'approved', 'written', 'dismissed'];
-
-	function countsLine(rows) {
-		var counts = {};
-		rows.forEach(function (r) {
-			var s = (r && typeof r.status === 'string') ? r.status : 'other';
-			counts[s] = (counts[s] || 0) + 1;
+	// "+ Add target" keeps the nominate picker at the top of the list but out
+	// of the way until asked for.
+	function renderAddTarget() {
+		var wrap = el('div', 'def-cluster-add');
+		var toggle = el('button', 'button def-cluster-add-toggle', '+ Add target');
+		toggle.type = 'button';
+		toggle.setAttribute('aria-expanded', 'false');
+		var panel = renderNominatePanel();
+		panel.style.display = 'none';
+		toggle.addEventListener('click', function () {
+			var open = panel.style.display !== 'none';
+			panel.style.display = open ? 'none' : '';
+			toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
 		});
-		var parts = [];
-		STATUS_ORDER.forEach(function (s) {
-			if (counts[s]) { parts.push(counts[s] + ' ' + s); }
-		});
-		return parts.length ? ('Queue: ' + parts.join(' · ')) : 'Queue: empty';
+		wrap.appendChild(toggle);
+		wrap.appendChild(panel);
+		return wrap;
 	}
 
+	// ── Keyphrase queue ─────────────────────────────────────────────────────
+
 	function renderQueueRow(row, target, card) {
-		var li = el('li', 'def-cluster-kp def-cluster-kp--' + String(row.status || 'unknown'));
+		var lc = lifecycle(row);
+		var li = el('li', 'def-cluster-kp def-cluster-kp--' + lc.replace('_', '-'));
 
 		var main = el('div', 'def-cluster-kp-main');
 		main.appendChild(el('span', 'def-cluster-kp-phrase', String(row.phrase || '')));
 		main.appendChild(el('span', 'def-cluster-kp-intent', intentLabel(row.intent_type)));
+		if (lc === 'queued') {
+			main.appendChild(el('span', 'def-cluster-kp-state def-cluster-kp-state--queued', 'queued'));
+		} else if (lc === 'in_review') {
+			main.appendChild(el('span', 'def-cluster-kp-state def-cluster-kp-state--in-review', 'in review'));
+		} else if (lc === 'published') {
+			main.appendChild(el('span', 'def-cluster-kp-state def-cluster-kp-state--published', 'published'));
+		}
 		li.appendChild(main);
 
 		if (row.rationale) {
@@ -301,7 +404,6 @@
 		}
 
 		var actions = el('div', 'def-cluster-kp-actions');
-		var status = row.status;
 
 		function act(label, path, primary) {
 			var b = el('button', (primary ? 'button button-small button-primary' : 'button button-small'), label);
@@ -360,17 +462,25 @@
 			});
 		}
 
-		if (status === 'proposed') {
+		if (lc === 'proposed') {
 			actions.appendChild(act('Approve', '/keyphrases/' + encodeURIComponent(row.id) + '/approve', true));
 		}
-		if (status === 'proposed' || status === 'approved') {
+		if (lc === 'proposed' || lc === 'queued') {
 			var edit = el('button', 'button button-small', 'Edit');
 			edit.type = 'button';
 			edit.addEventListener('click', startEdit);
 			actions.appendChild(edit);
 			actions.appendChild(act('Dismiss', '/keyphrases/' + encodeURIComponent(row.id) + '/dismiss'));
 		}
-		if (status === 'written') {
+		if (lc === 'in_review') {
+			// The most important state: the draft sits in Content Drafts for the
+			// human — link straight to its review card.
+			var review = el('button', 'button-link def-cluster-kp-review-link', 'Review draft →');
+			review.type = 'button';
+			review.addEventListener('click', function () { jumpToDraft(row.staged_change_id); });
+			actions.appendChild(review);
+		}
+		if (lc === 'published') {
 			var editHref = safeHref(row.edit_url);
 			var viewHref = safeHref(row.view_url);
 			if (editHref) { actions.appendChild(linkEl('Edit post ↗', editHref, 'def-cluster-kp-link')); }
@@ -381,47 +491,97 @@
 		return li;
 	}
 
+	// A "▾ Label (N)" collapsible section head + its list, with optional extra
+	// head content (e.g. the Dismiss-remaining button).
+	function collapsibleGroup(box, label, count, ul, startOpen, extraHead) {
+		var head = el('div', 'def-cluster-kp-group-row');
+		var toggle = el('button', 'def-cluster-kp-group-toggle',
+			(startOpen ? '▾ ' : '▸ ') + label + ' (' + count + ')');
+		toggle.type = 'button';
+		toggle.setAttribute('aria-expanded', startOpen ? 'true' : 'false');
+		ul.style.display = startOpen ? '' : 'none';
+		toggle.addEventListener('click', function () {
+			var open = ul.style.display !== 'none';
+			ul.style.display = open ? 'none' : '';
+			toggle.textContent = (open ? '▸ ' : '▾ ') + label + ' (' + count + ')';
+			toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+		});
+		head.appendChild(toggle);
+		if (extraHead) { head.appendChild(extraHead); }
+		box.appendChild(head);
+		box.appendChild(ul);
+	}
+
+	// Bulk-clear of the un-chosen proposals (design §3). Not a delete — the
+	// phrases land in the collapsed Dismissed group and keep their slot, so
+	// the next Derive won't re-propose them.
+	function buildDismissRemaining(target, card, count) {
+		var btn = el('button', 'button button-small def-cluster-dismiss-remaining',
+			'Dismiss remaining (' + count + ')');
+		btn.type = 'button';
+		btn.addEventListener('click', function () {
+			btn.disabled = true;
+			setStatus(card.queueStatus, 'Dismissing remaining proposals…');
+			api('/targets/' + encodeURIComponent(target.id) + '/keyphrases/dismiss-remaining', 'POST').then(function (res) {
+				var n = num(res && res.dismissed);
+				reloadQueue(target, card).then(function (rows) {
+					if (!rows) { return; } // reload failed — keep its warn over a stale queue
+					setStatus(card.queueStatus,
+						'Dismissed ' + n + ' proposed ' + (n === 1 ? 'phrase' : 'phrases') +
+						" — they won't be re-proposed on the next Derive.", 'ok');
+				});
+			}).catch(function (e) {
+				btn.disabled = false;
+				setStatus(card.queueStatus, (e && e.message) || 'Could not dismiss the remaining proposals.', 'warn');
+			});
+		});
+		return btn;
+	}
+
 	function renderQueue(card, target, rows) {
 		var box = card.queueBox;
 		box.textContent = '';
 
-		card.countsEl.textContent = countsLine(rows);
+		// Keep the row's at-a-glance counts AND the master list's filter/sort
+		// data fresh (target is the live allTargets entry).
+		var counts = countsFromRows(rows);
+		target.keyphrase_counts = counts;
+		card.countsEl.textContent = countsSummary(counts);
 
 		var groups = {};
 		rows.forEach(function (r) {
 			if (!r || typeof r !== 'object') { return; }
-			var s = (typeof r.status === 'string') ? r.status : 'other';
-			(groups[s] = groups[s] || []).push(r);
+			(groups[lifecycle(r)] = groups[lifecycle(r)] || []).push(r);
 		});
 
-		['proposed', 'approved', 'written'].forEach(function (s) {
-			var list = groups[s];
-			if (!list || !list.length) { return; }
-			box.appendChild(el('div', 'def-cluster-kp-group-head',
-				s.charAt(0).toUpperCase() + s.slice(1) + ' (' + list.length + ')'));
+		function listOf(rs) {
 			var ul = el('ul', 'def-cluster-kp-list');
-			list.forEach(function (r) { ul.appendChild(renderQueueRow(r, target, card)); });
-			box.appendChild(ul);
+			rs.forEach(function (r) { ul.appendChild(renderQueueRow(r, target, card)); });
+			return ul;
+		}
+
+		// Proposed: collapsible, open by default — curation is the work to do.
+		var proposed = groups.proposed;
+		if (proposed && proposed.length) {
+			var extra = el('span', 'def-cluster-kp-group-extra');
+			extra.appendChild(buildDismissRemaining(target, card, proposed.length));
+			extra.appendChild(el('span', 'def-cluster-kp-group-hint',
+				'Approve 5–10 picks for a healthy cluster, then clear the rest.'));
+			collapsibleGroup(box, 'Proposed', proposed.length, listOf(proposed), true, extra);
+		}
+
+		// The rest of the lifecycle, top to bottom (design §4).
+		[['queued', 'Queued'], ['in_review', 'In review'], ['published', 'Published']].forEach(function (g) {
+			var list = groups[g[0]];
+			if (!list || !list.length) { return; }
+			box.appendChild(el('div', 'def-cluster-kp-group-head', g[1] + ' (' + list.length + ')'));
+			box.appendChild(listOf(list));
 		});
 
 		// Dismissed: collapsed — slots stay claimed but they're noise day-to-day.
 		var dismissed = groups.dismissed;
 		if (dismissed && dismissed.length) {
-			var toggle = el('button', 'def-cluster-kp-dismissed-toggle',
-				'▸ Dismissed (' + dismissed.length + ')');
-			toggle.type = 'button';
-			toggle.setAttribute('aria-expanded', 'false');
-			var ul = el('ul', 'def-cluster-kp-list def-cluster-kp-list--dismissed');
-			ul.style.display = 'none';
-			dismissed.forEach(function (r) { ul.appendChild(renderQueueRow(r, target, card)); });
-			toggle.addEventListener('click', function () {
-				var open = ul.style.display !== 'none';
-				ul.style.display = open ? 'none' : '';
-				toggle.textContent = (open ? '▸' : '▾') + ' Dismissed (' + dismissed.length + ')';
-				toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-			});
-			box.appendChild(toggle);
-			box.appendChild(ul);
+			collapsibleGroup(box, 'Dismissed', dismissed.length, listOf(dismissed), false, null);
 		}
 
 		if (!rows.length) {
@@ -518,28 +678,17 @@
 		});
 	}
 
-	// ── Target cards ────────────────────────────────────────────────────────
+	// ── Inline-expand detail (the v1 card body, one target at a time) ───────
 
-	function renderTargetCard(target) {
-		var card = el('div', 'def-cluster-card');
+	function renderTargetDetail(target, countsEl) {
+		var card = el('div', 'def-cluster-detail');
 
-		var head = el('div', 'def-cluster-card-head');
-		var left = el('div', 'def-cluster-card-head-left');
-		var href = safeHref(target.url);
-		var title = String(target.title || '(untitled)');
-		left.appendChild(href
-			? linkEl(title, href, 'def-cluster-card-title')
-			: el('span', 'def-cluster-card-title', title));
-		left.appendChild(el('span', 'def-cluster-item-meta',
+		var top = el('div', 'def-cluster-detail-top');
+		top.appendChild(el('span', 'def-cluster-item-meta',
 			String(target.item_type || 'item') + ' #' + String(target.item_id || '?')));
-		if (target.status === 'paused') {
-			left.appendChild(el('span', 'def-cluster-badge def-cluster-badge--paused', 'Paused'));
-		}
-		head.appendChild(left);
-
-		var countsEl = el('div', 'def-cluster-counts');
-		head.appendChild(countsEl);
-		card.appendChild(head);
+		var href = safeHref(target.url);
+		if (href) { top.appendChild(linkEl('View target ↗', href, 'def-cluster-kp-link')); }
+		card.appendChild(top);
 
 		if (target.focus_keyphrase) {
 			var kp = el('div', 'def-cluster-focus');
@@ -576,20 +725,10 @@
 		var queueBox = el('div', 'def-cluster-queue');
 		card.appendChild(queueBox);
 
+		// The list row owns the at-a-glance counts; queue loads keep it fresh.
 		card.countsEl = countsEl;
 		card.queueBox = queueBox;
 		card.queueStatus = queueStatus;
-
-		// Initial counts from the targets payload; recomputed on each queue load.
-		var c = (target.keyphrase_counts && typeof target.keyphrase_counts === 'object') ? target.keyphrase_counts : null;
-		if (c) {
-			var parts = [];
-			STATUS_ORDER.forEach(function (s) {
-				var n = Number(c[s]);
-				if (isFinite(n) && n > 0) { parts.push(Math.floor(n) + ' ' + s); }
-			});
-			countsEl.textContent = parts.length ? ('Queue: ' + parts.join(' · ')) : 'Queue: empty';
-		}
 
 		derive.addEventListener('click', function () { startDerive(target, card, derive); });
 
@@ -634,23 +773,229 @@
 		return card;
 	}
 
-	var targetsBox = null;
+	// ── Master list: compact rows + filters + needs-attention sort ──────────
+
+	var allTargets = [];
+	var openTargetId = null;   // accordion: the one expanded target (survives re-renders)
+	var openHandle = null;     // live nodes of the expanded row
+	var shownLimit = PAGE_SIZE;
+	var filters = { q: '', needsCuration: false, needsReview: false, status: 'all', itemType: 'all' };
+	var listBox = null;
+	var typeSelect = null;
+
+	// Needs review (a draft awaits the human) beats needs curation (proposals
+	// await approve/dismiss) beats the rest; most recent first within groups.
+	function attentionRank(c) {
+		if (c.in_review > 0) { return 0; }
+		if (c.proposed > 0) { return 1; }
+		return 2;
+	}
+
+	function recency(t) {
+		var d = new Date(t.last_derived_at || t.created_at || 0);
+		var ms = d.getTime();
+		return isNaN(ms) ? 0 : ms;
+	}
+
+	function visibleTargets() {
+		var q = filters.q.toLowerCase();
+		var out = allTargets.filter(function (t) {
+			var c = normalizeCounts(t.keyphrase_counts);
+			if (q && String(t.title || '').toLowerCase().indexOf(q) === -1) { return false; }
+			if (filters.needsCuration && !c.proposed) { return false; }
+			if (filters.needsReview && !c.in_review) { return false; }
+			if (filters.status !== 'all' && t.status !== filters.status) { return false; }
+			if (filters.itemType !== 'all' && t.item_type !== filters.itemType) { return false; }
+			return true;
+		});
+		out.sort(function (a, b) {
+			var r = attentionRank(normalizeCounts(a.keyphrase_counts)) -
+				attentionRank(normalizeCounts(b.keyphrase_counts));
+			return r || (recency(b) - recency(a));
+		});
+		return out;
+	}
+
+	function collapseOpen() {
+		if (!openHandle) { return; }
+		openHandle.detail.remove();
+		openHandle.caret.textContent = '▸';
+		openHandle.head.setAttribute('aria-expanded', 'false');
+		openHandle.row.classList.remove('def-cluster-row--open');
+		openHandle = null;
+		openTargetId = null;
+	}
+
+	function expandRow(target, parts) {
+		collapseOpen();
+		var detail = renderTargetDetail(target, parts.counts);
+		parts.row.appendChild(detail);
+		parts.caret.textContent = '▾';
+		parts.head.setAttribute('aria-expanded', 'true');
+		parts.row.classList.add('def-cluster-row--open');
+		openHandle = { row: parts.row, head: parts.head, caret: parts.caret, detail: detail };
+		openTargetId = target.id;
+	}
+
+	function renderRow(target) {
+		var row = el('div', 'def-cluster-row');
+		var head = el('button', 'def-cluster-row-head');
+		head.type = 'button';
+		head.setAttribute('aria-expanded', 'false');
+
+		var caret = el('span', 'def-cluster-row-caret', '▸');
+		head.appendChild(caret);
+		head.appendChild(el('span', 'def-cluster-row-title', String(target.title || '(untitled)')));
+		head.appendChild(el('span', 'def-cluster-item-meta', String(target.item_type || 'item')));
+		var paused = target.status === 'paused';
+		var dot = el('span', 'def-cluster-dot def-cluster-dot--' + (paused ? 'paused' : 'active'));
+		dot.title = paused ? 'Paused' : 'Active';
+		head.appendChild(dot);
+		var counts = el('span', 'def-cluster-row-counts',
+			countsSummary(normalizeCounts(target.keyphrase_counts)));
+		head.appendChild(counts);
+		var derived = dateLabel(target.last_derived_at);
+		var added = dateLabel(target.created_at);
+		head.appendChild(el('span', 'def-cluster-row-date',
+			derived ? ('derived ' + derived) : (added ? ('added ' + added) : '')));
+		row.appendChild(head);
+
+		var parts = { row: row, head: head, caret: caret, counts: counts };
+		head.addEventListener('click', function () {
+			if (openHandle && openHandle.row === row) { collapseOpen(); return; }
+			expandRow(target, parts);
+		});
+
+		if (openTargetId != null && String(target.id) === String(openTargetId)) {
+			expandRow(target, parts);
+		}
+		return row;
+	}
+
+	function renderList() {
+		openHandle = null; // nodes below are replaced; openTargetId re-expands its row
+		listBox.textContent = '';
+		if (!allTargets.length) {
+			listBox.appendChild(el('p', 'def-cluster-empty',
+				'No cluster targets yet. Nominate a cornerstone page, post or product above to start a cluster.'));
+			return;
+		}
+		var visible = visibleTargets();
+		if (!visible.length) {
+			listBox.appendChild(el('p', 'def-cluster-empty', 'No targets match the current filters.'));
+			return;
+		}
+		visible.slice(0, shownLimit).forEach(function (t) { listBox.appendChild(renderRow(t)); });
+		var hidden = visible.length - shownLimit;
+		if (hidden > 0) {
+			var more = el('button', 'button def-cluster-show-more',
+				'Show ' + Math.min(PAGE_SIZE, hidden) + ' more (' + hidden + ' hidden)');
+			more.type = 'button';
+			more.addEventListener('click', function () {
+				shownLimit += PAGE_SIZE;
+				renderList();
+			});
+			listBox.appendChild(more);
+		}
+	}
+
+	function rebuildTypeOptions() {
+		var types = [];
+		allTargets.forEach(function (t) {
+			var ty = (t && typeof t.item_type === 'string') ? t.item_type : '';
+			if (ty && types.indexOf(ty) === -1) { types.push(ty); }
+		});
+		types.sort();
+		typeSelect.textContent = '';
+		var all = document.createElement('option');
+		all.value = 'all';
+		all.textContent = 'Any type';
+		typeSelect.appendChild(all);
+		types.forEach(function (ty) {
+			var opt = document.createElement('option');
+			opt.value = ty;
+			opt.textContent = ty;
+			typeSelect.appendChild(opt);
+		});
+		if (filters.itemType !== 'all' && types.indexOf(filters.itemType) === -1) {
+			filters.itemType = 'all';
+		}
+		typeSelect.value = filters.itemType;
+	}
+
+	function onFilterChange() {
+		shownLimit = PAGE_SIZE;
+		renderList();
+	}
+
+	function renderToolbar() {
+		var bar = el('div', 'def-cluster-toolbar');
+
+		var search = document.createElement('input');
+		search.type = 'search';
+		search.className = 'def-cluster-filter-search';
+		search.setAttribute('placeholder', 'Filter targets…');
+		var searchTimer = null;
+		search.addEventListener('input', function () {
+			if (searchTimer) { clearTimeout(searchTimer); }
+			searchTimer = setTimeout(function () {
+				filters.q = search.value.trim();
+				onFilterChange();
+			}, 250);
+		});
+		bar.appendChild(search);
+
+		function toggleChip(label, key) {
+			var b = el('button', 'def-cluster-chip', label);
+			b.type = 'button';
+			b.setAttribute('aria-pressed', 'false');
+			b.addEventListener('click', function () {
+				filters[key] = !filters[key];
+				b.classList.toggle('def-cluster-chip--on', filters[key]);
+				b.setAttribute('aria-pressed', filters[key] ? 'true' : 'false');
+				onFilterChange();
+			});
+			return b;
+		}
+		bar.appendChild(toggleChip('Needs curation', 'needsCuration'));
+		bar.appendChild(toggleChip('Needs review', 'needsReview'));
+
+		var statusSel = document.createElement('select');
+		statusSel.className = 'def-cluster-filter-select';
+		[['all', 'Any status'], ['active', 'Active'], ['paused', 'Paused']].forEach(function (o) {
+			var opt = document.createElement('option');
+			opt.value = o[0];
+			opt.textContent = o[1];
+			statusSel.appendChild(opt);
+		});
+		statusSel.addEventListener('change', function () {
+			filters.status = statusSel.value;
+			onFilterChange();
+		});
+		bar.appendChild(statusSel);
+
+		typeSelect = document.createElement('select');
+		typeSelect.className = 'def-cluster-filter-select';
+		typeSelect.addEventListener('change', function () {
+			filters.itemType = typeSelect.value;
+			onFilterChange();
+		});
+		bar.appendChild(typeSelect);
+		rebuildTypeOptions();
+
+		return bar;
+	}
 
 	function loadTargets() {
 		return api('/targets').then(function (res) {
-			var targets = (res && res.targets) || [];
-			targetsBox.textContent = '';
-			if (!targets.length) {
-				targetsBox.appendChild(el('p', 'def-cluster-empty',
-					'No cluster targets yet. Nominate a cornerstone page, post or product above to start a cluster.'));
-				return;
-			}
-			targets.forEach(function (t) {
-				if (t && typeof t === 'object') { targetsBox.appendChild(renderTargetCard(t)); }
+			allTargets = ((res && res.targets) || []).filter(function (t) {
+				return t && typeof t === 'object';
 			});
+			rebuildTypeOptions();
+			renderList();
 		}).catch(function (e) {
-			targetsBox.textContent = '';
-			targetsBox.appendChild(el('p', 'def-cluster-error',
+			listBox.textContent = '';
+			listBox.appendChild(el('p', 'def-cluster-error',
 				'Could not load targets: ' + ((e && e.message) || 'error')));
 		});
 	}
@@ -660,8 +1005,9 @@
 	root.removeAttribute('data-loading');
 	root.textContent = '';
 	root.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
-	root.appendChild(renderNominatePanel());
-	targetsBox = el('div', 'def-cluster-targets');
-	root.appendChild(targetsBox);
+	root.appendChild(renderAddTarget());
+	root.appendChild(renderToolbar());
+	listBox = el('div', 'def-cluster-targets');
+	root.appendChild(listBox);
 	loadTargets();
 })();

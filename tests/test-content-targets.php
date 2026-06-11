@@ -293,11 +293,12 @@ foreach ( $dual as $route => $methods ) {
 	}
 }
 $single = array(
-	"a3-ai/v1/staff-ai/content/targets/$id_pat/derive"      => 'POST',
-	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat"          => 'PATCH',
-	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat/approve"  => 'POST',
-	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat/dismiss"  => 'POST',
-	'a3-ai/v1/staff-ai/content/target-search'               => 'GET',
+	"a3-ai/v1/staff-ai/content/targets/$id_pat/derive"                          => 'POST',
+	"a3-ai/v1/staff-ai/content/targets/$id_pat/keyphrases/dismiss-remaining"    => 'POST',
+	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat"                              => 'PATCH',
+	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat/approve"                      => 'POST',
+	"a3-ai/v1/staff-ai/content/keyphrases/$id_pat/dismiss"                      => 'POST',
+	'a3-ai/v1/staff-ai/content/target-search'                                   => 'GET',
 );
 foreach ( $single as $route => $method ) {
 	$args = $_wp_test_rest_routes[ $route ] ?? null;
@@ -492,6 +493,34 @@ $resp = DEF_Core_Staff_AI::rest_derive_content_target( req_json( array(), array(
 $call = http_one();
 assert_same( 'https://def-api.test/api/staff-ai/content/targets/t-1/derive', $call['url'] ?? null, 'derive URL' );
 assert_same( 'accepted', $resp->get_data()['status'] ?? null, 'derive ack passed through' );
+
+// ── 7b. Bulk "Dismiss remaining" (Clusters UX v2) ───────────────────────
+echo "[7b] dismiss-remaining — proxy pass-through\n";
+http_reset( 200, array(
+	'dismissed'        => 7,
+	'keyphrase_counts' => array( 'proposed' => 0, 'approved' => 5, 'in_review' => 1, 'written' => 2, 'dismissed' => 11 ),
+) );
+$resp = DEF_Core_Staff_AI::rest_dismiss_remaining_keyphrases( req_json( array(), array( 'id' => 't-1' ) ) );
+$call = http_one();
+assert_true( null !== $call, 'dismiss-remaining: exactly one backend call' );
+assert_same( 'POST', $call['method'] ?? null, 'dismiss-remaining is POST' );
+assert_same(
+	'https://def-api.test/api/staff-ai/content/targets/t-1/keyphrases/dismiss-remaining',
+	$call['url'] ?? null,
+	'dismiss-remaining DEF URL carries the target id'
+);
+assert_same( 7, $resp->get_data()['dismissed'] ?? null, 'dismissed count passed through' );
+assert_same(
+	array( 'proposed' => 0, 'approved' => 5, 'in_review' => 1, 'written' => 2, 'dismissed' => 11 ),
+	$resp->get_data()['keyphrase_counts'] ?? null,
+	'keyphrase_counts passed through unchanged (sparse contract — JS coerces missing keys)'
+);
+
+// Backend errors surface as errors (not silently swallowed).
+http_reset( 404, array( 'detail' => 'target not found' ) );
+$resp = DEF_Core_Staff_AI::rest_dismiss_remaining_keyphrases( req_json( array(), array( 'id' => 't-x' ) ) );
+assert_true( is_wp_error( $resp ), 'dismiss-remaining backend 404 → WP_Error' );
+assert_same( 404, $resp->get_error_data()['status'] ?? null, '404 status preserved' );
 
 // ── 8. Create: optional notes forwarded, omitted when empty ─────────────
 echo "[8] create — notes passthrough\n";

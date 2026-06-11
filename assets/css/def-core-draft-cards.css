@@ -586,32 +586,69 @@ a.def-draft-title-link:hover {
 .def-cluster-refurls-add { margin-top: 2px; }
 .def-cluster-refurls-save { margin-left: 8px; }
 
-/* Target cards */
-.def-cluster-card {
-	margin-bottom: 16px;
-	padding: 12px 16px;
+/* Master list (Clusters UX v2): "+ Add target", filter toolbar, compact rows */
+.def-cluster-add { margin-bottom: 10px; }
+.def-cluster-add .def-cluster-nominate { margin-top: 8px; }
+.def-cluster-toolbar {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin: 8px 0 12px;
+}
+.def-cluster-filter-search { min-width: 220px; }
+.def-cluster-chip {
+	padding: 2px 10px;
+	border: 1px solid #dcdcde;
+	border-radius: 14px;
+	background: #fff;
+	color: #50697f;
+	font-size: 12px;
+	cursor: pointer;
+}
+.def-cluster-chip--on { background: #2271b1; border-color: #2271b1; color: #fff; }
+.def-cluster-row {
+	margin-bottom: 6px;
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 4px;
 }
-.def-cluster-card-head {
+.def-cluster-row--open { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); }
+.def-cluster-row-head {
 	display: flex;
-	justify-content: space-between;
 	align-items: baseline;
-	gap: 12px;
-	flex-wrap: wrap;
+	gap: 10px;
+	width: 100%;
+	padding: 8px 12px;
+	background: none;
+	border: none;
+	text-align: left;
+	cursor: pointer;
 }
-.def-cluster-card-title { font-size: 14px; font-weight: 600; }
-.def-cluster-badge {
-	margin-left: 8px;
-	padding: 1px 8px;
-	border-radius: 10px;
-	font-size: 11px;
-	font-weight: 600;
-	text-transform: uppercase;
+.def-cluster-row-head:hover { background: #f0f6fc; }
+.def-cluster-row-caret { flex: none; width: 12px; color: #646970; }
+.def-cluster-row-title { font-size: 13px; font-weight: 600; }
+.def-cluster-dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	align-self: center;
 }
-.def-cluster-badge--paused { background: #f0f0f1; color: #646970; }
-.def-cluster-counts { font-size: 12px; color: #50697f; white-space: nowrap; }
+.def-cluster-dot--active { background: #1d6e3b; }
+.def-cluster-dot--paused { background: #a7aaad; }
+.def-cluster-row-counts { flex: 1 1 auto; font-size: 12px; color: #50697f; }
+.def-cluster-row-date { font-size: 12px; color: #8c8f94; white-space: nowrap; }
+.def-cluster-show-more { margin-top: 4px; }
+
+/* Inline-expand detail (accordion) */
+.def-cluster-detail { padding: 0 12px 12px; border-top: 1px solid #f0f0f1; }
+.def-cluster-detail-top {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+	margin-top: 8px;
+}
 .def-cluster-focus { margin: 6px 0; font-size: 12px; }
 .def-cluster-focus-label {
 	margin-right: 6px;
@@ -648,10 +685,21 @@ a.def-draft-title-link:hover {
 	border: 1px solid #e6e6e8;
 	border-radius: 3px;
 }
-.def-cluster-kp--written { border-left: 3px solid #1d6e3b; }
 .def-cluster-kp--proposed { border-left: 3px solid #dba617; }
-.def-cluster-kp--approved { border-left: 3px solid #2271b1; }
+.def-cluster-kp--queued { border-left: 3px solid #2271b1; }
+.def-cluster-kp--in-review { border-left: 3px solid #996800; }
+.def-cluster-kp--published { border-left: 3px solid #1d6e3b; }
 .def-cluster-kp--dismissed { opacity: 0.65; }
+.def-cluster-kp-state {
+	padding: 0 8px;
+	border-radius: 10px;
+	font-size: 11px;
+	white-space: nowrap;
+}
+.def-cluster-kp-state--queued { background: #e5f0f7; color: #2271b1; }
+.def-cluster-kp-state--in-review { background: #fcf3df; color: #8a6d00; }
+.def-cluster-kp-state--published { background: #e6f2ea; color: #1d6e3b; }
+.def-cluster-kp-review-link { font-size: 12px; }
 .def-cluster-kp-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .def-cluster-kp-phrase { font-weight: 600; }
 .def-cluster-kp-intent {
@@ -679,15 +727,32 @@ a.def-draft-title-link:hover {
 	flex-wrap: wrap;
 }
 .def-cluster-kp-edit-input { flex: 1 1 280px; }
-.def-cluster-kp-dismissed-toggle {
+.def-cluster-kp-group-row {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: 10px;
+}
+.def-cluster-kp-group-toggle {
 	background: none;
 	border: none;
 	padding: 0;
-	margin-top: 6px;
 	font-size: 12px;
-	color: #646970;
+	font-weight: 600;
+	color: #50697f;
+	text-transform: uppercase;
 	cursor: pointer;
 }
+.def-cluster-kp-group-extra {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.def-cluster-kp-group-hint { font-size: 12px; color: #646970; }
+/* Flash highlight on the draft card the Clusters "Review draft" jump lands on. */
+.def-draft-card--jumped { outline: 2px solid #2271b1; outline-offset: 2px; }
 .def-cluster-kp-empty { font-size: 13px; color: #646970; }
 .def-cluster-kp-add {
 	display: flex;
