@@ -62,8 +62,12 @@ final class DEF_Core_Content_Drafts_Page {
 		wp_enqueue_script( 'def-core-draft-cards' );
 		wp_enqueue_script( 'def-core-cluster-targets' );
 		// Setup Assistant drawer — admins can ask about Clusters/Content Agent
-		// guidance here instead of relying on on-screen help text.
-		DEF_Core_Admin::enqueue_setup_assistant_drawer();
+		// guidance here instead of relying on on-screen help text. Admin-only,
+		// so staff viewers don't ship drawer assets they can never use.
+		$show_setup_assistant = current_user_can( 'def_admin_access' );
+		if ( $show_setup_assistant ) {
+			DEF_Core_Admin::enqueue_setup_assistant_drawer();
+		}
 		// The "Create a post" control creates a brand-new WP draft, so gate it on
 		// the post-creation capability (resolved here; the bridge re-checks server-side).
 		$post_type   = get_post_type_object( 'post' );
@@ -129,7 +133,9 @@ final class DEF_Core_Content_Drafts_Page {
 			</div>
 		</div>
 		<?php
-		// Drawer panel (self-gates on def_admin_access, matching the trigger).
-		include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
+		// Drawer panel (the template also self-gates on def_admin_access).
+		if ( $show_setup_assistant ) {
+			include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
+		}
 	}
 }
