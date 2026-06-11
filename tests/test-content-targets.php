@@ -495,7 +495,7 @@ assert_same( 'https://def-api.test/api/staff-ai/content/targets/t-1/derive', $ca
 assert_same( 'accepted', $resp->get_data()['status'] ?? null, 'derive ack passed through' );
 
 // ── 7b. Bulk "Dismiss remaining" (Clusters UX v2) ───────────────────────
-echo "[7b] dismiss-remaining — proxy pass-through + in_review normalization\n";
+echo "[7b] dismiss-remaining — proxy pass-through\n";
 http_reset( 200, array(
 	'dismissed'        => 7,
 	'keyphrase_counts' => array( 'proposed' => 0, 'approved' => 5, 'in_review' => 1, 'written' => 2, 'dismissed' => 11 ),
@@ -513,18 +513,8 @@ assert_same( 7, $resp->get_data()['dismissed'] ?? null, 'dismissed count passed 
 assert_same(
 	array( 'proposed' => 0, 'approved' => 5, 'in_review' => 1, 'written' => 2, 'dismissed' => 11 ),
 	$resp->get_data()['keyphrase_counts'] ?? null,
-	'keyphrase_counts passed through unchanged when in_review present'
+	'keyphrase_counts passed through unchanged (sparse contract — JS coerces missing keys)'
 );
-
-// Older DEF without the in_review split → normalized to 0; other counts intact.
-http_reset( 200, array(
-	'dismissed'        => 3,
-	'keyphrase_counts' => array( 'proposed' => 0, 'approved' => 4, 'written' => 1, 'dismissed' => 6 ),
-) );
-$resp   = DEF_Core_Staff_AI::rest_dismiss_remaining_keyphrases( req_json( array(), array( 'id' => 't-2' ) ) );
-$counts = $resp->get_data()['keyphrase_counts'] ?? array();
-assert_same( 0, $counts['in_review'] ?? null, 'missing in_review normalized to 0' );
-assert_same( 4, $counts['approved'] ?? null, 'approved intact alongside the normalization' );
 
 // Backend errors surface as errors (not silently swallowed).
 http_reset( 404, array( 'detail' => 'target not found' ) );

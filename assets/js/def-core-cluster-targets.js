@@ -512,7 +512,7 @@
 		box.appendChild(ul);
 	}
 
-	// Bulk-clear of the un-chosen proposals (design §3). Recoverable — the
+	// Bulk-clear of the un-chosen proposals (design §3). Not a delete — the
 	// phrases land in the collapsed Dismissed group and keep their slot, so
 	// the next Derive won't re-propose them.
 	function buildDismissRemaining(target, card, count) {
@@ -524,10 +524,11 @@
 			setStatus(card.queueStatus, 'Dismissing remaining proposals…');
 			api('/targets/' + encodeURIComponent(target.id) + '/keyphrases/dismiss-remaining', 'POST').then(function (res) {
 				var n = num(res && res.dismissed);
-				reloadQueue(target, card).then(function () {
+				reloadQueue(target, card).then(function (rows) {
+					if (!rows) { return; } // reload failed — keep its warn over a stale queue
 					setStatus(card.queueStatus,
 						'Dismissed ' + n + ' proposed ' + (n === 1 ? 'phrase' : 'phrases') +
-						' — recoverable from the Dismissed group.', 'ok');
+						" — they won't be re-proposed on the next Derive.", 'ok');
 				});
 			}).catch(function (e) {
 				btn.disabled = false;

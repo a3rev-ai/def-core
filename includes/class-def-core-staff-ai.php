@@ -1348,8 +1348,8 @@ final class DEF_Core_Staff_AI
 	 * REST handler: bulk-dismiss every still-proposed keyphrase on a target
 	 * (the post-curation "Dismiss remaining" click). Proxies DEF's same-named
 	 * route; dismissed phrases keep their slot, so re-derive won't re-propose
-	 * them. The returned keyphrase_counts is normalized so in_review is always
-	 * present (older DEF responses don't split it out of approved).
+	 * them. Pure passthrough — keyphrase_counts is sparse (zero-count keys
+	 * omitted) and the JS coerces missing keys to 0.
 	 *
 	 * @return \WP_REST_Response|\WP_Error Response ({dismissed, keyphrase_counts}).
 	 */
@@ -1362,10 +1362,6 @@ final class DEF_Core_Staff_AI
 		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
-		}
-		if ( isset( $result['keyphrase_counts'] ) && is_array( $result['keyphrase_counts'] )
-			&& ! array_key_exists( 'in_review', $result['keyphrase_counts'] ) ) {
-			$result['keyphrase_counts']['in_review'] = 0;
 		}
 		return new \WP_REST_Response( $result, 200 );
 	}
