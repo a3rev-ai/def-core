@@ -269,13 +269,20 @@ foreach ( $expected_routes as $route ) {
 	);
 }
 
-// 2. All Staff AI routes have permission callbacks.
+// 2. All Staff AI routes have permission callbacks. A route registered with a
+// single handler has permission_callback at the top level; a multi-method
+// route (e.g. GET+POST /content/targets) is a list of handlers, each of which
+// must carry its own.
 echo "\n[2] Permission callbacks assigned\n";
 foreach ( $_wp_test_rest_routes as $route => $args ) {
-	if ( strpos( $route, 'staff-ai' ) !== false ) {
+	if ( strpos( $route, 'staff-ai' ) === false ) {
+		continue;
+	}
+	$handlers = isset( $args['methods'] ) ? array( $args ) : $args;
+	foreach ( $handlers as $i => $handler ) {
 		assert_true(
-			isset( $args['permission_callback'] ) && ! empty( $args['permission_callback'] ),
-			"permission_callback on $route"
+			is_array( $handler ) && ! empty( $handler['permission_callback'] ),
+			"permission_callback on $route (handler $i)"
 		);
 	}
 }

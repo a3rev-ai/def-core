@@ -355,6 +355,18 @@ final class DEF_Core {
 			array( 'in_footer' => true )
 		);
 
+		// Content Agent Engine 2.5 — Clusters tab (target nomination + keyphrase
+		// queue curation) on the Content Drafts page. Reads the DefDraftCards
+		// config localized onto def-core-draft-cards, so it loads after it. All
+		// model-authored text is rendered via textContent (no HTML path).
+		wp_register_script(
+			'def-core-cluster-targets',
+			DEF_CORE_PLUGIN_URL . 'assets/js/def-core-cluster-targets.js',
+			array( 'def-core-draft-cards' ),
+			DEF_CORE_VERSION,
+			array( 'in_footer' => true )
+		);
+
 		// V2 agent persona helper — shared across all three channels (Customer
 		// Chat, Staff AI, Setup Assistant). Renders the "X is helping" divider
 		// + persistent thinking-row prefix when an Orchestrator V2 specialist

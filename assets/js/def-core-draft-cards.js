@@ -15,6 +15,41 @@
 		return;
 	}
 
+	// CREATE review cards render on the Create tab, next to the create box.
+	// Falls back to the main root on markup without the tab panels.
+	var createRoot = document.getElementById('def-draft-create-cards-root') || root;
+
+	// ── Tabs: Improve / Clusters / Create ───────────────────────────────────
+	// Pure show/hide — every panel's module loads once; the hash keeps the
+	// active tab across reloads (e.g. #clusters).
+	(function initTabs() {
+		var tabs = document.querySelectorAll('.def-draft-tabs [data-def-tab]');
+		var panels = {
+			improve: document.getElementById('def-tab-improve'),
+			clusters: document.getElementById('def-tab-clusters'),
+			create: document.getElementById('def-tab-create')
+		};
+		if (!tabs.length || !panels.improve) { return; }
+		function activate(name) {
+			if (!panels[name]) { name = 'improve'; }
+			Object.keys(panels).forEach(function (k) {
+				if (panels[k]) { panels[k].style.display = (k === name) ? '' : 'none'; }
+			});
+			tabs.forEach(function (t) {
+				t.classList.toggle('nav-tab-active', t.getAttribute('data-def-tab') === name);
+			});
+		}
+		tabs.forEach(function (t) {
+			t.addEventListener('click', function (e) {
+				e.preventDefault();
+				var name = t.getAttribute('data-def-tab');
+				if (history.replaceState) { history.replaceState(null, '', '#' + name); }
+				activate(name);
+			});
+		});
+		activate((location.hash || '').replace('#', ''));
+	})();
+
 	// Fields we render as rich HTML previews (Gutenberg/product content). Anything
 	// else is shown as escaped plain text.
 	var HTML_FIELDS = { description: 1, short_description: 1 };
@@ -533,16 +568,24 @@
 	// Replace only the draft cards (and empty/error states), leaving the
 	// coverage strip / needs-keyphrase panel at the top intact — used by the
 	// post-Generate refresh, where those panels are already rendered.
+	// Edit drafts land on the Improve tab; create drafts on the Create tab.
 	function renderDraftsOnly(drafts) {
-		root.querySelectorAll('.def-draft-card, .def-draft-empty-state, .def-draft-error')
-			.forEach(function (n) { n.remove(); });
+		[root, createRoot].forEach(function (host) {
+			host.querySelectorAll('.def-draft-card, .def-draft-empty-state, .def-draft-error')
+				.forEach(function (n) { n.remove(); });
+		});
 		rememberDraftIds(drafts);
-		if (!drafts.length) {
+		var editDrafts = [];
+		var createDrafts = [];
+		drafts.forEach(function (d) {
+			if (d && d.kind === 'create') { createDrafts.push(d); } else { editDrafts.push(d); }
+		});
+		if (!editDrafts.length) {
 			root.appendChild(el('p', 'def-draft-empty-state',
-				'No drafts waiting for review. The Content Agent stages improvements here after each scheduled run.'));
-			return;
+				'No improvement drafts waiting for review. The Content Agent stages improvements here after each scheduled run.'));
 		}
-		drafts.forEach(function (d) { root.appendChild(renderCard(d)); });
+		editDrafts.forEach(function (d) { root.appendChild(renderCard(d)); });
+		createDrafts.forEach(function (d) { createRoot.appendChild(renderCard(d)); });
 	}
 
 	function render(drafts) {
@@ -832,6 +875,15 @@
 		btn.type = 'button';
 		var status = el('div', 'def-draft-create-status');
 
+		// Optional writer notes (Engine 2.5) — angle, audience, points to cover.
+		// Sent only when filled; DEF's writer consumes them.
+		var notes = document.createElement('textarea');
+		notes.className = 'def-draft-create-notes';
+		notes.rows = 3;
+		notes.maxLength = 2000;
+		notes.setAttribute('placeholder',
+			'Notes for the writer (optional) — angle, audience, points to cover…');
+
 		function submit() {
 			var kp = input.value.trim();
 			if (!kp) {
@@ -841,12 +893,17 @@
 			}
 			btn.disabled = true;
 			input.disabled = true;
+			notes.disabled = true;
 			status.className = 'def-draft-create-status';
 			status.textContent = 'Requesting…';
-			api('/create', 'POST', { keyphrase: kp }).then(function () {
+			var body = { keyphrase: kp };
+			var n = notes.value.trim();
+			if (n) { body.notes = n; }
+			api('/create', 'POST', body).then(function () {
 				status.className = 'def-draft-create-status def-draft-create-status--ok';
 				status.textContent = 'Your draft is being generated and will appear below shortly.';
 				input.value = '';
+				notes.value = '';
 				// Generation is async on the DEF side — poll until the new card
 				// lands (or 10 minutes pass), so no manual reload is needed.
 				startDraftsRefresh(function () {
@@ -860,6 +917,7 @@
 			}).then(function () {
 				btn.disabled = false;
 				input.disabled = false;
+				notes.disabled = false;
 			});
 		}
 		btn.addEventListener('click', submit);
@@ -870,6 +928,7 @@
 		rowEl.appendChild(input);
 		rowEl.appendChild(btn);
 		panel.appendChild(rowEl);
+		panel.appendChild(notes);
 		panel.appendChild(status);
 		panel.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
 		host.appendChild(panel);

@@ -296,6 +296,104 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_dismiss_content_draft'),
 			)
 		);
+
+		// Content Agent Engine 2.5 — Clusters curation (targets + keyphrase queues).
+		// Thin proxies to DEF /api/staff-ai/content/* with field-faithful bodies;
+		// gated by def_staff_access (rest_permission_check) like the review queue.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/targets',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_list_content_targets'),
+				),
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_create_content_target'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/targets/(?P<id>[a-zA-Z0-9_-]+)',
+			array(
+				array(
+					'methods'             => 'PATCH',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_update_content_target'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_content_target'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/targets/(?P<id>[a-zA-Z0-9_-]+)/keyphrases',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_list_target_keyphrases'),
+				),
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_add_target_keyphrase'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/targets/(?P<id>[a-zA-Z0-9_-]+)/derive',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_derive_content_target'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/keyphrases/(?P<id>[a-zA-Z0-9_-]+)',
+			array(
+				'methods'             => 'PATCH',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_update_keyphrase'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/keyphrases/(?P<id>[a-zA-Z0-9_-]+)/approve',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_approve_keyphrase'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/keyphrases/(?P<id>[a-zA-Z0-9_-]+)/dismiss',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_dismiss_keyphrase'),
+			)
+		);
+		// Local WP item search backing the Clusters target picker — no DEF call.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/target-search',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_target_search'),
+			)
+		);
 	}
 
 	/**
@@ -416,11 +514,14 @@ final class DEF_Core_Staff_AI
 			'headers'     => $headers,
 		);
 
-		if ('POST' === $method) {
-			$args['body'] = wp_json_encode($body);
-			$response     = wp_remote_post($url, $args);
-		} else {
+		if ('GET' === $method) {
 			$response = wp_remote_get($url, $args);
+		} else {
+			// POST / PATCH / DELETE — wp_remote_post() only speaks POST, so all
+			// write verbs go through wp_remote_request() with an explicit method.
+			$args['method'] = $method;
+			$args['body']   = wp_json_encode($body);
+			$response       = wp_remote_request($url, $args);
 		}
 
 		if (is_wp_error($response)) {
@@ -582,7 +683,25 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		$result = self::backend_request( 'POST', '/api/staff-ai/content/create', array( 'keyphrase' => $keyphrase ) );
+		// Optional writer notes (Engine 2.5) — forwarded verbatim to DEF; the
+		// writer consumes them when retrieval-grounded writing lands (PR 2.5-3).
+		$notes = ( is_array( $params ) && isset( $params['notes'] ) && is_string( $params['notes'] ) )
+			? trim( sanitize_textarea_field( $params['notes'] ) )
+			: '';
+		if ( mb_strlen( $notes ) > 2000 ) {
+			return new \WP_Error(
+				'invalid_notes',
+				__( 'Notes are limited to 2000 characters.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$body = array( 'keyphrase' => $keyphrase );
+		if ( '' !== $notes ) {
+			$body['notes'] = $notes;
+		}
+
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/create', $body );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -895,6 +1014,385 @@ final class DEF_Core_Staff_AI
 			return $result;
 		}
 		return new \WP_REST_Response( $result, 200 );
+	}
+
+	// ── Content Agent Engine 2.5: Clusters curation (targets + keyphrase queues) ──
+
+	/**
+	 * Maximum reference URLs per target (mirrors the DEF contract — every stored
+	 * URL is fetched at derive, so the cap is real cost control, not cosmetics).
+	 */
+	const TARGET_MAX_REFERENCE_URLS = 5;
+
+	/**
+	 * Validate a client-supplied reference_urls list: an array of at most 5
+	 * http(s) URLs. Returns the cleaned list, or a WP_Error naming the problem —
+	 * an invalid entry is rejected explicitly, never silently dropped.
+	 *
+	 * @param mixed $raw Raw reference_urls from the request body.
+	 * @return array|\WP_Error Cleaned URL list or error.
+	 */
+	private static function validate_reference_urls( $raw )
+	{
+		if ( ! is_array( $raw ) ) {
+			return new \WP_Error(
+				'invalid_reference_urls',
+				__( 'reference_urls must be a list of URLs.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		if ( count( $raw ) > self::TARGET_MAX_REFERENCE_URLS ) {
+			return new \WP_Error(
+				'invalid_reference_urls',
+				__( 'A target can have at most 5 reference URLs.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$urls = array();
+		foreach ( $raw as $u ) {
+			$clean = is_string( $u ) ? esc_url_raw( trim( $u ), array( 'http', 'https' ) ) : '';
+			if ( '' === $clean ) {
+				return new \WP_Error(
+					'invalid_reference_urls',
+					__( 'Each reference URL must be a valid http(s) URL.', 'digital-employees' ),
+					array( 'status' => 400 )
+				);
+			}
+			$urls[] = $clean;
+		}
+		return $urls;
+	}
+
+	/**
+	 * REST handler: list cluster targets. Proxies DEF GET /content/targets and
+	 * passes the target objects through unchanged (id, item_type, item_id,
+	 * source_route, title, url, reference_urls, focus_keyphrase, status,
+	 * keyphrase_counts, created_at).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_list_content_targets( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/targets' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$targets = ( isset( $result['targets'] ) && is_array( $result['targets'] ) ) ? $result['targets'] : array();
+		return new \WP_REST_Response( array( 'success' => true, 'targets' => $targets ), 200 );
+	}
+
+	/**
+	 * REST handler: nominate a cluster target. Forwards item_type, item_id,
+	 * source_route (CPTs), title, url and reference_urls to DEF — every accepted
+	 * field is forwarded; DEF re-validates authoritatively (422/409).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_create_content_target( \WP_REST_Request $request )
+	{
+		$params = $request->get_json_params();
+		$params = is_array( $params ) ? $params : array();
+
+		$item_type = ( isset( $params['item_type'] ) && is_string( $params['item_type'] ) ) ? sanitize_key( $params['item_type'] ) : '';
+		$item_id   = isset( $params['item_id'] ) ? (string) $params['item_id'] : '';
+		$title     = ( isset( $params['title'] ) && is_string( $params['title'] ) ) ? sanitize_text_field( $params['title'] ) : '';
+		$url       = ( isset( $params['url'] ) && is_string( $params['url'] ) ) ? esc_url_raw( trim( $params['url'] ), array( 'http', 'https' ) ) : '';
+
+		if ( '' === $item_type || ! preg_match( '/^\d+$/', $item_id ) || '' === $title || '' === $url ) {
+			return new \WP_Error(
+				'invalid_target',
+				__( 'item_type, a numeric item_id, title and a valid http(s) url are required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$body = array(
+			'item_type' => $item_type,
+			'item_id'   => $item_id,
+			'title'     => $title,
+			'url'       => $url,
+		);
+		if ( isset( $params['source_route'] ) && is_string( $params['source_route'] ) && '' !== $params['source_route'] ) {
+			$body['source_route'] = sanitize_key( $params['source_route'] );
+		}
+		if ( isset( $params['reference_urls'] ) ) {
+			$urls = self::validate_reference_urls( $params['reference_urls'] );
+			if ( is_wp_error( $urls ) ) {
+				return $urls;
+			}
+			$body['reference_urls'] = $urls;
+		}
+
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/targets', $body );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$payload = array( 'success' => true );
+		if ( is_array( $result ) ) {
+			$payload = array_merge( $payload, $result );
+		}
+		return new \WP_REST_Response( $payload, 200 );
+	}
+
+	/**
+	 * REST handler: update a target. PATCH semantics — only the keys present in
+	 * the request are forwarded (title, url, reference_urls, status).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_update_content_target( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$params = $request->get_json_params();
+		$params = is_array( $params ) ? $params : array();
+		$body   = array();
+
+		if ( array_key_exists( 'title', $params ) ) {
+			$title = is_string( $params['title'] ) ? sanitize_text_field( $params['title'] ) : '';
+			if ( '' === $title ) {
+				return new \WP_Error( 'invalid_target', __( 'title cannot be empty.', 'digital-employees' ), array( 'status' => 400 ) );
+			}
+			$body['title'] = $title;
+		}
+		if ( array_key_exists( 'url', $params ) ) {
+			$url = is_string( $params['url'] ) ? esc_url_raw( trim( $params['url'] ), array( 'http', 'https' ) ) : '';
+			if ( '' === $url ) {
+				return new \WP_Error( 'invalid_target', __( 'url must be a valid http(s) URL.', 'digital-employees' ), array( 'status' => 400 ) );
+			}
+			$body['url'] = $url;
+		}
+		if ( array_key_exists( 'reference_urls', $params ) ) {
+			$urls = self::validate_reference_urls( $params['reference_urls'] );
+			if ( is_wp_error( $urls ) ) {
+				return $urls;
+			}
+			$body['reference_urls'] = $urls;
+		}
+		if ( array_key_exists( 'status', $params ) ) {
+			if ( ! in_array( $params['status'], array( 'active', 'paused' ), true ) ) {
+				return new \WP_Error( 'invalid_target', __( 'status must be active or paused.', 'digital-employees' ), array( 'status' => 400 ) );
+			}
+			$body['status'] = $params['status'];
+		}
+		if ( empty( $body ) ) {
+			return new \WP_Error( 'invalid_target', __( 'Nothing to update.', 'digital-employees' ), array( 'status' => 400 ) );
+		}
+
+		$result = self::backend_request( 'PATCH', '/api/staff-ai/content/targets/' . rawurlencode( $id ), $body );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: remove a target (and its queue rows, on the DEF side).
+	 * Written posts and staged drafts are untouched.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({status: deleted}).
+	 */
+	public static function rest_delete_content_target( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'DELETE', '/api/staff-ai/content/targets/' . rawurlencode( $id ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: list a target's keyphrase queue. Rows pass through unchanged
+	 * (phrase, intent_type, status, rationale, staged_change_id, post_id, …);
+	 * written rows whose post_id resolves locally are enriched with edit_url /
+	 * view_url so the UI can link the cluster post.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_list_target_keyphrases( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/targets/' . rawurlencode( $id ) . '/keyphrases' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$rows = ( isset( $result['keyphrases'] ) && is_array( $result['keyphrases'] ) ) ? $result['keyphrases'] : array();
+
+		foreach ( $rows as &$row ) {
+			$post_id = ( is_array( $row ) && isset( $row['post_id'] ) ) ? (int) $row['post_id'] : 0;
+			if ( $post_id > 0 && get_post_status( $post_id ) ) {
+				$edit_url        = get_edit_post_link( $post_id, 'raw' );
+				$row['edit_url'] = $edit_url ? $edit_url : '';
+				$view_url        = get_permalink( $post_id );
+				$row['view_url'] = $view_url ? $view_url : '';
+			}
+		}
+		unset( $row );
+
+		return new \WP_REST_Response( array( 'success' => true, 'keyphrases' => $rows ), 200 );
+	}
+
+	/**
+	 * REST handler: manually add a keyphrase to a target's queue (born approved
+	 * on the DEF side — human-added IS curation).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_add_target_keyphrase( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$params = $request->get_json_params();
+		$phrase = ( is_array( $params ) && isset( $params['phrase'] ) && is_string( $params['phrase'] ) )
+			? sanitize_text_field( $params['phrase'] )
+			: '';
+		$intent = ( is_array( $params ) && isset( $params['intent_type'] ) && is_string( $params['intent_type'] ) )
+			? sanitize_key( $params['intent_type'] )
+			: '';
+		if ( '' === $phrase || '' === $intent ) {
+			return new \WP_Error(
+				'invalid_keyphrase',
+				__( 'A phrase and an intent type are required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/content/targets/' . rawurlencode( $id ) . '/keyphrases',
+			array( 'phrase' => $phrase, 'intent_type' => $intent )
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: edit a queued keyphrase (phrase and/or intent_type, only
+	 * while proposed/approved — DEF enforces the state machine with 409).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_update_keyphrase( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$params = $request->get_json_params();
+		$params = is_array( $params ) ? $params : array();
+		$body   = array();
+
+		if ( array_key_exists( 'phrase', $params ) ) {
+			$phrase = is_string( $params['phrase'] ) ? sanitize_text_field( $params['phrase'] ) : '';
+			if ( '' === $phrase ) {
+				return new \WP_Error( 'invalid_keyphrase', __( 'phrase cannot be empty.', 'digital-employees' ), array( 'status' => 400 ) );
+			}
+			$body['phrase'] = $phrase;
+		}
+		if ( array_key_exists( 'intent_type', $params ) ) {
+			$intent = is_string( $params['intent_type'] ) ? sanitize_key( $params['intent_type'] ) : '';
+			if ( '' === $intent ) {
+				return new \WP_Error( 'invalid_keyphrase', __( 'intent_type cannot be empty.', 'digital-employees' ), array( 'status' => 400 ) );
+			}
+			$body['intent_type'] = $intent;
+		}
+		if ( empty( $body ) ) {
+			return new \WP_Error( 'invalid_keyphrase', __( 'Nothing to update.', 'digital-employees' ), array( 'status' => 400 ) );
+		}
+
+		$result = self::backend_request( 'PATCH', '/api/staff-ai/content/keyphrases/' . rawurlencode( $id ), $body );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: approve a proposed keyphrase.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_approve_keyphrase( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/keyphrases/' . rawurlencode( $id ) . '/approve' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: dismiss a keyphrase (keeps its slot claimed — re-derive
+	 * won't re-propose it).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_dismiss_keyphrase( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/keyphrases/' . rawurlencode( $id ) . '/dismiss' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: run derive for a target. Enqueue-and-ack on the DEF side
+	 * ({status: accepted}, ~15-60s) — the UI polls the keyphrase list for new
+	 * proposed rows.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response.
+	 */
+	public static function rest_derive_content_target( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/targets/' . rawurlencode( $id ) . '/derive' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: local WP item search backing the Clusters target picker.
+	 * Searches published items across all public, REST-exposed post types
+	 * (posts and pages first-class alongside products and CPTs) and returns the
+	 * fields a nomination needs — source_route is the type's rest_base, which
+	 * DEF requires for non-built-in types.
+	 *
+	 * @return \WP_REST_Response Response ({items: [...]}).
+	 */
+	public static function rest_target_search( \WP_REST_Request $request )
+	{
+		$q = sanitize_text_field( (string) $request->get_param( 'q' ) );
+		if ( strlen( $q ) < 2 ) {
+			return new \WP_REST_Response( array( 'success' => true, 'items' => array() ), 200 );
+		}
+
+		$types = get_post_types( array( 'public' => true, 'show_in_rest' => true ), 'names' );
+		unset( $types['attachment'] );
+
+		$posts = get_posts(
+			array(
+				's'              => $q,
+				'post_type'      => array_values( $types ),
+				'post_status'    => 'publish',
+				'posts_per_page' => 20,
+			)
+		);
+
+		$items = array();
+		foreach ( $posts as $p ) {
+			$pto     = get_post_type_object( $p->post_type );
+			$items[] = array(
+				'item_type'    => $p->post_type,
+				'item_id'      => (string) $p->ID,
+				'title'        => get_the_title( $p ),
+				'url'          => get_permalink( $p ),
+				'source_route' => ( $pto && ! empty( $pto->rest_base ) ) ? $pto->rest_base : $p->post_type,
+			);
+		}
+
+		return new \WP_REST_Response( array( 'success' => true, 'items' => $items ), 200 );
 	}
 
 	/**

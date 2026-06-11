@@ -158,6 +158,19 @@ if ( ! function_exists( 'wp_remote_get' ) ) {
 	}
 }
 
+// backend_request routes all write verbs (POST/PATCH/DELETE) through
+// wp_remote_request with an explicit 'method' arg (Engine 2.5 curation).
+if ( ! function_exists( 'wp_remote_request' ) ) {
+	function wp_remote_request( string $url, array $args = array() ) {
+		global $_wp_test_remote_calls, $_wp_test_remote_responses;
+		$_wp_test_remote_calls[] = array( 'method' => $args['method'] ?? 'GET', 'url' => $url, 'args' => $args );
+		if ( ! empty( $_wp_test_remote_responses ) ) {
+			return array_shift( $_wp_test_remote_responses );
+		}
+		return new WP_Error( 'http_request_failed', 'Connection timed out' );
+	}
+}
+
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 	function wp_remote_retrieve_response_code( $response ): int {
 		return is_array( $response ) ? ( $response['response']['code'] ?? 0 ) : 0;

@@ -60,6 +60,7 @@ final class DEF_Core_Content_Drafts_Page {
 		wp_enqueue_style( 'def-core-admin' );
 		wp_enqueue_style( 'def-core-draft-cards' );
 		wp_enqueue_script( 'def-core-draft-cards' );
+		wp_enqueue_script( 'def-core-cluster-targets' );
 		// The "Create a post" control creates a brand-new WP draft, so gate it on
 		// the post-creation capability (resolved here; the bridge re-checks server-side).
 		$post_type   = get_post_type_object( 'post' );
@@ -80,12 +81,33 @@ final class DEF_Core_Content_Drafts_Page {
 		?>
 		<div class="wrap def-core-wrap" style="max-width: 1000px;">
 			<h1><?php esc_html_e( 'Content Drafts', 'digital-employees' ); ?></h1>
-			<p class="description">
-				<?php esc_html_e( 'Content the Content Agent has drafted for you — improvements to existing items and brand-new posts you request below. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
-			</p>
-			<div id="def-draft-create"></div>
-			<div id="def-draft-cards-root" data-loading="1">
-				<p class="def-draft-loading"><?php esc_html_e( 'Loading drafts…', 'digital-employees' ); ?></p>
+			<h2 class="nav-tab-wrapper def-draft-tabs">
+				<a href="#improve" class="nav-tab nav-tab-active" data-def-tab="improve"><?php esc_html_e( 'Improve', 'digital-employees' ); ?></a>
+				<a href="#clusters" class="nav-tab" data-def-tab="clusters"><?php esc_html_e( 'Clusters', 'digital-employees' ); ?></a>
+				<a href="#create" class="nav-tab" data-def-tab="create"><?php esc_html_e( 'Create', 'digital-employees' ); ?></a>
+			</h2>
+			<div id="def-tab-improve" class="def-draft-tab-panel">
+				<p class="description">
+					<?php esc_html_e( 'Improvements the Content Agent has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
+				</p>
+				<div id="def-draft-cards-root" data-loading="1">
+					<p class="def-draft-loading"><?php esc_html_e( 'Loading drafts…', 'digital-employees' ); ?></p>
+				</div>
+			</div>
+			<div id="def-tab-clusters" class="def-draft-tab-panel" style="display:none;">
+				<p class="description">
+					<?php esc_html_e( 'Build topic clusters around your cornerstone content. Nominate a page, post or product as a cluster target, curate the keyphrase queue the Content Agent derives for it, and the agent writes the cluster posts from the approved queue.', 'digital-employees' ); ?>
+				</p>
+				<div id="def-cluster-root" data-loading="1">
+					<p class="def-draft-loading"><?php esc_html_e( 'Loading targets…', 'digital-employees' ); ?></p>
+				</div>
+			</div>
+			<div id="def-tab-create" class="def-draft-tab-panel" style="display:none;">
+				<p class="description">
+					<?php esc_html_e( 'Ask the Content Agent for a one-off post — events, promotions, standalone articles, or a cornerstone to build a cluster on. The draft appears below for review; approve it to create a WordPress draft.', 'digital-employees' ); ?>
+				</p>
+				<div id="def-draft-create"></div>
+				<div id="def-draft-create-cards-root"></div>
 			</div>
 		</div>
 		<?php
