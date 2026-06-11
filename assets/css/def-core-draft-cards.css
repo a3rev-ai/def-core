@@ -569,14 +569,21 @@ a.def-draft-title-link:hover {
 	margin-bottom: 4px;
 }
 .def-cluster-refurls-row {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 6px;
 	margin-bottom: 4px;
+	max-width: 480px;
 }
-.def-cluster-refurls-input { flex: 1 1 360px; max-width: 480px; }
+.def-cluster-refurls-input { flex: 1 1 auto; padding-right: 30px; }
 .def-cluster-refurls-remove {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	padding: 0 6px;
 	font-size: 16px;
+	line-height: 1;
 	color: #b32d2e;
 	text-decoration: none;
 	cursor: pointer;
@@ -586,9 +593,8 @@ a.def-draft-title-link:hover {
 .def-cluster-refurls-add { margin-top: 2px; }
 .def-cluster-refurls-save { margin-left: 8px; }
 
-/* Master list (Clusters UX v2): "+ Add target", filter toolbar, compact rows */
-.def-cluster-add { margin-bottom: 10px; }
-.def-cluster-add .def-cluster-nominate { margin-top: 8px; }
+/* Master list (Clusters UX v2): filter toolbar (+ Add target at its right end),
+   compact rows */
 .def-cluster-toolbar {
 	display: flex;
 	gap: 8px;
@@ -596,11 +602,20 @@ a.def-draft-title-link:hover {
 	flex-wrap: wrap;
 	margin: 8px 0 12px;
 }
+.def-cluster-toolbar .def-cluster-filter-search,
+.def-cluster-toolbar .def-cluster-filter-select,
+.def-cluster-toolbar .def-cluster-chip,
+.def-cluster-toolbar .def-cluster-add-toggle {
+	height: 30px;
+	box-sizing: border-box;
+	margin: 0;
+}
+.def-cluster-add-toggle { margin-left: auto; }
 .def-cluster-filter-search { min-width: 220px; }
 .def-cluster-chip {
-	padding: 2px 10px;
+	padding: 0 12px;
 	border: 1px solid #dcdcde;
-	border-radius: 14px;
+	border-radius: 15px;
 	background: #fff;
 	color: #50697f;
 	font-size: 12px;
@@ -638,6 +653,11 @@ a.def-draft-title-link:hover {
 .def-cluster-dot--active { background: #1d6e3b; }
 .def-cluster-dot--paused { background: #a7aaad; }
 .def-cluster-row-counts { flex: 1 1 auto; font-size: 12px; color: #50697f; }
+/* Needs-you states out-shout the rest when scanning rows */
+.def-count--proposed { color: #8a6d00; font-weight: 600; }
+.def-count--in-review { color: #2271b1; font-weight: 600; }
+.def-count--written { color: #1d6e3b; }
+.def-count--dismissed { color: #a7aaad; }
 .def-cluster-row-date { font-size: 12px; color: #8c8f94; white-space: nowrap; }
 .def-cluster-show-more { margin-top: 4px; }
 
@@ -661,7 +681,9 @@ a.def-draft-title-link:hover {
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	margin: 10px 0 6px;
+	margin: 16px 0 6px;
+	padding-top: 12px;
+	border-top: 1px solid #f0f0f1;
 }
 .def-cluster-remove { margin-left: auto; }
 .def-cluster-status { font-size: 12px; color: #50697f; min-height: 1em; margin: 4px 0; }
@@ -754,11 +776,21 @@ a.def-draft-title-link:hover {
 /* Flash highlight on the draft card the Clusters "Review draft" jump lands on. */
 .def-draft-card--jumped { outline: 2px solid #2271b1; outline-offset: 2px; }
 .def-cluster-kp-empty { font-size: 13px; color: #646970; }
+/* The manual-add row is its own section, not part of the Dismissed group above */
+.def-cluster-kp-add-label {
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid #f0f0f1;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #50697f;
+}
 .def-cluster-kp-add {
 	display: flex;
 	gap: 6px;
 	align-items: center;
-	margin-top: 8px;
+	margin-top: 6px;
 	flex-wrap: wrap;
 }
 .def-cluster-kp-add-input { flex: 1 1 320px; max-width: 420px; }
