@@ -146,16 +146,22 @@
 		return c;
 	}
 
-	// "9 proposed · 5 approved · 1 in review · 2 published · 4 dismissed",
-	// zero buckets omitted.
-	function countsSummary(c) {
-		var parts = [];
-		if (c.proposed) { parts.push(c.proposed + ' proposed'); }
-		if (c.approved) { parts.push(c.approved + ' approved'); }
-		if (c.in_review) { parts.push(c.in_review + ' in review'); }
-		if (c.written) { parts.push(c.written + ' published'); }
-		if (c.dismissed) { parts.push(c.dismissed + ' dismissed'); }
-		return parts.length ? parts.join(' · ') : 'no keyphrases yet';
+	// Fill `node` with "9 proposed · 5 approved · 1 in review · …" as per-state
+	// coloured spans (zero buckets omitted) — the needs-you states (proposed,
+	// in review) must out-shout the rest when scanning many rows.
+	function renderCountsInto(node, c) {
+		node.textContent = '';
+		var states = [['proposed', 'proposed'], ['approved', 'approved'],
+			['in_review', 'in review'], ['written', 'published'], ['dismissed', 'dismissed']];
+		var any = false;
+		states.forEach(function (s) {
+			if (!c[s[0]]) { return; }
+			if (any) { node.appendChild(document.createTextNode(' · ')); }
+			node.appendChild(el('span', 'def-count def-count--' + s[0].replace('_', '-'),
+				c[s[0]] + ' ' + s[1]));
+			any = true;
+		});
+		if (!any) { node.textContent = 'no keyphrases yet'; }
 	}
 
 	function dateLabel(iso) {
@@ -362,10 +368,9 @@
 		return panel;
 	}
 
-	// "+ Add target" keeps the nominate picker at the top of the list but out
-	// of the way until asked for.
+	// "+ Add target" lives at the right end of the filter toolbar; its nominate
+	// panel opens full-width below the toolbar when asked for.
 	function renderAddTarget() {
-		var wrap = el('div', 'def-cluster-add');
 		var toggle = el('button', 'button def-cluster-add-toggle', '+ Add target');
 		toggle.type = 'button';
 		toggle.setAttribute('aria-expanded', 'false');
@@ -376,9 +381,7 @@
 			panel.style.display = open ? 'none' : '';
 			toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
 		});
-		wrap.appendChild(toggle);
-		wrap.appendChild(panel);
-		return wrap;
+		return { toggle: toggle, panel: panel };
 	}
 
 	// ── Keyphrase queue ─────────────────────────────────────────────────────
@@ -546,7 +549,7 @@
 		// data fresh (target is the live allTargets entry).
 		var counts = countsFromRows(rows);
 		target.keyphrase_counts = counts;
-		card.countsEl.textContent = countsSummary(counts);
+		renderCountsInto(card.countsEl, counts);
 
 		var groups = {};
 		rows.forEach(function (r) {
@@ -590,6 +593,7 @@
 		}
 
 		// Manual add (born approved — human-added IS curation).
+		box.appendChild(el('div', 'def-cluster-kp-add-label', 'Add your own'));
 		var addRow = el('div', 'def-cluster-kp-add');
 		var phraseInput = document.createElement('input');
 		phraseInput.type = 'text';
@@ -700,7 +704,7 @@
 		// Reference URLs — editable; Save PATCHes the full list.
 		var refs = buildReferenceUrlEditor(Array.isArray(target.reference_urls) ? target.reference_urls : []);
 		card.appendChild(refs.node);
-		var saveRefs = el('button', 'button button-small def-cluster-refurls-save', 'Save reference URLs');
+		var saveRefs = el('button', 'button def-cluster-refurls-save', 'Save reference URLs');
 		saveRefs.type = 'button';
 		refs.node.appendChild(saveRefs);
 
@@ -851,8 +855,8 @@
 		var dot = el('span', 'def-cluster-dot def-cluster-dot--' + (paused ? 'paused' : 'active'));
 		dot.title = paused ? 'Paused' : 'Active';
 		head.appendChild(dot);
-		var counts = el('span', 'def-cluster-row-counts',
-			countsSummary(normalizeCounts(target.keyphrase_counts)));
+		var counts = el('span', 'def-cluster-row-counts');
+		renderCountsInto(counts, normalizeCounts(target.keyphrase_counts));
 		head.appendChild(counts);
 		var derived = dateLabel(target.last_derived_at);
 		var added = dateLabel(target.created_at);
@@ -1005,8 +1009,11 @@
 	root.removeAttribute('data-loading');
 	root.textContent = '';
 	root.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
-	root.appendChild(renderAddTarget());
-	root.appendChild(renderToolbar());
+	var addTarget = renderAddTarget();
+	var toolbar = renderToolbar();
+	toolbar.appendChild(addTarget.toggle);
+	root.appendChild(toolbar);
+	root.appendChild(addTarget.panel);
 	listBox = el('div', 'def-cluster-targets');
 	root.appendChild(listBox);
 	loadTargets();
