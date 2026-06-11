@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.8.0
+Stable tag: 4.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,12 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.9.0 - 2026-06-12 =
+* Feature: Clusters UX v2 — the Clusters tab is now a master list with inline detail. Each target is a compact one-line row (title · type · status dot · keyphrase counts · last-derived date) instead of a fully-expanded card, so the tab stays usable with many targets. Click a row to expand the full detail in place, accordion-style (one open at a time): reference URLs, Derive / Pause / Remove, and the keyphrase queue. Text search plus "Needs curation" / "Needs review" / status / type filters surface the targets that need you, sorted needs-attention-first (drafts in review, then proposals awaiting curation, then the rest, most recent first); long lists render 25 rows at a time with a Show-more button. The nominate picker now sits behind a "+ Add target" button at the top of the list.
+* Feature: per-keyphrase lifecycle states. Each phrase now shows where it is on its journey: proposed (awaiting your curation) → queued (the next scheduled run will write it) → in review (the post is written and sits in Content Drafts for you — click "Review draft" to jump straight to its review card) → published (links to edit/view the live post) → dismissed (collapsed group, recoverable). The list row's counts are this lifecycle aggregated.
+* Feature: "Dismiss remaining (N)" — after approving your picks, one click at the top of the Proposed section clears every still-proposed phrase into the collapsed Dismissed group. Recoverable, and the agent won't re-propose them on the next Derive (dismissed phrases keep their slot). Backed by a new bridge route (POST /staff-ai/content/targets/{id}/keyphrases/dismiss-remaining) proxying the DEF backend.
+* Tweak: guidance baked into the tab copy — clusters are for cornerstones (realistically 5–20 targets, not every product), and a healthy cluster is the cornerstone plus 6–12 supporting posts.
 
 = 4.8.0 - 2026-06-11 =
 * Feature: the Content Drafts page is now organized into three tabs. "Improve" holds everything for your existing content (coverage strip, needs-a-keyphrase panel, improvement drafts — unchanged). "Create" holds the on-demand post generator and its review cards, plus a new optional notes box for the angle, audience or points you want the writer to cover. "Clusters" is new: build topic clusters around your cornerstone content.

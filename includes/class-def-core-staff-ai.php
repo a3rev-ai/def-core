@@ -384,6 +384,15 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_dismiss_keyphrase'),
 			)
 		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/targets/(?P<id>[a-zA-Z0-9_-]+)/keyphrases/dismiss-remaining',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_dismiss_remaining_keyphrases'),
+			)
+		);
 		// Local WP item search backing the Clusters target picker — no DEF call.
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -1331,6 +1340,32 @@ final class DEF_Core_Staff_AI
 		$result = self::backend_request( 'POST', '/api/staff-ai/content/keyphrases/' . rawurlencode( $id ) . '/dismiss' );
 		if ( is_wp_error( $result ) ) {
 			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: bulk-dismiss every still-proposed keyphrase on a target
+	 * (the post-curation "Dismiss remaining" click). Proxies DEF's same-named
+	 * route; dismissed phrases keep their slot, so re-derive won't re-propose
+	 * them. The returned keyphrase_counts is normalized so in_review is always
+	 * present (older DEF responses don't split it out of approved).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({dismissed, keyphrase_counts}).
+	 */
+	public static function rest_dismiss_remaining_keyphrases( \WP_REST_Request $request )
+	{
+		$id     = sanitize_text_field( $request->get_param( 'id' ) );
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/content/targets/' . rawurlencode( $id ) . '/keyphrases/dismiss-remaining'
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		if ( isset( $result['keyphrase_counts'] ) && is_array( $result['keyphrase_counts'] )
+			&& ! array_key_exists( 'in_review', $result['keyphrase_counts'] ) ) {
+			$result['keyphrase_counts']['in_review'] = 0;
 		}
 		return new \WP_REST_Response( $result, 200 );
 	}

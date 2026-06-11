@@ -96,7 +96,7 @@ final class DEF_Core_Content_Drafts_Page {
 			</div>
 			<div id="def-tab-clusters" class="def-draft-tab-panel" style="display:none;">
 				<p class="description">
-					<?php esc_html_e( 'Build topic clusters around your cornerstone content. Nominate a page, post or product as a cluster target, curate the keyphrase queue the Content Agent derives for it, and the agent writes the cluster posts from the approved queue.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Build topic clusters around your cornerstone content. Nominate your most important pages and products as cluster targets — realistically 5–20 cornerstones, not every product — curate the keyphrase queue the Content Agent derives for each, and the agent writes the cluster posts from the approved queue. A healthy cluster is the cornerstone plus 6–12 supporting posts.', 'digital-employees' ); ?>
 				</p>
 				<div id="def-cluster-root" data-loading="1">
 					<p class="def-draft-loading"><?php esc_html_e( 'Loading targets…', 'digital-employees' ); ?></p>
