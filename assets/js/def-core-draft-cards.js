@@ -876,13 +876,15 @@
 		var status = el('div', 'def-draft-create-status');
 
 		// Optional writer notes (Engine 2.5) — angle, audience, points to cover.
-		// Sent only when filled; DEF's writer consumes them.
+		// Sent only when filled; the writer starts honoring them when DEF's
+		// retrieval-grounded writer lands (PR 2.5-3), and the placeholder says so.
 		var notes = document.createElement('textarea');
 		notes.className = 'def-draft-create-notes';
 		notes.rows = 3;
 		notes.maxLength = 2000;
 		notes.setAttribute('placeholder',
-			'Notes for the writer (optional) — angle, audience, points to cover…');
+			'Notes for the writer (optional) — angle, audience, points to cover. ' +
+			'Takes effect with the next Content Agent update.');
 
 		function submit() {
 			var kp = input.value.trim();
