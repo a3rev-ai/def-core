@@ -883,8 +883,7 @@
 		notes.rows = 3;
 		notes.maxLength = 2000;
 		notes.setAttribute('placeholder',
-			'Notes for the writer (optional) — angle, audience, points to cover. ' +
-			'Takes effect with the next Content Agent update.');
+			'Notes for the writer (optional) — angle, audience, points to cover.');
 
 		function submit() {
 			var kp = input.value.trim();
