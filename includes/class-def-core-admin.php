@@ -519,6 +519,19 @@ final class DEF_Core_Admin {
 		}
 
 		// Setup Assistant drawer assets.
+		self::enqueue_setup_assistant_drawer();
+
+		// Load template.
+		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';
+		include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
+	}
+
+	/**
+	 * Enqueue the Setup Assistant drawer assets + JS config. Shared by the
+	 * settings page and the Content Drafts page; the drawer template and its
+	 * trigger button gate on def_admin_access at their render sites.
+	 */
+	public static function enqueue_setup_assistant_drawer(): void {
 		wp_enqueue_style( 'def-core-setup-assistant' );
 		wp_enqueue_script( 'def-core-setup-assistant' );
 		$current_user = wp_get_current_user();
@@ -529,10 +542,6 @@ final class DEF_Core_Admin {
 			'escalationUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/send-escalation-email' ) ),
 			'userFirstName'  => $current_user->first_name ?: $current_user->display_name,
 		) );
-
-		// Load template.
-		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';
-		include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
 	}
 
 	// ─── AJAX: Save Settings ─────────────────────────────────────────
