@@ -2,8 +2,10 @@
 /**
  * Setup Assistant drawer template.
  *
- * Renders the right-side slide-in chat panel and trigger button.
- * Included by DEF_Core_Admin::render_settings_page().
+ * Renders the right-side slide-in chat panel (the trigger button lives next
+ * to the page h1 at each call site). Included by
+ * DEF_Core_Admin::render_settings_page() and
+ * DEF_Core_Content_Drafts_Page::render_page().
  *
  * @package def-core
  * @since   2.0.0

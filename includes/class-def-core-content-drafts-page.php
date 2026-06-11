@@ -61,6 +61,13 @@ final class DEF_Core_Content_Drafts_Page {
 		wp_enqueue_style( 'def-core-draft-cards' );
 		wp_enqueue_script( 'def-core-draft-cards' );
 		wp_enqueue_script( 'def-core-cluster-targets' );
+		// Setup Assistant drawer — admins can ask about Clusters/Content Agent
+		// guidance here instead of relying on on-screen help text. Admin-only,
+		// so staff viewers don't ship drawer assets they can never use.
+		$show_setup_assistant = current_user_can( 'def_admin_access' );
+		if ( $show_setup_assistant ) {
+			DEF_Core_Admin::enqueue_setup_assistant_drawer();
+		}
 		// The "Create a post" control creates a brand-new WP draft, so gate it on
 		// the post-creation capability (resolved here; the bridge re-checks server-side).
 		$post_type   = get_post_type_object( 'post' );
@@ -80,7 +87,22 @@ final class DEF_Core_Content_Drafts_Page {
 
 		?>
 		<div class="wrap def-core-wrap" style="max-width: 1000px;">
-			<h1><?php esc_html_e( 'Content Drafts', 'digital-employees' ); ?></h1>
+			<h1><?php esc_html_e( 'Content Drafts', 'digital-employees' ); ?>
+				<?php if ( current_user_can( 'def_admin_access' ) ) : ?>
+				<!-- Setup Assistant trigger button (same id the drawer JS binds) -->
+				<button
+					type="button"
+					id="def-setup-assistant-trigger"
+					class="def-sa-trigger"
+					aria-expanded="false"
+					aria-controls="def-setup-assistant-drawer"
+					title="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
+				>
+					<span class="dashicons dashicons-admin-comments"></span>
+					<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
+				</button>
+				<?php endif; ?>
+			</h1>
 			<h2 class="nav-tab-wrapper def-draft-tabs">
 				<a href="#improve" class="nav-tab nav-tab-active" data-def-tab="improve"><?php esc_html_e( 'Improve', 'digital-employees' ); ?></a>
 				<a href="#clusters" class="nav-tab" data-def-tab="clusters"><?php esc_html_e( 'Clusters', 'digital-employees' ); ?></a>
@@ -111,5 +133,9 @@ final class DEF_Core_Content_Drafts_Page {
 			</div>
 		</div>
 		<?php
+		// Drawer panel (the template also self-gates on def_admin_access).
+		if ( $show_setup_assistant ) {
+			include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
+		}
 	}
 }

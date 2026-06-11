@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.11.0 - 2026/06/12 =
+* (note: 4.10.0 skipped — PHP version_compare bug treats "10" as "1")
+* Feature: the Setup Assistant drawer now loads on the Content Drafts page (all three tabs), not just the Digital Employees settings page. Admins can ask it how Clusters work, best-practice cluster sizing, and the curation rules (why a keyphrase can't be re-added after dismissal, why a phrase can't match the target's own focus keyphrase, what Pause freezes) instead of relying on on-screen help text. Same drawer, same admin-only access (def_admin_access); the trigger button sits next to the page title.
+
 = 4.9.1 - 2026/06/12 =
 * Tweak: Clusters tab polish. Filter toolbar controls (search, chips, selects) share one height on one baseline, with "+ Add target" moved to the toolbar's right end (saves a row of chrome). Lifecycle counts on each target row are now colour-coded so the needs-you states stand out at a glance: proposed (amber, bold), in review (blue, bold), published (green), dismissed (muted). Reference-URL rows put the remove × inside the input and the Save button now matches "+ Add URL" in size; the Derive/Pause/Remove action row is separated from URL editing by a divider. The "Add a keyphrase" row gets its own "Add your own" heading so it no longer reads as part of the Dismissed group.
 

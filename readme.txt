@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.9.1
+Stable tag: 4.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.11.0 - 2026-06-12 =
+* (note: 4.10.0 skipped — PHP version_compare bug treats "10" as "1")
+* Feature: the Setup Assistant drawer now loads on the Content Drafts page (all three tabs). Admins can ask it how Clusters work, best-practice sizing, and the curation rules instead of relying on on-screen help text. Admin-only (def_admin_access), trigger next to the page title.
 
 = 4.9.1 - 2026-06-12 =
 * Tweak: Clusters tab polish — uniform filter-toolbar control heights with "+ Add target" at the toolbar's right end, colour-coded lifecycle counts on target rows (proposed amber, in review blue, published green, dismissed muted), reference-URL remove × inside the input with matched button sizes, a divider before the Derive/Pause/Remove action row, and an "Add your own" heading on the manual keyphrase row.
