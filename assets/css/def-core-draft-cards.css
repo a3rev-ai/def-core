@@ -414,6 +414,19 @@ a.def-draft-title-link:hover {
 .def-draft-create-status--ok { color: #1d6e3b; }
 .def-draft-create-status--warn { color: #8a6d00; }
 
+/* Engine 2.5 fail-closed safeguard notice — create panel + create review card */
+.def-draft-safeguard {
+	margin-top: 12px;
+	padding: 8px 12px;
+	background: #fcf9e8;
+	border: 1px solid #f0e6b8;
+	border-left: 4px solid #dba617;
+	border-radius: 3px;
+	font-size: 13px;
+	line-height: 1.5;
+	color: #6a5b00;
+}
+
 /* CREATE review card */
 .def-draft-card--create {
 	border-left: 4px solid #2271b1;

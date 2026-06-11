@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.7.2 - 2026/06/11 =
+* Safety: posts created by the Content Agent are now EXCLUDED from Digital Employee knowledge by default (fail-closed). An AI-created draft can no longer flow into Customer Chat answers automatically — a human must review the images, verify every claim, and then expressly include the post by unchecking "Exclude from Digital Employee knowledge" in the post editor (the existing checkbox — no new setting). The Content Drafts create box and every "New post" review card now carry a notice spelling this out.
+
 = 4.7.1 - 2026/06/10 =
 * Fix: in the block editor, the "Exclude from Digital Employee knowledge" option appeared TWICE in the sidebar — once as the proper editor panel and once as a duplicate classic meta box. The classic box is now flagged as the panel's back-compat fallback, so the block editor shows only the panel; classic-editor screens (e.g. WooCommerce products) still show the classic box exactly as before.
 * Fix: the block-editor panel's help text was outdated — it still said an already-indexed item is removed on the next "Sync Now — Full" from the Tenant Portal. Since v3.5.2 exclusion is picked up by the normal sync for that item alone; the help text now says so, matching the classic box.

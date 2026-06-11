@@ -181,6 +181,7 @@ if ( ! function_exists( 'esc_url' ) ) {
 	function esc_url( $u ) { return (string) $u; }
 }
 
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-knowledge-exclusion.php'; // META_KEY for the fail-closed default
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-seo-meta.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-blocks.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-media.php';
@@ -273,6 +274,16 @@ assert_true( in_array( '_yoast_wpseo_metadesc', $meta_keys, true ), 'meta descri
 assert_true( in_array( '_yoast_wpseo_title', $meta_keys, true ), 'seo title written (yoast)' );
 assert_true( in_array( '_yoast_wpseo_focuskw', $meta_keys, true ), 'focus keyphrase written (create sets it)' );
 assert_true( in_array( '_def_content_optimized_at', $meta_keys, true ), 'optimized stamp written' );
+
+// Fail-closed Company-Knowledge default (Engine 2.5 safeguard): the created
+// draft is born EXCLUDED — the existing editor-checkbox meta, set truthy.
+$exclusion = null;
+foreach ( $GLOBALS['t_meta_writes'] as $w ) {
+	if ( DEF_Core_Knowledge_Exclusion::META_KEY === $w['key'] ) { $exclusion = $w; }
+}
+assert_true( null !== $exclusion, 'knowledge-exclusion meta written on create (fail-closed)' );
+assert_same( true, $exclusion['value'] ?? null, 'exclusion meta set truthy — born excluded' );
+assert_same( 123, $exclusion['id'] ?? null, 'exclusion meta targets the created post' );
 
 // ── 3. Capability enforced — no create-post cap, no insert ──────────────
 echo "[3] create-post requires the create-post capability\n";

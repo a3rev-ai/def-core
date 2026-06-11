@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.7.1
+Stable tag: 4.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.7.2 - 2026-06-11 =
+* Safety: posts created by the Content Agent are now EXCLUDED from Digital Employee knowledge by default (fail-closed). An AI-created draft can no longer flow into Customer Chat answers automatically — a human must review the images, verify every claim, and then expressly include the post by unchecking "Exclude from Digital Employee knowledge" in the post editor (the existing checkbox — no new setting). The Content Drafts create box and every "New post" review card now carry a notice spelling this out.
 
 = 4.7.1 - 2026-06-10 =
 * Fix: in the block editor, the "Exclude from Digital Employee knowledge" option appeared TWICE in the sidebar — once as the proper editor panel and once as a duplicate classic meta box. The classic box is now flagged as the panel's back-compat fallback, so the block editor shows only the panel; classic-editor screens (e.g. WooCommerce products) still show the classic box exactly as before.
