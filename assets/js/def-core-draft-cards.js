@@ -68,6 +68,14 @@
 	var SAFEGUARD_COPY = 'AI-created posts are excluded from Company Knowledge until you expressly include them. ' +
 		"Review the images and verify every claim before unchecking 'Exclude from Digital Employee knowledge' on the post.";
 
+	// "Create with reference sources" caps (Engine 2.5) — mirror the DEF contract.
+	// Client-side checks are honesty/UX only; DEF + the BFF re-validate.
+	var REF_MAX_URLS = 5;
+	var REF_MAX_FILES = 2;
+	var REF_MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB total decoded.
+	var REF_MAX_TEXT = 20000;
+	var REF_ALLOWED_EXT = ['pdf', 'docx', 'txt', 'csv', 'xlsx'];
+
 	function api(path, method, body) {
 		var opts = {
 			method: method || 'GET',
@@ -858,8 +866,130 @@
 		root.insertBefore(strip, root.firstChild);
 	}
 
+	// Lower-case file extension of a name, or '' when there isn't one.
+	function fileExt(name) {
+		var m = /\.([^.]+)$/.exec(String(name || ''));
+		return m ? m[1].toLowerCase() : '';
+	}
+
+	// Read a File to its base64 content (FileReader → strip the data: prefix).
+	// Resolves { filename, content_b64 } — the contract shape DEF expects.
+	function readFileB64(file) {
+		return new Promise(function (resolve, reject) {
+			var r = new FileReader();
+			r.onload = function () {
+				var res = String(r.result || '');
+				var comma = res.indexOf(',');
+				resolve({ filename: file.name, content_b64: comma >= 0 ? res.slice(comma + 1) : res });
+			};
+			r.onerror = function () { reject(new Error('Could not read ' + file.name)); };
+			r.readAsDataURL(file);
+		});
+	}
+
+	// "Reference URLs (max 5)" — add/remove rows; value() returns trimmed entries.
+	function buildRefUrlEditor() {
+		var wrap = el('div', 'def-draft-refsrc-field');
+		wrap.appendChild(el('div', 'def-draft-refsrc-label', 'Reference URLs (max ' + REF_MAX_URLS + ')'));
+		var list = el('div', 'def-draft-refurls-list');
+		var addBtn = el('button', 'button def-draft-refurls-add', '+ Add URL');
+		addBtn.type = 'button';
+		function addRow(value) {
+			if (list.children.length >= REF_MAX_URLS) { return; }
+			var row = el('div', 'def-draft-refurls-row');
+			var input = document.createElement('input');
+			input.type = 'url';
+			input.className = 'def-draft-refurls-input regular-text';
+			input.setAttribute('placeholder', 'https://…');
+			if (value) { input.value = value; }
+			var rm = el('button', 'button-link def-draft-refurls-remove', '×');
+			rm.type = 'button';
+			rm.setAttribute('aria-label', 'Remove URL');
+			rm.addEventListener('click', function () { row.remove(); addBtn.disabled = false; });
+			row.appendChild(input);
+			row.appendChild(rm);
+			list.appendChild(row);
+			addBtn.disabled = list.children.length >= REF_MAX_URLS;
+		}
+		addBtn.addEventListener('click', function () { addRow(''); });
+		wrap.appendChild(list);
+		wrap.appendChild(addBtn);
+		return {
+			node: wrap,
+			value: function () {
+				var urls = [];
+				list.querySelectorAll('input').forEach(function (i) {
+					var v = i.value.trim();
+					if (v) { urls.push(v); }
+				});
+				return urls;
+			},
+			reset: function () { list.innerHTML = ''; addBtn.disabled = false; }
+		};
+	}
+
+	// File picker (max 2, 10MB total) — accepts pdf/docx/txt/csv/xlsx, validates
+	// client-side with honest errors. value() returns the selected File[].
+	function buildRefFilePicker(onError) {
+		var wrap = el('div', 'def-draft-refsrc-field');
+		wrap.appendChild(el('div', 'def-draft-refsrc-label',
+			'Files (max ' + REF_MAX_FILES + ', 10MB total) — PDF, DOCX, TXT, CSV, XLSX'));
+		var input = document.createElement('input');
+		input.type = 'file';
+		input.className = 'def-draft-reffiles-input';
+		input.multiple = true;
+		input.accept = '.pdf,.docx,.txt,.csv,.xlsx';
+		var chips = el('div', 'def-draft-reffiles-list');
+		var selected = [];
+		function totalBytes() {
+			return selected.reduce(function (s, f) { return s + f.size; }, 0);
+		}
+		function renderChips() {
+			chips.innerHTML = '';
+			selected.forEach(function (f, idx) {
+				var chip = el('span', 'def-draft-reffile-chip');
+				chip.appendChild(el('span', 'def-draft-reffile-name',
+					f.name + ' (' + Math.round(f.size / 1024) + ' KB)'));
+				var rm = el('button', 'button-link def-draft-reffile-remove', '×');
+				rm.type = 'button';
+				rm.setAttribute('aria-label', 'Remove file');
+				rm.addEventListener('click', function () { selected.splice(idx, 1); renderChips(); });
+				chip.appendChild(rm);
+				chips.appendChild(chip);
+			});
+		}
+		input.addEventListener('change', function () {
+			var incoming = Array.prototype.slice.call(input.files || []);
+			input.value = ''; // allow re-picking the same file after a remove
+			incoming.forEach(function (f) {
+				if (selected.length >= REF_MAX_FILES) {
+					onError('You can attach at most ' + REF_MAX_FILES + ' files.');
+					return;
+				}
+				if (REF_ALLOWED_EXT.indexOf(fileExt(f.name)) === -1) {
+					onError('“' + f.name + '” is not an accepted type (PDF, DOCX, TXT, CSV, XLSX).');
+					return;
+				}
+				selected.push(f);
+			});
+			if (totalBytes() > REF_MAX_FILE_BYTES) {
+				onError('Files exceed the 10MB total limit — remove one and try again.');
+			}
+			renderChips();
+		});
+		wrap.appendChild(input);
+		wrap.appendChild(chips);
+		return {
+			node: wrap,
+			value: function () { return selected.slice(); },
+			totalBytes: totalBytes,
+			reset: function () { selected = []; input.value = ''; renderChips(); }
+		};
+	}
+
 	// "Create a post" control — a keyphrase input + Generate button that asks DEF
-	// to generate a new optimized post. The draft then appears in the queue (kind
+	// to generate a new optimized post, optionally grounded in reference sources
+	// (URLs / files / pasted text). The draft then appears in the queue (kind
 	// 'create'). Rendered into its own host outside the cards root, so the drafts
 	// fetch's root.innerHTML reset never wipes it. Only shown when the user can
 	// create posts (the bridge re-checks the capability server-side).
@@ -880,6 +1010,11 @@
 		btn.type = 'button';
 		var status = el('div', 'def-draft-create-status');
 
+		// Keyphrase is optional once a reference source is added — DEF derives one
+		// for the human to review on the draft card.
+		var kpHelp = el('p', 'def-draft-create-help',
+			'Optional when you add a reference source below — DEF derives a focus keyphrase for you to review.');
+
 		// Optional writer notes (Engine 2.5) — angle, audience, points to cover.
 		// Sent only when filled; the writer starts honoring them when DEF's
 		// retrieval-grounded writer lands (PR 2.5-3), and the placeholder says so.
@@ -890,26 +1025,78 @@
 		notes.setAttribute('placeholder',
 			'Notes for the writer (optional) — angle, audience, points to cover.');
 
+		// Reference sources (optional) — distinct from the writer notes above:
+		// notes are guidance, these are the source MATERIAL the post is based on.
+		var refGroup = el('div', 'def-draft-refsrc');
+		refGroup.appendChild(el('div', 'def-draft-refsrc-head', 'Reference sources (optional)'));
+		refGroup.appendChild(el('p', 'def-draft-refsrc-hint',
+			'Base the post on real source material — link pages, attach documents, or paste text. DEF reads them and derives a focus keyphrase if you leave it blank.'));
+		function warn(msg) {
+			status.className = 'def-draft-create-status def-draft-create-status--warn';
+			status.textContent = msg;
+		}
+		var refUrls = buildRefUrlEditor();
+		var refFiles = buildRefFilePicker(warn);
+		var refText = document.createElement('textarea');
+		refText.className = 'def-draft-refsrc-text';
+		refText.rows = 4;
+		refText.maxLength = REF_MAX_TEXT;
+		refText.setAttribute('placeholder',
+			'Paste source text (optional, up to 20,000 characters) — e.g. an event brief or product spec.');
+		refGroup.appendChild(refUrls.node);
+		refGroup.appendChild(refFiles.node);
+		var textField = el('div', 'def-draft-refsrc-field');
+		textField.appendChild(el('div', 'def-draft-refsrc-label', 'Paste source text'));
+		textField.appendChild(refText);
+		refGroup.appendChild(textField);
+
+		function setDisabled(d) {
+			btn.disabled = d;
+			input.disabled = d;
+			notes.disabled = d;
+			refText.disabled = d;
+		}
+
 		function submit() {
 			var kp = input.value.trim();
-			if (!kp) {
-				status.className = 'def-draft-create-status def-draft-create-status--warn';
-				status.textContent = 'Enter a keyphrase first.';
+			var urls = refUrls.value();
+			var text = refText.value.trim();
+			var files = refFiles.value();
+			var hasSource = urls.length > 0 || text !== '' || files.length > 0;
+
+			if (!kp && !hasSource) {
+				warn('Enter a keyphrase, or add a reference source.');
 				return;
 			}
-			btn.disabled = true;
-			input.disabled = true;
-			notes.disabled = true;
+			if (urls.length > REF_MAX_URLS) { warn('At most ' + REF_MAX_URLS + ' reference URLs.'); return; }
+			if (text.length > REF_MAX_TEXT) { warn('Source text is limited to 20,000 characters.'); return; }
+			if (files.length > REF_MAX_FILES) { warn('You can attach at most ' + REF_MAX_FILES + ' files.'); return; }
+			if (refFiles.totalBytes() > REF_MAX_FILE_BYTES) { warn('Files exceed the 10MB total limit.'); return; }
+
+			setDisabled(true);
 			status.className = 'def-draft-create-status';
-			status.textContent = 'Requesting…';
-			var body = { keyphrase: kp };
-			var n = notes.value.trim();
-			if (n) { body.notes = n; }
-			api('/create', 'POST', body).then(function () {
+			status.textContent = files.length ? 'Reading files…' : 'Requesting…';
+
+			Promise.all(files.map(readFileB64)).then(function (fileObjs) {
+				status.textContent = 'Requesting…';
+				var body = {};
+				if (kp) { body.keyphrase = kp; }
+				var n = notes.value.trim();
+				if (n) { body.notes = n; }
+				var rs = {};
+				if (urls.length) { rs.urls = urls; }
+				if (text) { rs.text = text; }
+				if (fileObjs.length) { rs.files = fileObjs; }
+				if (Object.keys(rs).length) { body.reference_sources = rs; }
+				return api('/create', 'POST', body);
+			}).then(function () {
 				status.className = 'def-draft-create-status def-draft-create-status--ok';
 				status.textContent = 'Your draft is being generated and will appear below shortly.';
 				input.value = '';
 				notes.value = '';
+				refText.value = '';
+				refUrls.reset();
+				refFiles.reset();
 				// Generation is async on the DEF side — poll until the new card
 				// lands (or 10 minutes pass), so no manual reload is needed.
 				startDraftsRefresh(function () {
@@ -918,12 +1105,9 @@
 					status.textContent = 'Still generating — your draft will appear under Content Drafts when ready; reload in a minute.';
 				});
 			}).catch(function (e) {
-				status.className = 'def-draft-create-status def-draft-create-status--warn';
-				status.textContent = (e && e.message) || 'Could not start generation.';
+				warn((e && e.message) || 'Could not start generation.');
 			}).then(function () {
-				btn.disabled = false;
-				input.disabled = false;
-				notes.disabled = false;
+				setDisabled(false);
 			});
 		}
 		btn.addEventListener('click', submit);
@@ -934,7 +1118,9 @@
 		rowEl.appendChild(input);
 		rowEl.appendChild(btn);
 		panel.appendChild(rowEl);
+		panel.appendChild(kpHelp);
 		panel.appendChild(notes);
+		panel.appendChild(refGroup);
 		panel.appendChild(status);
 		panel.appendChild(el('div', 'def-draft-safeguard', SAFEGUARD_COPY));
 		host.appendChild(panel);

@@ -541,6 +541,78 @@ assert_true( is_wp_error( $resp ), 'over-long notes → WP_Error' );
 assert_same( 'invalid_notes', $resp->get_error_code(), 'over-long notes → invalid_notes' );
 assert_same( array(), $GLOBALS['_t_http_log'], 'over-long notes → no backend call' );
 
+// No keyphrase AND no sources → rejected before any backend call.
+http_reset();
+$resp = DEF_Core_Staff_AI::rest_content_create( req_json( array() ) );
+assert_true( is_wp_error( $resp ), 'no keyphrase + no sources → WP_Error' );
+assert_same( 'invalid_keyphrase', $resp->get_error_code(), 'no keyphrase/sources → invalid_keyphrase' );
+assert_same( array(), $GLOBALS['_t_http_log'], 'no keyphrase/sources → no backend call' );
+
+// ── 8b. Create with reference sources (Engine 2.5) ──────────────────────
+echo "[8b] create — reference_sources passthrough + validation\n";
+
+// Keyphrase OPTIONAL once a source is present; the object passes through unchanged.
+$pdf_b64 = base64_encode( 'PDF bytes here' );
+http_reset( 200, array( 'status' => 'accepted' ) );
+DEF_Core_Staff_AI::rest_content_create( req_json( array(
+	'reference_sources' => array(
+		'urls'  => array( 'https://example.test/brief', 'https://example.test/spec' ),
+		'text'  => "Pasted source material — keep & verbatim < chars >.",
+		'files' => array( array( 'filename' => 'brochure.pdf', 'content_b64' => $pdf_b64 ) ),
+	),
+) ) );
+$sent = json_decode( http_one()['args']['body'] ?? '', true );
+assert_true( ! array_key_exists( 'keyphrase', $sent ), 'keyphrase omitted when absent but a source is present' );
+assert_same(
+	array(
+		'urls'  => array( 'https://example.test/brief', 'https://example.test/spec' ),
+		'text'  => "Pasted source material — keep & verbatim < chars >.",
+		'files' => array( array( 'filename' => 'brochure.pdf', 'content_b64' => $pdf_b64 ) ),
+	),
+	$sent['reference_sources'] ?? null,
+	'reference_sources forwarded UNCHANGED (urls passed through, text not sanitized, files intact)'
+);
+
+// Keyphrase + sources both forwarded; empty url strings are dropped, not errors.
+http_reset( 200, array( 'status' => 'accepted' ) );
+DEF_Core_Staff_AI::rest_content_create( req_json( array(
+	'keyphrase'         => 'event recap',
+	'reference_sources' => array( 'urls' => array( 'https://example.test/a', '' ) ),
+) ) );
+$sent = json_decode( http_one()['args']['body'] ?? '', true );
+assert_same( 'event recap', $sent['keyphrase'] ?? null, 'keyphrase forwarded alongside sources' );
+assert_same( array( 'https://example.test/a' ), $sent['reference_sources']['urls'] ?? null, 'blank URL dropped, not an error' );
+
+// Absent reference_sources → byte-identical legacy body (no empty key invented).
+http_reset( 200, array( 'status' => 'accepted' ) );
+DEF_Core_Staff_AI::rest_content_create( req_json( array( 'keyphrase' => 'plain' ) ) );
+$sent = json_decode( http_one()['args']['body'] ?? '', true );
+assert_same( array( 'keyphrase' => 'plain' ), $sent, 'no sources → legacy body unchanged (no reference_sources key)' );
+
+// Validation rejects over-cap / wrong-type / disallowed payloads before any call.
+$ten_mb_plus = base64_encode( str_repeat( 'x', ( 10 * 1024 * 1024 ) + 1 ) );
+$ref_bad     = array(
+	'> 5 urls'        => array( 'urls' => array_map( static function ( $i ) { return "https://d.test/$i"; }, range( 1, 6 ) ) ),
+	'non-http url'    => array( 'urls' => array( 'javascript:alert(1)' ) ),
+	'text too long'   => array( 'text' => str_repeat( 'a', 20001 ) ),
+	'> 2 files'       => array( 'files' => array(
+		array( 'filename' => 'a.pdf', 'content_b64' => 'YQ==' ),
+		array( 'filename' => 'b.pdf', 'content_b64' => 'Yg==' ),
+		array( 'filename' => 'c.pdf', 'content_b64' => 'Yw==' ),
+	) ),
+	'bad file type'   => array( 'files' => array( array( 'filename' => 'evil.exe', 'content_b64' => 'YQ==' ) ) ),
+	'files too big'   => array( 'files' => array( array( 'filename' => 'big.pdf', 'content_b64' => $ten_mb_plus ) ) ),
+	'urls not a list' => array( 'urls' => 'https://d.test/x' ),
+);
+foreach ( $ref_bad as $label => $rs ) {
+	http_reset();
+	$resp = DEF_Core_Staff_AI::rest_content_create( req_json( array( 'keyphrase' => 'kp', 'reference_sources' => $rs ) ) );
+	assert_true( is_wp_error( $resp ), "reference_sources $label → WP_Error" );
+	assert_same( 'invalid_reference_sources', $resp->get_error_code(), "$label → invalid_reference_sources" );
+	assert_same( 400, $resp->get_error_data()['status'] ?? null, "$label → 400" );
+	assert_same( array(), $GLOBALS['_t_http_log'], "$label → no backend call" );
+}
+
 // ── 9. Local target-search picker ───────────────────────────────────────
 echo "[9] target-search — nomination-shaped items, attachments excluded\n";
 $p1 = new stdClass(); $p1->ID = 42; $p1->post_type = 'page';
