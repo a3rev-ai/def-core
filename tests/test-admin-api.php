@@ -1448,6 +1448,41 @@ $result  = $sa->permission_check( $request );
 assert_true( is_wp_error( $result ), 'returns WP_Error without auth' );
 assert_equals( 'UNAUTHORIZED', $result->get_error_code(), 'error code is UNAUTHORIZED' );
 
+// ── 50. def_core_log_level via setup endpoint ───────────────────────────
+echo "\n[50] def_core_log_level GET/POST via setup endpoint\n";
+reset_test_state();
+setup_admin_user();
+
+// In the allowlist (so the endpoint no longer returns UNKNOWN_SETTING).
+$allowlist = DEF_Core_Admin_API::get_setting_allowlist();
+assert_true( isset( $allowlist['def_core_log_level'] ), 'allowlist contains def_core_log_level' );
+
+// GET returns the stored value.
+update_option( 'def_core_log_level', 'warning' );
+$request = new WP_REST_Request( 'GET', '/def-core/v1/setup/setting/def_core_log_level' );
+$request->set_param( 'key', 'def_core_log_level' );
+$response = $sa->rest_get_setting( $request );
+assert_equals( 200, $response->get_status(), 'GET log level returns 200' );
+assert_equals( 'warning', $response->get_data()['data']['value'], 'GET returns stored level' );
+
+// POST accepts each of the four valid levels.
+foreach ( array( 'debug', 'info', 'warning', 'error' ) as $level ) {
+	$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_log_level' );
+	$request->set_param( 'key', 'def_core_log_level' );
+	$request->set_body_params( array( 'value' => $level ) );
+	$response = $sa->rest_update_setting( $request );
+	assert_equals( 200, $response->get_status(), "POST log level '$level' accepted" );
+	assert_equals( $level, get_option( 'def_core_log_level', '' ), "level '$level' persisted" );
+}
+
+// POST rejects an invalid level.
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_log_level' );
+$request->set_param( 'key', 'def_core_log_level' );
+$request->set_body_params( array( 'value' => 'verbose' ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 400, $response->get_status(), 'invalid log level rejected' );
+assert_equals( 'VALIDATION_ERROR', $response->get_data()['error']['code'], 'error code is VALIDATION_ERROR' );
+
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

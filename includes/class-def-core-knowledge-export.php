@@ -314,14 +314,6 @@ final class DEF_Core_Knowledge_Export {
 		$per_page        = $request->get_param( 'per_page' );
 		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
 
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
-			'content_type'   => 'topic',
-			'page'           => $page,
-			'per_page'       => $per_page,
-			'modified_after' => $modified_after,
-			'request_id'     => $request_id,
-		) );
-
 		// Get IDs of public forums only.
 		$public_forum_ids = self::get_public_forum_ids();
 
@@ -357,17 +349,7 @@ final class DEF_Core_Knowledge_Export {
 
 		$query = new \WP_Query( $query_args );
 
-		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
-			'content_type'           => 'topic',
-			'requested_per_page'     => $per_page,
-			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
-			'found_posts'            => (int) $query->found_posts,
-			'post_count'             => $query->post_count,
-			'max_num_pages'          => (int) $query->max_num_pages,
-			'sql'                    => substr( $query->request, 0, 2000 ),
-			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
-			'request_id'             => $request_id,
-		) );
+		$has_changes = DEF_Core_Export::log_sync_query( 'topic', (int) $per_page, $query, $request_id );
 
 		$items = array();
 		foreach ( $query->posts as $topic ) {
@@ -407,14 +389,16 @@ final class DEF_Core_Knowledge_Export {
 		$total_items = (int) $query->found_posts;
 		$total_pages = (int) $query->max_num_pages;
 
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
-			'content_type'   => 'topic',
-			'items_returned' => count( $items ),
-			'total_items'    => $total_items,
-			'total_pages'    => $total_pages,
-			'page'           => $page,
-			'request_id'     => $request_id,
-		) );
+		if ( $has_changes ) {
+			DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+				'content_type'   => 'topic',
+				'items_returned' => count( $items ),
+				'total_items'    => $total_items,
+				'total_pages'    => $total_pages,
+				'page'           => $page,
+				'request_id'     => $request_id,
+			) );
+		}
 
 		$response = new \WP_REST_Response( array(
 			'items'       => $items,

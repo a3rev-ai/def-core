@@ -152,6 +152,51 @@ final class DEF_Core_Export {
 	}
 
 	/**
+	 * Log a sync/export query result with minimal noise.
+	 *
+	 * The incremental sync is the dominant log source and is almost always a
+	 * no-op (nothing changed since the last watermark). A zero-change export
+	 * therefore emits a single compact INFO summary row instead of the old
+	 * request/query/response trio. A non-empty export emits the query DEBUG
+	 * row — but the raw SQL is attached only when WP_DEBUG is on, so
+	 * production logs never carry query text. The caller logs its own
+	 * response row only when this returns true.
+	 *
+	 * @param string    $content_type Export label (page, product, topic, …).
+	 * @param int       $per_page     Requested page size (for the diagnostic).
+	 * @param \WP_Query $query        The executed query.
+	 * @param string    $request_id   Correlation id from X-DEF-Request-ID.
+	 * @return bool True when the query found at least one row.
+	 */
+	public static function log_sync_query( string $content_type, int $per_page, \WP_Query $query, string $request_id ): bool {
+		if ( 0 === (int) $query->found_posts ) {
+			DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Incremental sync: 0 changes', array(
+				'content_type' => $content_type,
+				'request_id'   => $request_id,
+			) );
+			return false;
+		}
+
+		$context = array(
+			'content_type'          => $content_type,
+			'requested_per_page'    => $per_page,
+			'actual_posts_per_page' => $query->query_vars['posts_per_page'],
+			'found_posts'           => (int) $query->found_posts,
+			'post_count'            => $query->post_count,
+			'max_num_pages'         => (int) $query->max_num_pages,
+			'per_page_modified'     => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
+			'request_id'            => $request_id,
+		);
+		// Raw SQL is a debugging aid only — never log query text in production.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			$context['sql'] = substr( $query->request, 0, 2000 );
+		}
+		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', $context );
+
+		return true;
+	}
+
+	/**
 	 * Export publishable site content.
 	 *
 	 * Returns pages, posts, and public custom post types in a structured
@@ -168,13 +213,6 @@ final class DEF_Core_Export {
 		$request_id     = $request->get_header( 'X-DEF-Request-ID' ) ?: '';
 
 		$content_type = ! empty( $filter_type ) ? $filter_type : 'mixed';
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
-			'content_type'   => $content_type,
-			'page'           => $page,
-			'per_page'       => $per_page,
-			'modified_after' => $modified_after,
-			'request_id'     => $request_id,
-		) );
 
 		// Get exportable post types (excludes system types).
 		$post_types = class_exists( 'DEF_Core_Knowledge_Export' )
@@ -210,17 +248,7 @@ final class DEF_Core_Export {
 
 		$query = new \WP_Query( $query_args );
 
-		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
-			'content_type'           => $content_type,
-			'requested_per_page'     => $per_page,
-			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
-			'found_posts'            => (int) $query->found_posts,
-			'post_count'             => $query->post_count,
-			'max_num_pages'          => (int) $query->max_num_pages,
-			'sql'                    => substr( $query->request, 0, 2000 ),
-			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
-			'request_id'             => $request_id,
-		) );
+		$has_changes = self::log_sync_query( $content_type, (int) $per_page, $query, $request_id );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
@@ -269,14 +297,16 @@ final class DEF_Core_Export {
 		$total_items = (int) $query->found_posts;
 		$total_pages = (int) $query->max_num_pages;
 
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
-			'content_type'   => $content_type,
-			'items_returned' => count( $items ),
-			'total_items'    => $total_items,
-			'total_pages'    => $total_pages,
-			'page'           => $page,
-			'request_id'     => $request_id,
-		) );
+		if ( $has_changes ) {
+			DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+				'content_type'   => $content_type,
+				'items_returned' => count( $items ),
+				'total_items'    => $total_items,
+				'total_pages'    => $total_pages,
+				'page'           => $page,
+				'request_id'     => $request_id,
+			) );
+		}
 
 		$response = new \WP_REST_Response( array(
 			'items'       => $items,
@@ -322,14 +352,6 @@ final class DEF_Core_Export {
 		$per_page       = $request->get_param( 'per_page' );
 		$modified_after = sanitize_text_field( $request->get_param( 'modified_after' ) );
 
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export request received', array(
-			'content_type'   => 'product',
-			'page'           => $page,
-			'per_page'       => $per_page,
-			'modified_after' => $modified_after,
-			'request_id'     => $request_id,
-		) );
-
 		$query_args = array(
 			'post_type'      => 'product',
 			'post_status'    => 'publish',
@@ -353,17 +375,7 @@ final class DEF_Core_Export {
 
 		$query = new \WP_Query( $query_args );
 
-		DEF_Core_Logger::debug( DEF_Core_Logger::SOURCE_SYNC, 'WP_Query executed', array(
-			'content_type'           => 'product',
-			'requested_per_page'     => $per_page,
-			'actual_posts_per_page'  => $query->query_vars['posts_per_page'],
-			'found_posts'            => (int) $query->found_posts,
-			'post_count'             => $query->post_count,
-			'max_num_pages'          => (int) $query->max_num_pages,
-			'sql'                    => substr( $query->request, 0, 2000 ),
-			'per_page_modified'      => (int) $per_page !== (int) $query->query_vars['posts_per_page'],
-			'request_id'             => $request_id,
-		) );
+		$has_changes = self::log_sync_query( 'product', (int) $per_page, $query, $request_id );
 
 		$items = array();
 		foreach ( $query->posts as $post ) {
@@ -457,14 +469,16 @@ final class DEF_Core_Export {
 		$total_items = (int) $query->found_posts;
 		$total_pages = (int) $query->max_num_pages;
 
-		DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
-			'content_type'   => 'product',
-			'items_returned' => count( $items ),
-			'total_items'    => $total_items,
-			'total_pages'    => $total_pages,
-			'page'           => $page,
-			'request_id'     => $request_id,
-		) );
+		if ( $has_changes ) {
+			DEF_Core_Logger::info( DEF_Core_Logger::SOURCE_SYNC, 'Export response', array(
+				'content_type'   => 'product',
+				'items_returned' => count( $items ),
+				'total_items'    => $total_items,
+				'total_pages'    => $total_pages,
+				'page'           => $page,
+				'request_id'     => $request_id,
+			) );
+		}
 
 		$response = new \WP_REST_Response( array(
 			'items'       => $items,

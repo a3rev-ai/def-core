@@ -250,6 +250,15 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
 			'read_mode' => 'value',
 		),
+		// Connection-log verbosity — lets the platform/Setup Assistant dial log
+		// noise remotely (debug | info | warning | error). Reuses the same
+		// sanitiser the admin AJAX save path uses.
+		'def_core_log_level' => array(
+			'type'      => 'enum',
+			'validate'  => 'validate_log_level',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_log_level' ),
+			'read_mode' => 'value',
+		),
 	);
 
 	/**
@@ -1463,6 +1472,19 @@ final class DEF_Core_Admin_API {
 		}
 		if ( mb_strlen( $value ) > 200 ) {
 			return 'Greeting bubble text must be 200 characters or fewer.';
+		}
+		return true;
+	}
+
+	/**
+	 * Validate the connection-log level — one of the four logger levels.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_log_level( $value ) {
+		if ( ! in_array( $value, array( 'debug', 'info', 'warning', 'error' ), true ) ) {
+			return 'Log level must be "debug", "info", "warning", or "error".';
 		}
 		return true;
 	}
