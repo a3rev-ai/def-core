@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.12.0
+Stable tag: 4.12.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.12.1 - 2026-06-13 =
+* Tweak: Connection-log noise reduction — a zero-change incremental sync now writes a single "Incremental sync: 0 changes" INFO row per content type instead of the old request/query/response trio, and the "Export request received" row is dropped everywhere. The WP_Query debug row no longer carries raw SQL unless WP_DEBUG is on.
+* Tweak: Digital Employees admin submenu reordered to Settings, Content AI, Open Staff AI, Logs; the "Content Drafts" menu label is now "Content AI" (slug and heading unchanged).
+* Tweak: the connection-log level is now manageable remotely via the Setup Assistant settings endpoint.
 
 = 4.12.0 - 2026-06-13 =
 * Feature: Create posts from reference sources. The Content Drafts → Create panel gains a "Reference sources (optional)" group — link up to 5 pages, attach up to 2 documents (PDF, DOCX, TXT, CSV, XLSX; 10MB total, read in the browser), or paste source text (up to 20,000 characters). DEF bases the post on the material you provide and derives a focus keyphrase when you leave it blank (you review it on the draft card). The keyphrase field is now optional once a source is added. Writer notes stay separate (guidance, not source material). The BFF passes the sources through unchanged with shape/size sanity caps; DEF performs the authoritative validation.

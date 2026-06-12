@@ -39,13 +39,16 @@ final class DEF_Core_Content_Drafts_Page {
 		if ( ! DEF_Core_Staff_AI::user_has_staff_ai_access() ) {
 			return;
 		}
+		// Position 1 slots "Content AI" directly after Settings (index 0),
+		// ahead of Open Staff AI and Logs which register earlier and append.
 		add_submenu_page(
 			'def-core',
 			__( 'Content Drafts', 'digital-employees' ),
-			__( 'Content Drafts', 'digital-employees' ),
+			__( 'Content AI', 'digital-employees' ),
 			'read', // visibility already gated above; render double-checks.
 			'def-core-content-drafts',
-			array( __CLASS__, 'render_page' )
+			array( __CLASS__, 'render_page' ),
+			1
 		);
 	}
 

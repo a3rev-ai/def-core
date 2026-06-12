@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.12.1 - 2026/06/13 =
+* Tweak: Connection-log noise reduction. An incremental sync that finds nothing changed now writes a single "Incremental sync: 0 changes" INFO row per content type instead of the old request/query/response trio, and the per-request "Export request received" row is dropped everywhere (it carried no signal). When content does change, the per-type response row stays.
+* Tweak: the "WP_Query executed" debug row no longer includes the raw SQL unless WP_DEBUG is on — query counts and page metadata still stay.
+* Tweak: Digital Employees admin submenu reordered to Settings, Content AI, Open Staff AI, Logs. The "Content Drafts" menu label is renamed to "Content AI" (the page slug and on-page heading are unchanged).
+* Tweak: the connection-log level (def_core_log_level) is now readable and writable through the Setup Assistant settings endpoint, so log verbosity can be managed remotely.
+
 = 4.12.0 - 2026/06/13 =
 * Feature: Create posts from reference sources. The Content Drafts → Create panel gains a "Reference sources (optional)" group so a new post can be based on real source material instead of a keyphrase alone. Three source types, all optional: Reference URLs (add/remove up to 5 http(s) links), Files (a picker accepting PDF, DOCX, TXT, CSV and XLSX — up to 2 files, 10MB total, read in the browser via FileReader and sent as base64; no media-library writes), and a "Paste source text" box (up to 20,000 characters, forwarded verbatim). The existing writer-notes box is unchanged and kept distinct — notes are guidance for the writer, reference sources are the material the post is based on. The focus keyphrase is now optional whenever at least one source is provided: DEF reads the sources and derives a keyphrase for you to review on the draft card. Client-side validation gives honest errors (file type/count, 10MB total, 20k text cap) and allows an empty keyphrase only when a source is present. The BFF proxy passes reference_sources through to DEF unchanged (no lossy reshape), enforcing matching shape/size sanity caps with clear 400s; DEF owns the authoritative validation. Absent reference sources → behaviour is byte-identical to before.
 
