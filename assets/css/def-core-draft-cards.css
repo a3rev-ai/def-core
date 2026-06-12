@@ -497,6 +497,75 @@ a.def-draft-title-link:hover {
 	margin-top: 8px;
 	font-size: 13px;
 }
+.def-draft-create-help {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: #50697f;
+}
+
+/* Create panel — reference sources (Engine 2.5) */
+.def-draft-refsrc {
+	margin-top: 12px;
+	padding: 10px 12px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	max-width: 640px;
+}
+.def-draft-refsrc-head {
+	font-weight: 600;
+	font-size: 13px;
+}
+.def-draft-refsrc-hint {
+	margin: 2px 0 8px;
+	font-size: 12px;
+	color: #50697f;
+}
+.def-draft-refsrc-field { margin: 8px 0 4px; }
+.def-draft-refsrc-label {
+	font-size: 12px;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+.def-draft-refurls-row {
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin-bottom: 4px;
+}
+.def-draft-refurls-input { flex: 1 1 auto; padding-right: 30px; }
+.def-draft-refurls-remove {
+	position: absolute;
+	right: 6px;
+	text-decoration: none;
+	color: #b32d2e;
+	font-size: 18px;
+	line-height: 1;
+}
+.def-draft-refurls-add { margin-top: 2px; }
+.def-draft-reffiles-list { margin-top: 6px; }
+.def-draft-reffile-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 2px 6px 2px 0;
+	padding: 2px 8px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 12px;
+	font-size: 12px;
+}
+.def-draft-reffile-remove {
+	text-decoration: none;
+	color: #b32d2e;
+	font-size: 15px;
+	line-height: 1;
+}
+.def-draft-refsrc-text {
+	display: block;
+	width: 100%;
+	font-size: 13px;
+}
 
 /* Clusters tab */
 .def-cluster-nominate {

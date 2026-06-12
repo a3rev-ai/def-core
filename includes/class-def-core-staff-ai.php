@@ -48,6 +48,17 @@ final class DEF_Core_Staff_AI
 	const UPLOAD_MAX_SIZE_BYTES = 10485760;
 
 	/**
+	 * "Create with reference sources" caps (Engine 2.5). These mirror the DEF
+	 * contract exactly — DEF re-validates authoritatively; these are BFF sanity
+	 * caps that reject obviously over-budget payloads with a clear 400.
+	 */
+	const CREATE_MAX_REFERENCE_URLS       = 5;
+	const CREATE_MAX_REFERENCE_FILES      = 2;
+	const CREATE_MAX_REFERENCE_FILE_BYTES = 10485760; // 10MB total decoded.
+	const CREATE_MAX_REFERENCE_TEXT       = 20000;
+	const CREATE_ALLOWED_FILE_EXT         = array( 'pdf', 'docx', 'txt', 'csv', 'xlsx' );
+
+	/**
 	 * Initialize the Staff AI endpoint.
 	 */
 	public static function init(): void
@@ -669,6 +680,129 @@ final class DEF_Core_Staff_AI
 	 * @return \WP_REST_Response|\WP_Error Response.
 	 */
 	/**
+	 * True when $url is a syntactically valid http(s) URL. Used to validate
+	 * reference-source URLs WITHOUT reshaping them — esc_url_raw would re-encode
+	 * the string, but these are opaque payload data for DEF, so we only check the
+	 * scheme/host shape and pass the original through.
+	 *
+	 * @param string $url Candidate URL.
+	 * @return bool Whether it is an http(s) URL.
+	 */
+	private static function is_http_url( string $url ): bool
+	{
+		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
+		return ( 'http' === $scheme || 'https' === $scheme )
+			&& '' !== (string) wp_parse_url( $url, PHP_URL_HOST );
+	}
+
+	/**
+	 * Validate a client-supplied reference_sources object (Engine 2.5).
+	 *
+	 * Shape mirrors the DEF contract: { urls: string[≤5], text: string[≤20k],
+	 * files: [{filename, content_b64}][≤2, ≤10MB decoded total; pdf/docx/txt/csv/
+	 * xlsx] }. Everything optional. Returns the CLEANED object passed through
+	 * unchanged (no esc_url_raw / sanitize that could corrupt payload data —
+	 * length/type/scheme checks only), an empty array when no usable source is
+	 * present, or a WP_Error naming the first cap/shape violation. DEF owns the
+	 * authoritative validation; this is a BFF sanity gate with clear 400s.
+	 *
+	 * @param mixed $raw Raw reference_sources from the request body.
+	 * @return array|\WP_Error Cleaned reference_sources (possibly empty) or error.
+	 */
+	private static function validate_reference_sources( $raw )
+	{
+		if ( null === $raw || ( is_array( $raw ) && empty( $raw ) ) ) {
+			return array();
+		}
+		if ( ! is_array( $raw ) ) {
+			return new \WP_Error(
+				'invalid_reference_sources',
+				__( 'reference_sources must be an object.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$err   = static function ( $message ) {
+			return new \WP_Error( 'invalid_reference_sources', $message, array( 'status' => 400 ) );
+		};
+		$clean = array();
+
+		// urls: ≤5 http(s), passed through unchanged.
+		if ( isset( $raw['urls'] ) ) {
+			if ( ! is_array( $raw['urls'] ) ) {
+				return $err( __( 'reference_sources.urls must be a list of URLs.', 'digital-employees' ) );
+			}
+			if ( count( $raw['urls'] ) > self::CREATE_MAX_REFERENCE_URLS ) {
+				return $err( __( 'At most 5 reference URLs are allowed.', 'digital-employees' ) );
+			}
+			$urls = array();
+			foreach ( $raw['urls'] as $u ) {
+				$u = is_string( $u ) ? trim( $u ) : '';
+				if ( '' === $u ) {
+					continue;
+				}
+				if ( ! self::is_http_url( $u ) ) {
+					return $err( __( 'Each reference URL must be a valid http(s) URL.', 'digital-employees' ) );
+				}
+				$urls[] = $u;
+			}
+			if ( ! empty( $urls ) ) {
+				$clean['urls'] = $urls;
+			}
+		}
+
+		// text: ≤20,000 chars, passed through verbatim (sanitizing would corrupt
+		// source material — this is payload data for DEF, not display text).
+		if ( isset( $raw['text'] ) ) {
+			if ( ! is_string( $raw['text'] ) ) {
+				return $err( __( 'reference_sources.text must be a string.', 'digital-employees' ) );
+			}
+			if ( mb_strlen( $raw['text'] ) > self::CREATE_MAX_REFERENCE_TEXT ) {
+				return $err( __( 'Source text is limited to 20,000 characters.', 'digital-employees' ) );
+			}
+			if ( '' !== trim( $raw['text'] ) ) {
+				$clean['text'] = $raw['text'];
+			}
+		}
+
+		// files: ≤2 items, allowed types, ≤10MB total decoded; passed through unchanged.
+		if ( isset( $raw['files'] ) ) {
+			if ( ! is_array( $raw['files'] ) ) {
+				return $err( __( 'reference_sources.files must be a list.', 'digital-employees' ) );
+			}
+			if ( count( $raw['files'] ) > self::CREATE_MAX_REFERENCE_FILES ) {
+				return $err( __( 'At most 2 reference files are allowed.', 'digital-employees' ) );
+			}
+			$files = array();
+			$bytes = 0;
+			foreach ( $raw['files'] as $f ) {
+				if ( ! is_array( $f ) || ! isset( $f['filename'], $f['content_b64'] )
+					|| ! is_string( $f['filename'] ) || ! is_string( $f['content_b64'] ) ) {
+					return $err( __( 'Each reference file needs a filename and base64 content.', 'digital-employees' ) );
+				}
+				$ext = strtolower( pathinfo( $f['filename'], PATHINFO_EXTENSION ) );
+				if ( ! in_array( $ext, self::CREATE_ALLOWED_FILE_EXT, true ) ) {
+					return $err( __( 'Reference files must be PDF, DOCX, TXT, CSV or XLSX.', 'digital-employees' ) );
+				}
+				$decoded = base64_decode( $f['content_b64'], true );
+				if ( false === $decoded ) {
+					return $err( __( 'A reference file is not valid base64.', 'digital-employees' ) );
+				}
+				$bytes  += strlen( $decoded );
+				$files[] = array( 'filename' => $f['filename'], 'content_b64' => $f['content_b64'] );
+			}
+			if ( $bytes > self::CREATE_MAX_REFERENCE_FILE_BYTES ) {
+				return $err( __( 'Reference files exceed the 10MB total limit.', 'digital-employees' ) );
+			}
+			if ( ! empty( $files ) ) {
+				$clean['files'] = $files;
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
 	 * REST handler: on-demand "Create New" request (Content Agent Engine 2).
 	 *
 	 * Proxies DEF POST /api/staff-ai/content/create with the user's keyphrase. DEF
@@ -681,20 +815,34 @@ final class DEF_Core_Staff_AI
 	public static function rest_content_create( \WP_REST_Request $request )
 	{
 		$params    = $request->get_json_params();
-		$keyphrase = ( is_array( $params ) && isset( $params['keyphrase'] ) && is_string( $params['keyphrase'] ) )
+		$params    = is_array( $params ) ? $params : array();
+		$keyphrase = ( isset( $params['keyphrase'] ) && is_string( $params['keyphrase'] ) )
 			? trim( $params['keyphrase'] )
 			: '';
-		if ( '' === $keyphrase ) {
+
+		// Reference sources (Engine 2.5 "Create with sources") — optional. Validated
+		// for shape/caps here and passed through UNCHANGED (no lossy reshape); DEF
+		// owns authoritative validation. When ≥1 source is supplied the keyphrase is
+		// optional (DEF derives it, the human reviews it on the draft card).
+		$reference_sources = self::validate_reference_sources(
+			isset( $params['reference_sources'] ) ? $params['reference_sources'] : null
+		);
+		if ( is_wp_error( $reference_sources ) ) {
+			return $reference_sources;
+		}
+		$has_sources = ! empty( $reference_sources );
+
+		if ( '' === $keyphrase && ! $has_sources ) {
 			return new \WP_Error(
 				'invalid_keyphrase',
-				__( 'A keyphrase is required to generate a post.', 'digital-employees' ),
+				__( 'Provide a keyphrase or at least one reference source to generate a post.', 'digital-employees' ),
 				array( 'status' => 400 )
 			);
 		}
 
 		// Optional writer notes (Engine 2.5) — forwarded verbatim to DEF; the
 		// writer consumes them when retrieval-grounded writing lands (PR 2.5-3).
-		$notes = ( is_array( $params ) && isset( $params['notes'] ) && is_string( $params['notes'] ) )
+		$notes = ( isset( $params['notes'] ) && is_string( $params['notes'] ) )
 			? trim( sanitize_textarea_field( $params['notes'] ) )
 			: '';
 		if ( mb_strlen( $notes ) > 2000 ) {
@@ -705,9 +853,15 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		$body = array( 'keyphrase' => $keyphrase );
+		$body = array();
+		if ( '' !== $keyphrase ) {
+			$body['keyphrase'] = $keyphrase;
+		}
 		if ( '' !== $notes ) {
 			$body['notes'] = $notes;
+		}
+		if ( $has_sources ) {
+			$body['reference_sources'] = $reference_sources;
 		}
 
 		$result = self::backend_request( 'POST', '/api/staff-ai/content/create', $body );

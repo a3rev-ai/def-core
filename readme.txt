@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.11.0
+Stable tag: 4.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.12.0 - 2026-06-13 =
+* Feature: Create posts from reference sources. The Content Drafts → Create panel gains a "Reference sources (optional)" group — link up to 5 pages, attach up to 2 documents (PDF, DOCX, TXT, CSV, XLSX; 10MB total, read in the browser), or paste source text (up to 20,000 characters). DEF bases the post on the material you provide and derives a focus keyphrase when you leave it blank (you review it on the draft card). The keyphrase field is now optional once a source is added. Writer notes stay separate (guidance, not source material). The BFF passes the sources through unchanged with shape/size sanity caps; DEF performs the authoritative validation.
 
 = 4.11.0 - 2026-06-12 =
 * (note: 4.10.0 skipped — PHP version_compare bug treats "10" as "1")
