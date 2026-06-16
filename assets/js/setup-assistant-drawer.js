@@ -1397,6 +1397,12 @@
 				}
 				self.threadId = data.thread_id;
 				var msgs = data.messages || [];
+				if (msgs.length) {
+					// Drop any welcome bubble open() rendered during the async
+					// fetch, so rehydrated history doesn't land beneath it.
+					self.messagesEl.innerHTML = '';
+					self.messages = [];
+				}
 				for (var i = 0; i < msgs.length; i++) {
 					var m = msgs[i];
 					if (m && (m.role === 'user' || m.role === 'assistant')) {
