@@ -63,6 +63,19 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that the Setup Assistant routes are registered with correct methods.
+	 */
+	public function test_setup_assistant_routes_registered(): void {
+		$this->assertArrayHasKey( '/a3-ai/v1/setup-assistant/chat/stream', $this->routes, 'setup-assistant chat/stream route missing' );
+		$this->assertArrayHasKey( '/a3-ai/v1/setup-assistant/active-thread', $this->routes, 'setup-assistant active-thread route missing' );
+		$this->assertArrayHasKey( '/a3-ai/v1/setup-assistant/clear', $this->routes, 'setup-assistant clear route missing' );
+
+		$this->assertContains( 'POST', $this->get_route_methods( '/a3-ai/v1/setup-assistant/chat/stream' ), 'chat/stream should accept POST' );
+		$this->assertContains( 'GET', $this->get_route_methods( '/a3-ai/v1/setup-assistant/active-thread' ), 'active-thread should accept GET' );
+		$this->assertContains( 'POST', $this->get_route_methods( '/a3-ai/v1/setup-assistant/clear' ), 'clear should accept POST' );
+	}
+
+	/**
 	 * Test that the Content Drafts status-strip routes are registered.
 	 */
 	public function test_content_status_routes_registered(): void {

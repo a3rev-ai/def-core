@@ -42,6 +42,13 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 	 */
 	private $staff_user_id;
 
+	/**
+	 * Setup-Assistant-capability (def_admin_access) user ID.
+	 *
+	 * @var int
+	 */
+	private $admin_cap_user_id;
+
 	public function set_up(): void {
 		parent::set_up();
 
@@ -56,6 +63,11 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 		$this->staff_user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		$staff_user          = get_user_by( 'id', $this->staff_user_id );
 		$staff_user->add_cap( 'def_staff_access' );
+
+		// Create a user with the Setup Assistant capability.
+		$this->admin_cap_user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$admin_cap_user          = get_user_by( 'id', $this->admin_cap_user_id );
+		$admin_cap_user->add_cap( 'def_admin_access' );
 	}
 
 	public function tear_down(): void {
@@ -187,6 +199,50 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 			array( 401, 403 ),
 			'tools/me should reject unauthenticated requests'
 		);
+	}
+
+	/**
+	 * Test: Setup Assistant active-thread + clear reject anonymous (401).
+	 */
+	public function test_setup_assistant_thread_routes_reject_anonymous(): void {
+		wp_set_current_user( 0 );
+
+		$get = $this->server->dispatch( new WP_REST_Request( 'GET', '/a3-ai/v1/setup-assistant/active-thread' ) );
+		$this->assertEquals( 401, $get->get_status(), 'active-thread should reject anonymous with 401' );
+
+		$post = $this->server->dispatch( new WP_REST_Request( 'POST', '/a3-ai/v1/setup-assistant/clear' ) );
+		$this->assertEquals( 401, $post->get_status(), 'clear should reject anonymous with 401' );
+	}
+
+	/**
+	 * Test: Setup Assistant routes reject a subscriber without def_admin_access (403).
+	 */
+	public function test_setup_assistant_thread_routes_reject_subscriber_without_cap(): void {
+		wp_set_current_user( $this->subscriber_id );
+
+		$get = $this->server->dispatch( new WP_REST_Request( 'GET', '/a3-ai/v1/setup-assistant/active-thread' ) );
+		$this->assertEquals( 403, $get->get_status(), 'active-thread should reject subscriber without def_admin_access with 403' );
+
+		$post = $this->server->dispatch( new WP_REST_Request( 'POST', '/a3-ai/v1/setup-assistant/clear' ) );
+		$this->assertEquals( 403, $post->get_status(), 'clear should reject subscriber without def_admin_access with 403' );
+	}
+
+	/**
+	 * Test: Setup Assistant routes pass the permission gate for a def_admin_access user.
+	 *
+	 * The backend proxy call then fails (no DEF backend in tests), but the
+	 * permission check passes — so we assert the status is NOT 401/403.
+	 */
+	public function test_setup_assistant_thread_routes_pass_for_admin_cap_user(): void {
+		wp_set_current_user( $this->admin_cap_user_id );
+
+		$get = $this->server->dispatch( new WP_REST_Request( 'GET', '/a3-ai/v1/setup-assistant/active-thread' ) );
+		$this->assertNotEquals( 401, $get->get_status(), 'def_admin_access user should not get 401 on active-thread' );
+		$this->assertNotEquals( 403, $get->get_status(), 'def_admin_access user should not get 403 on active-thread' );
+
+		$post = $this->server->dispatch( new WP_REST_Request( 'POST', '/a3-ai/v1/setup-assistant/clear' ) );
+		$this->assertNotEquals( 401, $post->get_status(), 'def_admin_access user should not get 401 on clear' );
+		$this->assertNotEquals( 403, $post->get_status(), 'def_admin_access user should not get 403 on clear' );
 	}
 
 	/**
