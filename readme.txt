@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.12.1
+Stable tag: 4.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.13.0 - 2026-06-16 =
+* Feature: The Setup Assistant conversation now persists across wp-admin page navigation. Moving between admin pages (e.g. Settings ↔ Content AI) no longer loses the visible conversation — the drawer resumes your active thread and rehydrates its messages on load. "Clear / New chat" starts fresh. Thread state is now stored per user on the Digital Employee Framework backend, replacing the previous per-browser cache.
 
 = 4.12.1 - 2026-06-13 =
 * Tweak: Connection-log noise reduction — a zero-change incremental sync now writes a single "Incremental sync: 0 changes" INFO row per content type instead of the old request/query/response trio, and the "Export request received" row is dropped everywhere. The WP_Query debug row no longer carries raw SQL unless WP_DEBUG is on.

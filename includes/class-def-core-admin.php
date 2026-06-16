@@ -539,6 +539,8 @@ final class DEF_Core_Admin {
 			'restUrl'        => esc_url_raw( rest_url( 'def-core/v1/' ) ),
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
 			'chatStreamUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/chat/stream' ) ),
+			'activeThreadUrl' => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/active-thread' ) ),
+			'clearUrl'       => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/clear' ) ),
 			'escalationUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/send-escalation-email' ) ),
 			'userFirstName'  => $current_user->first_name ?: $current_user->display_name,
 		) );
