@@ -93,13 +93,6 @@ final class DEF_Core_Admin_API {
 	// HMAC_TIMESTAMP_TOLERANCE moved to shared DEF_Core_HMAC_Auth class.
 
 	/**
-	 * Thread ID max length.
-	 *
-	 * @var int
-	 */
-	private const THREAD_ID_MAX_LENGTH = 200;
-
-	/**
 	 * Setting allowlist with type, validation, and read mode.
 	 *
 	 * @var array<string, array{type: string, validate: string, read_mode: string, redact?: bool}>
@@ -325,27 +318,6 @@ final class DEF_Core_Admin_API {
 			'methods'             => 'POST',
 			'permission_callback' => array( $this, 'permission_check' ),
 			'callback'            => array( $this, 'rest_update_user_role' ),
-		) );
-
-		// GET /setup/thread
-		register_rest_route( self::REST_NAMESPACE, '/setup/thread', array(
-			'methods'             => 'GET',
-			'permission_callback' => array( $this, 'permission_check' ),
-			'callback'            => array( $this, 'rest_get_thread' ),
-		) );
-
-		// POST /setup/thread
-		register_rest_route( self::REST_NAMESPACE, '/setup/thread', array(
-			'methods'             => 'POST',
-			'permission_callback' => array( $this, 'permission_check' ),
-			'callback'            => array( $this, 'rest_save_thread' ),
-		) );
-
-		// DELETE /setup/thread
-		register_rest_route( self::REST_NAMESPACE, '/setup/thread', array(
-			'methods'             => 'DELETE',
-			'permission_callback' => array( $this, 'permission_check' ),
-			'callback'            => array( $this, 'rest_delete_thread' ),
 		) );
 
 		// GET /setup/detect-theme-colors
@@ -1095,73 +1067,6 @@ final class DEF_Core_Admin_API {
 			'action'     => $action,
 			'applied'    => true,
 		), $ui_actions );
-	}
-
-	// ─── Thread CRUD ────────────────────────────────────────────────────
-
-	/**
-	 * Get stored thread ID for current user.
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return \WP_REST_Response
-	 * @since 2.0.0
-	 */
-	public function rest_get_thread( \WP_REST_Request $request ): \WP_REST_Response {
-		$user_id   = $this->get_acting_user_id( $request );
-		$thread_id = get_user_meta( $user_id, 'setup_assistant_thread_id', true );
-
-		return $this->success_response( array(
-			'thread_id' => ! empty( $thread_id ) ? $thread_id : null,
-		) );
-	}
-
-	/**
-	 * Save thread ID for current user.
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return \WP_REST_Response
-	 * @since 2.0.0
-	 */
-	public function rest_save_thread( \WP_REST_Request $request ): \WP_REST_Response {
-		$user_id = $this->get_acting_user_id( $request );
-		$body    = $request->get_json_params();
-
-		$thread_id = isset( $body['thread_id'] ) ? sanitize_text_field( $body['thread_id'] ) : '';
-
-		if ( empty( $thread_id ) ) {
-			return $this->error_response( 'MISSING_THREAD_ID', 'thread_id is required.', 400 );
-		}
-
-		if ( strlen( $thread_id ) > self::THREAD_ID_MAX_LENGTH ) {
-			return $this->error_response(
-				'THREAD_ID_TOO_LONG',
-				'thread_id must be ' . self::THREAD_ID_MAX_LENGTH . ' characters or fewer.',
-				400
-			);
-		}
-
-		update_user_meta( $user_id, 'setup_assistant_thread_id', $thread_id );
-
-		return $this->success_response( array(
-			'thread_id' => $thread_id,
-			'saved'     => true,
-		) );
-	}
-
-	/**
-	 * Delete thread ID for current user.
-	 *
-	 * @param \WP_REST_Request $request The request object.
-	 * @return \WP_REST_Response
-	 * @since 2.0.0
-	 */
-	public function rest_delete_thread( \WP_REST_Request $request ): \WP_REST_Response {
-		$user_id = $this->get_acting_user_id( $request );
-		delete_user_meta( $user_id, 'setup_assistant_thread_id' );
-
-		return $this->success_response( array(
-			'deleted' => true,
-		) );
 	}
 
 	// ─── GET /setup/seen ────────────────────────────────────────────────

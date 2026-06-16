@@ -180,6 +180,38 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// Setup Assistant BFF proxy — resume the active thread on drawer mount.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/setup-assistant/active-thread',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => function () {
+					if ( ! is_user_logged_in() ) {
+						return false;
+					}
+					return current_user_can( 'def_admin_access' );
+				},
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_setup_assistant_active_thread' ),
+			)
+		);
+
+		// Setup Assistant BFF proxy — clear the active thread ("new chat").
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/setup-assistant/clear',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => function () {
+					if ( ! is_user_logged_in() ) {
+						return false;
+					}
+					return current_user_can( 'def_admin_access' );
+				},
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_setup_assistant_clear' ),
+			)
+		);
+
 		// Register all tools with WordPress REST API.
 		// Tools are already registered in register_tools() on 'init' hook.
 		$registry = DEF_Core_API_Registry::instance();

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.13.0 - 2026/06/16 =
+* Feature: The Setup Assistant conversation now persists across wp-admin page navigation. Previously, moving between admin pages (e.g. Settings ↔ Content AI) re-initialised the drawer and the visible conversation was lost. The drawer now resumes your active thread and rehydrates its messages on load, so the conversation continues where you left it. The "Clear / New chat" control starts a fresh conversation. Thread state is now keyed per user on the Digital Employee Framework backend (the source of truth), replacing the previous per-browser thread cache.
+
 = 4.12.1 - 2026/06/13 =
 * Tweak: Connection-log noise reduction. An incremental sync that finds nothing changed now writes a single "Incremental sync: 0 changes" INFO row per content type instead of the old request/query/response trio, and the per-request "Export request received" row is dropped everywhere (it carried no signal). When content does change, the per-type response row stays.
 * Tweak: the "WP_Query executed" debug row no longer includes the raw SQL unless WP_DEBUG is on — query counts and page metadata still stay.

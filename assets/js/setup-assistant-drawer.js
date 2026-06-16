@@ -73,7 +73,6 @@
 
 	// Namespace localStorage keys per site to avoid cross-install collisions.
 	var LS_PREFIX     = 'def_sa_' + (config.restUrl || '').replace(/[^a-z0-9]/gi, '').slice(0, 32) + '_';
-	var LS_THREAD_KEY = LS_PREFIX + 'thread_id';
 	var LS_SEEN_KEY   = LS_PREFIX + 'seen';
 
 	// ─── Constructor ─────────────────────────────────────────────
@@ -85,6 +84,8 @@
 		this.apiBase       = config.restUrl || '';
 		this.nonce         = config.nonce || '';
 		this.chatStreamUrl = config.chatStreamUrl || '';
+		this.activeThreadUrl = config.activeThreadUrl || '';
+		this.clearUrl      = config.clearUrl || '';
 		this.threadId      = null;
 		this.messages      = [];
 		this.dirtyFields   = {};
@@ -147,8 +148,8 @@
 		this.captureSettingsSnapshot();
 		this.trackDirtyFields();
 
-		// Thread + first-visit (async, non-blocking).
-		this.getOrCreateThread();
+		// Resume the active thread + first-visit (async, non-blocking).
+		this.resumeActiveThread();
 		this.checkFirstVisit();
 	};
 
@@ -625,10 +626,9 @@
 						}
 					}
 
-					// Save thread ID.
+					// Adopt the server-assigned thread id for this conversation.
 					if (event.thread_id && !self.threadId) {
 						self.threadId = event.thread_id;
-						self.saveThread(event.thread_id);
 					}
 
 					self.isSending = false;
@@ -1373,49 +1373,45 @@
 
 	// ─── Thread Persistence ──────────────────────────────────────
 
-	SetupAssistantDrawer.prototype.getOrCreateThread = function () {
+	SetupAssistantDrawer.prototype.resumeActiveThread = function () {
 		var self = this;
 
-		// Check localStorage first (fast).
-		try {
-			var cached = localStorage.getItem(LS_THREAD_KEY);
-			if (cached) {
-				self.threadId = cached;
-				return;
-			}
-		} catch (e) {
-			// localStorage unavailable.
+		// DEF is the source of truth for the active thread (per user/channel/
+		// tenant). On mount, load it + its messages and rehydrate the UI so the
+		// conversation persists across wp-admin page navigations. None → fresh.
+		if (!this.activeThreadUrl) {
+			return;
 		}
 
-		// Check REST (cross-browser consistency).
-		this.apiRequest('setup/thread', 'GET')
+		fetch(this.activeThreadUrl, {
+			method: 'GET',
+			headers: { 'X-WP-Nonce': this.nonce },
+			credentials: 'same-origin'
+		})
+			.then(function (res) {
+				return res.ok ? res.json() : null;
+			})
 			.then(function (data) {
-				var threadId = data && data.data && data.data.thread_id;
-				if (threadId) {
-					self.threadId = threadId;
-					try {
-						localStorage.setItem(LS_THREAD_KEY, threadId);
-					} catch (e) {
-						// Ignore.
+				if (!data || !data.thread_id) {
+					return; // nothing to resume — a new thread is created on first message
+				}
+				self.threadId = data.thread_id;
+				var msgs = data.messages || [];
+				if (msgs.length) {
+					// Drop any welcome bubble open() rendered during the async
+					// fetch, so rehydrated history doesn't land beneath it.
+					self.messagesEl.innerHTML = '';
+					self.messages = [];
+				}
+				for (var i = 0; i < msgs.length; i++) {
+					var m = msgs[i];
+					if (m && (m.role === 'user' || m.role === 'assistant')) {
+						self.renderMessage({ role: m.role, content: m.content || '' });
 					}
 				}
 			})
 			.catch(function () {
-				// Thread not found — will be created on first message.
-			});
-	};
-
-	SetupAssistantDrawer.prototype.saveThread = function (threadId) {
-		try {
-			localStorage.setItem(LS_THREAD_KEY, threadId);
-		} catch (e) {
-			// Ignore.
-		}
-
-		// Best-effort REST save.
-		this.apiRequest('setup/thread', 'POST', { thread_id: threadId })
-			.catch(function () {
-				// Non-critical.
+				// Offline / error — start fresh; no data lost (server keeps it).
 			});
 	};
 
@@ -1429,17 +1425,17 @@
 
 		// Clear thread.
 		this.threadId = null;
-		try {
-			localStorage.removeItem(LS_THREAD_KEY);
-		} catch (e) {
-			// Ignore.
-		}
 
-		// Delete from REST.
-		this.apiRequest('setup/thread', 'DELETE')
-			.catch(function () {
+		// Soft-delete the active thread on the server ("new chat").
+		if (this.clearUrl) {
+			fetch(this.clearUrl, {
+				method: 'POST',
+				headers: { 'X-WP-Nonce': this.nonce },
+				credentials: 'same-origin'
+			}).catch(function () {
 				// Non-critical.
 			});
+		}
 	};
 
 	// ─── First-Visit Auto-Open ───────────────────────────────────

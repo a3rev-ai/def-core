@@ -358,6 +358,34 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * BFF proxy for the Setup Assistant active-thread resume.
+	 * Returns the admin's active thread + its messages so the drawer can
+	 * rehydrate the conversation on mount (persists across wp-admin page
+	 * navigations). Auth: logged-in user with def_admin_access.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_setup_assistant_active_thread( $request ) {
+		$headers = self::build_proxy_headers( true );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/setup_assistant/active-thread';
+		return self::json_proxy_get( $def_url, $headers );
+	}
+
+	/**
+	 * BFF proxy for clearing the Setup Assistant active thread ("new chat").
+	 * Auth: logged-in user with def_admin_access.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_setup_assistant_clear( $request ) {
+		$headers = self::build_proxy_headers( true );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/setup_assistant/clear';
+		return self::json_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
 	 * JSON proxy for GET requests — forwards to DEF and returns the JSON response.
 	 *
 	 * @param string $url     DEF backend URL.

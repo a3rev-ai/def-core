@@ -516,9 +516,6 @@ $expected_routes = array(
 	'def-core/v1/setup/test-connection::GET',
 	'def-core/v1/setup/users::GET',
 	'def-core/v1/setup/user-role::POST',
-	'def-core/v1/setup/thread::GET',
-	'def-core/v1/setup/thread::POST',
-	'def-core/v1/setup/thread::DELETE',
 	'def-core/v1/setup/seen::GET',
 	'def-core/v1/setup/seen::POST',
 );
@@ -1081,59 +1078,6 @@ $data     = $response->get_data();
 
 assert_equals( 200, $response->get_status(), 'returns 200 (with error status in data)' );
 assert_equals( 'error', $data['data']['status'], 'status is error' );
-
-// ── 33. Thread CRUD ─────────────────────────────────────────────────────
-echo "\n[33] Thread CRUD\n";
-reset_test_state();
-setup_admin_user();
-
-// GET: no thread yet.
-$request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/thread' );
-$response = $sa->rest_get_thread( $request );
-$data     = $response->get_data();
-assert_null( $data['data']['thread_id'], 'thread_id is null initially' );
-
-// POST: save thread.
-$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/thread' );
-$request->set_body_params( array( 'thread_id' => 'thread_abc123' ) );
-$response = $sa->rest_save_thread( $request );
-$data     = $response->get_data();
-assert_equals( 200, $response->get_status(), 'save returns 200' );
-assert_true( $data['data']['saved'], 'saved is true' );
-
-// GET: thread exists now.
-$request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/thread' );
-$response = $sa->rest_get_thread( $request );
-$data     = $response->get_data();
-assert_equals( 'thread_abc123', $data['data']['thread_id'], 'thread_id matches saved value' );
-
-// DELETE: remove thread.
-$request  = new WP_REST_Request( 'DELETE', '/def-core/v1/setup/thread' );
-$response = $sa->rest_delete_thread( $request );
-$data     = $response->get_data();
-assert_true( $data['data']['deleted'], 'deleted is true' );
-
-// GET: thread gone after delete.
-$request  = new WP_REST_Request( 'GET', '/def-core/v1/setup/thread' );
-$response = $sa->rest_get_thread( $request );
-$data     = $response->get_data();
-assert_null( $data['data']['thread_id'], 'thread_id is null after delete' );
-
-// ── 34. Thread: validation ──────────────────────────────────────────────
-echo "\n[34] Thread: validation\n";
-reset_test_state();
-setup_admin_user();
-
-// Empty thread ID.
-$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/thread' );
-$request->set_body_params( array( 'thread_id' => '' ) );
-$response = $sa->rest_save_thread( $request );
-assert_equals( 400, $response->get_status(), 'empty thread_id returns 400' );
-
-// Too long thread ID.
-$request->set_body_params( array( 'thread_id' => str_repeat( 'a', 201 ) ) );
-$response = $sa->rest_save_thread( $request );
-assert_equals( 400, $response->get_status(), 'too-long thread_id returns 400' );
 
 // ── 35. Rate limiting ───────────────────────────────────────────────────
 echo "\n[35] Rate limiting\n";
