@@ -68,3 +68,9 @@ CLAUDE_NOTES.md
 docs/ai-prompts/prd/
 docs/CATCHUP-*.md
 docs/prd/RALPH-RUNBOOK-*.md
+
+# Environment files / secrets (never commit; not used by WP but guard against accidents)
+.env
+.env.*
+!.env.example
+!.env.sample
