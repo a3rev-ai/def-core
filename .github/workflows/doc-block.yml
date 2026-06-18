@@ -1,0 +1,56 @@
+name: Doc Block
+
+# Requires PRs that touch user-facing paths to resolve the ## Documentation block
+# (either tick N/A or fill Target + What to document). Feeds the platform-docs curator.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  doc-block:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a resolved Documentation block on user-facing changes
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          CHANGED_COUNT: ${{ github.event.pull_request.changed_files }}
+        run: |
+          CHANGED="$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')"
+          echo "Changed files:"; printf '%s\n' "$CHANGED"
+          CHANGED="$CHANGED" python3 - <<'PY'
+          import os, re, sys
+          changed = [l.strip() for l in os.environ.get("CHANGED", "").splitlines() if l.strip()]
+          count = int(os.environ.get("CHANGED_COUNT") or 0)
+          if not changed and count > 0:
+              print("::error::Could not list the %d changed file(s); failing closed. Re-run this check." % count)
+              sys.exit(1)
+          IN_SCOPE = ("includes/", "assets/", "templates/")
+          in_scope = sorted({f for f in changed if f.startswith(IN_SCOPE)})
+          if not in_scope:
+              print("No user-facing paths touched (includes/, assets/, templates/) — block not required.")
+              sys.exit(0)
+          body = os.environ.get("PR_BODY") or ""
+          na = re.search(r'-\s*\[\s*[xX]\s*\]\s*\*\*N/?A\*\*', body)
+          def field(name):
+              m = re.search(r'\*\*' + re.escape(name) + r':\*\*\s*(.*)', body)
+              return m.group(1).strip() if m else ""
+          def filled(v):
+              return bool(v) and not (v.startswith('<') and v.endswith('>'))
+          documented = filled(field("Target")) and filled(field("What to document"))
+          if na or documented:
+              print("Documentation block resolved (%s)." % ("N/A" if na else "documented"))
+              sys.exit(0)
+          print("::error title=Documentation block unresolved::This PR changes user-facing paths but the ## Documentation block is not resolved.")
+          print("Touched in-scope paths: %s" % ", ".join(in_scope))
+          print("Fix: in the PR description, tick the **N/A** box, or fill **Target** and **What to document**.")
+          sys.exit(1)
+          PY
