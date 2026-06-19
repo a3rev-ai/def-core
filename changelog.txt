@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.13.1 - 2026/06/19 =
+* Tweak: Customer Chat user bubble now follows the tenant brand colour.
+
 = 4.13.0 - 2026/06/16 =
 * Feature: The Setup Assistant conversation now persists across wp-admin page navigation. Previously, moving between admin pages (e.g. Settings ↔ Content AI) re-initialised the drawer and the visible conversation was lost. The drawer now resumes your active thread and rehydrates its messages on load, so the conversation continues where you left it. The "Clear / New chat" control starts a fresh conversation. Thread state is now keyed per user on the Digital Employee Framework backend (the source of truth), replacing the previous per-browser thread cache.
 
