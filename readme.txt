@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.13.1
+Stable tag: 4.13.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.13.2 - 2026-06-19 =
+* Tweak: Staff-AI now uses the canonical DEF chat bubble style.
 
 = 4.13.1 - 2026-06-19 =
 * Tweak: Customer Chat user bubble now follows the tenant brand colour.
