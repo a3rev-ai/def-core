@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.13.2 - 2026/06/19 =
+* Tweak: Staff-AI now uses the canonical DEF chat bubble style.
+
 = 4.13.1 - 2026/06/19 =
 * Tweak: Customer Chat user bubble now follows the tenant brand colour.
 
