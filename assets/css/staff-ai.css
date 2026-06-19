@@ -1894,7 +1894,7 @@ html {
 
 .message-user .message-file-indicator {
 	background: rgba(255, 255, 255, 0.15);
-	color: rgba(255, 255, 255, 0.85);
+	color: #ffffff;
 }
 
 .message-file-indicator svg {
