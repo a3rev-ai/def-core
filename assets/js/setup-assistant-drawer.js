@@ -16,6 +16,12 @@
 
 	// ─── Constants ───────────────────────────────────────────────
 
+	// ─── Viewport Helper ─────────────────────────────────────
+
+	function isDesktop() {
+		return window.innerWidth > 782;
+	}
+
 	var VALID_TABS = [
 		'connection', 'branding', 'chat-settings', 'escalation',
 		'user-roles'
@@ -144,6 +150,13 @@
 		// Bind events.
 		this.bindEvents();
 
+		// Desktop: panel is always docked open — mount it without the trigger.
+		if (isDesktop()) {
+			this.drawerEl.setAttribute('aria-hidden', 'false');
+			document.body.classList.add('def-sa-drawer-open');
+			this.isOpen = true;
+		}
+
 		// Dirty field tracking.
 		this.captureSettingsSnapshot();
 		this.trackDirtyFields();
@@ -156,17 +169,25 @@
 	SetupAssistantDrawer.prototype.bindEvents = function () {
 		var self = this;
 
+		// Trigger and close: always registered but gated at call time so resize
+		// from desktop → mobile makes them active without re-binding.
 		this.triggerEl.addEventListener('click', function () {
-			self.toggle();
+			if (!isDesktop()) {
+				self.toggle();
+			}
 		});
 
 		this.closeEl.addEventListener('click', function () {
-			self.close();
+			if (!isDesktop()) {
+				self.close();
+			}
 		});
 
 		if (this.backdropEl) {
 			this.backdropEl.addEventListener('click', function () {
-				self.close();
+				if (!isDesktop()) {
+					self.close();
+				}
 			});
 		}
 
@@ -178,10 +199,29 @@
 			self.handleSend();
 		});
 
-		// Keyboard events.
+		// Keyboard events — Escape closes only on mobile (no collapse on desktop).
 		document.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' && self.isOpen) {
+			if (e.key === 'Escape' && self.isOpen && !isDesktop()) {
 				e.preventDefault();
+				self.close();
+			}
+		});
+
+		// Re-evaluate open state when crossing the 782px breakpoint.
+		var prevDesktop = isDesktop();
+		window.addEventListener('resize', function () {
+			var nowDesktop = isDesktop();
+			if (nowDesktop === prevDesktop) {
+				return;
+			}
+			prevDesktop = nowDesktop;
+			if (nowDesktop && !self.isOpen) {
+				// Transitioned to desktop: ensure the panel is open.
+				self.drawerEl.setAttribute('aria-hidden', 'false');
+				document.body.classList.add('def-sa-drawer-open');
+				self.isOpen = true;
+			} else if (!nowDesktop && self.isOpen) {
+				// Transitioned to mobile: close so the trigger can reopen it.
 				self.close();
 			}
 		});

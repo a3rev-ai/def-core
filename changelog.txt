@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.13.3 - 2026/06/20 =
+* Feature: On desktop (viewport > 782px) the Setup Assistant is now a persistent always-open docked sidebar (~380px) on the Settings (Digital Employees) and Content AI (Content Drafts) pages. The trigger chip is hidden on desktop; page content gets margin-right so nothing underlaps the panel. Mobile (≤782px) keeps the existing trigger → full-width slide-in drawer behaviour with no changes. Conversation persistence, SSE streaming, and the clear button are untouched.
+
 = 4.13.2 - 2026/06/19 =
 * Tweak: Staff-AI now uses the canonical DEF chat bubble style.
 
