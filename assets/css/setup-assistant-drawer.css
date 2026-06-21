@@ -680,3 +680,65 @@
 	border-top: 1px dashed rgba(0, 0, 0, 0.08);
 	border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
 }
+
+/* ─── Desktop Docked Sidebar (> 782px) ───────────────────
+ * Above wp-admin's 782px breakpoint the panel is always open
+ * as a fixed right column. The trigger chip and close button
+ * are hidden; #wpcontent's right margin reserves the column
+ * so page content never slides under the panel. */
+
+@media (min-width: 783px) {
+	/* Trigger chip: hidden — no toggle on desktop */
+	.def-sa-trigger {
+		display: none;
+	}
+
+	/* Close button: no collapse on desktop */
+	.def-sa-close {
+		display: none;
+	}
+
+	/* Drawer container: no longer a full-screen overlay */
+	.def-sa-drawer {
+		position: static;
+		z-index: auto;
+		visibility: visible;
+		pointer-events: none;
+	}
+
+	/* Panel: fixed right column, always visible */
+	.def-sa-panel {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 380px;
+		transform: none;
+		transition: none;
+		pointer-events: auto;
+		z-index: 9999;
+		box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+	}
+
+	/* Admin bar offset: 32px on viewports wider than 960px */
+	.admin-bar .def-sa-panel {
+		top: 32px;
+	}
+
+	/* Reserve the panel column — page content reflows into remaining width */
+	#wpcontent {
+		margin-right: 380px;
+	}
+
+	/* Backdrop: never shown on desktop */
+	.def-sa-backdrop {
+		display: none;
+	}
+}
+
+/* Admin bar is 46px tall between 783px and 960px */
+@media (min-width: 783px) and (max-width: 960px) {
+	.admin-bar .def-sa-panel {
+		top: 46px;
+	}
+}
