@@ -182,6 +182,59 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * Effective Customer-Chat employee name from DEF (the per-tenant override set
+	 * in the Tenant Portal, or the a3rev default) for the chat header + greeting.
+	 *
+	 * Server-side GET to DEF's /api/customer/identity over the BFF (API-key only —
+	 * same customer privacy boundary as the chat proxy). Cached in a transient
+	 * because the name only changes when the tenant renames + republishes. Fails
+	 * SAFE to '' (a short negative cache avoids hammering DEF during an outage), so
+	 * the caller falls back to the branding display name and the page never blocks.
+	 * The launcher/button label is a separate admin setting, intentionally NOT here.
+	 *
+	 * @return string Effective employee name, or '' to use the branding fallback.
+	 */
+	public static function get_customer_assistant_name(): string {
+		$cached = get_transient( 'def_core_customer_assistant_name' );
+		if ( false !== $cached ) {
+			// '' is the negative-cache sentinel (recent fetch failed/unset) — use
+			// the fallback without re-hitting DEF until it expires.
+			return is_string( $cached ) ? $cached : '';
+		}
+
+		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		if ( empty( $api_key ) ) {
+			return ''; // Not connected to DEF — branding fallback, don't cache.
+		}
+
+		$ch = curl_init( \DEF_Core::get_def_api_url_internal() . '/api/customer/identity' );
+		curl_setopt_array( $ch, array(
+			CURLOPT_HTTPGET        => true,
+			CURLOPT_HTTPHEADER     => self::build_proxy_headers(),
+			CURLOPT_TIMEOUT        => 4, // short — must not block page render on a DEF hiccup
+			CURLOPT_RETURNTRANSFER => true,
+		) );
+		$response  = curl_exec( $ch );
+		$http_code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		curl_close( $ch );
+
+		$name = '';
+		if ( false !== $response && 200 === $http_code ) {
+			$data = json_decode( $response, true );
+			if ( is_array( $data ) && isset( $data['display_name'] ) && is_string( $data['display_name'] ) ) {
+				$name = trim( $data['display_name'] );
+			}
+		}
+
+		if ( '' === $name ) {
+			set_transient( 'def_core_customer_assistant_name', '', MINUTE_IN_SECONDS );
+			return '';
+		}
+		set_transient( 'def_core_customer_assistant_name', $name, 15 * MINUTE_IN_SECONDS );
+		return $name;
+	}
+
+	/**
 	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
 	 * Always sends: Content-Type, X-DEF-API-Key, X-DEF-User (if logged in).
