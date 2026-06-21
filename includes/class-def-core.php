@@ -499,6 +499,13 @@ final class DEF_Core {
 			'userFirstName'  => $user_first_name,
 			// Branding.
 			'displayName'    => get_option( 'def_core_display_name', get_bloginfo( 'name' ) ),
+			// Per-tenant employee name from DEF (Employee & Tools slice 1a/1b). The
+			// chat header + greeting render this so the assistant's name matches the
+			// override the tenant set in the Tenant Portal — falling back to the
+			// branding displayName above when DEF is unreachable or no override is
+			// set. The launcher/button label stays the admin branding setting
+			// (buttonLabel below) and is intentionally independent of this.
+			'assistantName'  => DEF_Core_Tools::get_customer_assistant_name(),
 			'logoUrl'        => $this->get_logo_url_for_frontend(),
 			'heroImageUrl'        => $this->get_hero_image_url_for_frontend( 'desktop' ),
 			'heroImageMobileUrl'  => $this->get_hero_image_url_for_frontend( 'mobile' ),

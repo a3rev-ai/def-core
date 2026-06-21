@@ -272,9 +272,12 @@
 			identity.appendChild(logoWrap);
 		}
 
-		// Business name.
+		// Assistant name — the per-tenant employee name from DEF (config.assistantName),
+		// falling back to the branding display name when DEF is unreachable / unset.
+		// textContent (never innerHTML): the name is prompt-sanitized upstream but NOT
+		// HTML-escaped, so we rely on textContent to neutralise any markup.
 		var bizName = el('span', 'def-cc-header-business');
-		bizName.textContent = config.displayName || '';
+		bizName.textContent = config.assistantName || config.displayName || '';
 		identity.appendChild(bizName);
 		els.headerBusiness = bizName;
 
@@ -416,7 +419,10 @@
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
 		var greetingContent = el('div', 'def-cc-message-content');
 
-		var bizName = config.displayName || '';
+		// Per-tenant employee name from DEF (assistantName), falling back to the
+		// branding display name when DEF is unreachable / unset. textContent below
+		// keeps it safe (the name is sanitized upstream but not HTML-escaped).
+		var bizName = config.assistantName || config.displayName || '';
 		var userName = config.userFirstName || '';
 		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
 		var intro = document.createElement('strong');
