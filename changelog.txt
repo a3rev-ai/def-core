@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.13.5 - 2026/06/22 =
+* Tweak: Customer Chat mobile touch targets bumped to the 44px minimum (iOS HIG / WCAG 2.1 AA). Affected elements: header icon buttons (.def-cc-btn) 32→44px, send button 40→44px, attach button 36→44px, floating trigger min-height 44px. Composer gets padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) so the home-indicator and gesture bar on notched iPhones no longer overlap the input area. Modal mode uses svh on browsers that support it (Safari 16+, Chrome 108+, Firefox 101+) so the software keyboard does not slide over the bottom of the panel on iOS Safari; older browsers keep the vh value.
+
 = 4.13.3 - 2026/06/20 =
 * Feature: On desktop (viewport > 782px) the Setup Assistant is now a persistent always-open docked sidebar (~380px) on the Settings (Digital Employees) and Content AI (Content Drafts) pages. The trigger chip is hidden on desktop; page content gets margin-right so nothing underlaps the panel. Mobile (≤782px) keeps the existing trigger → full-width slide-in drawer behaviour with no changes. Conversation persistence, SSE streaming, and the clear button are untouched.
 
