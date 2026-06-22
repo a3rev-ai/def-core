@@ -62,6 +62,7 @@
 	align-items: center;
 	gap: 8px;
 	padding: 10px 14px;
+	min-height: 44px;
 	border: none;
 	border-radius: 24px;
 	background: var(--def-cc-btn-color);
@@ -316,9 +317,9 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
-	padding: 6px;
+	width: 44px;
+	height: 44px;
+	padding: 0;
 	border: none;
 	border-radius: 6px;
 	background: transparent;
@@ -708,8 +709,8 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 40px;
-	height: 40px;
+	width: 44px;
+	height: 44px;
 	border: none;
 	border-radius: var(--def-cc-radius-sm);
 	background: var(--def-cc-primary);
@@ -747,8 +748,8 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 36px;
-	height: 36px;
+	width: 44px;
+	height: 44px;
 	border: none;
 	border-radius: 6px;
 	background: transparent;
@@ -1823,6 +1824,36 @@
 
 	.def-cc-welcome-banner img {
 		max-height: 160px;
+	}
+}
+
+/* ─── Mobile keyboard + safe-area clearance ───────────────────────
+ * env(safe-area-inset-bottom) pads the composer above the home
+ * indicator / gesture bar on notched and gesture-nav iPhones.
+ * Falls back to 0px on browsers that don't support it so the base
+ * padding is unchanged.
+ *
+ * @supports (height: 100svh): svh = "small viewport height" — the
+ * viewport height WITH the software keyboard fully open. Using it
+ * for modal-mode height prevents the keyboard from sliding over the
+ * bottom of the panel on iOS Safari (where vh is the layout viewport
+ * and does not shrink when the keyboard opens). Supported in Safari
+ * 16+, Chrome 108+, Firefox 101+; older browsers keep the vh value.
+ */
+
+.def-cc-composer {
+	padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+@supports (height: 100svh) {
+	.def-cc-shell--modal {
+		height: min(560px, 78svh);
+	}
+
+	@media (max-width: 480px) {
+		.def-cc-shell--modal {
+			height: min(80svh, 620px);
+		}
 	}
 }
 

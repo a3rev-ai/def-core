@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.13.4
+Stable tag: 4.13.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.13.5 - 2026-06-22 =
+* Tweak: Customer Chat mobile touch targets bumped to the 44px minimum (header icon buttons, send button, attach button, floating trigger). Composer now clears the home-indicator / gesture bar via env(safe-area-inset-bottom). Modal mode uses svh (small viewport height) on supporting browsers so the keyboard does not slide over the composer on iOS Safari.
 
 = 4.13.4 - 2026-06-21 =
 * Feature: The Customer Chat header and greeting now show the per-tenant employee name set in the DEFHO Tenant Portal (Employee & Tools), instead of the static branding name. Falls back to the branding display name when the backend is unreachable or no custom name is set. The floating launcher button label remains a separate admin setting and is intentionally unaffected.
