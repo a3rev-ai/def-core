@@ -25,13 +25,13 @@
 	(function initTabs() {
 		var tabs = document.querySelectorAll('.def-draft-tabs [data-def-tab]');
 		var panels = {
-			improve: document.getElementById('def-tab-improve'),
+			optimize: document.getElementById('def-tab-optimize'),
 			clusters: document.getElementById('def-tab-clusters'),
 			create: document.getElementById('def-tab-create')
 		};
-		if (!tabs.length || !panels.improve) { return; }
+		if (!tabs.length || !panels.optimize) { return; }
 		function activate(name) {
-			if (!panels[name]) { name = 'improve'; }
+			if (!panels[name]) { name = 'optimize'; }
 			Object.keys(panels).forEach(function (k) {
 				if (panels[k]) { panels[k].style.display = (k === name) ? '' : 'none'; }
 			});
@@ -662,6 +662,8 @@
 
 	// One collapsible "▸ Products (20)" section for the needs-keyphrase panel,
 	// collapsed by default. Item titles link to the WP editor (textContent only).
+	// Each row gets a Dismiss button (DEF #522) that removes the item without
+	// Excluding it from knowledge.
 	function buildNeedsKpSection(label, groupItems) {
 		var section = el('div', 'def-draft-needs-kp-section');
 
@@ -670,8 +672,10 @@
 		btn.setAttribute('aria-expanded', 'false');
 		var arrow = el('span', 'def-draft-needs-kp-arrow', '▸');
 		btn.appendChild(arrow);
-		btn.appendChild(el('span', 'def-draft-needs-kp-toggle-label',
-			label + ' (' + groupItems.length + ')'));
+		var countRef = { n: groupItems.length };
+		var labelSpan = el('span', 'def-draft-needs-kp-toggle-label',
+			label + ' (' + countRef.n + ')');
+		btn.appendChild(labelSpan);
 
 		var ul = document.createElement('ul');
 		ul.className = 'def-draft-needs-kp-list';
@@ -683,6 +687,30 @@
 			var editHref = safeHref(it.edit_url);
 			li.appendChild(editHref ? linkEl(name, editHref, 'def-draft-needs-kp-link')
 				: el('span', null, name));
+
+			if (it.item_id != null) {
+				var dismissBtn = el('button', 'def-draft-dismiss-item', 'Dismiss');
+				dismissBtn.type = 'button';
+				(function (itemId, liEl) {
+					dismissBtn.addEventListener('click', function () {
+						dismissBtn.disabled = true;
+						dismissBtn.textContent = '…';
+						api('/items/' + encodeURIComponent(itemId) + '/dismiss', 'POST')
+							.then(function () {
+								liEl.remove();
+								countRef.n = Math.max(0, countRef.n - 1);
+								labelSpan.textContent = label + ' (' + countRef.n + ')';
+								try { refreshDismissedPanel(); } catch (e) { /* ignore */ }
+							})
+							.catch(function () {
+								dismissBtn.disabled = false;
+								dismissBtn.textContent = 'Dismiss';
+							});
+					});
+				})(it.item_id, li);
+				li.appendChild(dismissBtn);
+			}
+
 			ul.appendChild(li);
 		});
 
@@ -696,6 +724,111 @@
 		section.appendChild(btn);
 		section.appendChild(ul);
 		return section;
+	}
+
+	// ── DEF #522: Dismissed panel ────────────────────────────────────────────────
+
+	// Re-fetch the dismissed list and re-render the dismissed panel in place.
+	// Called after each successful dismiss action.
+	function refreshDismissedPanel() {
+		api('/list?bucket=dismissed', 'GET').then(function (res) {
+			renderDismissedSection((res && res.items) || []);
+		}).catch(function () { /* ignore — needs-keyphrase panel still works */ });
+	}
+
+	// Build the single collapsible "▸ Dismissed (N)" toggle section.
+	// Each row links to the editor; restorable===true rows also get a Restore button.
+	function buildDismissedSection(items) {
+		var panel = el('div', 'def-draft-dismissed-kp');
+
+		var toggleBtn = el('button', 'def-draft-dismissed-kp-toggle');
+		toggleBtn.type = 'button';
+		toggleBtn.setAttribute('aria-expanded', 'false');
+		var arrow = el('span', 'def-draft-dismissed-kp-arrow', '▸');
+		toggleBtn.appendChild(arrow);
+		toggleBtn.appendChild(el('span', null, 'Dismissed (' + items.length + ')'));
+
+		var ul = document.createElement('ul');
+		ul.className = 'def-draft-dismissed-kp-list';
+		ul.style.display = 'none';
+
+		items.forEach(function (it) {
+			var li = document.createElement('li');
+			var name = (it.title && String(it.title).trim()) ||
+				((it.item_type || 'item') + ' #' + (it.item_id != null ? it.item_id : '?'));
+			var editHref = safeHref(it.edit_url);
+			li.appendChild(editHref
+				? linkEl(name, editHref, 'def-draft-dismissed-kp-link')
+				: el('span', 'def-draft-dismissed-kp-link', name));
+
+			if (it.restorable === true && it.item_id != null) {
+				var restoreBtn = el('button', 'def-draft-restore-item', 'Restore');
+				restoreBtn.type = 'button';
+				(function (itemId, btn) {
+					btn.addEventListener('click', function () {
+						btn.disabled = true;
+						btn.textContent = '…';
+						onRestoreItem(itemId, btn);
+					});
+				})(it.item_id, restoreBtn);
+				li.appendChild(restoreBtn);
+			}
+
+			ul.appendChild(li);
+		});
+
+		toggleBtn.addEventListener('click', function () {
+			var open = ul.style.display !== 'none';
+			ul.style.display = open ? 'none' : 'block';
+			arrow.textContent = open ? '▸' : '▾';
+			toggleBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
+		});
+
+		panel.appendChild(toggleBtn);
+		panel.appendChild(ul);
+		return panel;
+	}
+
+	// Render (or re-render) the dismissed panel below the needs-keyphrase panel.
+	function renderDismissedSection(items) {
+		var old = root.querySelector('.def-draft-dismissed-kp');
+		if (old) { old.remove(); }
+		if (!Array.isArray(items) || !items.length) { return; }
+		var section = buildDismissedSection(items);
+		var nkPanel = root.querySelector('.def-draft-needs-kp');
+		if (nkPanel && nkPanel.parentNode === root) {
+			root.insertBefore(section, nkPanel.nextSibling);
+		} else {
+			root.insertBefore(section, root.firstChild);
+		}
+	}
+
+	// Restore a dismissed item: re-fetch summary + needs-keyphrase + dismissed and
+	// re-render all three panels so the item appears back where it belongs.
+	function onRestoreItem(itemId, btn) {
+		api('/items/' + encodeURIComponent(itemId) + '/restore', 'POST')
+			.then(function () {
+				return Promise.all([
+					api('/summary', 'GET').then(function (r) { return r && r.summary; }, function () { return null; }),
+					api('/last-run', 'GET').then(function (r) { return r && r.last_run; }, function () { return null; }),
+					api('/needs-keyphrase', 'GET').then(function (r) { return (r && r.items) || []; }, function () { return []; }),
+					api('/list?bucket=dismissed', 'GET').then(function (r) { return (r && r.items) || []; }, function () { return []; })
+				]);
+			})
+			.then(function (vals) {
+				var coverage = root.querySelector('.def-draft-coverage');
+				if (coverage) { coverage.remove(); }
+				var nkPanel = root.querySelector('.def-draft-needs-kp');
+				if (nkPanel) { nkPanel.remove(); }
+				var disPanel = root.querySelector('.def-draft-dismissed-kp');
+				if (disPanel) { disPanel.remove(); }
+				renderNeedsKeyphrase(vals[2]);
+				renderDismissedSection(vals[3]);
+				renderCoverageStrip(vals[0], vals[1]);
+			})
+			.catch(function () {
+				if (btn) { btn.disabled = false; btn.textContent = 'Restore'; }
+			});
 	}
 
 	// "Needs a focus keyphrase" panel — items the agent skipped because no keyphrase
@@ -1135,10 +1268,16 @@
 		root.innerHTML = '';
 		root.appendChild(el('p', 'def-draft-error', 'Could not load drafts: ' + (e.message || 'error')));
 	}).then(function () {
-		// Best-effort, after the drafts render — a failure here must not block the queue.
+		// Best-effort — failures here must not block the review queue.
+		// Load needs-keyphrase first so its panel is in the DOM before dismissed
+		// inserts itself below it (insertBefore needs the anchor).
 		return api('/needs-keyphrase', 'GET').then(function (res) {
 			renderNeedsKeyphrase((res && res.items) || []);
-		}).catch(function () { /* ignore — the queue still works */ });
+		}).catch(function () { /* ignore */ }).then(function () {
+			return api('/list?bucket=dismissed', 'GET').then(function (res) {
+				renderDismissedSection((res && res.items) || []);
+			}).catch(function () { /* ignore */ });
+		});
 	}).then(function () {
 		// Coverage status strip — best-effort, pinned to the very top (inserted last
 		// so it sits above the needs-keyphrase panel and the cards). Pull current

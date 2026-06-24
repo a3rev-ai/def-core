@@ -308,6 +308,38 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Content Agent DEF #522 — Optimize tab: item-level dismiss + dismissed list + restore.
+		// GET /list?bucket=<bucket> — item list by state bucket (e.g. dismissed).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/list',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_list_content_items' ),
+			)
+		);
+		// POST /items/{item_id}/dismiss — lightweight dismiss (item stays in knowledge).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/items/(?P<item_id>\d+)/dismiss',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_dismiss_content_item' ),
+			)
+		);
+		// POST /items/{item_id}/restore — restore a dismissed item back to its prior bucket.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/content/items/(?P<item_id>\d+)/restore',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'rest_permission_check' ),
+				'callback'            => array( __CLASS__, 'rest_restore_content_item' ),
+			)
+		);
+
 		// Content Agent Engine 2.5 — Clusters curation (targets + keyphrase queues).
 		// Thin proxies to DEF /api/staff-ai/content/* with field-faithful bodies;
 		// gated by def_staff_access (rest_permission_check) like the review queue.
@@ -1173,6 +1205,104 @@ final class DEF_Core_Staff_AI
 	{
 		$id     = sanitize_text_field( $request->get_param( 'id' ) );
 		$result = self::backend_request( 'POST', '/api/staff-ai/content/drafts/' . rawurlencode( $id ) . '/dismiss' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	// ── Content Agent DEF #522: item-level dismiss / dismissed list / restore ──────
+
+	/**
+	 * REST handler: list content items by bucket (e.g. bucket=dismissed).
+	 *
+	 * Proxies DEF GET /api/staff-ai/content/list?bucket=<bucket> and enriches each
+	 * item with the local WP title and edit URL (same pattern as needs-keyphrase).
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, items}).
+	 */
+	public static function rest_list_content_items( \WP_REST_Request $request )
+	{
+		$bucket = sanitize_key( (string) $request->get_param( 'bucket' ) );
+		if ( '' === $bucket ) {
+			return new \WP_Error(
+				'invalid_bucket',
+				__( 'bucket parameter is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( 'GET', '/api/staff-ai/content/list?bucket=' . rawurlencode( $bucket ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$items = ( isset( $result['items'] ) && is_array( $result['items'] ) ) ? $result['items'] : array();
+		foreach ( $items as &$item ) {
+			$item_id = isset( $item['item_id'] ) ? (int) $item['item_id'] : 0;
+			if ( $item_id > 0 && get_post_status( $item_id ) ) {
+				$title            = get_the_title( $item_id );
+				$item['title']    = is_string( $title ) ? $title : '';
+				$edit_url         = get_edit_post_link( $item_id, 'raw' );
+				$item['edit_url'] = $edit_url ? $edit_url : '';
+			}
+		}
+		unset( $item );
+
+		// Allowlist the fields the JS UI reads. Prevents future backend schema
+		// additions from silently surfacing sensitive fields to the client.
+		$allowed = array_flip( array( 'item_id', 'item_type', 'draft_id', 'restorable', 'last_audited', 'title', 'edit_url' ) );
+		$items   = array_map( static function ( $item ) use ( $allowed ) {
+			return is_array( $item ) ? array_intersect_key( $item, $allowed ) : array();
+		}, $items );
+
+		return new \WP_REST_Response( array( 'success' => true, 'items' => $items ), 200 );
+	}
+
+	/**
+	 * REST handler: lightweight dismiss of a content item (DEF #522).
+	 *
+	 * The item stays in knowledge / Customer Chat — only the optimization queue
+	 * entry moves to the dismissed bucket. Proxies DEF POST
+	 * /api/staff-ai/content/items/{item_id}/dismiss.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({status: dismissed}).
+	 */
+	public static function rest_dismiss_content_item( \WP_REST_Request $request )
+	{
+		$item_id = absint( $request->get_param( 'item_id' ) );
+		if ( $item_id <= 0 ) {
+			return new \WP_Error(
+				'invalid_item_id',
+				__( 'A valid item_id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/items/' . $item_id . '/dismiss' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 200 );
+	}
+
+	/**
+	 * REST handler: restore a dismissed content item (DEF #522).
+	 *
+	 * Returns the item to its prior optimization bucket (needs_keyphrase /
+	 * needs_work / pass). Proxies DEF POST
+	 * /api/staff-ai/content/items/{item_id}/restore.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({status: needs_keyphrase|needs_work|pass}).
+	 */
+	public static function rest_restore_content_item( \WP_REST_Request $request )
+	{
+		$item_id = absint( $request->get_param( 'item_id' ) );
+		if ( $item_id <= 0 ) {
+			return new \WP_Error(
+				'invalid_item_id',
+				__( 'A valid item_id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/content/items/' . $item_id . '/restore' );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

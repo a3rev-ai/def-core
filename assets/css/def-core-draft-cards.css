@@ -217,6 +217,73 @@ a.def-draft-title-link:hover {
 .def-draft-needs-kp-link { text-decoration: none; }
 .def-draft-needs-kp-link:hover { text-decoration: underline; }
 
+/* Dismiss button inside needs-keyphrase list rows (DEF #522) */
+.def-draft-dismiss-item {
+	background: none;
+	border: 0;
+	padding: 0 0 0 8px;
+	color: #8c8f94;
+	font-size: 12px;
+	cursor: pointer;
+	vertical-align: middle;
+}
+.def-draft-dismiss-item:hover { color: #b32d2e; }
+.def-draft-dismiss-item:disabled { opacity: 0.4; cursor: wait; }
+
+/* Dismissed panel — muted styling, same toggle-box pattern as needs-keyphrase */
+.def-draft-dismissed-kp {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-left: 4px solid #a7aaad;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin-bottom: 16px;
+}
+.def-draft-dismissed-kp-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding: 6px 0;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+	color: #50575e;
+	text-align: left;
+}
+.def-draft-dismissed-kp-toggle:hover { color: #1d2327; }
+.def-draft-dismissed-kp-arrow {
+	display: inline-block;
+	width: 12px;
+	color: #8c8f94;
+}
+.def-draft-dismissed-kp-list {
+	margin: 0 0 8px;
+	padding-left: 26px;
+	columns: 2;
+	font-size: 13px;
+}
+@media (max-width: 782px) {
+	.def-draft-dismissed-kp-list { columns: 1; }
+}
+.def-draft-dismissed-kp-link { text-decoration: none; color: #50575e; }
+.def-draft-dismissed-kp-link:hover { text-decoration: underline; }
+
+/* Restore button inside dismissed list rows */
+.def-draft-restore-item {
+	background: none;
+	border: 0;
+	padding: 0 0 0 8px;
+	color: #2271b1;
+	font-size: 12px;
+	cursor: pointer;
+	vertical-align: middle;
+}
+.def-draft-restore-item:hover { color: #135e96; }
+.def-draft-restore-item:disabled { opacity: 0.4; cursor: wait; }
+
 /* Focus keyphrase badge */
 .def-draft-keyphrase {
 	display: inline-flex;
