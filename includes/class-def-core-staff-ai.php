@@ -1239,17 +1239,19 @@ final class DEF_Core_Staff_AI
 		foreach ( $items as &$item ) {
 			$item_id = isset( $item['item_id'] ) ? (int) $item['item_id'] : 0;
 			if ( $item_id > 0 && get_post_status( $item_id ) ) {
-				$title            = get_the_title( $item_id );
-				$item['title']    = is_string( $title ) ? $title : '';
-				$edit_url         = get_edit_post_link( $item_id, 'raw' );
-				$item['edit_url'] = $edit_url ? $edit_url : '';
+				$title             = get_the_title( $item_id );
+				$item['title']     = is_string( $title ) ? $title : '';
+				$edit_url          = get_edit_post_link( $item_id, 'raw' );
+				$item['edit_url']  = $edit_url ? $edit_url : '';
+				$view_url          = get_permalink( $item_id );
+				$item['view_url']  = $view_url ? $view_url : '';
 			}
 		}
 		unset( $item );
 
 		// Allowlist the fields the JS UI reads. Prevents future backend schema
 		// additions from silently surfacing sensitive fields to the client.
-		$allowed = array_flip( array( 'item_id', 'item_type', 'draft_id', 'restorable', 'last_audited', 'title', 'edit_url' ) );
+		$allowed = array_flip( array( 'item_id', 'item_type', 'draft_id', 'restorable', 'last_audited', 'title', 'edit_url', 'view_url' ) );
 		$items   = array_map( static function ( $item ) use ( $allowed ) {
 			return is_array( $item ) ? array_intersect_key( $item, $allowed ) : array();
 		}, $items );

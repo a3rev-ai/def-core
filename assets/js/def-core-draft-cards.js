@@ -537,6 +537,10 @@
 		if (draft && draft.id != null) {
 			card.dataset.draftId = String(draft.id);
 		}
+		// Anchor for the awaiting-review bucket modal deep-link (by item_id).
+		if (draft && draft.item_id != null) {
+			card.dataset.itemId = String(draft.item_id);
+		}
 		return card;
 	}
 
@@ -645,6 +649,15 @@
 	// unknown CPT slug is title-cased and lightly pluralized (the count is the
 	// actionable part, not perfect grammar).
 	var TYPE_LABELS = { product: 'Products', post: 'Posts', page: 'Pages' };
+
+	// Bucket keys whose stat chips open the items modal on click.
+	// needs_keyphrase is intentionally absent — the toggle list below already serves that bucket.
+	var MODAL_BUCKET_LABELS = {
+		good:            'Good',
+		optimized:       'Optimized',
+		awaiting_review: 'Awaiting review',
+		dismissed:       'Dismissed'
+	};
 	function typeLabel(key) {
 		if (TYPE_LABELS[key]) { return TYPE_LABELS[key]; }
 		var k = String(key || 'other');
@@ -816,6 +829,7 @@
 				]);
 			})
 			.then(function (vals) {
+				closeBucketModal(); // no-op when called from the dismissed panel (no modal open)
 				var coverage = root.querySelector('.def-draft-coverage');
 				if (coverage) { coverage.remove(); }
 				var nkPanel = root.querySelector('.def-draft-needs-kp');
@@ -900,8 +914,155 @@
 		{ key: 'errored',         icon: '⚠️', text: function (n) { return n + ' errored'; }, warn: true }
 	];
 
+	// ── Bucket-items modal (DEF #523) ───────────────────────────────────────────
+
+	var modalReturnFocus = null; // element to re-focus when modal closes
+
+	function handleModalEsc(e) {
+		if (e.key === 'Escape') { closeBucketModal(); }
+	}
+
+	function closeBucketModal() {
+		var existing = document.querySelector('.def-draft-bucket-modal-backdrop');
+		if (existing) { existing.remove(); }
+		document.removeEventListener('keydown', handleModalEsc);
+		if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') {
+			modalReturnFocus.focus();
+		}
+		modalReturnFocus = null;
+	}
+
+	// Find a draft card on the page: draft_id match preferred, item_id as fallback.
+	// Single DOM query; draft_id wins on first match, item_id fallback accumulates.
+	function findDraftCard(draftId, itemId) {
+		var cards = root.querySelectorAll('.def-draft-card');
+		var byItemId = null;
+		for (var i = 0; i < cards.length; i++) {
+			if (draftId != null && cards[i].dataset.draftId === String(draftId)) { return cards[i]; }
+			if (byItemId === null && itemId != null && cards[i].dataset.itemId === String(itemId)) {
+				byItemId = cards[i];
+			}
+		}
+		return byItemId;
+	}
+
+	function renderBucketModalRow(it, bucketKey) {
+		var li = document.createElement('li');
+		li.className = 'def-draft-bucket-modal-item';
+		var name = (it.title && String(it.title).trim()) ||
+			((it.item_type || 'item') + ' #' + (it.item_id != null ? it.item_id : '?'));
+
+		if (bucketKey === 'good' || bucketKey === 'optimized') {
+			// Link to the live item (view_url preferred, fallback to editor).
+			var href = safeHref(it.view_url) || safeHref(it.edit_url);
+			li.appendChild(href
+				? linkEl(name, href, 'def-draft-bucket-modal-link')
+				: el('span', 'def-draft-bucket-modal-link', name));
+
+		} else if (bucketKey === 'awaiting_review') {
+			// Deep-link to the draft card below; fallback to editor link if no card found.
+			var card = findDraftCard(it.draft_id, it.item_id);
+			if (card) {
+				var jumpBtn = el('button', 'def-draft-bucket-modal-jump', name);
+				jumpBtn.type = 'button';
+				(function (c) {
+					jumpBtn.addEventListener('click', function () {
+						closeBucketModal();
+						c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						c.classList.add('def-draft-card--jumped');
+						setTimeout(function () { c.classList.remove('def-draft-card--jumped'); }, 2000);
+					});
+				})(card);
+				li.appendChild(jumpBtn);
+			} else {
+				var awaitHref = safeHref(it.edit_url);
+				li.appendChild(awaitHref
+					? linkEl(name, awaitHref, 'def-draft-bucket-modal-link')
+					: el('span', 'def-draft-bucket-modal-link', name));
+			}
+
+		} else if (bucketKey === 'dismissed') {
+			// Editor link + Restore button (where restorable === true) — mirrors the dismissed panel.
+			var editHref = safeHref(it.edit_url);
+			li.appendChild(editHref
+				? linkEl(name, editHref, 'def-draft-bucket-modal-link')
+				: el('span', 'def-draft-bucket-modal-link', name));
+			if (it.restorable === true && it.item_id != null) {
+				var restoreBtn = el('button', 'def-draft-restore-item', 'Restore');
+				restoreBtn.type = 'button';
+				(function (itemId, btn) {
+					btn.addEventListener('click', function () {
+						btn.disabled = true;
+						btn.textContent = '…';
+						onRestoreItem(itemId, btn);
+					});
+				})(it.item_id, restoreBtn);
+				li.appendChild(restoreBtn);
+			}
+		}
+
+		return li;
+	}
+
+	function openBucketModal(bucketKey, bucketLabel) {
+		modalReturnFocus = document.activeElement || null;
+		closeBucketModal(); // one modal at a time
+
+		var backdrop = el('div', 'def-draft-bucket-modal-backdrop');
+		var box      = el('div', 'def-draft-bucket-modal-box');
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'def-bucket-modal-title');
+
+		var head = el('div', 'def-draft-bucket-modal-head');
+		var titleEl = el('div', 'def-draft-bucket-modal-title', bucketLabel);
+		titleEl.id = 'def-bucket-modal-title';
+		head.appendChild(titleEl);
+		var closeBtn = el('button', 'def-draft-bucket-modal-close', '×');
+		closeBtn.type = 'button';
+		closeBtn.setAttribute('aria-label', 'Close');
+		head.appendChild(closeBtn);
+		box.appendChild(head);
+
+		var body = el('div', 'def-draft-bucket-modal-body');
+		body.appendChild(el('p', 'def-draft-bucket-modal-loading', 'Loading…'));
+		box.appendChild(body);
+		backdrop.appendChild(box);
+		document.body.appendChild(backdrop);
+		closeBtn.focus();
+
+		closeBtn.addEventListener('click', closeBucketModal);
+		backdrop.addEventListener('click', function (e) {
+			if (e.target === backdrop) { closeBucketModal(); }
+		});
+		document.addEventListener('keydown', handleModalEsc);
+
+		api('/list?bucket=' + encodeURIComponent(bucketKey), 'GET').then(function (res) {
+			body.innerHTML = '';
+			var items = (res && res.items) || [];
+			if (!items.length) {
+				body.appendChild(el('p', 'def-draft-bucket-modal-empty', 'No items in this bucket.'));
+				return;
+			}
+			var ul = document.createElement('ul');
+			ul.className = 'def-draft-bucket-modal-list';
+			items.forEach(function (it) {
+				ul.appendChild(renderBucketModalRow(it, bucketKey));
+			});
+			body.appendChild(ul);
+		}).catch(function (e) {
+			body.innerHTML = '';
+			body.appendChild(el('p', 'def-draft-bucket-modal-error',
+				'Could not load items: ' + (e.message || 'error')));
+		});
+	}
+
+	// ── End bucket-items modal ───────────────────────────────────────────────────
+
 	// Build the "· ✅ 9 good · 🔑 20 need a keyphrase" run of stat chips for one
 	// bucket map, hiding every zero bucket. Returns null when nothing is > 0.
+	// Buckets in MODAL_BUCKET_LABELS render as clickable <button> chips that open
+	// the items modal; all others remain plain <span> chips.
 	function buildBucketParts(buckets) {
 		buckets = (buckets && typeof buckets === 'object') ? buckets : {};
 		var parts = el('span', 'def-draft-coverage-parts');
@@ -910,9 +1071,20 @@
 			var n = num(buckets[b.key]);
 			if (n <= 0) { return; }
 			shown++;
-			parts.appendChild(el('span',
-				'def-draft-coverage-stat' + (b.warn ? ' def-draft-coverage-stat--warn' : ''),
-				b.icon + ' ' + b.text(n)));
+			var label     = b.icon + ' ' + b.text(n);
+			var className = 'def-draft-coverage-stat' + (b.warn ? ' def-draft-coverage-stat--warn' : '');
+			if (MODAL_BUCKET_LABELS[b.key]) {
+				var btn = document.createElement('button');
+				btn.type      = 'button';
+				btn.className = className + ' def-draft-coverage-stat--btn';
+				btn.textContent = label;
+				(function (bkey, blabel) {
+					btn.addEventListener('click', function () { openBucketModal(bkey, blabel); });
+				})(b.key, MODAL_BUCKET_LABELS[b.key]);
+				parts.appendChild(btn);
+			} else {
+				parts.appendChild(el('span', className, label));
+			}
 		});
 		return shown ? parts : null;
 	}
