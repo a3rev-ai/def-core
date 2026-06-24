@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.0.0 - 2026/06/24 =
+* Feature: Content Drafts "Optimize" tab — clickable summary bucket chips. The per-type and overall coverage counts (good, optimized, awaiting review, dismissed) are now clickable: clicking any chip opens a modal listing the items in that bucket. Good and optimized items link to the live content (permalink) with a fallback to the editor. Awaiting-review items deep-link to the existing draft card on the page (scroll + flash highlight). Dismissed items show a Restore button for restorable items, mirroring the existing Dismissed panel. The "needs a keyphrase" chip is intentionally unchanged — the toggle list below already handles that bucket. The BFF /list endpoint gains a view_url field enriched locally from get_permalink (same pattern as the drafts and needs-keyphrase endpoints), added to the field allowlist alongside edit_url.
+
 = 4.14.0 - 2026/06/24 =
 * Feature: Content Drafts "Optimize" tab — Dismiss + Dismissed list + Improve→Optimize rename. The "needs a focus keyphrase" rows now each have a Dismiss link: clicking it removes the item from the optimization queue without Excluding it from Company Knowledge or Customer Chat (lightweight, reversible). A new collapsible "Dismissed (N)" panel appears below the keyphrase list and lists all dismissed items; items marked restorable by DEF get a Restore button that returns them to their previous bucket. Tab and intro-sentence renamed from "Improve" to "Optimize". Three new BFF proxy routes added (GET /staff-ai/content/list, POST /staff-ai/content/items/{id}/dismiss, POST /staff-ai/content/items/{id}/restore), each gated by def_staff_access.
 

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.14.0
+Stable tag: 5.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.0.0 - 2026-06-24 =
+* Feature: Content Drafts "Optimize" tab — clickable summary bucket chips. The per-type and overall coverage counts (good, optimized, awaiting review, dismissed) are now clickable: clicking any chip opens a modal listing the items in that bucket. Good and optimized items link to the live content (permalink) with a fallback to the editor. Awaiting-review items deep-link to the existing draft card on the page (scroll + flash). Dismissed items show a Restore button for restorable items, mirroring the existing Dismissed panel. The "needs a keyphrase" chip is unchanged — the toggle list below already serves that bucket. The /list endpoint gains a view_url field (enriched locally from get_permalink), added to the allowlist alongside the existing edit_url.
 
 = 4.14.0 - 2026-06-24 =
 * Feature: Content Drafts "Optimize" tab — Dismiss + Dismissed list + Improve→Optimize rename. The "needs a focus keyphrase" rows now each have a Dismiss link: clicking it removes the item from the optimization queue without Excluding it from Company Knowledge or Customer Chat (lightweight, reversible). A new collapsible "Dismissed (N)" panel appears below the keyphrase list and lists all dismissed items; items marked restorable by DEF get a Restore button that returns them to their previous bucket. Tab and intro-sentence renamed from "Improve" to "Optimize". Three new BFF proxy routes added (GET /staff-ai/content/list, POST /staff-ai/content/items/{id}/dismiss, POST /staff-ai/content/items/{id}/restore), each gated by def_staff_access.
