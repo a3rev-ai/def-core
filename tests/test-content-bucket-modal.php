@@ -336,6 +336,43 @@ if ( $result instanceof WP_REST_Response ) {
 	assert_true( ! array_key_exists( 'author_data', $item ),     'author_data stripped' );
 }
 
+// ── 6. get_permalink returning false → view_url coerced to '' ────────────────
+// The production code uses `$view_url ? $view_url : ''` which must convert
+// false (returned by get_permalink for draft/private posts) to an empty string,
+// not the literal boolean false that would break JSON serialisation.
+echo "[6] rest_list_content_items — get_permalink false coerced to empty string\n";
+$_wp_test_post_statuses[100] = 'publish'; // enrichment loop runs for this item
+$_wp_test_post_titles[100]   = 'Private Page';
+$_wp_test_edit_urls[100]     = 'https://example.com/wp-admin/post.php?post=100&action=edit';
+$_wp_test_view_urls[100]     = false;     // get_permalink returns false (no public permalink)
+
+$GLOBALS['_wp_test_remote_body'] = (string) json_encode( array(
+	'items' => array(
+		array(
+			'item_id'      => 100,
+			'item_type'    => 'page',
+			'draft_id'     => 'dr_priv01',
+			'restorable'   => false,
+			'last_audited' => '2026-06-24T10:00:00Z',
+		),
+	),
+) );
+$req    = new WP_REST_Request( 'GET', '/staff-ai/content/list' );
+$req->set_param( 'bucket', 'good' );
+$result = DEF_Core_Staff_AI::rest_list_content_items( $req );
+if ( $result instanceof WP_REST_Response ) {
+	$items = $result->get_data()['items'] ?? array();
+	if ( count( $items ) === 1 ) {
+		$item = $items[0];
+		assert_true( array_key_exists( 'view_url', $item ),   'view_url key present when permalink is false' );
+		assert_same( '', $item['view_url'] ?? 'MISSING',      'false from get_permalink coerced to empty string' );
+	} else {
+		$fail++; echo "  FAIL: expected 1 item, got " . count( $items ) . "\n";
+	}
+} else {
+	assert_true( false, 'expected WP_REST_Response for false-permalink item' );
+}
+
 // ── Cleanup ───────────────────────────────────────────────────────────────────
 $_wp_test_current_user             = null;
 $GLOBALS['_def_test_api_url']      = null;
