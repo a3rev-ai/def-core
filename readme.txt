@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.13.5
+Stable tag: 4.13.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.13.6 - 2026-06-24 =
+* Fix: Customer Chat now greets a logged-in visitor by name from the first message. The BFF proxy forwards the logged-in user's display name to the DEF backend on the Customer Chat channel (previously sent only for Staff AI / Setup Assistant), so the assistant addresses the user by name immediately instead of having to look up their profile when asked. Only the display name crosses for Customer Chat — email, roles and capabilities remain staff-only. Anonymous visitors are unaffected (no identity sent).
 
 = 4.13.5 - 2026-06-22 =
 * Tweak: Customer Chat mobile touch targets bumped to the 44px minimum (header icon buttons, send button, attach button, floating trigger). Composer now clears the home-indicator / gesture bar via env(safe-area-inset-bottom). Modal mode uses svh (small viewport height) on supporting browsers so the keyboard does not slide over the composer on iOS Safari.

@@ -237,18 +237,22 @@ final class DEF_Core_Tools {
 	/**
 	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
-	 * Always sends: Content-Type, X-DEF-API-Key, X-DEF-User (if logged in).
+	 * Always sends (when logged in): X-DEF-User (id) + X-DEF-User-Display-Name.
+	 * The display name crosses on EVERY channel — including Customer Chat — so a
+	 * logged-in visitor is greeted by name from the first turn (their own name,
+	 * their own session). Plus Content-Type + X-DEF-API-Key.
 	 *
-	 * When $include_user_context is true (staff_ai / setup_assistant), also sends:
+	 * When $include_capabilities is true (staff_ai / setup_assistant), also sends:
 	 *   - X-DEF-User-Capabilities (comma-separated DEF capabilities)
-	 *   - X-DEF-User-Display-Name (URL-encoded)
 	 *   - X-DEF-User-Email (URL-encoded)
 	 *   - X-DEF-User-Roles (comma-separated WP roles)
+	 *   - X-DEF-Site-Name (URL-encoded)
 	 *
-	 * Customer Chat calls this with $include_user_context = false — identity
-	 * headers are intentionally NOT sent (privacy boundary).
+	 * Customer Chat calls this with $include_capabilities = false — email / roles /
+	 * capabilities are intentionally NOT sent for it (privacy boundary); only the
+	 * display name above crosses.
 	 *
-	 * @param bool $include_capabilities Whether to include capabilities + identity headers.
+	 * @param bool $include_capabilities Whether to include capabilities + email/roles.
 	 * @return array HTTP header strings (indexed, not associative).
 	 */
 	private static function build_proxy_headers( $include_capabilities = false ) {
@@ -259,24 +263,26 @@ final class DEF_Core_Tools {
 
 		if ( is_user_logged_in() ) {
 			$headers[] = 'X-DEF-User: ' . get_current_user_id();
+			$user      = wp_get_current_user();
+
+			// Display name is sent on EVERY channel (incl. Customer Chat) so a
+			// logged-in visitor is greeted by name from the first turn — it's the
+			// user's OWN name, used only in their own session. DEF renders it into
+			// the "## Current authenticated user" prompt section. URL-encoded so
+			// Unicode survives header transport (DEF decodes via urllib unquote).
+			// Email / roles / capabilities remain staff-only below (privacy boundary).
+			if ( ! empty( $user->display_name ) ) {
+				$headers[] = 'X-DEF-User-Display-Name: ' . rawurlencode( $user->display_name );
+			}
 
 			if ( $include_capabilities ) {
-				$user = wp_get_current_user();
 				$caps = self::get_user_def_capabilities( $user );
 				if ( ! empty( $caps ) ) {
 					$headers[] = 'X-DEF-User-Capabilities: ' . implode( ',', $caps );
 				}
 
-				// Identity headers — let DEF restore the "## Current authenticated
-				// user" prompt section that JWT auth previously provided. Sent for
-				// staff_ai / setup_assistant only ($include_capabilities = true).
-				// Customer Chat does NOT receive these (privacy boundary).
-				//
-				// Values are URL-encoded so Unicode names/emails survive HTTP
-				// header transport. DEF decodes via urllib.parse.unquote().
-				if ( ! empty( $user->display_name ) ) {
-					$headers[] = 'X-DEF-User-Display-Name: ' . rawurlencode( $user->display_name );
-				}
+				// Email / roles — staff_ai / setup_assistant only. Customer Chat does
+				// NOT receive these (only the display name above crosses for it).
 				if ( ! empty( $user->user_email ) ) {
 					$headers[] = 'X-DEF-User-Email: ' . rawurlencode( $user->user_email );
 				}

@@ -194,15 +194,21 @@ $_proxy_test_user->roles        = array( 'administrator' );
 
 echo "=== Proxy Identity Headers Tests ===\n";
 
-// ── 1. Customer Chat: build_proxy_headers(false) has NO identity ────────
-echo "\n[1] Customer Chat path — NO identity headers (privacy boundary)\n";
+// ── 1. Customer Chat: build_proxy_headers(false) — name YES, rest NO ────
+echo "\n[1] Customer Chat path — display name sent, email/roles/caps withheld\n";
 
 $headers = call_build_proxy_headers( false );
-assert_false( has_header( $headers, 'X-DEF-User-Display-Name:' ), 'no display name in customer chat' );
+// Display name now crosses for Customer Chat so a logged-in visitor is greeted by name.
+assert_true( has_header( $headers, 'X-DEF-User-Display-Name:' ), 'display name now sent for customer chat' );
+assert_true(
+	rawurldecode( (string) get_header_value( $headers, 'X-DEF-User-Display-Name: ' ) ) === 'Steve Truman',
+	'customer chat display name decodes correctly'
+);
+// But email / roles / capabilities remain staff-only (privacy boundary preserved).
 assert_false( has_header( $headers, 'X-DEF-User-Email:' ), 'no email in customer chat' );
 assert_false( has_header( $headers, 'X-DEF-User-Roles:' ), 'no roles in customer chat' );
 assert_false( has_header( $headers, 'X-DEF-User-Capabilities:' ), 'no capabilities in customer chat' );
-// But X-DEF-User IS sent (user ID for thread ownership).
+// And X-DEF-User (id) is still sent.
 assert_true( has_header( $headers, 'X-DEF-User:' ), 'user ID still sent for customer chat' );
 
 // ── 2. Staff AI: build_proxy_headers(true) HAS identity ─────────────────
