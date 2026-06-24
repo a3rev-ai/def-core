@@ -19,7 +19,7 @@
 	// Falls back to the main root on markup without the tab panels.
 	var createRoot = document.getElementById('def-draft-create-cards-root') || root;
 
-	// ── Tabs: Improve / Clusters / Create ───────────────────────────────────
+	// ── Tabs: Optimize / Clusters / Create ──────────────────────────────────
 	// Pure show/hide — every panel's module loads once; the hash keeps the
 	// active tab across reloads (e.g. #clusters).
 	(function initTabs() {
@@ -581,7 +581,7 @@
 	// Replace only the draft cards (and empty/error states), leaving the
 	// coverage strip / needs-keyphrase panel at the top intact — used by the
 	// post-Generate refresh, where those panels are already rendered.
-	// Edit drafts land on the Improve tab; create drafts on the Create tab.
+	// Edit drafts land on the Optimize tab; create drafts on the Create tab.
 	function renderDraftsOnly(drafts) {
 		[root, createRoot].forEach(function (host) {
 			host.querySelectorAll('.def-draft-card, .def-draft-empty-state, .def-draft-error')
@@ -595,7 +595,7 @@
 		});
 		if (!editDrafts.length) {
 			root.appendChild(el('p', 'def-draft-empty-state',
-				'No improvement drafts waiting for review. The Content Agent stages improvements here after each scheduled run.'));
+				'No optimization drafts waiting for review. The Content Agent stages optimizations here after each scheduled run.'));
 		}
 		editDrafts.forEach(function (d) { root.appendChild(renderCard(d)); });
 		createDrafts.forEach(function (d) { createRoot.appendChild(renderCard(d)); });

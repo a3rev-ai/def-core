@@ -3,7 +3,7 @@
  * Content Drafts "Optimize" tab — dismissed list + item dismiss/restore BFF tests.
  *
  * Verifies (DEF #522):
- *  - REST routes are registered with correct methods and permission callbacks:
+ *  - REST routes registered with correct methods and permission callbacks:
  *      GET  /staff-ai/content/list
  *      POST /staff-ai/content/items/{item_id}/dismiss
  *      POST /staff-ai/content/items/{item_id}/restore
@@ -11,6 +11,7 @@
  *  - rest_dismiss_content_item() rejects item_id = 0 with 400.
  *  - rest_restore_content_item() rejects item_id = 0 with 400.
  *  - Valid item_ids pass validation and reach the backend_request layer.
+ *  - Field allowlist strips unknown backend fields from the list response.
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -35,6 +36,11 @@ if ( ! function_exists( 'register_rest_route' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( '__' ) ) {
+	function __( string $text, string $domain = 'default' ): string {
+		return $text;
+	}
+}
 if ( ! function_exists( 'is_user_logged_in' ) ) {
 	function is_user_logged_in(): bool {
 		global $_wp_test_current_user;
@@ -45,6 +51,36 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( string $cap ): bool {
 		global $_wp_test_user_caps;
 		return in_array( $cap, $_wp_test_user_caps, true );
+	}
+}
+
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code;
+		public $message;
+		public $data;
+		public function __construct( string $code = '', string $message = '', $data = '' ) {
+			$this->code = $code; $this->message = $message; $this->data = $data;
+		}
+		public function get_error_code() { return $this->code; }
+		public function get_error_message() { return $this->message; }
+		public function get_error_data() { return $this->data; }
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ): bool {
+		return $thing instanceof WP_Error;
+	}
+}
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data;
+		public $status;
+		public function __construct( $data = null, int $status = 200 ) {
+			$this->data = $data; $this->status = $status;
+		}
+		public function get_data() { return $this->data; }
+		public function get_status(): int { return $this->status; }
 	}
 }
 
@@ -74,6 +110,50 @@ if ( ! class_exists( 'DEF_Core' ) ) {
 		public static function get_def_api_url_internal(): ?string {
 			return $GLOBALS['_def_test_api_url'] ?? null;
 		}
+	}
+}
+
+// Stub DEF_Core_Tools — needed by backend_request() when API URL is configured.
+if ( ! class_exists( 'DEF_Core_Tools' ) ) {
+	class DEF_Core_Tools {
+		public static function get_user_def_capabilities( $user ): array {
+			return array( 'def_staff_access' );
+		}
+	}
+}
+
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( string $key = '' ): string {
+		return '';
+	}
+}
+
+// HTTP transport stubs — backed by globals set per-test for the allowlist test.
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( string $url, array $args = array() ) {
+		return $GLOBALS['_wp_test_remote_response'] ?? array( 'stub' => true );
+	}
+}
+if ( ! function_exists( 'wp_remote_request' ) ) {
+	function wp_remote_request( string $url, array $args = array() ) {
+		return $GLOBALS['_wp_test_remote_response'] ?? array( 'stub' => true );
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( $response ) {
+		return $GLOBALS['_wp_test_remote_status'] ?? 0;
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $response ) {
+		return $GLOBALS['_wp_test_remote_body'] ?? '{}';
+	}
+}
+
+// get_post_status — returning false skips the title/edit_url enrichment loop.
+if ( ! function_exists( 'get_post_status' ) ) {
+	function get_post_status( $post_id ) {
+		return false;
 	}
 }
 
@@ -147,7 +227,7 @@ foreach ( array( $list_key, $dismiss_key, $restore_key ) as $rk ) {
 // ── 4. Missing bucket → 400 ──────────────────────────────────────────────────
 echo "[4] rest_list_content_items — missing bucket → 400\n";
 $req = new WP_REST_Request( 'GET', '/staff-ai/content/list' );
-// bucket param not set → get_param('bucket') returns null → sanitize_key('') = ''
+// bucket param not set → get_param returns null → sanitize_key('') = ''
 $result = DEF_Core_Staff_AI::rest_list_content_items( $req );
 assert_true( is_wp_error( $result ), 'missing bucket returns WP_Error' );
 assert_same( 'invalid_bucket', $result->get_error_code(), 'error code is invalid_bucket' );
@@ -162,13 +242,12 @@ $result = DEF_Core_Staff_AI::rest_list_content_items( $req );
 assert_true( is_wp_error( $result ), 'empty bucket returns WP_Error' );
 assert_same( 'invalid_bucket', $result->get_error_code(), 'error code is invalid_bucket' );
 
-// ── 6. Valid bucket reaches backend (backend not configured → 503, not 400) ──
+// ── 6. Valid bucket passes validation (short-circuits at unconfigured backend) ──
 echo "[6] rest_list_content_items — valid bucket passes validation\n";
 $req = new WP_REST_Request( 'GET', '/staff-ai/content/list' );
 $req->set_param( 'bucket', 'dismissed' );
 $GLOBALS['_def_test_api_url'] = null; // backend not configured
 $result = DEF_Core_Staff_AI::rest_list_content_items( $req );
-// Validation passes — error comes from backend_request (unconfigured), not from our gate.
 if ( is_wp_error( $result ) ) {
 	assert_true(
 		$result->get_error_code() !== 'invalid_bucket',
@@ -237,13 +316,58 @@ if ( is_wp_error( $result ) ) {
 	);
 }
 
-// ── 13. item_id regex pattern rejects non-digits ─────────────────────────────
-echo "[13] item_id regex rejects non-digits\n";
-assert_true( preg_match( '/^\d+$/', '42' )  === 1, 'numeric item_id matches \d+ pattern' );
-assert_true( preg_match( '/^\d+$/', '0' )   === 1, '0 matches pattern (absint() gate catches it)' );
-assert_true( preg_match( '/^\d+$/', 'abc' ) === 0, 'alpha string rejected by \d+ pattern' );
-assert_true( preg_match( '/^\d+$/', '../42' ) === 0, 'path traversal rejected by \d+ pattern' );
-assert_true( preg_match( '/^\d+$/', '42;rm -rf /' ) === 0, 'injection attempt rejected' );
+// ── 13. Field allowlist strips unknown backend fields ─────────────────────────
+// Stubs backend_request to return an item carrying an unexpected field and
+// asserts array_intersect_key() strips it before the response reaches the client.
+echo "[13] rest_list_content_items — field allowlist strips unknown fields\n";
+
+// Set up: authenticated user + legacy-plaintext API key (get_secret returns it directly).
+$_wp_test_current_user     = new WP_User( 1 );
+$_wp_test_current_user->ID = 1;
+update_option( 'def_core_api_key', 'test-api-key' );
+$GLOBALS['_def_test_api_url']      = 'https://def-api.test';
+$GLOBALS['_wp_test_remote_status'] = 200;
+$GLOBALS['_wp_test_remote_body']   = (string) json_encode( array(
+	'items' => array(
+		array(
+			'item_id'         => 42,
+			'item_type'       => 'product',
+			'draft_id'        => 'dr_abc123',
+			'restorable'      => true,
+			'last_audited'    => '2026-06-24T10:00:00Z',
+			'internal_secret' => 'must-be-stripped',
+			'author_email'    => 'also-stripped@example.com',
+		),
+	),
+) );
+
+$req = new WP_REST_Request( 'GET', '/staff-ai/content/list' );
+$req->set_param( 'bucket', 'dismissed' );
+$result = DEF_Core_Staff_AI::rest_list_content_items( $req );
+
+$is_response = $result instanceof WP_REST_Response;
+assert_true( $is_response, 'valid backend response returns WP_REST_Response' );
+if ( $is_response ) {
+	$payload = $result->get_data();
+	$items   = isset( $payload['items'] ) && is_array( $payload['items'] ) ? $payload['items'] : array();
+	assert_true( count( $items ) === 1, 'one item returned' );
+	if ( count( $items ) === 1 ) {
+		$item = $items[0];
+		assert_true( ! array_key_exists( 'internal_secret', $item ), 'internal_secret stripped by allowlist' );
+		assert_true( ! array_key_exists( 'author_email', $item ),    'author_email stripped by allowlist' );
+		assert_true( array_key_exists( 'item_id', $item ),           'item_id preserved' );
+		assert_true( array_key_exists( 'item_type', $item ),         'item_type preserved' );
+		assert_true( array_key_exists( 'restorable', $item ),        'restorable preserved' );
+		assert_true( array_key_exists( 'draft_id', $item ),          'draft_id preserved' );
+		assert_true( array_key_exists( 'last_audited', $item ),      'last_audited preserved' );
+	}
+}
+
+// Cleanup backend stubs.
+$_wp_test_current_user             = null;
+$GLOBALS['_def_test_api_url']      = null;
+$GLOBALS['_wp_test_remote_status'] = null;
+$GLOBALS['_wp_test_remote_body']   = null;
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
