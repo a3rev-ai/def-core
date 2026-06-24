@@ -829,6 +829,7 @@
 				]);
 			})
 			.then(function (vals) {
+				closeBucketModal(); // no-op when called from the dismissed panel (no modal open)
 				var coverage = root.querySelector('.def-draft-coverage');
 				if (coverage) { coverage.remove(); }
 				var nkPanel = root.querySelector('.def-draft-needs-kp');
@@ -915,6 +916,8 @@
 
 	// ── Bucket-items modal (DEF #523) ───────────────────────────────────────────
 
+	var modalReturnFocus = null; // element to re-focus when modal closes
+
 	function handleModalEsc(e) {
 		if (e.key === 'Escape') { closeBucketModal(); }
 	}
@@ -923,24 +926,24 @@
 		var existing = document.querySelector('.def-draft-bucket-modal-backdrop');
 		if (existing) { existing.remove(); }
 		document.removeEventListener('keydown', handleModalEsc);
+		if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') {
+			modalReturnFocus.focus();
+		}
+		modalReturnFocus = null;
 	}
 
-	// Find a draft card on the page: first by data-draft-id, then by data-item-id.
+	// Find a draft card on the page: draft_id match preferred, item_id as fallback.
+	// Single DOM query; draft_id wins on first match, item_id fallback accumulates.
 	function findDraftCard(draftId, itemId) {
-		var cards, i;
-		if (draftId != null) {
-			cards = root.querySelectorAll('.def-draft-card');
-			for (i = 0; i < cards.length; i++) {
-				if (cards[i].dataset.draftId === String(draftId)) { return cards[i]; }
+		var cards = root.querySelectorAll('.def-draft-card');
+		var byItemId = null;
+		for (var i = 0; i < cards.length; i++) {
+			if (draftId != null && cards[i].dataset.draftId === String(draftId)) { return cards[i]; }
+			if (byItemId === null && itemId != null && cards[i].dataset.itemId === String(itemId)) {
+				byItemId = cards[i];
 			}
 		}
-		if (itemId != null) {
-			cards = root.querySelectorAll('.def-draft-card');
-			for (i = 0; i < cards.length; i++) {
-				if (cards[i].dataset.itemId === String(itemId)) { return cards[i]; }
-			}
-		}
-		return null;
+		return byItemId;
 	}
 
 	function renderBucketModalRow(it, bucketKey) {
@@ -991,7 +994,6 @@
 					btn.addEventListener('click', function () {
 						btn.disabled = true;
 						btn.textContent = '…';
-						closeBucketModal();
 						onRestoreItem(itemId, btn);
 					});
 				})(it.item_id, restoreBtn);
@@ -1003,13 +1005,19 @@
 	}
 
 	function openBucketModal(bucketKey, bucketLabel) {
+		modalReturnFocus = document.activeElement || null;
 		closeBucketModal(); // one modal at a time
 
 		var backdrop = el('div', 'def-draft-bucket-modal-backdrop');
 		var box      = el('div', 'def-draft-bucket-modal-box');
+		box.setAttribute('role', 'dialog');
+		box.setAttribute('aria-modal', 'true');
+		box.setAttribute('aria-labelledby', 'def-bucket-modal-title');
 
 		var head = el('div', 'def-draft-bucket-modal-head');
-		head.appendChild(el('div', 'def-draft-bucket-modal-title', bucketLabel));
+		var titleEl = el('div', 'def-draft-bucket-modal-title', bucketLabel);
+		titleEl.id = 'def-bucket-modal-title';
+		head.appendChild(titleEl);
 		var closeBtn = el('button', 'def-draft-bucket-modal-close', '×');
 		closeBtn.type = 'button';
 		closeBtn.setAttribute('aria-label', 'Close');
@@ -1021,6 +1029,7 @@
 		box.appendChild(body);
 		backdrop.appendChild(box);
 		document.body.appendChild(backdrop);
+		closeBtn.focus();
 
 		closeBtn.addEventListener('click', closeBucketModal);
 		backdrop.addEventListener('click', function (e) {
