@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 4.14.0 - 2026/06/24 =
+* Feature: Content Drafts "Optimize" tab — Dismiss + Dismissed list + Improve→Optimize rename. The "needs a focus keyphrase" rows now each have a Dismiss link: clicking it removes the item from the optimization queue without Excluding it from Company Knowledge or Customer Chat (lightweight, reversible). A new collapsible "Dismissed (N)" panel appears below the keyphrase list and lists all dismissed items; items marked restorable by DEF get a Restore button that returns them to their previous bucket. Tab and intro-sentence renamed from "Improve" to "Optimize". Three new BFF proxy routes added (GET /staff-ai/content/list, POST /staff-ai/content/items/{id}/dismiss, POST /staff-ai/content/items/{id}/restore), each gated by def_staff_access.
+
 = 4.13.6 - 2026/06/24 =
 * Fix: Customer Chat now greets a logged-in visitor by name from the first message. The BFF proxy (`DEF_Core_Tools::build_proxy_headers`) forwards the logged-in user's display name (`X-DEF-User-Display-Name`) to the DEF backend on the Customer Chat channel — previously this identity header was sent only for Staff AI / Setup Assistant (`$include_capabilities = true`), so on Customer Chat the DEF "Current authenticated user" prompt section stayed empty and the assistant had to call the profile tool reactively when asked "who am I?". The display name now crosses for any logged-in user on every channel; email, roles and capabilities remain staff-only (privacy boundary preserved), and anonymous visitors send no identity at all. DEF needs no change — it already reads the header. Adds a test asserting the Customer Chat proxy carries the display name (and still withholds email/roles/capabilities).
 

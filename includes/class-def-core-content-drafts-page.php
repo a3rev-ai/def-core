@@ -107,13 +107,13 @@ final class DEF_Core_Content_Drafts_Page {
 				<?php endif; ?>
 			</h1>
 			<h2 class="nav-tab-wrapper def-draft-tabs">
-				<a href="#improve" class="nav-tab nav-tab-active" data-def-tab="improve"><?php esc_html_e( 'Improve', 'digital-employees' ); ?></a>
+				<a href="#optimize" class="nav-tab nav-tab-active" data-def-tab="optimize"><?php esc_html_e( 'Optimize', 'digital-employees' ); ?></a>
 				<a href="#clusters" class="nav-tab" data-def-tab="clusters"><?php esc_html_e( 'Clusters', 'digital-employees' ); ?></a>
 				<a href="#create" class="nav-tab" data-def-tab="create"><?php esc_html_e( 'Create', 'digital-employees' ); ?></a>
 			</h2>
-			<div id="def-tab-improve" class="def-draft-tab-panel">
+			<div id="def-tab-optimize" class="def-draft-tab-panel">
 				<p class="description">
-					<?php esc_html_e( 'Improvements the Content Agent has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Optimizations the Content Agent has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
 				</p>
 				<div id="def-draft-cards-root" data-loading="1">
 					<p class="def-draft-loading"><?php esc_html_e( 'Loading drafts…', 'digital-employees' ); ?></p>

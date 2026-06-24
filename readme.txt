@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 6.9.4
 Requires PHP: 8.0
-Stable tag: 4.13.6
+Stable tag: 4.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 4.14.0 - 2026-06-24 =
+* Feature: Content Drafts "Optimize" tab — Dismiss + Dismissed list + Improve→Optimize rename. The "needs a focus keyphrase" rows now each have a Dismiss link: clicking it removes the item from the optimization queue without Excluding it from Company Knowledge or Customer Chat (lightweight, reversible). A new collapsible "Dismissed (N)" panel appears below the keyphrase list and lists all dismissed items; items marked restorable by DEF get a Restore button that returns them to their previous bucket. Tab and intro-sentence renamed from "Improve" to "Optimize". Three new BFF proxy routes added (GET /staff-ai/content/list, POST /staff-ai/content/items/{id}/dismiss, POST /staff-ai/content/items/{id}/restore), each gated by def_staff_access.
 
 = 4.13.6 - 2026-06-24 =
 * Fix: Customer Chat now greets a logged-in visitor by name from the first message. The BFF proxy forwards the logged-in user's display name to the DEF backend on the Customer Chat channel (previously sent only for Staff AI / Setup Assistant), so the assistant addresses the user by name immediately instead of having to look up their profile when asked. Only the display name crosses for Customer Chat — email, roles and capabilities remain staff-only. Anonymous visitors are unaffected (no identity sent).

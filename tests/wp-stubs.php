@@ -191,6 +191,13 @@ if ( ! function_exists( 'sanitize_file_name' ) ) {
 	}
 }
 
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ): string {
+		$key = strtolower( (string) $key );
+		return preg_replace( '/[^a-z0-9_\-]/', '', $key );
+	}
+}
+
 if ( ! function_exists( 'get_current_user_id' ) ) {
 	function get_current_user_id(): int {
 		global $_wp_test_current_user;
