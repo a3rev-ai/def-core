@@ -2283,13 +2283,16 @@ function t(key, fallback) {
 
 		const openBtn = document.getElementById('integrationsBtn');
 		const overflowBtn = document.getElementById('overflowIntegrations');
-		const overflowMenuEl = document.getElementById('headerOverflowMenu');
 		const modalClose = document.getElementById('integrationsModalClose');
 		const closeBtn = document.getElementById('integrationsClose');
 		const refreshBtn = document.getElementById('integrationsRefresh');
 		const statusEl = document.getElementById('integrationsStatus');
 		const listEl = document.getElementById('integrationsList');
 		let loading = false;
+		// True only while an authorize POST is in flight, so the window-focus re-check can't
+		// rebuild the list mid-connect — that would detach the row node and drop the "Finish
+		// connecting" link the user still needs. See connect() and the focus handler below.
+		let posting = false;
 
 		function open() {
 			modal.classList.add('visible');
@@ -2382,11 +2385,12 @@ function t(key, fallback) {
 			const buttons = action.querySelectorAll('button');
 			buttons.forEach(function (b) { b.disabled = true; });
 			setStatus(t('integrationsStarting', 'Starting the connection…'), 'muted');
+			posting = true;
 			try {
 				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/authorize', { method: 'POST' });
+				posting = false;
 				if (res.status === 'authorized') {
-					setStatus(t('integrationsNowConnected', 'Connected.'), 'ok');
-					loadList();
+					loadList();  // already linked — the rebuilt row shows the Connected badge
 					return;
 				}
 				const url = (typeof res.redirect_url === 'string') ? res.redirect_url : '';
@@ -2408,6 +2412,7 @@ function t(key, fallback) {
 					setStatus(t('integrationsNoLink', 'Could not start the connection. Please try again.'), 'error');
 				}
 			} catch (e) {
+				posting = false;
 				buttons.forEach(function (b) { b.disabled = false; });
 				setStatus((e && e.message) || t('integrationsConnectFailed', 'Could not start the connection.'), 'error');
 			}
@@ -2416,7 +2421,7 @@ function t(key, fallback) {
 		if (openBtn) openBtn.addEventListener('click', open);
 		if (overflowBtn) {
 			overflowBtn.addEventListener('click', function () {
-				if (overflowMenuEl) overflowMenuEl.classList.remove('open');
+				if (overflowMenu) overflowMenu.classList.remove('open');
 				open();
 			});
 		}
@@ -2426,8 +2431,10 @@ function t(key, fallback) {
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 
 		// Re-check status when the user returns from the OAuth consent tab (modal open only).
+		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
+		// connect() call is about to populate with the "Finish connecting" link.
 		window.addEventListener('focus', function () {
-			if (modal.classList.contains('visible') && !loading) loadList();
+			if (modal.classList.contains('visible') && !loading && !posting) loadList();
 		});
 	})();
 
