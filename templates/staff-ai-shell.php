@@ -97,6 +97,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 						</svg>
 						<?php echo esc_html__( 'Install', 'digital-employees' ); ?>
 					</button>
+					<button type="button" class="header-btn header-btn-icon" id="integrationsBtn" title="<?php echo esc_attr__( 'Connected accounts', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Connected accounts', 'digital-employees' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+						</svg>
+					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -146,6 +152,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<line x1="9" y1="14" x2="15" y2="14"></line>
 							</svg>
 							<?php echo esc_html__( 'Create', 'digital-employees' ); ?>
+						</button>
+						<button type="button" id="overflowIntegrations">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+								<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+							</svg>
+							<?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?>
 						</button>
 						<button type="button" id="overflowInstall" style="display:none;">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -389,6 +402,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="createCancel"><?php echo esc_html__( 'Cancel', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-primary" id="createSubmit"><?php echo esc_html__( 'Create', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
+		<!-- Connected Accounts Modal (per-user integrations — Slice 2) -->
+		<div class="modal-overlay" id="integrationsModal">
+			<div class="modal" style="max-width: 520px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="integrationsModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="integrations-intro"><?php echo esc_html__( 'Connect your own accounts so actions (like sending a message) go out as you — not a shared account.', 'digital-employees' ); ?></p>
+					<div class="integrations-status" id="integrationsStatus"></div>
+					<div class="integrations-list" id="integrationsList"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
 				</div>
 			</div>
 		</div>
