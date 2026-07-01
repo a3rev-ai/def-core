@@ -482,10 +482,13 @@ final class DEF_Core_Tools {
 	}
 
 	/**
-	 * Get the DEF capabilities for a WordPress user.
+	 * Get the DEF capabilities def-core ASSERTS for a WordPress user.
+	 *
+	 * Normally the user's full DEF grant; once WP is demoted to identity-only (Slice 3d-iii) the ROLE
+	 * caps (def_staff_access / def_management_access) are withheld — see should_assert_role_capabilities.
 	 *
 	 * @param \WP_User $user The user to check.
-	 * @return array List of DEF capability strings the user has.
+	 * @return array The DEF capability strings to assert to the framework.
 	 */
 	public static function get_user_def_capabilities( \WP_User $user ): array {
 		$all  = array( 'def_admin_access', 'def_staff_access', 'def_management_access' );
@@ -515,10 +518,13 @@ final class DEF_Core_Tools {
 	 * DEFHO-as-sole-role-authority (`roles_source_migrated`) AND every user is backfilled into DEFHO —
 	 * flipping early would deny any not-yet-backfilled user (their WP fallback would derive nothing).
 	 *
+	 * Fails SAFE toward asserting: we withhold ONLY on an explicit '0'. Because the danger direction is
+	 * denial, a malformed/garbage option value keeps the WP bridge alive rather than silently denying.
+	 *
 	 * @return bool
 	 */
 	private static function should_assert_role_capabilities(): bool {
-		return get_option( 'def_core_assert_role_capabilities', '1' ) === '1';
+		return get_option( 'def_core_assert_role_capabilities', '1' ) !== '0';
 	}
 
 	/**

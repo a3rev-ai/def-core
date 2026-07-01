@@ -31,11 +31,6 @@ if ( ! function_exists( 'delete_option' ) ) {
 		return true;
 	}
 }
-if ( ! function_exists( 'get_site_url' ) ) {
-	function get_site_url(): string {
-		return 'https://example.test';
-	}
-}
 
 // A WP_User whose has_cap() consults a settable capability set.
 if ( ! class_exists( 'WP_User' ) ) {
@@ -116,6 +111,14 @@ assert_same(
 	array( 'def_admin_access', 'def_staff_access', 'def_management_access' ),
 	\DEF_Core_Tools::get_user_def_capabilities( $user ),
 	're-enabling restores the full grant'
+);
+
+// [6] Fails SAFE: a malformed/garbage value (anything but '0') keeps asserting, never silently denies.
+update_option( $OPT, 'yes' );
+assert_same(
+	array( 'def_admin_access', 'def_staff_access', 'def_management_access' ),
+	\DEF_Core_Tools::get_user_def_capabilities( $user ),
+	'garbage option value still asserts (fail-safe toward keeping access)'
 );
 
 // Restore.
