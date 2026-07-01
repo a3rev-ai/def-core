@@ -554,6 +554,9 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
+		// get_user_def_capabilities withholds the role caps (def_staff/management_access) once WP is
+		// demoted to identity-only (Slice 3d-iii), so DEF stops deriving roles from the WP grant.
+		// Identity headers below are always sent.
 		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
 
 		$headers = array(

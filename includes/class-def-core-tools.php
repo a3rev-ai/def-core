@@ -276,6 +276,8 @@ final class DEF_Core_Tools {
 			}
 
 			if ( $include_capabilities ) {
+				// get_user_def_capabilities withholds the role caps once WP is demoted to identity-only
+				// (Slice 3d-iii) — this covers the streaming /api/staff-ai/chat/stream turn too.
 				$caps = self::get_user_def_capabilities( $user );
 				if ( ! empty( $caps ) ) {
 					$headers[] = 'X-DEF-User-Capabilities: ' . implode( ',', $caps );
@@ -493,7 +495,30 @@ final class DEF_Core_Tools {
 				$caps[] = $cap;
 			}
 		}
+		// Slice 3d-iii: once WP is demoted to identity-only (the tenant is cut over to
+		// DEFHO-as-sole-role-authority AND every user is backfilled), WITHHOLD the ROLE caps
+		// (def_staff_access / def_management_access — the only caps DEF's role gate derives from) so DEF
+		// stops deriving roles from the WP grant. def_admin_access is KEPT (setup/admin is a separate
+		// concern, not part of the DEFHO role cutover). Default asserts the full grant (the bridge).
+		$role_caps = array( 'def_staff_access', 'def_management_access' );
+		if ( array_intersect( $caps, $role_caps ) && ! self::should_assert_role_capabilities() ) {
+			$caps = array_values( array_diff( $caps, $role_caps ) );
+		}
 		return $caps;
+	}
+
+	/**
+	 * Whether def-core still asserts the user's DEF ROLE capabilities to the framework (Slice 3d-iii).
+	 *
+	 * Default TRUE (the migration bridge — DEF derives roles from the WP grant when it has no DEFHO
+	 * membership). Flip `def_core_assert_role_capabilities` to '0' ONLY after the tenant is cut over to
+	 * DEFHO-as-sole-role-authority (`roles_source_migrated`) AND every user is backfilled into DEFHO —
+	 * flipping early would deny any not-yet-backfilled user (their WP fallback would derive nothing).
+	 *
+	 * @return bool
+	 */
+	private static function should_assert_role_capabilities(): bool {
+		return get_option( 'def_core_assert_role_capabilities', '1' ) === '1';
 	}
 
 	/**
