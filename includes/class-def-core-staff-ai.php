@@ -446,6 +446,30 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_target_search'),
 			)
 		);
+
+		// Per-user "Connected accounts" (Slice 2 — DEF feat/per-user-mcp-identity).
+		// Each Staff-AI user connects their OWN aggregator account so a tool acts AS
+		// them. The per-user identity (`{tenant}:{sub}`) is derived DEF-side from the
+		// X-DEF-User header backend_request() already forwards — nothing user-scoped
+		// rides in the body. Gated by def_staff_access like every other staff-ai route.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/user/integrations',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_user_integrations'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/authorize',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_user_integration_authorize'),
+			)
+		);
 	}
 
 	/**
@@ -1309,6 +1333,88 @@ final class DEF_Core_Staff_AI
 			return $result;
 		}
 		return new \WP_REST_Response( $result, 200 );
+	}
+
+	// ── Per-user "Connected accounts" (Slice 2 — per-user aggregator identity) ────
+
+	/**
+	 * REST handler: the tenant's connected apps + whether THIS user has authorized
+	 * each (their own aggregator account).
+	 *
+	 * Proxies DEF GET /api/staff-ai/user/integrations. The per-user identity is
+	 * derived DEF-side from the X-DEF-User header; nothing user-scoped is sent in the
+	 * body. Each app is allowlisted to the four fields the panel renders so a future
+	 * backend schema addition can't leak through.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, configured, apps}).
+	 */
+	public static function rest_user_integrations( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/user/integrations' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$apps_in = ( isset( $result['apps'] ) && is_array( $result['apps'] ) ) ? $result['apps'] : array();
+		$apps    = array();
+		foreach ( $apps_in as $app ) {
+			if ( ! is_array( $app ) || empty( $app['server_id'] ) ) {
+				continue;
+			}
+			$apps[] = array(
+				'server_id'  => (string) $app['server_id'],
+				'category'   => ( isset( $app['category'] ) && is_string( $app['category'] ) ) ? $app['category'] : '',
+				'no_auth'    => ! empty( $app['no_auth'] ),
+				'authorized' => ! empty( $app['authorized'] ),
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'    => true,
+				// configured=false → the tenant hasn't set an aggregator key yet.
+				'configured' => ! empty( $result['configured'] ),
+				'apps'       => $apps,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: start/confirm THIS user's hosted OAuth for one connected app.
+	 *
+	 * Proxies DEF POST /api/staff-ai/user/integrations/{server_id}/authorize. DEF
+	 * host-checks the returned redirect_url against the aggregator's consent domain;
+	 * the panel opens it to complete consent. status='authorized' → already connected.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, server_id, status, redirect_url}).
+	 */
+	public static function rest_user_integration_authorize( \WP_REST_Request $request )
+	{
+		$server_id = sanitize_text_field( (string) $request->get_param( 'server_id' ) );
+		if ( '' === $server_id ) {
+			return new \WP_Error(
+				'invalid_server_id',
+				__( 'A server_id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/user/integrations/' . rawurlencode( $server_id ) . '/authorize'
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'server_id'    => $server_id,
+				'status'       => ( isset( $result['status'] ) && is_string( $result['status'] ) ) ? $result['status'] : '',
+				'redirect_url' => ( isset( $result['redirect_url'] ) && is_string( $result['redirect_url'] ) ) ? $result['redirect_url'] : '',
+			),
+			200
+		);
 	}
 
 	// ── Content Agent Engine 2.5: Clusters curation (targets + keyphrase queues) ──

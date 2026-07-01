@@ -2274,6 +2274,171 @@ function t(key, fallback) {
 	});
 
 	// =============================================
+	// CONNECTED ACCOUNTS (per-user integrations — Slice 2)
+	// Each user connects their OWN aggregator account so a tool acts AS them.
+	// =============================================
+	(function initIntegrations() {
+		const modal = document.getElementById('integrationsModal');
+		if (!modal) return;
+
+		const openBtn = document.getElementById('integrationsBtn');
+		const overflowBtn = document.getElementById('overflowIntegrations');
+		const modalClose = document.getElementById('integrationsModalClose');
+		const closeBtn = document.getElementById('integrationsClose');
+		const refreshBtn = document.getElementById('integrationsRefresh');
+		const statusEl = document.getElementById('integrationsStatus');
+		const listEl = document.getElementById('integrationsList');
+		let loading = false;
+		// True only while an authorize POST is in flight, so the window-focus re-check can't
+		// rebuild the list mid-connect — that would detach the row node and drop the "Finish
+		// connecting" link the user still needs. See connect() and the focus handler below.
+		let posting = false;
+
+		function open() {
+			modal.classList.add('visible');
+			loadList();
+		}
+		function close() {
+			modal.classList.remove('visible');
+		}
+
+		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
+		function prettyName(category, serverId) {
+			if (category) {
+				return category.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+			}
+			return serverId;
+		}
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'integrations-status' + (message ? ' integrations-status-' + (kind || 'muted') : '');
+		}
+
+		async function loadList() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('integrationsLoading', 'Loading your connected accounts…'), 'muted');
+			listEl.innerHTML = '';
+			try {
+				const data = await apiRequest('/user/integrations');
+				if (!data.configured) {
+					setStatus(t('integrationsNotConfigured', 'Integrations aren’t set up for your team yet. Ask an administrator to connect apps.'), 'muted');
+					return;
+				}
+				const apps = Array.isArray(data.apps) ? data.apps : [];
+				if (apps.length === 0) {
+					setStatus(t('integrationsEmpty', 'No connected apps yet. Ask an administrator to add integrations.'), 'muted');
+					return;
+				}
+				setStatus('', '');
+				apps.forEach(function (app) { listEl.appendChild(renderRow(app)); });
+			} catch (e) {
+				setStatus((e && e.message) || t('integrationsLoadFailed', 'Could not load your connected accounts.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+
+		function renderRow(app) {
+			const row = document.createElement('div');
+			row.className = 'integration-row';
+
+			const name = document.createElement('span');
+			name.className = 'integration-name';
+			name.textContent = prettyName(app.category, app.server_id);
+			row.appendChild(name);
+
+			const action = document.createElement('div');
+			action.className = 'integration-action';
+
+			if (app.no_auth || app.authorized) {
+				const badge = document.createElement('span');
+				badge.className = 'integration-badge integration-badge-ok';
+				badge.textContent = app.no_auth
+					? t('integrationsReady', 'Ready')
+					: t('integrationsConnected', 'Connected');
+				action.appendChild(badge);
+				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream).
+				if (app.authorized && !app.no_auth) {
+					const re = document.createElement('button');
+					re.type = 'button';
+					re.className = 'integration-btn integration-btn-link';
+					re.textContent = t('integrationsReconnect', 'Reconnect');
+					re.addEventListener('click', function () { connect(app.server_id, action); });
+					action.appendChild(re);
+				}
+			} else {
+				const connectBtn = document.createElement('button');
+				connectBtn.type = 'button';
+				connectBtn.className = 'integration-btn integration-btn-primary';
+				connectBtn.textContent = t('integrationsConnect', 'Connect');
+				connectBtn.addEventListener('click', function () { connect(app.server_id, action); });
+				action.appendChild(connectBtn);
+			}
+
+			row.appendChild(action);
+			return row;
+		}
+
+		async function connect(serverId, action) {
+			const buttons = action.querySelectorAll('button');
+			buttons.forEach(function (b) { b.disabled = true; });
+			setStatus(t('integrationsStarting', 'Starting the connection…'), 'muted');
+			posting = true;
+			try {
+				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/authorize', { method: 'POST' });
+				posting = false;
+				if (res.status === 'authorized') {
+					loadList();  // already linked — the rebuilt row shows the Connected badge
+					return;
+				}
+				const url = (typeof res.redirect_url === 'string') ? res.redirect_url : '';
+				if (/^https:\/\//i.test(url)) {
+					// Render the consent URL as an explicit link the user clicks (a real user
+					// gesture — avoids popup blockers). DEF already host-checked it. They finish
+					// in the new tab; the window-focus handler re-checks status on return.
+					action.innerHTML = '';
+					const link = document.createElement('a');
+					link.className = 'integration-btn integration-btn-primary';
+					link.href = url;
+					link.target = '_blank';
+					link.rel = 'noopener noreferrer';
+					link.textContent = t('integrationsFinish', 'Finish connecting →');
+					action.appendChild(link);
+					setStatus(t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.'), 'muted');
+				} else {
+					buttons.forEach(function (b) { b.disabled = false; });
+					setStatus(t('integrationsNoLink', 'Could not start the connection. Please try again.'), 'error');
+				}
+			} catch (e) {
+				posting = false;
+				buttons.forEach(function (b) { b.disabled = false; });
+				setStatus((e && e.message) || t('integrationsConnectFailed', 'Could not start the connection.'), 'error');
+			}
+		}
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (overflowBtn) {
+			overflowBtn.addEventListener('click', function () {
+				if (overflowMenu) overflowMenu.classList.remove('open');
+				open();
+			});
+		}
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+		// Re-check status when the user returns from the OAuth consent tab (modal open only).
+		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
+		// connect() call is about to populate with the "Finish connecting" link.
+		window.addEventListener('focus', function () {
+			if (modal.classList.contains('visible') && !loading && !posting) loadList();
+		});
+	})();
+
+	// =============================================
 	// UPLOAD EVENT HANDLERS
 	// =============================================
 
