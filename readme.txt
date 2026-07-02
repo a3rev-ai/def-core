@@ -2,9 +2,9 @@
 Contributors: a3rev
 Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
-Tested up to: 6.9.4
+Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.2.1
+Stable tag: 5.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,22 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.3.0 - 2026-07-03 =
+* Feature: Custom roles in the User Access page (custom-roles Phase 2, R4 — the activation slice). Roles your tenant defines in the DEFHO portal (e.g. Finance, HR) now appear as extra columns in Settings > Digital Employees > User Roles, between Management and DEF Admin. The role catalog is fetched from the DEF backend when the page loads (cached in the `def_core_roles_catalog` option; a fetch failure keeps the cached copy) and drives: the dynamic columns (PHP + the add-user row builder), the save/remove handlers' capability allowlist (server-side from the cached catalog, never from client input), and the admin bridge's assignable-capability set. Assignments are stored as native WordPress capabilities `def_role_<slug>` and are asserted to DEF through the existing capabilities channel on every request path — so a user's custom roles gate which tools and skills they see in Staff AI (tools are bound to roles in the DEFHO portal's Roles page). Staff/Management behavior is unchanged, incl. their mutual exclusivity and the last-DEF-Admin lockout guard; custom roles combine freely. Uninstall removes the catalog option and strips all `def_role_*` capabilities.
+
+
+= 5.2.1 - 2026-07-02 =
+* Revert: WordPress role-capability demotion (Slice 3d-iii) — the 5.2.0 `def_core_assert_role_capabilities` option gate is removed and the DEF role capabilities (def_staff_access / def_management_access) are again asserted unconditionally on every role-gate request path. Part of the platform-wide Slice-3 unwind: the DEFHO-as-role-authority migration was scrapped (membership stays at the ground floor — the WordPress Users menu; DEF resolves roles from the WP grant). Behavior-neutral for every site: the option defaulted to asserting and the cutover it served no longer exists. Sites that never touched the option see no change; the option key is now ignored.
+
+
+= 5.2.0 - 2026-07-01 =
+* Feature: WordPress role-capability demotion (Slice 3d-iii of the DEFHO identity & role-authority migration). def-core can now stop asserting the DEF role capabilities (def_staff_access / def_management_access) to the framework once a tenant is fully cut over to DEFHO as the sole role authority — completing WordPress's demotion to identity-only. Controlled by the `def_core_assert_role_capabilities` option (default '1' = keep asserting, the migration bridge). Set it to '0' ONLY after the tenant's roles_source_migrated cutover is live AND every user has been backfilled into DEFHO — flipping it early would deny any not-yet-backfilled user (their WP fallback would derive nothing). When off, the role caps are withheld from the role-gate request paths — the chat turn, the streaming chat turn, and the context token (the caps DEF's role gate reads) — while def_admin_access and all identity headers (user id, display name, email) are still sent. (The file-download/status token paths intentionally still carry the caps: a separate authz concern, a safe over-assert, and inert once the tenant is cut over since DEF ignores WP caps then.) The option comparison fails safe toward asserting — only an explicit '0' withholds. Inert on upgrade — default behaviour is unchanged. [Reverted in 5.2.1 — the cutover model was scrapped.]
+
+
+= 5.1.0 - 2026-07-01 =
+* Feature: Staff AI "Connected accounts" — each user connects their OWN aggregator accounts (Slice 2 of per-user identity). A new link icon in the Staff AI header (and a matching "Connected accounts" item in the mobile overflow menu) opens a modal listing the tenant's connected apps with a per-user status: a real OAuth app shows Connect (or Connected/Reconnect once linked), a no-auth app shows Ready. Connect starts the user's own hosted OAuth — the consent URL is rendered as an explicit "Finish connecting" link (opens in a new tab, avoids popup blockers); on return the panel re-checks status automatically. This means a tool action (e.g. sending a Slack message) goes out as the actual person, not a single shared account. Two BFF proxy routes added (GET /staff-ai/user/integrations, POST /staff-ai/user/integrations/{server_id}/authorize), both gated by def_staff_access; the per-user identity is derived backend-side from the forwarded X-DEF-User header (nothing user-scoped in the request body). Requires the DEF per-user-identity backend (def feat/per-user-mcp-identity) to be deployed.
+
 
 = 5.0.0 - 2026-06-24 =
 * Feature: Content Drafts "Optimize" tab — clickable summary bucket chips. The per-type and overall coverage counts (good, optimized, awaiting review, dismissed) are now clickable: clicking any chip opens a modal listing the items in that bucket. Good and optimized items link to the live content (permalink) with a fallback to the editor. Awaiting-review items deep-link to the existing draft card on the page (scroll + flash). Dismissed items show a Restore button for restorable items, mirroring the existing Dismissed panel. The "needs a keyphrase" chip is unchanged — the toggle list below already serves that bucket. The /list endpoint gains a view_url field (enriched locally from get_permalink), added to the allowlist alongside the existing edit_url.

@@ -972,6 +972,18 @@
 			if (u.user_login && u.user_login !== u.display_name) {
 				rowNameHtml += ' <span class="def-core-user-login">(' + escHtml(u.user_login) + ')</span>';
 			}
+			// Custom roles (R4): the catalog drives one cell per role, matching the PHP-rendered
+			// column order (Staff, Management, <custom roles…>, DEF Admin, Actions).
+			var rolesCatalog = (window.defCoreAdmin && defCoreAdmin.rolesCatalog) || [];
+			var customCellsHtml = '';
+			rolesCatalog.forEach(function (role) {
+				customCellsHtml +=
+					'<td class="def-core-role-col">' +
+					'<input type="checkbox" class="def-core-role-cb" data-user="' +
+					u.id +
+					'" data-cap="def_role_' + escHtml(role.slug) + '" />' +
+					'</td>';
+			});
 			tr.innerHTML =
 				'<td>' +
 				avatarHtml +
@@ -993,6 +1005,7 @@
 				u.id +
 				'" data-cap="def_management_access" />' +
 				'</td>' +
+				customCellsHtml +
 				'<td class="def-core-role-col">' +
 				'<input type="checkbox" class="def-core-role-cb" data-user="' +
 				u.id +
@@ -1040,7 +1053,7 @@
 					!confirm(
 						'Remove ' +
 							userName +
-							' from all Digital Employee access?\n\nThis will revoke their Staff AI, Management, and DEF Admin permissions immediately.'
+							' from all Digital Employee access?\n\nThis will revoke their Staff, Management, custom-role and DEF Admin permissions immediately.'
 					)
 				) {
 					return;
