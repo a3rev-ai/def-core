@@ -136,11 +136,14 @@ $_rc_remote_response = array( 'code' => 200, 'body' => wp_json_encode( array( 'r
 	array( 'slug' => 'finance', 'name' => "Finance <script>x</script>", 'extra' => 'dropped' ),
 	array( 'slug' => 'BAD SLUG', 'name' => 'Nope' ),
 	array( 'slug' => 'x,def_management_access', 'name' => 'Nope' ),
+	array( 'slug' => 'staff', 'name' => 'Staff' ),          // seeded/reserved -> dropped
+	array( 'slug' => 'management', 'name' => 'Management' ), // seeded/reserved -> dropped
+	array( 'slug' => 'def_evil', 'name' => 'Nope' ),         // def_ prefix reserved
 	array( 'slug' => 'ops', 'name' => 'Ops' ),
 ) ) ) );
 $fetched = DEF_Core_Tools::get_roles_catalog( true );
 check( array( 'finance', 'ops' ) === array_column( $fetched, 'slug' ),
-	'Fetch keeps valid slugs, drops malformed + comma-smuggling slugs' );
+	'Fetch keeps valid slugs; drops malformed, comma-smuggling, RESERVED (seeded staff/management) and def_-prefixed slugs' );
 check( false === strpos( $fetched[0]['name'], '<' ), 'Names are text-sanitized' );
 check( ! isset( $fetched[0]['extra'] ), 'Extra keys dropped on store' );
 check( $_wp_test_options['def_core_roles_catalog'] === $fetched, 'Fetched catalog cached in the option' );
@@ -152,6 +155,16 @@ $_rc_remote_response = null; // WP_Error
 check( DEF_Core_Tools::get_roles_catalog( true ) === $fetched, 'Transport error keeps the cached copy' );
 $_rc_remote_response = array( 'code' => 200, 'body' => 'not-json' );
 check( DEF_Core_Tools::get_roles_catalog( true ) === $fetched, 'Unparseable body keeps the cached copy' );
+
+// 5b: the cached option is self-sanitizing on READ (a poisoned option can't smuggle slugs)
+$_wp_test_options['def_core_roles_catalog'] = array(
+	array( 'slug' => 'finance', 'name' => 'Finance' ),
+	array( 'slug' => 'x,def_management_access', 'name' => 'Evil' ),
+	array( 'slug' => 'staff', 'name' => 'Dup' ),
+);
+check( array( 'finance' ) === array_column( DEF_Core_Tools::get_roles_catalog(), 'slug' ),
+	'Cached read re-sanitizes: poisoned/reserved entries dropped' );
+$_wp_test_options['def_core_roles_catalog'] = $fetched; // restore for the following checks
 
 // 6: get_role_caps maps to def_role_*
 check( DEF_Core_Tools::get_role_caps() === array( 'def_role_finance', 'def_role_ops' ),

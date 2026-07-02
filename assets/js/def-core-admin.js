@@ -1053,7 +1053,7 @@
 					!confirm(
 						'Remove ' +
 							userName +
-							' from all Digital Employee access?\n\nThis will revoke their Staff AI, Management, and DEF Admin permissions immediately.'
+							' from all Digital Employee access?\n\nThis will revoke their Staff, Management, custom-role and DEF Admin permissions immediately.'
 					)
 				) {
 					return;

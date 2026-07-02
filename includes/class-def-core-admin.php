@@ -371,6 +371,11 @@ final class DEF_Core_Admin {
 		// D-II: Enqueue media uploader for branding tab.
 		wp_enqueue_media();
 
+		// Custom roles (R4): refresh the catalog BEFORE localizing so the JS row-builder and the
+		// PHP-rendered columns use the SAME catalog — a one-load-stale JS copy would shift an
+		// added row's checkboxes under the wrong headers (a privilege-grant mislabel).
+		$roles_catalog = \DEF_Core_Tools::get_roles_catalog( true );
+
 		// Localize script data for JS.
 		$cached_connection = get_transient( 'def_core_connection_test' );
 		wp_localize_script( 'def-core-admin', 'defCoreAdmin', array(
@@ -385,8 +390,8 @@ final class DEF_Core_Admin {
 			'oauthDisconnectNonce' => wp_create_nonce( 'def_core_oauth_disconnect' ),
 			'defhoUrl'         => DEF_Core_OAuth::get_defho_url(),
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
-			// Custom roles (R4): the cached catalog drives the dynamic User-Access columns.
-			'rolesCatalog'     => \DEF_Core_Tools::get_roles_catalog(),
+			// Custom roles (R4): the just-refreshed catalog — same array the PHP columns render.
+			'rolesCatalog'     => $roles_catalog,
 		) );
 
 		// Connection status data (for status indicator).
@@ -447,10 +452,8 @@ final class DEF_Core_Admin {
 		}
 
 		// D-II: User roles data — only users with at least one DEF capability.
-		// Custom roles (R4): refresh the role catalog from DEF on page load (always fresh at
-		// assignment time; a fetch failure silently keeps the cached copy), and include users
-		// whose ONLY grant is a custom-role cap.
-		$roles_catalog    = \DEF_Core_Tools::get_roles_catalog( true );
+		// Custom roles (R4): $roles_catalog was refreshed above (before the JS localize — the two
+		// MUST share one catalog); include users whose ONLY grant is a custom-role cap.
 		$role_caps        = \DEF_Core_Tools::get_role_caps();
 		$def_capabilities = array_merge(
 			array( 'def_staff_access', 'def_management_access', 'def_admin_access' ),

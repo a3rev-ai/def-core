@@ -532,8 +532,7 @@ final class DEF_Core_Tools {
 	 * @return array
 	 */
 	public static function get_roles_catalog( bool $refresh = false ): array {
-		$cached = get_option( 'def_core_roles_catalog', array() );
-		$cached = is_array( $cached ) ? $cached : array();
+		$cached = self::sanitize_roles_catalog( get_option( 'def_core_roles_catalog', array() ) );
 		if ( ! $refresh ) {
 			return $cached;
 		}
@@ -546,7 +545,7 @@ final class DEF_Core_Tools {
 		}
 
 		$response = wp_remote_get( rtrim( $api_url, '/' ) . '/api/staff-ai/roles-catalog', array(
-			'timeout' => 15,
+			'timeout' => 5,
 			'headers' => array(
 				'X-DEF-API-Key'           => $api_key,
 				'X-DEF-User'              => (string) $user->ID,
@@ -564,7 +563,27 @@ final class DEF_Core_Tools {
 			return $cached;
 		}
 
-		$clean = array();
+		$clean = self::sanitize_roles_catalog( $roles );
+		update_option( 'def_core_roles_catalog', $clean, false );
+		return $clean;
+	}
+
+	/**
+	 * Sanitize a role-catalog value — applied to BOTH the fetched payload and the cached option
+	 * (self-sanitizing store: a poisoned option can't smuggle slugs into caps headers or markup).
+	 * Drops: malformed entries, slugs outside the locked wire format, and RESERVED slugs — the
+	 * seeded staff/management rows ride the DEFHO catalog but must NEVER become def_role_* columns
+	 * (they'd duplicate the fixed columns and bypass the Staff/Mgmt exclusivity guard).
+	 *
+	 * @param mixed $roles Raw catalog value.
+	 * @return array
+	 */
+	private static function sanitize_roles_catalog( $roles ): array {
+		if ( ! is_array( $roles ) ) {
+			return array();
+		}
+		$reserved = array( 'staff', 'management', 'public', 'admin', 'def_admin' );
+		$clean    = array();
 		foreach ( $roles as $role ) {
 			if ( ! is_array( $role ) || empty( $role['slug'] ) || ! is_string( $role['slug'] ) ) {
 				continue;
@@ -572,11 +591,12 @@ final class DEF_Core_Tools {
 			if ( ! preg_match( '/^[a-z0-9][a-z0-9_-]{0,39}$/', $role['slug'] ) ) {
 				continue;
 			}
+			if ( in_array( $role['slug'], $reserved, true ) || 0 === strpos( $role['slug'], 'def_' ) ) {
+				continue;
+			}
 			$name    = isset( $role['name'] ) && is_string( $role['name'] ) ? sanitize_text_field( $role['name'] ) : $role['slug'];
 			$clean[] = array( 'slug' => $role['slug'], 'name' => $name );
 		}
-
-		update_option( 'def_core_roles_catalog', $clean, false );
 		return $clean;
 	}
 
