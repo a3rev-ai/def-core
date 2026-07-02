@@ -60,6 +60,7 @@ $options[] = 'def_core_escalation_setup_assistant';
 $options[] = 'def_core_tools_status';
 $options[] = 'def_core_allowed_origins';
 $options[] = 'def_core_keys';
+$options[] = 'def_core_roles_catalog';
 
 foreach ( $options as $option ) {
 	delete_option( $option );
@@ -76,5 +77,11 @@ foreach ( $users as $user_id ) {
 	$user = new WP_User( $user_id );
 	foreach ( $capabilities as $cap ) {
 		$user->remove_cap( $cap );
+	}
+	// Custom-role caps (R4): strip by prefix — the catalog may be stale/gone at uninstall time.
+	foreach ( array_keys( $user->caps ) as $cap ) {
+		if ( is_string( $cap ) && 0 === strpos( $cap, 'def_role_' ) ) {
+			$user->remove_cap( $cap );
+		}
 	}
 }

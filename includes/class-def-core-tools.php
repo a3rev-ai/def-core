@@ -482,6 +482,11 @@ final class DEF_Core_Tools {
 	/**
 	 * Get the DEF capabilities for a WordPress user.
 	 *
+	 * The fixed trio plus the user's custom-role caps (`def_role_<slug>`, custom-roles R4) —
+	 * catalog-validated so a cap for a role DEFHO has deleted stops being asserted once the
+	 * cached catalog refreshes. This is the single funnel every assertion path reads (proxy
+	 * headers, context token, admin bridge).
+	 *
 	 * @param \WP_User $user The user to check.
 	 * @return array List of DEF capability strings the user has.
 	 */
@@ -493,7 +498,86 @@ final class DEF_Core_Tools {
 				$caps[] = $cap;
 			}
 		}
+		foreach ( self::get_role_caps() as $cap ) {
+			if ( $user->has_cap( $cap ) ) {
+				$caps[] = $cap;
+			}
+		}
 		return $caps;
+	}
+
+	/**
+	 * The tenant's custom-role capability names (`def_role_<slug>`) from the cached catalog.
+	 *
+	 * @return array
+	 */
+	public static function get_role_caps(): array {
+		$caps = array();
+		foreach ( self::get_roles_catalog() as $role ) {
+			$caps[] = 'def_role_' . $role['slug'];
+		}
+		return $caps;
+	}
+
+	/**
+	 * The tenant's role catalog `[{slug, name}]` (custom-roles R4).
+	 *
+	 * Cached in the `def_core_roles_catalog` option; `$refresh` re-fetches from DEF's bridge
+	 * (`GET /api/staff-ai/roles-catalog`, admin-gated — call with refresh only from a def_admin
+	 * context, e.g. the User Access page load). Fetch failure keeps the cached copy (assignment
+	 * must not break on a DEF blip). Entries are sanitized on store: slugs to the locked wire
+	 * format, names to plain text.
+	 *
+	 * @param bool $refresh Re-fetch from DEF before returning.
+	 * @return array
+	 */
+	public static function get_roles_catalog( bool $refresh = false ): array {
+		$cached = get_option( 'def_core_roles_catalog', array() );
+		$cached = is_array( $cached ) ? $cached : array();
+		if ( ! $refresh ) {
+			return $cached;
+		}
+
+		$api_url = get_option( 'def_core_staff_ai_api_url', '' );
+		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		$user    = wp_get_current_user();
+		if ( empty( $api_url ) || empty( $api_key ) || ! $user || 0 === $user->ID ) {
+			return $cached;
+		}
+
+		$response = wp_remote_get( rtrim( $api_url, '/' ) . '/api/staff-ai/roles-catalog', array(
+			'timeout' => 15,
+			'headers' => array(
+				'X-DEF-API-Key'           => $api_key,
+				'X-DEF-User'              => (string) $user->ID,
+				'X-DEF-User-Capabilities' => implode( ',', self::get_user_def_capabilities( $user ) ),
+				'Accept'                  => 'application/json',
+			),
+		) );
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return $cached;
+		}
+
+		$body  = json_decode( wp_remote_retrieve_body( $response ), true );
+		$roles = isset( $body['roles'] ) && is_array( $body['roles'] ) ? $body['roles'] : null;
+		if ( null === $roles ) {
+			return $cached;
+		}
+
+		$clean = array();
+		foreach ( $roles as $role ) {
+			if ( ! is_array( $role ) || empty( $role['slug'] ) || ! is_string( $role['slug'] ) ) {
+				continue;
+			}
+			if ( ! preg_match( '/^[a-z0-9][a-z0-9_-]{0,39}$/', $role['slug'] ) ) {
+				continue;
+			}
+			$name    = isset( $role['name'] ) && is_string( $role['name'] ) ? sanitize_text_field( $role['name'] ) : $role['slug'];
+			$clean[] = array( 'slug' => $role['slug'], 'name' => $name );
+		}
+
+		update_option( 'def_core_roles_catalog', $clean, false );
+		return $clean;
 	}
 
 	/**

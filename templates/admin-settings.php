@@ -862,6 +862,10 @@ $first_tab = 'branding';
 						<th><?php esc_html_e( 'WordPress Role', 'digital-employees' ); ?></th>
 						<th class="def-core-role-col"><?php esc_html_e( 'Staff', 'digital-employees' ); ?></th>
 						<th class="def-core-role-col"><?php esc_html_e( 'Management', 'digital-employees' ); ?></th>
+						<?php // Custom roles (R4): one column per catalog role, defined in the DEFHO portal. ?>
+						<?php foreach ( $roles_catalog as $def_role ) : ?>
+							<th class="def-core-role-col"><?php echo esc_html( $def_role['name'] ); ?></th>
+						<?php endforeach; ?>
 						<th class="def-core-role-col"><?php esc_html_e( 'DEF Admin', 'digital-employees' ); ?></th>
 						<th class="def-core-role-col"><?php esc_html_e( 'Actions', 'digital-employees' ); ?></th>
 					</tr>
@@ -906,6 +910,17 @@ $first_tab = 'branding';
 									<?php checked( $u->has_cap( 'def_management_access' ) ); ?>
 								/>
 							</td>
+							<?php foreach ( $roles_catalog as $def_role ) : ?>
+								<td class="def-core-role-col">
+									<input
+										type="checkbox"
+										class="def-core-role-cb"
+										data-user="<?php echo esc_attr( $u->ID ); ?>"
+										data-cap="<?php echo esc_attr( 'def_role_' . $def_role['slug'] ); ?>"
+										<?php checked( $u->has_cap( 'def_role_' . $def_role['slug'] ) ); ?>
+									/>
+								</td>
+							<?php endforeach; ?>
 							<td class="def-core-role-col">
 								<input
 									type="checkbox"

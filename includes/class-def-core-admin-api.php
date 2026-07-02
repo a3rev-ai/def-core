@@ -86,6 +86,21 @@ final class DEF_Core_Admin_API {
 	);
 
 	/**
+	 * The full assignable DEF capability set: the fixed list + the tenant's custom-role caps
+	 * (`def_role_<slug>`, custom-roles R4) validated against the cached catalog.
+	 *
+	 * @return array
+	 */
+	private static function def_capabilities(): array {
+		// Tools is always loaded by the plugin bootstrap; the guard covers standalone
+		// contexts (tests) and degrades to the fixed set, never fatals.
+		if ( ! class_exists( '\DEF_Core_Tools' ) ) {
+			return self::DEF_CAPABILITIES;
+		}
+		return array_merge( self::DEF_CAPABILITIES, \DEF_Core_Tools::get_role_caps() );
+	}
+
+	/**
 	 * HMAC timestamp tolerance in seconds.
 	 *
 	 * @var int
@@ -853,7 +868,7 @@ final class DEF_Core_Admin_API {
 	 * @since 2.0.0
 	 */
 	public function rest_get_users( \WP_REST_Request $request ): \WP_REST_Response {
-		$def_capabilities = self::DEF_CAPABILITIES;
+		$def_capabilities = self::def_capabilities();
 		$user_ids         = array();
 
 		// Collect unique user IDs across all capabilities.
@@ -936,7 +951,7 @@ final class DEF_Core_Admin_API {
 
 		foreach ( $query->get_results() as $user ) {
 			$caps = array();
-			foreach ( self::DEF_CAPABILITIES as $cap ) {
+			foreach ( self::def_capabilities() as $cap ) {
 				$caps[ $cap ] = $user->has_cap( $cap );
 			}
 
@@ -977,7 +992,7 @@ final class DEF_Core_Admin_API {
 		$action     = isset( $body['action'] ) ? sanitize_text_field( $body['action'] ) : '';
 
 		// Validate params.
-		if ( ! in_array( $capability, self::DEF_CAPABILITIES, true ) ) {
+		if ( ! in_array( $capability, self::def_capabilities(), true ) ) {
 			return $this->error_response( 'INVALID_CAPABILITY', 'Invalid capability.', 400 );
 		}
 
@@ -1041,7 +1056,7 @@ final class DEF_Core_Admin_API {
 
 		// Build current capabilities for this user.
 		$user_caps = array();
-		foreach ( self::DEF_CAPABILITIES as $cap ) {
+		foreach ( self::def_capabilities() as $cap ) {
 			$user_caps[ $cap ] = $user->has_cap( $cap );
 		}
 
