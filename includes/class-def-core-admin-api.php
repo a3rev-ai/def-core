@@ -11,6 +11,7 @@
  * Authentication modes:
  * - Mode A (Browser): WP nonce + def_admin_access capability
  * - Mode B (HMAC): Server-to-server with signed request
+ * - Mode C (Machine HMAC): plain signature, no WP user identity — /users/def-roles only
  *
  * @package def-core
  * @since 2.0.0
@@ -369,7 +370,7 @@ final class DEF_Core_Admin_API {
 		// present in X-DEF-User.
 		register_rest_route( self::REST_NAMESPACE, '/users/def-roles', array(
 			'methods'             => 'GET',
-			'permission_callback' => array( '\A3Rev\DefCore\DEF_Core_HMAC_Auth', 'permission_check_machine' ),
+			'permission_callback' => array( \A3Rev\DefCore\DEF_Core_HMAC_Auth::class, 'permission_check_machine' ),
 			'callback'            => array( $this, 'rest_get_users_def_roles' ),
 		) );
 	}
@@ -926,7 +927,8 @@ final class DEF_Core_Admin_API {
 	 * def_staff_access → staff, def_management_access → management,
 	 * def_role_<slug> → <slug>. Admin/AP caps are access grants, not roles, and
 	 * map to nothing (a def_admin-only user appears with empty roles). No email:
-	 * the consumer keys rows on user_id; display_name is the only human field.
+	 * the consumer keys rows on user_id; display_name is the only human field —
+	 * and it is untrusted user-set text: consumers must escape it on render.
 	 *
 	 * @param \WP_REST_Request $request The request object.
 	 * @return \WP_REST_Response

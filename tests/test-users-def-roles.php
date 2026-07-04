@@ -207,13 +207,17 @@ global $_wp_test_options, $_wp_test_rest_routes, $_wp_test_users;
 
 $api = new DEF_Core_Admin_API();
 
-// 1-2: registration — machine permission callback, not the dual-mode check
+// 1-3: registration — machine permission callback (not the dual-mode check) + handler wiring
 $api->register_rest_routes();
 $route = $_wp_test_rest_routes['def-core/v1/users/def-roles::GET'] ?? null;
 check( null !== $route, 'GET /users/def-roles registered' );
 check(
-	array( '\A3Rev\DefCore\DEF_Core_HMAC_Auth', 'permission_check_machine' ) === ( $route['permission_callback'] ?? null ),
+	array( \A3Rev\DefCore\DEF_Core_HMAC_Auth::class, 'permission_check_machine' ) === ( $route['permission_callback'] ?? null ),
 	'Permission callback is the plain machine-HMAC check'
+);
+check(
+	array( $api, 'rest_get_users_def_roles' ) === ( $route['callback'] ?? null ),
+	'Callback wired to rest_get_users_def_roles'
 );
 
 // 3: auth — no HMAC headers rejected
