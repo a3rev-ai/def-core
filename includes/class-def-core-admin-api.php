@@ -362,6 +362,16 @@ final class DEF_Core_Admin_API {
 			'permission_callback' => array( $this, 'permission_check' ),
 			'callback'            => array( $this, 'rest_get_logs' ),
 		) );
+
+		// GET /users/def-roles — DEF-backend roster read (custom-roles M1).
+		// Plain machine HMAC, NOT the /setup dual-mode check: the caller is the
+		// DEF readiness aggregator, which has no WordPress admin identity to
+		// present in X-DEF-User.
+		register_rest_route( self::REST_NAMESPACE, '/users/def-roles', array(
+			'methods'             => 'GET',
+			'permission_callback' => array( '\A3Rev\DefCore\DEF_Core_HMAC_Auth', 'permission_check_machine' ),
+			'callback'            => array( $this, 'rest_get_users_def_roles' ),
+		) );
 	}
 
 	// ─── Authentication ─────────────────────────────────────────────────
@@ -901,6 +911,66 @@ final class DEF_Core_Admin_API {
 				'display_name' => $user->display_name,
 				'email'        => $user->user_email,
 				'capabilities' => $caps,
+			);
+		}
+
+		return $this->success_response( array( 'users' => $users ) );
+	}
+
+	// ─── GET /users/def-roles ───────────────────────────────────────────
+
+	/**
+	 * DEF-role roster for the readiness aggregator (custom-roles M1).
+	 *
+	 * Same user collection as rest_get_users(); response trimmed to role slugs —
+	 * def_staff_access → staff, def_management_access → management,
+	 * def_role_<slug> → <slug>. Admin/AP caps are access grants, not roles, and
+	 * map to nothing (a def_admin-only user appears with empty roles). No email:
+	 * the consumer keys rows on user_id; display_name is the only human field.
+	 *
+	 * @param \WP_REST_Request $request The request object.
+	 * @return \WP_REST_Response
+	 * @since 5.4.0
+	 */
+	public function rest_get_users_def_roles( \WP_REST_Request $request ): \WP_REST_Response {
+		$def_capabilities = self::def_capabilities();
+		$user_ids         = array();
+
+		foreach ( $def_capabilities as $cap ) {
+			$ids = get_users( array(
+				'capability' => $cap,
+				'fields'     => 'ids',
+			) );
+			foreach ( $ids as $id ) {
+				$user_ids[ $id ] = true;
+			}
+		}
+
+		$users = array();
+		foreach ( array_keys( $user_ids ) as $uid ) {
+			$user = get_user_by( 'id', $uid );
+			if ( ! $user ) {
+				continue;
+			}
+
+			$roles = array();
+			foreach ( $def_capabilities as $cap ) {
+				if ( ! $user->has_cap( $cap ) ) {
+					continue;
+				}
+				if ( 'def_staff_access' === $cap ) {
+					$roles[] = 'staff';
+				} elseif ( 'def_management_access' === $cap ) {
+					$roles[] = 'management';
+				} elseif ( 0 === strpos( $cap, 'def_role_' ) ) {
+					$roles[] = substr( $cap, strlen( 'def_role_' ) );
+				}
+			}
+
+			$users[] = array(
+				'user_id'      => $user->ID,
+				'display_name' => $user->display_name,
+				'roles'        => $roles,
 			);
 		}
 
