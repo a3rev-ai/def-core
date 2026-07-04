@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.3.0
+Stable tag: 5.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.4.0 - 2026-07-04 =
+* Feature: DEF-role roster machine route (custom-roles Phase 3, M1). New GET /def-core/v1/users/def-roles endpoint on plain machine HMAC (the same server-to-server auth as the export/knowledge routes — no WordPress admin identity required, so the DEF backend can read it without a browser user) returning every user holding a DEF capability as {user_id, display_name, roles}, with capability names mapped to role slugs: def_staff_access → staff, def_management_access → management, and catalog-validated custom def_role_<slug> caps → <slug> (a stale cap for a role deleted in DEFHO is never reported). No email in the response. Read-only, no UI change; nothing calls it until the DEF integration-readiness aggregator ships (M2) — it will feed the DEFHO Roles page's readiness matrix rows.
 
 = 5.3.0 - 2026-07-03 =
 * Feature: Custom roles in the User Access page (custom-roles Phase 2, R4 — the activation slice). Roles your tenant defines in the DEFHO portal (e.g. Finance, HR) now appear as extra columns in Settings > Digital Employees > User Roles, between Management and DEF Admin. The role catalog is fetched from the DEF backend when the page loads (cached in the `def_core_roles_catalog` option; a fetch failure keeps the cached copy) and drives: the dynamic columns (PHP + the add-user row builder), the save/remove handlers' capability allowlist (server-side from the cached catalog, never from client input), and the admin bridge's assignable-capability set. Assignments are stored as native WordPress capabilities `def_role_<slug>` and are asserted to DEF through the existing capabilities channel on every request path — so a user's custom roles gate which tools and skills they see in Staff AI (tools are bound to roles in the DEFHO portal's Roles page). Staff/Management behavior is unchanged, incl. their mutual exclusivity and the last-DEF-Admin lockout guard; custom roles combine freely. Uninstall removes the catalog option and strips all `def_role_*` capabilities.
