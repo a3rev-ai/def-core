@@ -514,6 +514,11 @@ final class DEF_Core_OAuth {
 		// Clear cached connection test result.
 		delete_transient( 'def_core_connection_test' );
 
+		// Clear the salt-rotation credential error — reconnect just rewrote both
+		// secrets with the current salts, so the "keys changed" banner is stale
+		// (mirrors ajax_disconnect; without this it would linger up to 24h).
+		delete_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR );
+
 		return true;
 	}
 

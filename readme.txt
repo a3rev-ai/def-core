@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.4.0
+Stable tag: 5.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.4.1 - 2026-07-10 =
+* Fix: Recover from a "Connection Credentials Error" in one click. Rotating your WordPress security keys (a routine security practice) makes the stored DEFHO credentials unreadable, which silently takes Customer Chat and your Digital Employees offline. The Connection panel previously still showed "Connected" and hid the way back; it now reports "Credentials error — reconnect", surfaces the one-click Reconnect to DEFHO action in that state, and clears the error automatically once you reconnect (which re-provisions the credentials with your current security keys). The admin notice now points to Reconnect instead of the DEFHO "Re-push Config" button (which cannot restore the plugin's local credentials).
 
 = 5.4.0 - 2026-07-04 =
 * Feature: DEF-role roster machine route (custom-roles Phase 3, M1). New GET /def-core/v1/users/def-roles endpoint on plain machine HMAC (the same server-to-server auth as the export/knowledge routes — no WordPress admin identity required, so the DEF backend can read it without a browser user) returning every user holding a DEF capability as {user_id, display_name, roles}, with capability names mapped to role slugs: def_staff_access → staff, def_management_access → management, and catalog-validated custom def_role_<slug> caps → <slug> (a stale cap for a role deleted in DEFHO is never reported). No email in the response. Read-only, no UI change; nothing calls it until the DEF integration-readiness aggregator ships (M2) — it will feed the DEFHO Roles page's readiness matrix rows.

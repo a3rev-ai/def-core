@@ -52,11 +52,18 @@ $first_tab = 'branding';
 	<div id="def-core-toast-container" class="def-core-toast-container" aria-live="polite"></div>
 
 	<?php
+	// Salt rotation leaves these plaintext options intact but makes the stored
+	// secrets undecryptable — so the panel would show "Connected" while chat is
+	// actually down. Treat the credential error as effectively disconnected, and
+	// surface the Reconnect box below (it re-provisions both secrets, salt-safe).
+	$has_encryption_error = (bool) get_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR );
 	$is_connected = ! empty( $conn_api_url ) && $conn_revision > 0;
-	$status_class = $is_connected ? 'connected' : 'disconnected';
-	$status_label = $is_connected
-		? __( 'Connected', 'digital-employees' )
-		: __( 'Not Connected', 'digital-employees' );
+	$status_class = ( $is_connected && ! $has_encryption_error ) ? 'connected' : 'disconnected';
+	$status_label = $has_encryption_error
+		? __( 'Credentials error — reconnect', 'digital-employees' )
+		: ( $is_connected
+			? __( 'Connected', 'digital-employees' )
+			: __( 'Not Connected', 'digital-employees' ) );
 	?>
 
 	<!-- Tab Navigation -->
@@ -1043,24 +1050,25 @@ $first_tab = 'branding';
 				</div>
 			</div>
 
-			<?php if ( ! $is_connected ) : ?>
-				<?php // ─── One-Click Connect ──────────────────── ?>
+			<?php if ( ! $is_connected || $has_encryption_error ) : ?>
+				<?php // ─── One-Click Connect / Reconnect (also shown on credential error) ── ?>
 				<div class="def-core-oauth-connect" id="def-core-oauth-connect">
 					<div class="def-core-oauth-connect-box">
-						<h3><?php esc_html_e( 'Connect to DEFHO', 'digital-employees' ); ?></h3>
+						<h3><?php echo $has_encryption_error ? esc_html__( 'Reconnect to DEFHO', 'digital-employees' ) : esc_html__( 'Connect to DEFHO', 'digital-employees' ); ?></h3>
 						<p class="description">
-							<?php esc_html_e( 'Click the button below to connect your site to the DEFHO platform. You will be redirected to DEFHO to authorize the connection.', 'digital-employees' ); ?>
+							<?php echo $has_encryption_error ? esc_html__( 'Your WordPress security keys changed, so the saved DEFHO credentials can no longer be read and your Digital Employees are offline. Reconnect to restore them — you will be redirected to DEFHO to re-authorize.', 'digital-employees' ) : esc_html__( 'Click the button below to connect your site to the DEFHO platform. You will be redirected to DEFHO to authorize the connection.', 'digital-employees' ); ?>
 						</p>
 						<p>
 							<button type="button" class="button button-primary button-hero" id="def-core-oauth-start-btn">
-								<?php esc_html_e( 'Connect to DEFHO', 'digital-employees' ); ?>
+								<?php echo $has_encryption_error ? esc_html__( 'Reconnect to DEFHO', 'digital-employees' ) : esc_html__( 'Connect to DEFHO', 'digital-employees' ); ?>
 							</button>
 						</p>
 						<span id="def-core-oauth-result" class="def-core-connection-result"></span>
 					</div>
 
 					<div class="def-core-manual-fallback">
-						<details>
+<?php // Hidden on a credential error: manual entry restores only the API key (not the service secret) and can't recover a salt rotation — Reconnect is the complete path. ?>
+						<details<?php echo $has_encryption_error ? ' hidden' : ''; ?>>
 							<summary><?php esc_html_e( 'Manual connection (advanced)', 'digital-employees' ); ?></summary>
 							<div class="def-core-manual-connection" id="def-core-manual-connection">
 								<p class="description">

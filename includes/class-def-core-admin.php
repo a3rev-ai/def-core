@@ -295,7 +295,7 @@ final class DEF_Core_Admin {
 		<div class="notice notice-error">
 			<p>
 				<strong><?php esc_html_e( 'Digital Employees — Connection Credentials Error', 'digital-employees' ); ?></strong><br />
-				<?php esc_html_e( 'Your WordPress security keys have changed. Connection credentials could not be decrypted. Please re-enter your API Key and Service Secret from the DEFHO tenant portal, or use the Re-push Config button in DEFHO to re-push credentials.', 'digital-employees' ); ?>
+				<?php esc_html_e( 'Your WordPress security keys changed, so the saved DEFHO connection credentials can no longer be read — your Digital Employees are offline. Open Digital Employees → Connection and click "Reconnect to DEFHO" to restore them (a quick sign-in re-provisions the credentials).', 'digital-employees' ); ?>
 			</p>
 		</div>
 		<?php
@@ -533,6 +533,12 @@ final class DEF_Core_Admin {
 
 		// Setup Assistant drawer assets.
 		self::enqueue_setup_assistant_drawer();
+
+		// Prime the salt-rotation credential-error transient — it is set only as a side
+		// effect of a secret decrypt, and this page otherwise reads only plaintext options,
+		// so on a quiet site the honest "reconnect" state would miss on the first visit.
+		// Valid keys are a no-op; undecryptable keys (salt rotation) set the transient here.
+		DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 
 		// Load template.
 		include DEF_CORE_PLUGIN_DIR . 'templates/admin-settings.php';

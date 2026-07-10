@@ -567,6 +567,42 @@ assert_true(
 );
 
 // =========================================================================
+// 15. Salt-rotation recovery — OAuth reconnect clears the credential-error banner
+// =========================================================================
+
+echo "15. Reconnect clears the encryption-error transient\n";
+
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-oauth.php';
+
+reset_state();
+// Post-salt-rotation state: the decrypt-failure transient is set (would show the banner).
+set_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR, true, 86400 );
+assert_true(
+	(bool) get_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR ),
+	'15a. precondition: error transient is set'
+);
+
+$apply = new ReflectionMethod( 'DEF_Core_OAuth', 'apply_connection_config' );
+$apply->setAccessible( true );
+$result = $apply->invoke( null, array(
+	'api_url'             => 'https://api.defho.ai',
+	'api_key'             => 'ak_live_reconnect',
+	'service_auth_secret' => 'ss_live_reconnect',
+	'config_revision'     => 7,
+) );
+
+assert_true( true === $result, '15b. apply_connection_config succeeded' );
+assert_false(
+	(bool) get_transient( DEF_Core_Encryption::TRANSIENT_ENCRYPTION_ERROR ),
+	'15c. error transient cleared on reconnect (else the banner lingers up to 24h)'
+);
+assert_eq(
+	'ak_live_reconnect',
+	DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
+	'15d. api_key re-provisioned + decryptable under the current salts'
+);
+
+// =========================================================================
 // Results
 // =========================================================================
 
