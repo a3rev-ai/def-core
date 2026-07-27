@@ -76,6 +76,26 @@
 	--def-cc-link: #2271b1;
 	--def-cc-footer-bg: var(--def-cc-bg-alt);
 	--def-cc-chip-bg: var(--def-cc-bg-alt);
+
+	/* ─── Theming contract — conflation splits (5.5.2) ────────────
+	   Each surface that shared a general-purpose token gets its own,
+	   defaulting to the exact value it split from — zero visual change
+	   until a theme overrides one. --def-cc-bg-alt no longer drives any
+	   surface directly; it survives as the default source for its splits. */
+	--def-cc-table-header-bg: var(--def-cc-bg-alt);
+	--def-cc-staged-bg: var(--def-cc-bg-alt);
+	--def-cc-tool-status-bg: var(--def-cc-bg-alt);
+	--def-cc-banner-bg: var(--def-cc-bg-alt);
+	--def-cc-text-form: #374151;
+	--def-cc-tooltip-bg: var(--def-cc-text);
+	--def-cc-tooltip-text: #ffffff;
+	--def-cc-disabled-bg: var(--def-cc-text-muted);
+	--def-cc-disabled-text: var(--def-cc-border-input);
+	--def-cc-input-bg: var(--def-cc-bg);
+	--def-cc-input-text: var(--def-cc-text);
+	--def-cc-btn-secondary-bg: var(--def-cc-bg);
+	--def-cc-btn-secondary-hover-bg: var(--def-cc-bg-hover);
+	--def-cc-file-chip-bg: #ffffff;
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
 	/* --def-cc-primary MUST be a valid <color>: an invalid value makes this
@@ -435,7 +455,7 @@
 	background: none;
 	font-family: var(--def-cc-font);
 	font-size: 14px;
-	color: #374151;
+	color: var(--def-cc-text-form);
 	cursor: pointer;
 	text-align: left;
 	transition: background 0.15s ease;
@@ -667,7 +687,7 @@
 }
 
 .def-cc-message-content th {
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-table-header-bg);
 	font-weight: 600;
 }
 
@@ -731,8 +751,8 @@
 	font-family: var(--def-cc-font);
 	font-size: 14px;
 	line-height: 1.4;
-	color: var(--def-cc-text);
-	background: var(--def-cc-bg);
+	color: var(--def-cc-input-text);
+	background: var(--def-cc-input-bg);
 	resize: none;
 	min-height: 40px;
 	max-height: 120px;
@@ -774,7 +794,7 @@
 }
 
 .def-cc-composer-send:disabled {
-	background: var(--def-cc-text-muted);
+	background: var(--def-cc-disabled-bg);
 	cursor: not-allowed;
 }
 
@@ -814,7 +834,7 @@
 }
 
 .def-cc-composer-attach:disabled {
-	color: var(--def-cc-border-input);
+	color: var(--def-cc-disabled-text);
 	cursor: not-allowed;
 }
 
@@ -868,7 +888,7 @@
 	flex-wrap: wrap;
 	gap: 8px;
 	padding: 8px 16px;
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-staged-bg);
 	border-bottom: 1px solid var(--def-cc-border);
 }
 
@@ -881,7 +901,7 @@
 	border: 1px solid var(--def-cc-border);
 	border-radius: var(--def-cc-radius-control);
 	font-size: 13px;
-	color: #374151;
+	color: var(--def-cc-text-form);
 	background: var(--def-cc-bg);
 }
 
@@ -963,8 +983,8 @@
 	bottom: calc(100% + 4px);
 	left: 50%;
 	transform: translateX(-50%);
-	background: var(--def-cc-text);
-	color: #ffffff;
+	background: var(--def-cc-tooltip-bg);
+	color: var(--def-cc-tooltip-text);
 	font-size: 12px;
 	padding: 4px 8px;
 	border-radius: var(--def-cc-radius-xs);
@@ -980,7 +1000,7 @@
 	left: 50%;
 	transform: translateX(-50%);
 	border: 4px solid transparent;
-	border-top-color: var(--def-cc-text);
+	border-top-color: var(--def-cc-tooltip-bg);
 }
 
 
@@ -1156,7 +1176,7 @@
 	display: block;
 	font-size: 14px;
 	font-weight: 500;
-	color: #374151;
+	color: var(--def-cc-text-form);
 	margin-bottom: 4px;
 }
 
@@ -1172,8 +1192,8 @@
 	border-radius: var(--def-cc-radius-sm);
 	font-family: var(--def-cc-font);
 	font-size: 14px;
-	color: var(--def-cc-text);
-	background: var(--def-cc-bg);
+	color: var(--def-cc-input-text);
+	background: var(--def-cc-input-bg);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1230,7 +1250,7 @@
 }
 
 .def-cc-escalation-submit:disabled {
-	background: var(--def-cc-text-muted);
+	background: var(--def-cc-disabled-bg);
 	cursor: not-allowed;
 }
 
@@ -1238,7 +1258,7 @@
 	padding: 10px 16px;
 	border: 1px solid var(--def-cc-border);
 	border-radius: var(--def-cc-radius-sm);
-	background: var(--def-cc-bg);
+	background: var(--def-cc-btn-secondary-bg);
 	color: var(--def-cc-text);
 	font-family: var(--def-cc-font);
 	font-size: 14px;
@@ -1247,7 +1267,7 @@
 }
 
 .def-cc-escalation-cancel:hover {
-	background: var(--def-cc-bg-hover);
+	background: var(--def-cc-btn-secondary-hover-bg);
 }
 
 /* Escalation success/error copy + actions. Previously inline styles in the
@@ -1393,7 +1413,7 @@
 	display: block;
 	font-size: 14px;
 	font-weight: 500;
-	color: #374151;
+	color: var(--def-cc-text-form);
 	margin-bottom: 4px;
 }
 
@@ -1404,8 +1424,8 @@
 	border-radius: var(--def-cc-radius-sm);
 	font-family: var(--def-cc-font);
 	font-size: 14px;
-	color: var(--def-cc-text);
-	background: var(--def-cc-bg);
+	color: var(--def-cc-input-text);
+	background: var(--def-cc-input-bg);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1434,7 +1454,7 @@
 }
 
 .def-cc-login-submit:disabled {
-	background: var(--def-cc-text-muted);
+	background: var(--def-cc-disabled-bg);
 	cursor: not-allowed;
 }
 
@@ -1499,8 +1519,8 @@
 	padding: 4px 8px;
 	border-radius: var(--def-cc-radius-control);
 	font-size: 13px;
-	background: #ffffff;
-	color: #374151;
+	background: var(--def-cc-file-chip-bg);
+	color: var(--def-cc-text-form);
 	border: 1px solid var(--def-cc-border);
 }
 
@@ -1643,7 +1663,7 @@
 	margin: 2px 0;
 	font-size: 13px;
 	color: var(--def-cc-text-light);
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-tool-status-bg);
 	border: 1px solid var(--def-cc-border);
 	border-radius: var(--def-cc-radius-sm);
 	animation: def-cc-fade-in-up 0.25s ease both;
@@ -1859,7 +1879,7 @@
 	width: calc(100% + 32px); /* absorb the -16px L/R margins so right edge reaches the panel */
 	margin: -16px -16px 12px -16px; /* edge-to-edge under .def-cc-messages's padding */
 	overflow: hidden;
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-banner-bg);
 }
 
 .def-cc-welcome-banner img {
