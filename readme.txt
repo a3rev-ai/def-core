@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.4.1
+Stable tag: 5.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.5.0 - 2026-07-27 =
+* Feature: Theme the Customer Chat widget to your brand (theming contract, Tier 1). The chat renders inside a Shadow DOM, so page CSS cannot reach its internals — only CSS custom properties cross that boundary. Twenty new design tokens make the previously unreachable surfaces themable: the header (background, text, border, plus icon colour and icon hover so the refresh/menu/close buttons stay legible once you darken the header — it previously shared one token with six unrelated surfaces, so colouring it discoloured the staged tray, tool-status pills, chips, footer and banner too), the message canvas (was hardcoded #edf0f5), both message bubbles (background, text, border, corner and tail radius), markdown link colour, the compliance footer, welcome chips, and two new radius steps. Set any of them from your theme with a rule on the host element, e.g. #def-customer-chat-host { --def-cc-header-bg: #0E403C; }. The launcher colour set in Branding still tints the whole widget, and is now overridable per-token from your theme. The panel background, font, text colour, shell radius and shadow are now themable too — they previously ignored these settings.
 
 = 5.4.1 - 2026-07-10 =
 * Fix: Recover from a "Connection Credentials Error" in one click. Rotating your WordPress security keys (a routine security practice) makes the stored DEFHO credentials unreadable, which silently takes Customer Chat and your Digital Employees offline. The Connection panel previously still showed "Connected" and hid the way back; it now reports "Credentials error — reconnect", surfaces the one-click Reconnect to DEFHO action in that state, and clears the error automatically once you reconnect (which re-provisions the credentials with your current security keys). The admin notice now points to Reconnect instead of the DEFHO "Re-push Config" button (which cannot restore the plugin's local credentials).

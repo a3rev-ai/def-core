@@ -76,7 +76,24 @@
 
 	// ─── Shadow DOM setup ───────────────────────────────────────────
 
+	// --def-cc-primary feeds a color-mix() for the focus ring, so an invalid
+	// override computes the ring away entirely instead of falling back.
+	// Registering the property makes the browser reject a bad value at the
+	// custom-property level and use initial-value instead. This has to run
+	// against the document: an @property inside a shadow root is ignored, so
+	// it cannot sit with the other tokens in def-core-customer-chat.css.
+	function registerThemeProps() {
+		var reg = document.createElement('style');
+		reg.textContent =
+			'@property --def-cc-primary {' +
+			'  syntax: "<color>"; inherits: true; initial-value: #1d4ed8;' +
+			'}';
+		document.head.appendChild(reg);
+	}
+
 	function createShadowHost() {
+		registerThemeProps();
+
 		var host = document.createElement('div');
 		host.id = HOST_ID;
 		host.setAttribute('aria-live', 'polite');
@@ -84,16 +101,14 @@
 
 		shadowRoot = host.attachShadow({ mode: 'open' });
 
-		// Brand the in-panel accents from the tenant's button colour — the same
-		// source the floating trigger uses — so the whole widget is brand-
-		// consistent, not just the launcher. Set as inline custom properties on
-		// the host, which override the stylesheet's :host defaults and flow into
-		// the shadow tree: the send button, submit buttons, input focus border,
-		// spinners, and (via color-mix on --def-cc-primary) the focus rings all
-		// follow. Markdown links keep their own distinct blue for affordance.
+		// Brand the whole widget from the tenant's button colour, not just the
+		// launcher. Injected as --def-cc-brand rather than --def-cc-primary: an
+		// inline custom property beats every stylesheet rule, so writing primary
+		// here made it unthemable. The stylesheet derives primary/btn-color from
+		// brand, so the admin's colour still flows AND a theme can override.
 		var accent = config.buttonColor || '#111827';
-		host.style.setProperty('--def-cc-primary', accent);
-		host.style.setProperty('--def-cc-primary-hover', config.buttonHoverColor || accent);
+		host.style.setProperty('--def-cc-brand', accent);
+		host.style.setProperty('--def-cc-brand-hover', config.buttonHoverColor || accent);
 
 		// Inject minimal trigger button CSS inline (full chat CSS loaded lazily).
 		var style = document.createElement('style');
@@ -118,6 +133,7 @@
 	function getTriggerCSS() {
 		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
 		var opp = pos === 'left' ? 'right' : 'left';
+		// Literals kept ONLY as var() fallbacks — the tokens are the source of truth.
 		var btnColor = config.buttonColor || '#111827';
 		var hoverColor = config.buttonHoverColor || btnColor;
 		// Drawer width is admin-configurable (300–600); previously hard-coded
@@ -140,9 +156,9 @@
 			'  display: inline-flex; align-items: center; gap: 8px;' +
 			'  width: fit-content; width: -moz-fit-content;' +
 			'  padding: 10px 14px; border: none; border-radius: 24px;' +
-			'  background: ' +
+			'  background: var(--def-cc-btn-color, ' +
 			btnColor +
-			'; color: #fff;' +
+			'); color: #fff;' +
 			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
 			'  font-size: 14px; font-weight: 500; line-height: 1;' +
 			'  cursor: pointer;' +
@@ -151,9 +167,9 @@
 			'  -webkit-tap-highlight-color: transparent;' +
 			'}' +
 			'.def-cc-trigger:hover {' +
-			'  background: ' +
+			'  background: var(--def-cc-btn-hover, ' +
 			hoverColor +
-			';' +
+			');' +
 			'  box-shadow: 0 10px 28px rgba(0,0,0,0.3);' +
 			'  transform: translateY(-1px);' +
 			'}' +
@@ -163,7 +179,7 @@
 			'.def-cc-trigger--hidden { display: none !important; }' +
 			'.def-cc-trigger-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }' +
 			'.def-cc-trigger-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }' +
-			'.def-cc-trigger-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: 4px; }' +
+			'.def-cc-trigger-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: var(--def-cc-radius-xs, 4px); }' +
 			'.def-cc-trigger-icon--sparkle svg { fill: currentColor; stroke: none; }' +
 			'.def-cc-trigger-icon--sparkle.def-cc-sparkle-intro svg { animation: def-cc-sparkle-entrance 1s ease-out 0.3s 5; }' +
 			'.def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: def-cc-sparkle 0.6s ease-in-out; }' +
@@ -190,9 +206,9 @@
 			'.def-cc-panel {' +
 			'  position: fixed; z-index: 999999;' +
 			'  display: flex; flex-direction: column;' +
-			'  background: #fff;' +
-			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
-			'  font-size: 14px; line-height: 1.5; color: #1f2937;' +
+			'  background: var(--def-cc-surface, #fff);' +
+			'  font-family: var(--def-cc-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);' +
+			'  font-size: 14px; line-height: 1.5; color: var(--def-cc-text, #1f2937);' +
 			'  overflow: hidden;' +
 			'  transform: translateY(24px); opacity: 0; pointer-events: none;' +
 			'  transition: transform 0.25s ease, opacity 0.25s ease;' +
@@ -202,12 +218,12 @@
 			'}' +
 			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
-			'  width: 32px; height: 32px; border: none; border-radius: 6px;' +
-			'  background: transparent; color: #374151; cursor: pointer;' +
+			'  width: 32px; height: 32px; border: none; border-radius: var(--def-cc-radius-control, 6px);' +
+			'  background: transparent; color: var(--def-cc-header-icon, #374151); cursor: pointer;' +
 			'  display: flex; align-items: center; justify-content: center;' +
 			'  transition: background 0.15s ease, color 0.15s ease;' +
 			'}' +
-			'.def-cc-panel-close:hover { background: #e5e7eb; color: #111827; }' +
+			'.def-cc-panel-close:hover { background: var(--def-cc-header-icon-hover-bg, #e5e7eb); color: var(--def-cc-header-icon-hover, #111827); }' +
 			'.def-cc-panel-close svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none; }' +
 			/* Modal mode */
 			'.def-cc-shell--modal {' +
@@ -217,8 +233,8 @@
 			opp +
 			': auto;' +
 			'  width: min(450px, 92vw); height: min(560px, 78vh);' +
-			'  border-radius: 16px;' +
-			'  box-shadow: 0 24px 64px rgba(0,0,0,0.25);' +
+			'  border-radius: var(--def-cc-radius-lg, 16px);' +
+			'  box-shadow: var(--def-cc-shadow, 0 24px 64px rgba(0,0,0,0.25));' +
 			'}' +
 			/* Drawer mode */
 			'.def-cc-shell--drawer {' +
@@ -227,8 +243,8 @@
 			': 0; bottom: 0;' +
 			'  width: min(' + drawerWidth + 'px, 100vw);' +
 			(pos === 'left'
-				? '  border-radius: 0 16px 16px 0;'
-				: '  border-radius: 16px 0 0 16px;') +
+				? '  border-radius: 0 var(--def-cc-radius-lg, 16px) var(--def-cc-radius-lg, 16px) 0;'
+				: '  border-radius: var(--def-cc-radius-lg, 16px) 0 0 var(--def-cc-radius-lg, 16px);') +
 			'  border-' + opp + ': 1px solid rgba(0,0,0,0.08);' +
 			'  box-shadow: ' + (pos === 'left' ? '6px' : '-6px') + ' 0 24px rgba(0,0,0,0.12);' +
 			'  transform: translate' +
@@ -248,7 +264,7 @@
 			'  top: 50%; left: 50%; right: auto; bottom: auto;' +
 			'  width: min(' + spotlightWidth + 'px, 92vw);' +
 			'  height: min(' + spotlightHeight + 'px, 85vh);' +
-			'  border-radius: 16px;' +
+			'  border-radius: var(--def-cc-radius-lg, 16px);' +
 			'  box-shadow: 0 24px 64px rgba(0,0,0,0.35);' +
 			'  transform: translate(-50%, calc(-50% + 24px)); opacity: 0;' +
 			'}' +
