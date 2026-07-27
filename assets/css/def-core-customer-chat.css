@@ -1250,6 +1250,26 @@
 	background: var(--def-cc-bg-hover);
 }
 
+/* Escalation success/error copy + actions. Previously inline styles in the
+   innerHTML that built these two states — inline beats ::part(), so the two
+   screens a converting lead actually sees were unskinnable. */
+.def-cc-escalation-success-text,
+.def-cc-escalation-error-text {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--def-cc-text);
+}
+
+.def-cc-escalation-success .def-cc-escalation-cancel {
+	margin-top: 8px;
+}
+
+.def-cc-escalation-error-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
 /* Escalation spinner + success/error states */
 .def-cc-escalation-spinner {
 	display: flex;

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.5.0
+Stable tag: 5.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.6.0 - 2026-07-27 =
+* Feature: Skin the Customer Chat widget with CSS Shadow Parts. Version 5.5.0 made the widget's colours themable; this release makes its structure targetable. Every element the widget builds now carries a `part` name, so a theme can style it directly with #def-customer-chat-host::part(...) — descendant selectors cannot cross a Shadow DOM boundary and never could, which is why the widget's internals have been unreachable until now. Around 145 parts cover the header and its controls, the message stream and both bubble types, the composer, attachments, product result cards, speaker dividers, the menu, the login overlay, and the entire email-escalation form including its validation-error, sending, success and failure states. Part names are derived from the class name with the def-cc- prefix stripped (def-cc-message--user becomes message--user), so the two cannot drift apart. State is targetable too: an open widget sets data-open on the host, so #def-customer-chat-host[data-open]::part(panel) works, and per-element states such as message--streaming are added and removed from the part list as they change. The escalation success and failure screens were previously built from inline styles that no theme could override; they are now classed elements. Known limit: ::part() cannot be followed by a descendant selector, so markdown-rendered message content stays on the CSS custom properties from 5.5.0.
 
 = 5.5.0 - 2026-07-27 =
 * Feature: Theme the Customer Chat widget to your brand (theming contract, Tier 1). The chat renders inside a Shadow DOM, so page CSS cannot reach its internals — only CSS custom properties cross that boundary. Twenty new design tokens make the previously unreachable surfaces themable: the header (background, text, border, plus icon colour and icon hover so the refresh/menu/close buttons stay legible once you darken the header — it previously shared one token with six unrelated surfaces, so colouring it discoloured the staged tray, tool-status pills, chips, footer and banner too), the message canvas (was hardcoded #edf0f5), both message bubbles (background, text, border, corner and tail radius), markdown link colour, the compliance footer, welcome chips, and two new radius steps. Set any of them from your theme with a rule on the host element, e.g. #def-customer-chat-host { --def-cc-header-bg: #0E403C; }. The launcher colour set in Branding still tints the whole widget, and is now overridable per-token from your theme. The panel background, font, text colour, shell radius and shadow are now themable too — they previously ignored these settings.

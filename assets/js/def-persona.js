@@ -86,6 +86,10 @@
 			var label = specialistDisplayName(agentId) || 'Assistant';
 			var div   = document.createElement('div');
 			div.className   = dClass;
+			// Callers pass a literal divider class, so mirroring it into a part
+			// is safe and keeps the divider reachable via ::part() inside the
+			// Customer Chat shadow root. Inert where there is no shadow root.
+			div.setAttribute('part', dClass.replace(/^(?:def-)?cc-/, ''));
 			div.textContent = template.replace('{name}', label);
 			appendFn(div);
 		}
