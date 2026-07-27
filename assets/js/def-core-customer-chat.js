@@ -3801,14 +3801,19 @@
 	// Toggling a state class has to touch the part list too — parts do not
 	// reflect classes, so a theme's ::part() rule would otherwise go stale the
 	// moment the state changed (a finished message stuck as "streaming", say).
-	// One class per call: part.toggle() rejects a token containing a space.
+	// Rebuilds the whole part list from the class list rather than toggling one
+	// part token, which keeps the two identical by construction. It also avoids
+	// the reflected Element.part DOMTokenList, which is much younger than
+	// ::part() itself — Safari shipped the selector in 13.1 but the property
+	// only in 16.4, so touching node.part would throw on older iOS and take the
+	// whole widget down on a path that runs every session.
 	// The null check is reachable, not defensive padding: Clear chat detaches
 	// the streaming message, so streamEl.parentNode is null if the stream's
 	// done/error event lands afterwards.
 	function setState(node, className, on) {
 		if (!node) return;
 		node.classList.toggle(className, on);
-		node.part.toggle(partsFrom(className), on);
+		node.setAttribute('part', partsFrom(node.className));
 	}
 
 	function menuItem(iconSvg, label, handler) {

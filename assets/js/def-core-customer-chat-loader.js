@@ -102,11 +102,13 @@
 		node.setAttribute('part', partsFrom(className));
 	}
 
-	// One class per call: part.toggle() rejects a token containing a space.
+	// Rebuilt from the class list, not via the reflected Element.part
+	// DOMTokenList — that property is much younger than ::part() itself
+	// (Safari 16.4 vs 13.1) and would throw on older iOS during bootstrap.
 	function setState(node, className, on) {
 		if (!node) return;
 		node.classList.toggle(className, on);
-		node.part.toggle(partsFrom(className), on);
+		node.setAttribute('part', partsFrom(node.className));
 	}
 
 	function createShadowHost() {
