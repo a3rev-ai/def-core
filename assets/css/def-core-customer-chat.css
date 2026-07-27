@@ -33,7 +33,9 @@
 	--def-cc-danger: #ef4444;
 	--def-cc-danger-hover: #dc2626;
 	--def-cc-warning-bg: #fef3c7;
-	--def-cc-warning-border: #f59e0b;
+	/* #fcd34d, not amber-500: the default must match what the logout notice —
+	   the token's only consumer — actually rendered while it was hardcoded. */
+	--def-cc-warning-border: #fcd34d;
 	--def-cc-warning-text: #92400e;
 	--def-cc-radius: 12px;
 	--def-cc-radius-sm: 8px;
@@ -96,6 +98,23 @@
 	--def-cc-btn-secondary-bg: var(--def-cc-bg);
 	--def-cc-btn-secondary-hover-bg: var(--def-cc-bg-hover);
 	--def-cc-file-chip-bg: #ffffff;
+
+	/* ─── Theming contract — namespace hygiene (5.5.3) ────────────
+	   Every custom property the widget reads is now --def-cc-*: page-level
+	   variables (--text-secondary, --accent-success…) can no longer bleed
+	   into the shadow tree by inheritance. Defaults are the exact values
+	   these surfaces rendered before. */
+	--def-cc-toast-success-bg: #22c55e;
+	--def-cc-toast-error-bg: #ef4444;
+	--def-cc-toast-text: #fff;
+	--def-cc-typing-text: #666;
+	--def-cc-divider-text: #1a5f96;
+	--def-cc-divider-bg: rgba(34, 113, 177, 0.08);
+	--def-cc-divider-border: rgba(34, 113, 177, 0.18);
+	--def-cc-drop-bg: rgba(59, 130, 246, 0.08);
+	--def-cc-chip-pending-bg: #eff6ff;
+	--def-cc-shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.2);
+	--def-cc-shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.04);
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
 	/* --def-cc-primary MUST be a valid <color>: an invalid value makes this
@@ -540,7 +559,7 @@
 .def-cc-message--user .def-cc-message-content {
 	background: var(--def-cc-bubble-user-bg);
 	color: var(--def-cc-bubble-user-text);
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-shadow: var(--def-cc-shadow-bubble);
 	border-bottom-right-radius: var(--def-cc-bubble-tail-radius);
 }
 
@@ -548,7 +567,7 @@
 	background: var(--def-cc-bubble-assistant-bg);
 	color: var(--def-cc-bubble-assistant-text);
 	border: 1px solid var(--def-cc-bubble-assistant-border);
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-shadow: var(--def-cc-shadow-bubble);
 	border-bottom-left-radius: var(--def-cc-bubble-tail-radius);
 }
 
@@ -855,7 +874,7 @@
 	position: absolute;
 	inset: 0;
 	z-index: 50;
-	background: rgba(59, 130, 246, 0.08);
+	background: var(--def-cc-drop-bg);
 	border: 2px dashed var(--def-cc-primary);
 	border-radius: var(--def-cc-radius-sm);
 	align-items: center;
@@ -907,7 +926,7 @@
 
 .def-cc-attachment-chip--pending {
 	border-color: var(--def-cc-primary);
-	background: #eff6ff;
+	background: var(--def-cc-chip-pending-bg);
 }
 
 .def-cc-attachment-chip--uploaded {
@@ -1030,7 +1049,7 @@
 	background: var(--def-cc-bg);
 	border-radius: var(--def-cc-radius);
 	padding: 20px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+	box-shadow: var(--def-cc-shadow-dialog);
 	transform: scale(0.95);
 	transition: transform 0.2s ease;
 }
@@ -1098,7 +1117,7 @@
 	margin: 8px 16px;
 	padding: 10px 14px;
 	background: var(--def-cc-warning-bg);
-	border: 1px solid #fcd34d;
+	border: 1px solid var(--def-cc-warning-border);
 	border-radius: var(--def-cc-radius-sm);
 	color: var(--def-cc-warning-text);
 	font-size: 13px;
@@ -1378,7 +1397,7 @@
 	background: var(--def-cc-bg);
 	border-radius: var(--def-cc-radius);
 	padding: 24px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+	box-shadow: var(--def-cc-shadow-dialog);
 	transform: scale(0.95);
 	transition: transform 0.2s ease;
 }
@@ -1703,14 +1722,14 @@
 	margin: 6px 0;
 	border-radius: var(--def-cc-radius-sm);
 	font-size: 13px;
-	background: var(--accent-success, #22c55e);
-	color: #fff;
+	background: var(--def-cc-toast-success-bg);
+	color: var(--def-cc-toast-text);
 	text-align: center;
 	transition: opacity 0.4s ease;
 }
 
 .cc-toast-error {
-	background: var(--accent-error, #ef4444);
+	background: var(--def-cc-toast-error-bg);
 }
 
 .cc-toast-fade {
@@ -1720,7 +1739,7 @@
 .cc-typing-label {
 	margin-left: 8px;
 	font-size: 12px;
-	color: var(--text-secondary, #666);
+	color: var(--def-cc-typing-text);
 }
 
 @keyframes cc-spin {
@@ -1740,11 +1759,11 @@
 	text-align: center;
 	font-size: 13px;
 	font-weight: 600;
-	color: #1a5f96;
-	background: rgba(34, 113, 177, 0.08);
+	color: var(--def-cc-divider-text);
+	background: var(--def-cc-divider-bg);
 	padding: 8px 16px;
 	border-radius: 14px;
-	border: 1px solid rgba(34, 113, 177, 0.18);
+	border: 1px solid var(--def-cc-divider-border);
 }
 
 /* ─── Welcome-state suggestion chips (v2.7.0) ──────────────────── */
