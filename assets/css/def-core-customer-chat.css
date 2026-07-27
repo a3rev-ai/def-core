@@ -48,11 +48,11 @@
 	   Override any of these from the page with a rule on the host element:
 	     #def-customer-chat-host { --def-cc-header-bg: #0E403C; } */
 	--def-cc-surface: var(--def-cc-bg);
-	--def-cc-header-bg: #f9fafb;
+	--def-cc-header-bg: var(--def-cc-bg-alt);
 	--def-cc-header-text: #111827;
 	--def-cc-header-border: var(--def-cc-border);
 	--def-cc-messages-bg: #edf0f5;
-	--def-cc-bubble-assistant-bg: #ffffff;
+	--def-cc-bubble-assistant-bg: var(--def-cc-bg);
 	--def-cc-bubble-assistant-text: #111827;
 	--def-cc-bubble-assistant-border: var(--def-cc-border);
 	--def-cc-bubble-user-bg: var(--def-cc-primary);
@@ -60,10 +60,13 @@
 	--def-cc-bubble-radius: var(--def-cc-radius);
 	--def-cc-bubble-tail-radius: var(--def-cc-radius-xs);
 	--def-cc-link: #2271b1;
-	--def-cc-footer-bg: #f9fafb;
-	--def-cc-chip-bg: #f9fafb;
+	--def-cc-footer-bg: var(--def-cc-bg-alt);
+	--def-cc-chip-bg: var(--def-cc-bg-alt);
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
+	/* --def-cc-primary MUST be a valid <color>: an invalid value makes this
+	   color-mix() invalid at computed-value time, which removes the focus ring
+	   entirely. There is no CSS-side guard — it is a documented contract term. */
 	--def-cc-focus-ring: 0 0 0 3px color-mix(in srgb, var(--def-cc-primary) 15%, transparent);
 	--def-cc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 	--def-cc-font-mono: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -732,11 +735,6 @@
 .def-cc-composer-input:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
-	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
-	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
-	   invalid, the var() declaration is dropped, and the focus ring would
-	   vanish entirely — an a11y regression. This earlier declaration survives. */
-	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 
@@ -1167,11 +1165,6 @@
 .def-cc-escalation-textarea:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
-	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
-	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
-	   invalid, the var() declaration is dropped, and the focus ring would
-	   vanish entirely — an a11y regression. This earlier declaration survives. */
-	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 
@@ -1380,11 +1373,6 @@
 .def-cc-login-input:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
-	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
-	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
-	   invalid, the var() declaration is dropped, and the focus ring would
-	   vanish entirely — an a11y regression. This earlier declaration survives. */
-	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 

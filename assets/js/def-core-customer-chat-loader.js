@@ -84,18 +84,11 @@
 
 		shadowRoot = host.attachShadow({ mode: 'open' });
 
-		// Brand the in-panel accents from the tenant's button colour — the same
-		// source the floating trigger uses — so the whole widget is brand-
-		// consistent, not just the launcher. Set as inline custom properties on
-		// the host, which override the stylesheet's :host defaults and flow into
-		// the shadow tree: the send button, submit buttons, input focus border,
-		// spinners, and (via color-mix on --def-cc-primary) the focus rings all
-		// follow. Markdown links keep their own distinct blue for affordance.
-		// Injected as --def-cc-brand (NOT --def-cc-primary): an inline custom
-		// property beats every stylesheet rule, so setting --def-cc-primary here
-		// made it impossible for a theme to override. The stylesheet now derives
-		// primary/btn-color from --def-cc-brand, so the admin's colour still flows
-		// through the whole widget AND a theme can override any derived token.
+		// Brand the whole widget from the tenant's button colour, not just the
+		// launcher. Injected as --def-cc-brand rather than --def-cc-primary: an
+		// inline custom property beats every stylesheet rule, so writing primary
+		// here made it unthemable. The stylesheet derives primary/btn-color from
+		// brand, so the admin's colour still flows AND a theme can override.
 		var accent = config.buttonColor || '#111827';
 		host.style.setProperty('--def-cc-brand', accent);
 		host.style.setProperty('--def-cc-brand-hover', config.buttonHoverColor || accent);
@@ -209,11 +202,11 @@
 			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
 			'  width: 32px; height: 32px; border: none; border-radius: var(--def-cc-radius-control, 6px);' +
-			'  background: transparent; color: var(--def-cc-text-form, #374151); cursor: pointer;' +
+			'  background: transparent; color: #374151; cursor: pointer;' +
 			'  display: flex; align-items: center; justify-content: center;' +
 			'  transition: background 0.15s ease, color 0.15s ease;' +
 			'}' +
-			'.def-cc-panel-close:hover { background: var(--def-cc-btn-secondary-hover-bg, #e5e7eb); color: var(--def-cc-header-text, #111827); }' +
+			'.def-cc-panel-close:hover { background: #e5e7eb; color: var(--def-cc-header-text, #111827); }' +
 			'.def-cc-panel-close svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none; }' +
 			/* Modal mode */
 			'.def-cc-shell--modal {' +
