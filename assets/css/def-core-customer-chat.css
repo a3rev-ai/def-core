@@ -10,10 +10,16 @@
 /* ─── CSS Custom Properties ─────────────────────────────────────── */
 
 :host {
-	--def-cc-btn-color: #111827;
-	--def-cc-btn-hover: #0b1220;
-	--def-cc-primary: #1d4ed8;
-	--def-cc-primary-hover: #1e40af;
+	/* --def-cc-brand is set INLINE on the host by the loader from the admin's
+	   Branding colour. Everything brand-tinted derives from it, so the admin's
+	   choice still flows through the whole widget — but because the DERIVED
+	   tokens are declared here rather than inline, a theme can override any of
+	   them from the page (an outer-document rule on the host beats :host; an
+	   inline style would not). */
+	--def-cc-btn-color: var(--def-cc-brand, #111827);
+	--def-cc-btn-hover: var(--def-cc-brand-hover, #0b1220);
+	--def-cc-primary: var(--def-cc-brand, #1d4ed8);
+	--def-cc-primary-hover: var(--def-cc-brand-hover, #1e40af);
 	--def-cc-primary-text: #ffffff;
 	--def-cc-text: #1f2937;
 	--def-cc-text-light: #6b7280;
@@ -32,6 +38,30 @@
 	--def-cc-radius: 12px;
 	--def-cc-radius-sm: 8px;
 	--def-cc-radius-lg: 16px;
+	--def-cc-radius-control: 6px;
+	--def-cc-radius-xs: 4px;
+
+	/* ─── Theming contract — Tier 1 ───────────────────────────────
+	   Surfaces a tenant brand needs to reach. Header, message canvas and
+	   bubbles were previously unreachable: the header shared --def-cc-bg-alt
+	   with 6 unrelated surfaces, and the canvas was hardcoded #edf0f5.
+	   Override any of these from the page with a rule on the host element:
+	     #def-customer-chat-host { --def-cc-header-bg: #0E403C; } */
+	--def-cc-surface: var(--def-cc-bg);
+	--def-cc-header-bg: #f9fafb;
+	--def-cc-header-text: #111827;
+	--def-cc-header-border: var(--def-cc-border);
+	--def-cc-messages-bg: #edf0f5;
+	--def-cc-bubble-assistant-bg: #ffffff;
+	--def-cc-bubble-assistant-text: #111827;
+	--def-cc-bubble-assistant-border: var(--def-cc-border);
+	--def-cc-bubble-user-bg: var(--def-cc-primary);
+	--def-cc-bubble-user-text: var(--def-cc-primary-text);
+	--def-cc-bubble-radius: var(--def-cc-radius);
+	--def-cc-bubble-tail-radius: var(--def-cc-radius-xs);
+	--def-cc-link: #2271b1;
+	--def-cc-footer-bg: #f9fafb;
+	--def-cc-chip-bg: #f9fafb;
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
 	--def-cc-focus-ring: 0 0 0 3px color-mix(in srgb, var(--def-cc-primary) 15%, transparent);
@@ -119,7 +149,7 @@
 	width: 20px;
 	height: 20px;
 	object-fit: contain;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 }
 
 /* Sparkle icon: uses fill instead of stroke */
@@ -169,7 +199,7 @@
 	z-index: var(--def-cc-z-panel);
 	display: flex;
 	flex-direction: column;
-	background: var(--def-cc-bg);
+	background: var(--def-cc-surface);
 	font-family: var(--def-cc-font);
 	font-size: 14px;
 	line-height: 1.5;
@@ -269,8 +299,8 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: 12px 16px;
-	background: var(--def-cc-bg-alt);
-	border-bottom: 1px solid var(--def-cc-border);
+	background: var(--def-cc-header-bg);
+	border-bottom: 1px solid var(--def-cc-header-border);
 	min-height: 52px;
 }
 
@@ -294,7 +324,7 @@
 .def-cc-header-business {
 	font-weight: 600;
 	font-size: 15px;
-	color: #111827;
+	color: var(--def-cc-header-text);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -321,7 +351,7 @@
 	height: 44px;
 	padding: 0;
 	border: none;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	background: transparent;
 	color: var(--def-cc-text-light);
 	cursor: pointer;
@@ -426,7 +456,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	background: #edf0f5;
+	background: var(--def-cc-messages-bg);
 }
 
 /* ─── Message Bubbles ───────────────────────────────────────────── */
@@ -463,24 +493,24 @@
 
 .def-cc-message-content {
 	padding: 10px 14px;
-	border-radius: var(--def-cc-radius);
+	border-radius: var(--def-cc-bubble-radius);
 	word-break: break-word;
 	overflow-wrap: break-word;
 }
 
 .def-cc-message--user .def-cc-message-content {
-	background: var(--def-cc-primary);
-	color: var(--def-cc-primary-text);
+	background: var(--def-cc-bubble-user-bg);
+	color: var(--def-cc-bubble-user-text);
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-	border-bottom-right-radius: 4px;
+	border-bottom-right-radius: var(--def-cc-bubble-tail-radius);
 }
 
 .def-cc-message--assistant .def-cc-message-content {
-	background: #ffffff;
-	color: #111827;
-	border: 1px solid var(--def-cc-border);
+	background: var(--def-cc-bubble-assistant-bg);
+	color: var(--def-cc-bubble-assistant-text);
+	border: 1px solid var(--def-cc-bubble-assistant-border);
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-	border-bottom-left-radius: 4px;
+	border-bottom-left-radius: var(--def-cc-bubble-tail-radius);
 }
 
 /* ─── Offline State ────────────────────────────────────────────── */
@@ -538,7 +568,7 @@
 	font-size: 0.9em;
 	background: rgba(0, 0, 0, 0.08);
 	padding: 2px 5px;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 }
 
 .def-cc-message--user .def-cc-message-content code {
@@ -548,7 +578,7 @@
 .def-cc-message-content pre {
 	background: rgba(0, 0, 0, 0.06);
 	border: 1px solid var(--def-cc-border-input);
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	padding: 10px 12px;
 	overflow-x: auto;
 	margin: 0.5em 0;
@@ -561,7 +591,7 @@
 }
 
 .def-cc-message-content a {
-	color: #2271b1;
+	color: var(--def-cc-link);
 	text-decoration: none;
 }
 
@@ -702,6 +732,11 @@
 .def-cc-composer-input:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
+	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
+	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
+	   invalid, the var() declaration is dropped, and the focus ring would
+	   vanish entirely — an a11y regression. This earlier declaration survives. */
+	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 
@@ -751,7 +786,7 @@
 	width: 44px;
 	height: 44px;
 	border: none;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	background: transparent;
 	color: var(--def-cc-text-light);
 	cursor: pointer;
@@ -788,7 +823,7 @@
 	z-index: 50;
 	background: rgba(59, 130, 246, 0.08);
 	border: 2px dashed var(--def-cc-primary);
-	border-radius: 8px;
+	border-radius: var(--def-cc-radius-sm);
 	align-items: center;
 	justify-content: center;
 }
@@ -830,7 +865,7 @@
 	max-width: 200px;
 	padding: 4px 8px;
 	border: 1px solid var(--def-cc-border);
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	font-size: 13px;
 	color: #374151;
 	background: var(--def-cc-bg);
@@ -854,7 +889,7 @@
 .def-cc-attachment-chip-thumb {
 	width: 48px;
 	height: 48px;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 	object-fit: cover;
 	flex-shrink: 0;
 }
@@ -888,7 +923,7 @@
 	width: 18px;
 	height: 18px;
 	border: none;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 	background: transparent;
 	color: var(--def-cc-text-light);
 	cursor: pointer;
@@ -918,7 +953,7 @@
 	color: #ffffff;
 	font-size: 12px;
 	padding: 4px 8px;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 	white-space: nowrap;
 	z-index: 10;
 	pointer-events: none;
@@ -992,7 +1027,7 @@
 .def-cc-confirm-btn {
 	padding: 8px 16px;
 	border: none;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	font-family: var(--def-cc-font);
 	font-size: 14px;
 	font-weight: 500;
@@ -1038,7 +1073,7 @@
 .def-cc-logout-notice-btn {
 	padding: 6px 14px;
 	border: 1px solid #d97706;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	background: var(--def-cc-bg);
 	color: var(--def-cc-warning-text);
 	font-family: var(--def-cc-font);
@@ -1132,6 +1167,11 @@
 .def-cc-escalation-textarea:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
+	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
+	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
+	   invalid, the var() declaration is dropped, and the focus ring would
+	   vanish entirely — an a11y regression. This earlier declaration survives. */
+	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 
@@ -1307,7 +1347,7 @@
 	padding: 8px 12px;
 	background: #fef2f2;
 	border: 1px solid #fecaca;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	color: var(--def-cc-danger-hover);
 	font-size: 13px;
 	margin-bottom: 12px;
@@ -1340,6 +1380,11 @@
 .def-cc-login-input:focus {
 	outline: none;
 	border-color: var(--def-cc-primary);
+	/* Static fallback FIRST: if a theme sets --def-cc-primary to something that
+	   is not a valid <color>, the color-mix() in --def-cc-focus-ring becomes
+	   invalid, the var() declaration is dropped, and the focus ring would
+	   vanish entirely — an a11y regression. This earlier declaration survives. */
+	box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 	box-shadow: var(--def-cc-focus-ring);
 }
 
@@ -1425,7 +1470,7 @@
 	align-items: center;
 	gap: 6px;
 	padding: 4px 8px;
-	border-radius: 6px;
+	border-radius: var(--def-cc-radius-control);
 	font-size: 13px;
 	background: #ffffff;
 	color: #374151;
@@ -1435,7 +1480,7 @@
 .def-cc-message-file-thumb {
 	width: 48px;
 	height: 48px;
-	border-radius: 4px;
+	border-radius: var(--def-cc-radius-xs);
 	object-fit: cover;
 	flex-shrink: 0;
 }
@@ -1609,7 +1654,7 @@
 .cc-toast {
 	padding: 8px 14px;
 	margin: 6px 0;
-	border-radius: 8px;
+	border-radius: var(--def-cc-radius-sm);
 	font-size: 13px;
 	background: var(--accent-success, #22c55e);
 	color: #fff;
@@ -1670,7 +1715,7 @@
 	gap: 6px;
 	padding: 8px 14px;
 	border-radius: 20px;
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-chip-bg);
 	border: 1px solid var(--def-cc-border);
 	color: var(--def-cc-text);
 	font-family: var(--def-cc-font);
@@ -1717,7 +1762,7 @@
 	flex-shrink: 0;
 	padding: 8px 16px;
 	border-top: 1px solid var(--def-cc-border);
-	background: var(--def-cc-bg-alt);
+	background: var(--def-cc-footer-bg);
 	font-size: 11px;
 	line-height: 1.4;
 	color: var(--def-cc-text-light);
