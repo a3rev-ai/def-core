@@ -91,19 +91,10 @@
 		document.head.appendChild(reg);
 	}
 
-	// Same contract as the chat module: a class list is mirrored into a part
-	// list so the page can reach these elements through ::part(). Derived from
-	// the class rather than written by hand so the two cannot drift. The
-	// def-cc-/cc- prefix is stripped — the host already namespaces every part.
+	// Mirror of the chat module's partsFrom() — see def-core-customer-chat.js.
 	// Part values must always be literals; never pass config or stream data.
 	function partsFrom(className) {
-		return className
-			.split(/\s+/)
-			.filter(Boolean)
-			.map(function (cls) {
-				return cls.replace(/^(?:def-)?cc-/, '');
-			})
-			.join(' ');
+		return className.replace(/(^|\s)(?:def-)?cc-/g, '$1');
 	}
 
 	function setClass(node, className) {

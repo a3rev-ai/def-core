@@ -27,7 +27,7 @@
 	// Staff AI, which is not shadow-scoped. Literal class names only.
 	function setClass(node, className) {
 		node.className = className;
-		node.setAttribute('part', className.replace(/^(?:def-)?cc-/, ''));
+		node.setAttribute('part', className.replace(/(^|\s)(?:def-)?cc-/g, '$1'));
 	}
 
 	var SECTION_FRONTEND_CAP = 6; // V1.2 §22 watchlist defensive guard

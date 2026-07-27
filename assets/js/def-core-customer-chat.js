@@ -360,11 +360,9 @@
 
 		// Move close button into header actions (instead of absolute overlay).
 		if (closeBtn) {
-			// Created by the loader, so it already carries part="panel-close".
-			// Parts do not reflect classes — add the token alongside the class
-			// or the adopted button stays untargetable as a header control.
+			// Loader-created, so it already carries part="panel-close"; this
+			// adds the header-close token beside it.
 			setState(closeBtn, 'def-cc-header-close', true);
-			closeBtn.part.add('header-close');
 			actions.appendChild(closeBtn);
 		}
 
@@ -2489,13 +2487,10 @@
 	}
 
 	function appendMessage(role, content) {
-		// role is server-supplied when a thread is restored, and it now reaches
-		// a part name. A part must never carry untrusted data: a value with a
-		// space would mint extra part tokens and let crafted thread history
-		// impersonate another part. Pin it to the two roles that exist.
-		// Defaults AWAY from assistant deliberately — assistant is the branch
-		// that renders markdown as HTML, so an unrecognised role has to land on
-		// the escaped-text path, exactly as it did before.
+		// role is server-supplied on thread restore and reaches a part name, so
+		// it has to be pinned: a value containing a space would mint extra part
+		// tokens and let crafted history impersonate another part. Defaults away
+		// from assistant — that is the branch that renders markdown as HTML.
 		var isAssistant = role === 'assistant';
 		var safeRole = isAssistant ? 'assistant' : 'user';
 
@@ -3786,19 +3781,12 @@
 	// ─── DOM helpers ──
 
 	// Mirror a class list into a shadow part list. Parts do NOT reflect classes,
-	// so anything a theme should be able to reach has to carry `part` as well —
-	// deriving it from the className is what stops the two drifting apart.
-	// The def-cc-/cc- prefix is stripped (the host already namespaces every
-	// part); any other class passes through unchanged.
+	// so deriving the part from the className is what stops the two drifting.
+	// Strips the def-cc-/cc- prefix off every class (the host already namespaces
+	// every part); anything else passes through unchanged.
 	// Never pass untrusted data through here — part values must stay literals.
 	function partsFrom(className) {
-		return className
-			.split(/\s+/)
-			.filter(Boolean)
-			.map(function (cls) {
-				return cls.replace(/^(?:def-)?cc-/, '');
-			})
-			.join(' ');
+		return className.replace(/(^|\s)(?:def-)?cc-/g, '$1');
 	}
 
 	function el(tag, className) {
@@ -3814,6 +3802,9 @@
 	// reflect classes, so a theme's ::part() rule would otherwise go stale the
 	// moment the state changed (a finished message stuck as "streaming", say).
 	// One class per call: part.toggle() rejects a token containing a space.
+	// The null check is reachable, not defensive padding: Clear chat detaches
+	// the streaming message, so streamEl.parentNode is null if the stream's
+	// done/error event lands afterwards.
 	function setState(node, className, on) {
 		if (!node) return;
 		node.classList.toggle(className, on);

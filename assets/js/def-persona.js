@@ -89,7 +89,7 @@
 			// Callers pass a literal divider class, so mirroring it into a part
 			// is safe and keeps the divider reachable via ::part() inside the
 			// Customer Chat shadow root. Inert where there is no shadow root.
-			div.setAttribute('part', dClass.replace(/^(?:def-)?cc-/, ''));
+			div.setAttribute('part', dClass.replace(/(^|\s)(?:def-)?cc-/g, '$1'));
 			div.textContent = template.replace('{name}', label);
 			appendFn(div);
 		}
