@@ -91,6 +91,26 @@
 		document.head.appendChild(reg);
 	}
 
+	// Mirror of the chat module's partsFrom() — see def-core-customer-chat.js.
+	// Part values must always be literals; never pass config or stream data.
+	function partsFrom(className) {
+		return className.replace(/(^|\s)(?:def-)?cc-/g, '$1');
+	}
+
+	function setClass(node, className) {
+		node.className = className;
+		node.setAttribute('part', partsFrom(className));
+	}
+
+	// Rebuilt from the class list, not via the reflected Element.part
+	// DOMTokenList — that property is much younger than ::part() itself
+	// (Safari 16.4 vs 13.1) and would throw on older iOS during bootstrap.
+	function setState(node, className, on) {
+		if (!node) return;
+		node.classList.toggle(className, on);
+		node.setAttribute('part', partsFrom(node.className));
+	}
+
 	function createShadowHost() {
 		registerThemeProps();
 
@@ -352,17 +372,21 @@
 		}
 
 		trigger = document.createElement('button');
-		trigger.className = 'def-cc-trigger';
+		setClass(trigger, 'def-cc-trigger');
 		trigger.type = 'button';
 		trigger.setAttribute('aria-label', 'Open chat');
 		trigger.setAttribute('aria-expanded', 'false');
 
 		// Icon
 		var iconWrap = document.createElement('span');
-		iconWrap.className = 'def-cc-trigger-icon';
+		setClass(iconWrap, 'def-cc-trigger-icon');
 
 		if (config.buttonIcon === 'custom' && config.buttonIconUrl) {
+			// Its only styling is a descendant rule (.def-cc-trigger-icon img),
+			// which ::part() cannot express — without its own part a tenant
+			// using a custom launcher icon could not resize it at all.
 			var img = document.createElement('img');
+			img.setAttribute('part', 'trigger-icon-image');
 			img.src = config.buttonIconUrl;
 			img.alt = '';
 			img.setAttribute('aria-hidden', 'true');
@@ -371,9 +395,10 @@
 			iconWrap.innerHTML =
 				'<svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>';
 		} else if (config.buttonIcon === 'sparkle') {
-			iconWrap.classList.add('def-cc-trigger-icon--sparkle', 'def-cc-sparkle-intro');
+			setState(iconWrap, 'def-cc-trigger-icon--sparkle', true);
+			setState(iconWrap, 'def-cc-sparkle-intro', true);
 			iconWrap.addEventListener('animationend', function () {
-				iconWrap.classList.remove('def-cc-sparkle-intro');
+				setState(iconWrap, 'def-cc-sparkle-intro', false);
 			});
 			iconWrap.innerHTML =
 				'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
@@ -391,13 +416,13 @@
 
 		// Label
 		var label = document.createElement('span');
-		label.className = 'def-cc-trigger-label';
+		setClass(label, 'def-cc-trigger-label');
 		label.textContent = config.buttonLabel || 'Chat';
 		trigger.appendChild(label);
 
 		// Status dot
 		var dot = document.createElement('span');
-		dot.className = 'def-cc-trigger-dot';
+		setClass(dot, 'def-cc-trigger-dot');
 		dot.setAttribute('aria-hidden', 'true');
 		trigger.appendChild(dot);
 
@@ -459,30 +484,29 @@
 		// backdrop stays transparent (just an interaction layer).
 		if (isDrawer || isSpotlight) {
 			backdrop = document.createElement('div');
-			backdrop.className = 'def-cc-backdrop' +
-				(isSpotlight ? ' def-cc-backdrop--dim' : '');
+			setClass(backdrop, 'def-cc-backdrop' + (isSpotlight ? ' def-cc-backdrop--dim' : ''));
 			backdrop.addEventListener('click', closePanel);
 			shadowRoot.appendChild(backdrop);
 		}
 
 		panel = document.createElement('div');
-		panel.className = 'def-cc-panel def-cc-shell--' + mode;
+		setClass(panel, 'def-cc-panel def-cc-shell--' + mode);
 		panel.setAttribute('role', 'dialog');
 		panel.setAttribute('aria-label', 'Chat');
 
 		// Position class
 		if (config.buttonPosition === 'left') {
-			panel.classList.add('def-cc-position-left');
+			setState(panel, 'def-cc-position-left', true);
 		}
 
 		// Admin bar offset (drawer mode)
 		if (isDrawer && document.getElementById('wpadminbar')) {
-			panel.classList.add('def-cc-admin-bar');
+			setState(panel, 'def-cc-admin-bar', true);
 		}
 
 		// Close button (X) inside panel header.
 		var closeBtn = document.createElement('button');
-		closeBtn.className = 'def-cc-panel-close';
+		setClass(closeBtn, 'def-cc-panel-close');
 		closeBtn.type = 'button';
 		closeBtn.setAttribute('aria-label', 'Close chat');
 		closeBtn.innerHTML =
@@ -492,9 +516,9 @@
 
 		// Loading state
 		var loading = document.createElement('div');
-		loading.className = 'def-cc-loading';
+		setClass(loading, 'def-cc-loading');
 		loading.innerHTML =
-			'<div class="def-cc-loading-spinner"></div><span>Loading chat...</span>';
+			'<div class="def-cc-loading-spinner" part="loading-spinner"></div><span part="loading-text">Loading chat...</span>';
 		panel.appendChild(loading);
 
 		shadowRoot.appendChild(panel);
@@ -523,16 +547,21 @@
 		var isDrawer = config.chatDisplayMode === 'drawer';
 
 		isOpen = true;
-		panel.classList.add('def-cc-panel--open');
+		// data-open means exactly "the chat is open" and nothing more. The
+		// backdrop and trigger states below are drawer-only and the mobile
+		// state is viewport-only, so they are NOT derivable from this
+		// attribute — each carries its own part instead.
+		shadowRoot.host.toggleAttribute('data-open', true);
+		setState(panel, 'def-cc-panel--open', true);
 
 		// Show backdrop (drawer mode).
 		if (isDrawer && backdrop) {
-			backdrop.classList.add('def-cc-backdrop--visible');
+			setState(backdrop, 'def-cc-backdrop--visible', true);
 		}
 
 		// Hide trigger in drawer mode (it's behind the drawer anyway).
 		if (isDrawer && trigger) {
-			trigger.classList.add('def-cc-trigger--hidden');
+			setState(trigger, 'def-cc-trigger--hidden', true);
 		}
 
 		if (trigger) {
@@ -548,7 +577,7 @@
 
 		// iOS scroll lock
 		if (isMobile()) {
-			panel.classList.add('def-cc-panel--mobile-open');
+			setState(panel, 'def-cc-panel--mobile-open', true);
 		}
 	}
 
@@ -558,17 +587,18 @@
 		var isDrawer = config.chatDisplayMode === 'drawer';
 
 		isOpen = false;
-		panel.classList.remove('def-cc-panel--open');
-		panel.classList.remove('def-cc-panel--mobile-open');
+		shadowRoot.host.toggleAttribute('data-open', false);
+		setState(panel, 'def-cc-panel--open', false);
+		setState(panel, 'def-cc-panel--mobile-open', false);
 
 		// Hide backdrop.
 		if (isDrawer && backdrop) {
-			backdrop.classList.remove('def-cc-backdrop--visible');
+			setState(backdrop, 'def-cc-backdrop--visible', false);
 		}
 
 		// Show trigger again.
 		if (isDrawer && trigger) {
-			trigger.classList.remove('def-cc-trigger--hidden');
+			setState(trigger, 'def-cc-trigger--hidden', false);
 		}
 
 		if (trigger) {
@@ -765,15 +795,16 @@
 	function createGreetingBubble() {
 		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
 		var bubble = document.createElement('div');
-		bubble.className = 'def-cc-greeting-bubble' + (pos === 'left' ? ' def-cc-greeting-bubble--left' : '');
+		setClass(bubble, 'def-cc-greeting-bubble' + (pos === 'left' ? ' def-cc-greeting-bubble--left' : ''));
 		bubble.setAttribute('role', 'button');
 		bubble.setAttribute('tabindex', '0');
 		bubble.setAttribute('aria-label', 'Open chat');
 
 		if (config.logoUrl) {
 			var logoWrap = document.createElement('div');
-			logoWrap.className = 'def-cc-greeting-bubble-logo';
+			setClass(logoWrap, 'def-cc-greeting-bubble-logo');
 			var img = document.createElement('img');
+			img.setAttribute('part', 'greeting-bubble-logo-image');
 			img.src = config.logoUrl;
 			img.alt = '';
 			img.setAttribute('aria-hidden', 'true');
@@ -782,12 +813,12 @@
 		}
 
 		var text = document.createElement('div');
-		text.className = 'def-cc-greeting-bubble-text';
+		setClass(text, 'def-cc-greeting-bubble-text');
 		text.textContent = config.greetingBubbleText; // CSS white-space: pre-line preserves newlines
 		bubble.appendChild(text);
 
 		var close = document.createElement('button');
-		close.className = 'def-cc-greeting-bubble-close';
+		setClass(close, 'def-cc-greeting-bubble-close');
 		close.type = 'button';
 		close.setAttribute('aria-label', 'Dismiss greeting');
 		close.textContent = '×'; // ×

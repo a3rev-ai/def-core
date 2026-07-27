@@ -22,6 +22,14 @@
 (function () {
 	'use strict';
 
+	// Mirror the class into a shadow part so the page can reach these cards via
+	// ::part() when they render inside the Customer Chat shadow root. Inert in
+	// Staff AI, which is not shadow-scoped. Literal class names only.
+	function setClass(node, className) {
+		node.className = className;
+		node.setAttribute('part', className.replace(/(^|\s)(?:def-)?cc-/g, '$1'));
+	}
+
 	var SECTION_FRONTEND_CAP = 6; // V1.2 §22 watchlist defensive guard
 	var MAX_CARDS_PER_SECTION = 4;
 	var sectionsRenderedThisTurn = 0;
@@ -94,26 +102,26 @@
 		}
 
 		var section = document.createElement('section');
-		section.className = 'def-cc-result-section';
+		setClass(section, 'def-cc-result-section');
 
 		// Only render heading element if non-empty — empty <h3> is an a11y
 		// violation and the description-skip pattern below already does this.
 		if (payload.section_heading && payload.section_heading.trim()) {
 			var heading = document.createElement('h3');
-			heading.className = 'def-cc-result-section-heading';
+			setClass(heading, 'def-cc-result-section-heading');
 			heading.textContent = payload.section_heading;
 			section.appendChild(heading);
 		}
 
 		if (payload.section_description && payload.section_description.trim()) {
 			var desc = document.createElement('p');
-			desc.className = 'def-cc-result-section-description';
+			setClass(desc, 'def-cc-result-section-description');
 			desc.textContent = payload.section_description;
 			section.appendChild(desc);
 		}
 
 		var grid = document.createElement('div');
-		grid.className = 'def-cc-result-cards';
+		setClass(grid, 'def-cc-result-cards');
 		grid.setAttribute('role', 'list');
 		grid.setAttribute('aria-label', payload.section_heading || 'Product results');
 
@@ -141,7 +149,7 @@
 
 	function renderCard(card, options) {
 		var article = document.createElement('article');
-		article.className = 'def-cc-result-card';
+		setClass(article, 'def-cc-result-card');
 		article.setAttribute('role', 'listitem');
 
 		var safeUrl = safeLinkHref(chatStampedUrl(card.url, options));
@@ -150,11 +158,12 @@
 		// (avoids screen-reader announcing the same destination twice per card).
 		var imgLink = document.createElement('a');
 		imgLink.href = safeUrl;
-		imgLink.className = 'def-cc-result-card-image-link';
+		setClass(imgLink, 'def-cc-result-card-image-link');
 		imgLink.setAttribute('aria-hidden', 'true');
 		imgLink.setAttribute('tabindex', '-1');
 
 		var img = document.createElement('img');
+		img.setAttribute('part', 'result-card-image');
 		img.src = card.image_url || '';
 		img.alt = card.image_alt || card.title;
 		img.loading = 'lazy';
@@ -165,13 +174,13 @@
 		// product name reads first (per archive-page convention).
 		var titleLink = document.createElement('a');
 		titleLink.href = safeUrl;
-		titleLink.className = 'def-cc-result-card-title';
+		setClass(titleLink, 'def-cc-result-card-title');
 		titleLink.textContent = card.title;
 		article.appendChild(titleLink);
 
 		// Subtitle (WC price_html with sale markup), DOMPurify-sanitised.
 		var subtitle = document.createElement('div');
-		subtitle.className = 'def-cc-result-card-subtitle';
+		setClass(subtitle, 'def-cc-result-card-subtitle');
 		subtitle.innerHTML = window.DOMPurify.sanitize(
 			card.subtitle_html || '',
 			SUBTITLE_SANITIZE_CONFIG
@@ -202,7 +211,7 @@
 	function renderAddToCartButton(card) {
 		var btn = document.createElement('button');
 		btn.type = 'button';
-		btn.className = 'def-cc-result-card-add';
+		setClass(btn, 'def-cc-result-card-add');
 		btn.textContent = '+ Add to cart';
 		btn.setAttribute('data-product-id', String(card.id));
 		btn.setAttribute('data-product-name', card.title);
@@ -213,7 +222,7 @@
 	function renderViewProductLink(card, options) {
 		var link = document.createElement('a');
 		link.href = safeLinkHref(chatStampedUrl(card.url, options));
-		link.className = 'def-cc-result-card-view';
+		setClass(link, 'def-cc-result-card-view');
 		link.textContent = 'View product →';
 		link.setAttribute('aria-label', 'View ' + card.title);
 		return link;
@@ -223,7 +232,7 @@
 		var link = document.createElement('a');
 		// id was validated as number in renderSection; encode defensively anyway.
 		link.href = '/wp-admin/post.php?post=' + encodeURIComponent(card.id) + '&action=edit';
-		link.className = 'def-cc-result-card-edit';
+		setClass(link, 'def-cc-result-card-edit');
 		link.textContent = 'Edit product';
 		link.setAttribute('aria-label', 'Edit ' + card.title);
 		return link;

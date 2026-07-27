@@ -264,6 +264,7 @@
 		if (config.logoShow && config.logoUrl) {
 			var logoWrap = el('span', 'def-cc-header-logo');
 			var logoImg = document.createElement('img');
+			logoImg.setAttribute('part', 'header-logo-image');
 			logoImg.src = config.logoUrl;
 			logoImg.alt = config.displayName || '';
 			logoImg.style.maxHeight =
@@ -300,7 +301,10 @@
 
 		var menuWrap = el('div', 'def-cc-menu-wrap');
 
-		var menuBtn = el('button', 'def-cc-btn');
+		// Carries a header-menu class purely so it is distinguishable from the
+		// refresh button next to it — both were bare .def-cc-btn, which gave
+		// them the same part and made them impossible to target separately.
+		var menuBtn = el('button', 'def-cc-btn def-cc-header-menu');
 		menuBtn.type = 'button';
 		menuBtn.setAttribute('aria-label', 'Menu');
 		menuBtn.setAttribute('aria-expanded', 'false');
@@ -356,7 +360,9 @@
 
 		// Move close button into header actions (instead of absolute overlay).
 		if (closeBtn) {
-			closeBtn.classList.add('def-cc-header-close');
+			// Loader-created, so it already carries part="panel-close"; this
+			// adds the header-close token beside it.
+			setState(closeBtn, 'def-cc-header-close', true);
 			actions.appendChild(closeBtn);
 		}
 
@@ -398,6 +404,7 @@
 				srcDesktop.srcset = desktopUrl;
 				picture.appendChild(srcDesktop);
 				var bannerImg = document.createElement('img');
+				bannerImg.setAttribute('part', 'welcome-banner-image');
 				bannerImg.src = mobileUrl; // <img> fallback handles mobile
 				bannerImg.alt = '';
 				bannerImg.setAttribute('aria-hidden', 'true');
@@ -406,6 +413,7 @@
 			} else {
 				// Only one set: use it at all viewports.
 				var soloImg = document.createElement('img');
+				soloImg.setAttribute('part', 'welcome-banner-image');
 				soloImg.src = desktopUrl || mobileUrl;
 				soloImg.alt = '';
 				soloImg.setAttribute('aria-hidden', 'true');
@@ -426,6 +434,7 @@
 		var userName = config.userFirstName || '';
 		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
 		var intro = document.createElement('strong');
+		intro.setAttribute('part', 'greeting-intro');
 		intro.textContent = bizName
 			? hi + ' I\'m ' + bizName + ', your AI Assistant.'
 			: hi + ' I\'m your AI Assistant.';
@@ -436,9 +445,7 @@
 		var helpText = document.createTextNode('Here\'s how I can help you:');
 		greetingContent.appendChild(helpText);
 
-		var ul = document.createElement('ul');
-		ul.style.margin = '8px 0';
-		ul.style.paddingLeft = '18px';
+		var ul = el('ul', 'def-cc-greeting-list');
 		// Role-based capabilities — apply regardless of WooCommerce being
 		// active. Sales and Support are universal employee roles in DEF;
 		// the WC-vs-not branch was telling a non-WC tenant's visitors the
@@ -449,7 +456,7 @@
 			'Connect you with a human if you need extra help',
 		];
 		for (var i = 0; i < capabilities.length; i++) {
-			var li = document.createElement('li');
+			var li = el('li', 'def-cc-greeting-list-item');
 			li.textContent = capabilities[i];
 			ul.appendChild(li);
 		}
@@ -507,7 +514,7 @@
 							return;
 						}
 						els.input.value = chipDef.text;
-						els.input.classList.remove('def-cc-suggestion-text');
+						setState(els.input, 'def-cc-suggestion-text', false);
 						autoResizeInput();
 						updateSendButton();
 						handleSubmit({ preventDefault: function () {} });
@@ -552,8 +559,7 @@
 		form.appendChild(fileInput);
 
 		// Text input.
-		var input = document.createElement('textarea');
-		input.className = 'def-cc-composer-input';
+		var input = el('textarea', 'def-cc-composer-input');
 		input.placeholder = t('typePlaceholder');
 		input.rows = 1;
 		input.addEventListener('keydown', function (e) {
@@ -565,7 +571,7 @@
 			if (els.input.classList.contains('def-cc-suggestion-text') &&
 				e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				els.input.value = '';
-				els.input.classList.remove('def-cc-suggestion-text');
+				setState(els.input, 'def-cc-suggestion-text', false);
 				autoResizeInput();
 				updateSendButton();
 			}
@@ -574,7 +580,7 @@
 		input.addEventListener('click', function () {
 			if (els.input.classList.contains('def-cc-suggestion-text')) {
 				els.input.value = '';
-				els.input.classList.remove('def-cc-suggestion-text');
+				setState(els.input, 'def-cc-suggestion-text', false);
 				autoResizeInput();
 				updateSendButton();
 			}
@@ -582,7 +588,7 @@
 		input.addEventListener('input', function () {
 			dirtyInput = true;
 			if (els.input.classList.contains('def-cc-suggestion-text')) {
-				els.input.classList.remove('def-cc-suggestion-text');
+				setState(els.input, 'def-cc-suggestion-text', false);
 			}
 			autoResizeInput();
 			updateSendButton();
@@ -636,7 +642,7 @@
 			e.preventDefault();
 			if (!uploadEligible || isComposerDisabled) return;
 			dragCounter++;
-			if (els.dropOverlay) els.dropOverlay.classList.add('visible');
+			if (els.dropOverlay) setState(els.dropOverlay, 'visible', true);
 		});
 		composer.addEventListener('dragover', function (e) {
 			e.preventDefault();
@@ -646,13 +652,13 @@
 			dragCounter--;
 			if (dragCounter <= 0) {
 				dragCounter = 0;
-				if (els.dropOverlay) els.dropOverlay.classList.remove('visible');
+				if (els.dropOverlay) setState(els.dropOverlay, 'visible', false);
 			}
 		});
 		composer.addEventListener('drop', function (e) {
 			e.preventDefault();
 			dragCounter = 0;
-			if (els.dropOverlay) els.dropOverlay.classList.remove('visible');
+			if (els.dropOverlay) setState(els.dropOverlay, 'visible', false);
 			if (!uploadEligible || isComposerDisabled) return;
 			var files = e.dataTransfer && e.dataTransfer.files;
 			if (!files) return;
@@ -676,8 +682,7 @@
 		//      word with no surrounding context.
 		if (config.aiNoticeEnabled && config.complianceText) {
 			var footer = el('div', 'def-cc-compliance-footer');
-			var footerText = document.createElement('span');
-			footerText.className = 'def-cc-compliance-text';
+			var footerText = el('span', 'def-cc-compliance-text');
 			footerText.textContent = String(config.complianceText);
 			footer.appendChild(footerText);
 			var linkLabel = String(config.privacyLinkLabel || t('privacyPolicy') || '');
@@ -692,14 +697,14 @@
 				var safeHref = safeLinkHref(config.privacyUrl);
 				if (safeHref) {
 					var privacyLink = document.createElement('a');
+					privacyLink.setAttribute('part', 'compliance-link');
 					privacyLink.href = safeHref;
 					privacyLink.target = '_blank';
 					privacyLink.rel = 'noopener noreferrer';
 					privacyLink.textContent = linkLabel;
 					footer.appendChild(privacyLink);
 				} else {
-					var labelSpan = document.createElement('span');
-					labelSpan.className = 'def-cc-compliance-link-label';
+					var labelSpan = el('span', 'def-cc-compliance-link-label');
 					labelSpan.textContent = linkLabel;
 					footer.appendChild(labelSpan);
 				}
@@ -769,9 +774,8 @@
 		var userField = el('div', 'def-cc-login-field');
 		var userLabel = el('label', 'def-cc-login-label');
 		userLabel.textContent = 'Username';
-		var userInput = document.createElement('input');
+		var userInput = el('input', 'def-cc-login-input');
 		userInput.type = 'text';
-		userInput.className = 'def-cc-login-input';
 		userInput.autocomplete = 'username';
 		els.loginUsername = userInput;
 		userField.appendChild(userLabel);
@@ -781,9 +785,8 @@
 		var passField = el('div', 'def-cc-login-field');
 		var passLabel = el('label', 'def-cc-login-label');
 		passLabel.textContent = 'Password';
-		var passInput = document.createElement('input');
+		var passInput = el('input', 'def-cc-login-input');
 		passInput.type = 'password';
-		passInput.className = 'def-cc-login-input';
 		passInput.autocomplete = 'current-password';
 		els.loginPassword = passInput;
 		passField.appendChild(passLabel);
@@ -800,6 +803,7 @@
 		// Forgot password link.
 		var links = el('div', 'def-cc-login-links');
 		var forgot = document.createElement('a');
+		forgot.setAttribute('part', 'login-link');
 		forgot.href =
 			(config.siteUrl || '') + '/wp-login.php?action=lostpassword';
 		forgot.target = '_blank';
@@ -811,6 +815,7 @@
 		// Cancel link.
 		var cancelLink = el('div', 'def-cc-login-links');
 		var cancelA = document.createElement('a');
+		cancelA.setAttribute('part', 'login-link');
 		cancelA.href = '#';
 		cancelA.textContent = t('cancel');
 		cancelA.addEventListener('click', function (e) {
@@ -826,7 +831,7 @@
 		// Spinner (hidden).
 		var spinner = el('div', 'def-cc-login-spinner');
 		spinner.style.display = 'none';
-		spinner.innerHTML = '<div class="def-cc-login-spinner-ring"></div>';
+		spinner.innerHTML = '<div class="def-cc-login-spinner-ring" part="login-spinner-ring"></div>';
 		els.loginSpinner = spinner;
 		container.appendChild(spinner);
 
@@ -856,7 +861,7 @@
 		var epanel = el('div', 'def-cc-escalation-panel');
 
 		// Header + desc.
-		var header = el('div', '');
+		var header = el('div', 'def-cc-escalation-header');
 		var title = el('div', 'def-cc-escalation-title');
 		title.textContent = t('escalate');
 		header.appendChild(title);
@@ -896,9 +901,8 @@
 
 		var msgField = el('div', 'def-cc-escalation-field');
 		var msgLabel = el('label', 'def-cc-escalation-label');
-		msgLabel.innerHTML = 'Message <span class="def-cc-required">*</span>';
-		var msgInput = document.createElement('textarea');
-		msgInput.className = 'def-cc-escalation-textarea';
+		msgLabel.innerHTML = 'Message <span class="def-cc-required" part="required">*</span>';
+		var msgInput = el('textarea', 'def-cc-escalation-textarea');
 		msgInput.rows = 4;
 		els.escalationMessage = msgInput;
 		msgField.appendChild(msgLabel);
@@ -931,7 +935,7 @@
 		var spinner = el('div', 'def-cc-escalation-spinner');
 		spinner.style.display = 'none';
 		spinner.innerHTML =
-			'<div class="def-cc-escalation-spinner-ring"></div><span>Sending...</span>';
+			'<div class="def-cc-escalation-spinner-ring" part="escalation-spinner-ring"></div><span part="escalation-spinner-text">Sending...</span>';
 		els.escalationSpinner = spinner;
 		epanel.appendChild(spinner);
 
@@ -939,13 +943,13 @@
 		var success = el('div', 'def-cc-escalation-success');
 		success.style.display = 'none';
 		success.innerHTML =
-			'<div class="def-cc-escalation-success-icon">' +
+			'<div class="def-cc-escalation-success-icon" part="escalation-success-icon">' +
 			'<svg viewBox="0 0 24 24" width="28" height="28"><polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
 			'</div>' +
-			'<div style="font-size:16px;font-weight:600;color:var(--def-cc-text);">' +
+			'<div class="def-cc-escalation-success-text" part="escalation-success-text">' +
 			t('escalateSuccess') +
 			'</div>' +
-			'<button type="button" class="def-cc-escalation-cancel" style="margin-top:8px;">Close</button>';
+			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--success" part="escalation-cancel escalation-cancel--success">Close</button>';
 		success
 			.querySelector('.def-cc-escalation-cancel')
 			.addEventListener('click', closeEscalation);
@@ -956,13 +960,13 @@
 		var errorState = el('div', 'def-cc-escalation-error-state');
 		errorState.style.display = 'none';
 		errorState.innerHTML =
-			'<div class="def-cc-escalation-error-icon">' +
+			'<div class="def-cc-escalation-error-icon" part="escalation-error-icon">' +
 			'<svg viewBox="0 0 24 24" width="28" height="28"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>' +
 			'</div>' +
-			'<div style="font-size:16px;font-weight:600;color:var(--def-cc-text);">Failed to send</div>' +
-			'<div style="display:flex;gap:8px;margin-top:8px;">' +
-			'<button type="button" class="def-cc-escalation-submit" data-action="retry">Try again</button>' +
-			'<button type="button" class="def-cc-escalation-cancel" data-action="close">Close</button>' +
+			'<div class="def-cc-escalation-error-text" part="escalation-error-text">Failed to send</div>' +
+			'<div class="def-cc-escalation-error-actions" part="escalation-error-actions">' +
+			'<button type="button" class="def-cc-escalation-submit def-cc-escalation-submit--retry" part="escalation-submit escalation-submit--retry" data-action="retry">Try again</button>' +
+			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--error" part="escalation-cancel escalation-cancel--error" data-action="close">Close</button>' +
 			'</div>';
 		errorState
 			.querySelector('[data-action="retry"]')
@@ -1110,7 +1114,7 @@
 		els.loginForm.style.display = '';
 		els.loginSpinner.style.display = 'none';
 		els.loginSubmitBtn.disabled = false;
-		els.loginOverlay.classList.add('def-cc-login-overlay--open');
+		setState(els.loginOverlay, 'def-cc-login-overlay--open', true);
 		setTimeout(function () {
 			els.loginUsername.focus();
 		}, 100);
@@ -1118,7 +1122,7 @@
 
 	function closeLogin() {
 		if (!els.loginOverlay) return;
-		els.loginOverlay.classList.remove('def-cc-login-overlay--open');
+		setState(els.loginOverlay, 'def-cc-login-overlay--open', false);
 	}
 
 	function showLoginError(msg) {
@@ -1284,7 +1288,7 @@
 		var label = TOOL_STATUS_LABELS[toolName] || 'Processing...';
 		var div = el('div', 'cc-tool-status');
 		div.dataset.inProgressLabel = label;
-		div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label">'
+		div.innerHTML = '<span class="cc-spinner" part="spinner"></span><span class="cc-tool-label" part="tool-label">'
 			+ escapeHtml(label) + '</span>';
 		els.messages.appendChild(div);
 		scrollToBottom();
@@ -1327,10 +1331,14 @@
 			|| TOOL_STATUS_LABELS[toolName]
 			|| 'Processing...';
 		var suffix = failed ? 'Failed' : 'Done';
-		statusEl.innerHTML = '<span class="cc-tool-label">' + escapeHtml(inProgressLabel) + '</span>'
-			+ ' <span class="cc-checkmark">' + icon + '</span> '
-			+ '<span class="cc-tool-label">' + suffix + '</span>';
+		statusEl.innerHTML = '<span class="cc-tool-label" part="tool-label">' + escapeHtml(inProgressLabel) + '</span>'
+			+ ' <span class="cc-checkmark" part="checkmark">' + icon + '</span> '
+			+ '<span class="cc-tool-label" part="tool-label">' + suffix + '</span>';
 		statusEl.className = failed ? 'cc-tool-status cc-tool-failed' : 'cc-tool-status cc-tool-done';
+		// className is replaced wholesale, so rebuild the part list from it in
+		// the same breath — otherwise the finished tool keeps the part it was
+		// given while in progress.
+		statusEl.setAttribute('part', partsFrom(statusEl.className));
 	}
 
 	/**
@@ -1680,7 +1688,7 @@
 		els.messages.appendChild(toast);
 		scrollToBottom();
 		setTimeout(function () {
-			toast.classList.add('cc-toast-fade');
+			setState(toast, 'cc-toast-fade', true);
 			setTimeout(function () { toast.remove(); }, 400);
 		}, 4000);
 	}
@@ -1696,8 +1704,7 @@
 			if (label) {
 				label.textContent = text;
 			} else {
-				var span = document.createElement('span');
-				span.className = 'cc-typing-label';
+				var span = el('span', 'cc-typing-label');
 				span.textContent = text;
 				var content = indicator.querySelector('.def-cc-message-content');
 				if (content) content.appendChild(span);
@@ -1985,7 +1992,7 @@
 					var rowLabel = persona.formatThinkingLabel(thinkMsg);
 					if (!thinkingStatusEl) {
 						var div = el('div', 'cc-tool-status');
-						div.innerHTML = '<span class="cc-spinner"></span><span class="cc-tool-label"></span>';
+						div.innerHTML = '<span class="cc-spinner" part="spinner"></span><span class="cc-tool-label" part="tool-label"></span>';
 						div.querySelector('.cc-tool-label').textContent = rowLabel;
 						els.messages.appendChild(div);
 						scrollToBottom();
@@ -2051,7 +2058,7 @@
 
 					if (streamEl) {
 						streamEl.innerHTML = renderMarkdown(finalContent);
-						streamEl.parentNode.classList.remove('def-cc-message--streaming');
+						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 					}
 
 					// Mutate evt so downstream metadata processing sees the
@@ -2106,7 +2113,7 @@
 					lastSuggestion = evt.suggestion || null;
 					if (!dirtyInput && els.input && evt.suggestion) {
 						els.input.value = evt.suggestion;
-						els.input.classList.add('def-cc-suggestion-text');
+						setState(els.input, 'def-cc-suggestion-text', true);
 						autoResizeInput();
 						updateSendButton();
 					}
@@ -2127,7 +2134,7 @@
 						if (partial) {
 							streamEl.innerHTML = renderMarkdown(partial);
 						}
-						streamEl.parentNode.classList.remove('def-cc-message--streaming');
+						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 					}
 					streamBuffer = '';
 					streamEl = null;
@@ -2356,8 +2363,7 @@
 				var chip = el('span', 'def-cc-message-file');
 				// Thumbnail for images.
 				if (staged[i].thumbnailUrl) {
-					var thumb = document.createElement('img');
-					thumb.className = 'def-cc-message-file-thumb';
+					var thumb = el('img', 'def-cc-message-file-thumb');
 					thumb.src = staged[i].thumbnailUrl;
 					thumb.alt = '';
 					chip.appendChild(thumb);
@@ -2450,17 +2456,17 @@
 			})
 			.then(function () {
 				btn.textContent = '✓ Added';
-				btn.classList.add('def-cc-result-card-add--success');
+				setState(btn, 'def-cc-result-card-add--success', true);
 				setTimeout(function () {
 					btn.textContent = originalText;
-					btn.classList.remove('def-cc-result-card-add--success');
+					setState(btn, 'def-cc-result-card-add--success', false);
 					btn.disabled = false;
 				}, 2000);
 			})
 			.catch(function (err) {
 				console.error('[def-cc] result-card add-to-cart failed:', err);
 				btn.textContent = 'Try again';
-				btn.classList.add('def-cc-result-card-add--error');
+				setState(btn, 'def-cc-result-card-add--error', true);
 				btn.disabled = false;
 				// Surface WC's actual error wording (e.g. "we have 5 in stock and
 				// you already have 5 in your cart") into the chat as an assistant
@@ -2475,20 +2481,31 @@
 				appendMessage('assistant', bubble);
 				setTimeout(function () {
 					btn.textContent = originalText;
-					btn.classList.remove('def-cc-result-card-add--error');
+					setState(btn, 'def-cc-result-card-add--error', false);
 				}, 3000);
 			});
 	}
 
 	function appendMessage(role, content) {
+		// role is server-supplied on thread restore and reaches a part name, so
+		// it has to be pinned: a value containing a space would mint extra part
+		// tokens and let crafted history impersonate another part. Three
+		// literals, not two — collapsing an unknown role onto 'user' would
+		// render a system/tool row as though the visitor had written it, and
+		// '--other' has no CSS, so it keeps the neutral rendering it had
+		// before. Anything but an exact 'assistant' stays on the escaped-text
+		// path; that is the branch that renders markdown as HTML.
+		var isAssistant = role === 'assistant';
+		var safeRole = isAssistant ? 'assistant' : role === 'user' ? 'user' : 'other';
+
 		// No per-message avatar on assistant bubbles — the widget header
 		// carries Joe's avatar across the whole conversation, so repeating
 		// it above every reply was visual noise (v3.11.1).
-		var msgEl = el('div', 'def-cc-message def-cc-message--' + role);
+		var msgEl = el('div', 'def-cc-message def-cc-message--' + safeRole);
 
 		var contentEl = el('div', 'def-cc-message-content');
 
-		if (role === 'assistant') {
+		if (isAssistant) {
 			contentEl.innerHTML = renderMarkdown(content);
 		} else {
 			contentEl.textContent = content;
@@ -2558,7 +2575,7 @@
 
 		var content = el('div', 'def-cc-message-content');
 		content.innerHTML =
-			'<div class="def-cc-thinking-dots">' +
+			'<div class="def-cc-thinking-dots" part="thinking-dots">' +
 			'<span></span><span></span><span></span>' +
 			'</div>';
 		msgEl.appendChild(content);
@@ -2590,9 +2607,7 @@
 		}
 
 		showEscalationState('form');
-		els.escalationOverlay.classList.add(
-			'def-cc-escalation-overlay--open'
-		);
+		setState(els.escalationOverlay, 'def-cc-escalation-overlay--open', true);
 	}
 
 	function closeEscalation() {
@@ -2603,9 +2618,7 @@
 			escalationInflightController.abort();
 			escalationInflightController = null;
 		}
-		els.escalationOverlay.classList.remove(
-			'def-cc-escalation-overlay--open'
-		);
+		setState(els.escalationOverlay, 'def-cc-escalation-overlay--open', false);
 		// Clear form after animation.
 		setTimeout(function () {
 			clearEscalationForm();
@@ -2652,16 +2665,16 @@
 				)
 			: [];
 		for (var j = 0; j < inputs.length; j++) {
-			inputs[j].classList.remove('def-cc-escalation-input--error');
-			inputs[j].classList.remove('def-cc-escalation-textarea--error');
+			setState(inputs[j], 'def-cc-escalation-input--error', false);
+			setState(inputs[j], 'def-cc-escalation-textarea--error', false);
 		}
 	}
 
 	function showFieldError(input, msg) {
 		if (input.tagName === 'TEXTAREA') {
-			input.classList.add('def-cc-escalation-textarea--error');
+			setState(input, 'def-cc-escalation-textarea--error', true);
 		} else {
-			input.classList.add('def-cc-escalation-input--error');
+			setState(input, 'def-cc-escalation-input--error', true);
 		}
 		var errorEl = input.parentNode.querySelector(
 			'.def-cc-escalation-error'
@@ -2990,15 +3003,14 @@
 
 			// Thumbnail or status icon.
 			if (f.thumbnailUrl) {
-				var thumb = document.createElement('img');
-				thumb.className = 'def-cc-attachment-chip-thumb';
+				var thumb = el('img', 'def-cc-attachment-chip-thumb');
 				thumb.src = f.thumbnailUrl;
 				thumb.alt = '';
 				chip.appendChild(thumb);
 			} else {
 				var iconSpan = el('span', 'def-cc-attachment-chip-icon');
 				if (f.status === 'uploading') {
-					iconSpan.classList.add('def-cc-attachment-chip-icon--pending');
+					setState(iconSpan, 'def-cc-attachment-chip-icon--pending', true);
 					iconSpan.innerHTML = uploadStatusSVG('uploading');
 				} else if (f.status === 'uploaded') {
 					iconSpan.innerHTML = uploadStatusSVG('uploaded');
@@ -3598,7 +3610,7 @@
 	}
 
 	function openMenu() {
-		els.menu.classList.add('def-cc-menu--open');
+		setState(els.menu, 'def-cc-menu--open', true);
 		els.menuBtn.setAttribute('aria-expanded', 'true');
 		updateMenuState();
 
@@ -3610,7 +3622,7 @@
 
 	function closeMenu() {
 		if (!els.menu) return;
-		els.menu.classList.remove('def-cc-menu--open');
+		setState(els.menu, 'def-cc-menu--open', false);
 		els.menuBtn.setAttribute('aria-expanded', 'false');
 		root.removeEventListener('click', closeMenuOnOutsideClick);
 	}
@@ -3666,15 +3678,13 @@
 
 	function openConfirm() {
 		if (els.confirmOverlay) {
-			els.confirmOverlay.classList.add('def-cc-confirm-overlay--open');
+			setState(els.confirmOverlay, 'def-cc-confirm-overlay--open', true);
 		}
 	}
 
 	function closeConfirm() {
 		if (els.confirmOverlay) {
-			els.confirmOverlay.classList.remove(
-				'def-cc-confirm-overlay--open'
-			);
+			setState(els.confirmOverlay, 'def-cc-confirm-overlay--open', false);
 		}
 	}
 
@@ -3774,10 +3784,43 @@
 
 	// ─── DOM helpers ──
 
+	// Mirror a class list into a shadow part list. Parts do NOT reflect classes,
+	// so deriving the part from the className is what stops the two drifting.
+	// Strips the def-cc-/cc- prefix off every class (the host already namespaces
+	// every part); anything else passes through unchanged.
+	// Never pass untrusted data through here — part values must stay literals.
+	function partsFrom(className) {
+		return className.replace(/(^|\s)(?:def-)?cc-/g, '$1');
+	}
+
 	function el(tag, className) {
 		var node = document.createElement(tag);
-		if (className) node.className = className;
+		if (className) {
+			node.className = className;
+			node.setAttribute('part', partsFrom(className));
+		}
 		return node;
+	}
+
+	// Toggling a state class has to touch the part list too — parts do not
+	// reflect classes, so a theme's ::part() rule would otherwise go stale the
+	// moment the state changed (a finished message stuck as "streaming", say).
+	// Rebuilds the whole part list from the class list rather than toggling one
+	// part token, which keeps the two identical by construction. It also avoids
+	// the reflected Element.part DOMTokenList, which is much younger than
+	// ::part() itself — Safari shipped the selector in 13.1 but the property
+	// only in 16.4, so touching node.part would throw on older iOS and take the
+	// whole widget down on a path that runs every session.
+	// The null check is reachable, not defensive padding: Clear chat detaches
+	// the streaming message, so streamEl.parentNode is null if the stream's
+	// done/error event lands afterwards.
+	// Only for elements whose parts are entirely class-derived: the rebuild
+	// drops any literal-only part (header-logo-image, login-link and friends),
+	// and node.className on an SVGElement is not a string.
+	function setState(node, className, on) {
+		if (!node) return;
+		node.classList.toggle(className, on);
+		node.setAttribute('part', partsFrom(node.className));
 	}
 
 	function menuItem(iconSvg, label, handler) {
@@ -3794,10 +3837,9 @@
 		var labelEl = el('label', 'def-cc-escalation-label');
 		labelEl.innerHTML =
 			escapeHtml(label) +
-			(required ? ' <span class="def-cc-required">*</span>' : '');
-		var input = document.createElement('input');
+			(required ? ' <span class="def-cc-required" part="required">*</span>' : '');
+		var input = el('input', 'def-cc-escalation-input');
 		input.type = type;
-		input.className = 'def-cc-escalation-input';
 		els[elKey] = input;
 		field.appendChild(labelEl);
 		field.appendChild(input);
