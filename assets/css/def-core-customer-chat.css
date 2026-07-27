@@ -45,12 +45,26 @@
 	   Surfaces a tenant brand needs to reach. Header, message canvas and
 	   bubbles were previously unreachable: the header shared --def-cc-bg-alt
 	   with 6 unrelated surfaces, and the canvas was hardcoded #edf0f5.
-	   Override any of these from the page with a rule on the host element:
-	     #def-customer-chat-host { --def-cc-header-bg: #0E403C; } */
+	   Override any of these from the page with a rule on the host element.
+	   Set backgrounds and their foregrounds together — they are separate
+	   tokens, so a background alone leaves the old dark-on-light text behind:
+	     #def-customer-chat-host {
+	       --def-cc-header-bg: #0E403C;
+	       --def-cc-header-text: #ffffff;
+	       --def-cc-header-icon: rgba(255, 255, 255, 0.8);
+	       --def-cc-header-icon-hover: #ffffff;
+	       --def-cc-header-icon-hover-bg: rgba(255, 255, 255, 0.15);
+	     } */
 	--def-cc-surface: var(--def-cc-bg);
 	--def-cc-header-bg: var(--def-cc-bg-alt);
 	--def-cc-header-text: #111827;
 	--def-cc-header-border: var(--def-cc-border);
+	/* Header icons are their own token set, not --def-cc-text-light: once
+	   --def-cc-header-bg is themable the icons must move with it, or a dark
+	   header leaves them at 2.4:1 against it (WCAG 1.4.11 wants 3:1). */
+	--def-cc-header-icon: var(--def-cc-text-light);
+	--def-cc-header-icon-hover: var(--def-cc-text);
+	--def-cc-header-icon-hover-bg: var(--def-cc-bg-hover);
 	--def-cc-messages-bg: #edf0f5;
 	--def-cc-bubble-assistant-bg: var(--def-cc-bg);
 	--def-cc-bubble-assistant-text: #111827;
@@ -66,7 +80,9 @@
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
 	/* --def-cc-primary MUST be a valid <color>: an invalid value makes this
 	   color-mix() invalid at computed-value time, which removes the focus ring
-	   entirely. There is no CSS-side guard — it is a documented contract term. */
+	   entirely. The guard is the @property registration the loader installs —
+	   it cannot live here, because an @property inside a shadow root is
+	   ignored. See def-core-customer-chat-loader.js. */
 	--def-cc-focus-ring: 0 0 0 3px color-mix(in srgb, var(--def-cc-primary) 15%, transparent);
 	--def-cc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 	--def-cc-font-mono: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -342,8 +358,8 @@
 }
 
 .def-cc-panel-close:hover {
-	background: var(--def-cc-bg-hover);
-	color: var(--def-cc-text);
+	background: var(--def-cc-header-icon-hover-bg);
+	color: var(--def-cc-header-icon-hover);
 }
 
 .def-cc-btn {
@@ -356,14 +372,14 @@
 	border: none;
 	border-radius: var(--def-cc-radius-control);
 	background: transparent;
-	color: var(--def-cc-text-light);
+	color: var(--def-cc-header-icon);
 	cursor: pointer;
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
 .def-cc-btn:hover {
-	background: var(--def-cc-bg-hover);
-	color: var(--def-cc-text);
+	background: var(--def-cc-header-icon-hover-bg);
+	color: var(--def-cc-header-icon-hover);
 }
 
 .def-cc-btn:focus-visible {

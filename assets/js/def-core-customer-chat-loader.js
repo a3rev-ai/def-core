@@ -76,7 +76,24 @@
 
 	// ─── Shadow DOM setup ───────────────────────────────────────────
 
+	// --def-cc-primary feeds a color-mix() for the focus ring, so an invalid
+	// override computes the ring away entirely instead of falling back.
+	// Registering the property makes the browser reject a bad value at the
+	// custom-property level and use initial-value instead. This has to run
+	// against the document: an @property inside a shadow root is ignored, so
+	// it cannot sit with the other tokens in def-core-customer-chat.css.
+	function registerThemeProps() {
+		var reg = document.createElement('style');
+		reg.textContent =
+			'@property --def-cc-primary {' +
+			'  syntax: "<color>"; inherits: true; initial-value: #1d4ed8;' +
+			'}';
+		document.head.appendChild(reg);
+	}
+
 	function createShadowHost() {
+		registerThemeProps();
+
 		var host = document.createElement('div');
 		host.id = HOST_ID;
 		host.setAttribute('aria-live', 'polite');
@@ -162,7 +179,7 @@
 			'.def-cc-trigger--hidden { display: none !important; }' +
 			'.def-cc-trigger-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }' +
 			'.def-cc-trigger-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }' +
-			'.def-cc-trigger-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: 4px; }' +
+			'.def-cc-trigger-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: var(--def-cc-radius-xs, 4px); }' +
 			'.def-cc-trigger-icon--sparkle svg { fill: currentColor; stroke: none; }' +
 			'.def-cc-trigger-icon--sparkle.def-cc-sparkle-intro svg { animation: def-cc-sparkle-entrance 1s ease-out 0.3s 5; }' +
 			'.def-cc-trigger:hover .def-cc-trigger-icon--sparkle svg { animation: def-cc-sparkle 0.6s ease-in-out; }' +
@@ -202,11 +219,11 @@
 			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
 			'  width: 32px; height: 32px; border: none; border-radius: var(--def-cc-radius-control, 6px);' +
-			'  background: transparent; color: #374151; cursor: pointer;' +
+			'  background: transparent; color: var(--def-cc-header-icon, #374151); cursor: pointer;' +
 			'  display: flex; align-items: center; justify-content: center;' +
 			'  transition: background 0.15s ease, color 0.15s ease;' +
 			'}' +
-			'.def-cc-panel-close:hover { background: #e5e7eb; color: var(--def-cc-header-text, #111827); }' +
+			'.def-cc-panel-close:hover { background: var(--def-cc-header-icon-hover-bg, #e5e7eb); color: var(--def-cc-header-icon-hover, #111827); }' +
 			'.def-cc-panel-close svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none; }' +
 			/* Modal mode */
 			'.def-cc-shell--modal {' +
@@ -247,7 +264,7 @@
 			'  top: 50%; left: 50%; right: auto; bottom: auto;' +
 			'  width: min(' + spotlightWidth + 'px, 92vw);' +
 			'  height: min(' + spotlightHeight + 'px, 85vh);' +
-			'  border-radius: 16px;' +
+			'  border-radius: var(--def-cc-radius-lg, 16px);' +
 			'  box-shadow: 0 24px 64px rgba(0,0,0,0.35);' +
 			'  transform: translate(-50%, calc(-50% + 24px)); opacity: 0;' +
 			'}' +
