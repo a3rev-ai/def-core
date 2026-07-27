@@ -1260,7 +1260,10 @@
 	color: var(--def-cc-text);
 }
 
-.def-cc-escalation-success .def-cc-escalation-cancel {
+/* Targeted by its own class, not a descendant selector: ::part() cannot take
+   a descendant combinator, so a themer could not otherwise restyle this Close
+   without also hitting the form's Cancel. */
+.def-cc-escalation-cancel--success {
 	margin-top: 8px;
 }
 

@@ -935,7 +935,7 @@
 		var spinner = el('div', 'def-cc-escalation-spinner');
 		spinner.style.display = 'none';
 		spinner.innerHTML =
-			'<div class="def-cc-escalation-spinner-ring" part="escalation-spinner-ring"></div><span>Sending...</span>';
+			'<div class="def-cc-escalation-spinner-ring" part="escalation-spinner-ring"></div><span part="escalation-spinner-text">Sending...</span>';
 		els.escalationSpinner = spinner;
 		epanel.appendChild(spinner);
 
@@ -949,7 +949,7 @@
 			'<div class="def-cc-escalation-success-text" part="escalation-success-text">' +
 			t('escalateSuccess') +
 			'</div>' +
-			'<button type="button" class="def-cc-escalation-cancel" part="escalation-cancel">Close</button>';
+			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--success" part="escalation-cancel escalation-cancel--success">Close</button>';
 		success
 			.querySelector('.def-cc-escalation-cancel')
 			.addEventListener('click', closeEscalation);
@@ -965,8 +965,8 @@
 			'</div>' +
 			'<div class="def-cc-escalation-error-text" part="escalation-error-text">Failed to send</div>' +
 			'<div class="def-cc-escalation-error-actions" part="escalation-error-actions">' +
-			'<button type="button" class="def-cc-escalation-submit" part="escalation-submit" data-action="retry">Try again</button>' +
-			'<button type="button" class="def-cc-escalation-cancel" part="escalation-cancel" data-action="close">Close</button>' +
+			'<button type="button" class="def-cc-escalation-submit def-cc-escalation-submit--retry" part="escalation-submit escalation-submit--retry" data-action="retry">Try again</button>' +
+			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--error" part="escalation-cancel escalation-cancel--error" data-action="close">Close</button>' +
 			'</div>';
 		errorState
 			.querySelector('[data-action="retry"]')
@@ -2489,10 +2489,14 @@
 	function appendMessage(role, content) {
 		// role is server-supplied on thread restore and reaches a part name, so
 		// it has to be pinned: a value containing a space would mint extra part
-		// tokens and let crafted history impersonate another part. Defaults away
-		// from assistant — that is the branch that renders markdown as HTML.
+		// tokens and let crafted history impersonate another part. Three
+		// literals, not two — collapsing an unknown role onto 'user' would
+		// render a system/tool row as though the visitor had written it, and
+		// '--other' has no CSS, so it keeps the neutral rendering it had
+		// before. Anything but an exact 'assistant' stays on the escaped-text
+		// path; that is the branch that renders markdown as HTML.
 		var isAssistant = role === 'assistant';
-		var safeRole = isAssistant ? 'assistant' : 'user';
+		var safeRole = isAssistant ? 'assistant' : role === 'user' ? 'user' : 'other';
 
 		// No per-message avatar on assistant bubbles — the widget header
 		// carries Joe's avatar across the whole conversation, so repeating
@@ -3810,6 +3814,9 @@
 	// The null check is reachable, not defensive padding: Clear chat detaches
 	// the streaming message, so streamEl.parentNode is null if the stream's
 	// done/error event lands afterwards.
+	// Only for elements whose parts are entirely class-derived: the rebuild
+	// drops any literal-only part (header-logo-image, login-link and friends),
+	// and node.className on an SVGElement is not a string.
 	function setState(node, className, on) {
 		if (!node) return;
 		node.classList.toggle(className, on);

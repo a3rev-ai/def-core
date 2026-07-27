@@ -382,7 +382,11 @@
 		setClass(iconWrap, 'def-cc-trigger-icon');
 
 		if (config.buttonIcon === 'custom' && config.buttonIconUrl) {
+			// Its only styling is a descendant rule (.def-cc-trigger-icon img),
+			// which ::part() cannot express — without its own part a tenant
+			// using a custom launcher icon could not resize it at all.
 			var img = document.createElement('img');
+			img.setAttribute('part', 'trigger-icon-image');
 			img.src = config.buttonIconUrl;
 			img.alt = '';
 			img.setAttribute('aria-hidden', 'true');
@@ -514,7 +518,7 @@
 		var loading = document.createElement('div');
 		setClass(loading, 'def-cc-loading');
 		loading.innerHTML =
-			'<div class="def-cc-loading-spinner" part="loading-spinner"></div><span>Loading chat...</span>';
+			'<div class="def-cc-loading-spinner" part="loading-spinner"></div><span part="loading-text">Loading chat...</span>';
 		panel.appendChild(loading);
 
 		shadowRoot.appendChild(panel);
@@ -543,21 +547,21 @@
 		var isDrawer = config.chatDisplayMode === 'drawer';
 
 		isOpen = true;
-		// Panel-open, backdrop-visible and trigger-hidden are one state in three
-		// places. Exposing it once on the host lets a theme write
-		// #def-customer-chat-host[data-open]::part(panel) instead of needing all
-		// three mirrored into part lists.
+		// data-open means exactly "the chat is open" and nothing more. The
+		// backdrop and trigger states below are drawer-only and the mobile
+		// state is viewport-only, so they are NOT derivable from this
+		// attribute — each carries its own part instead.
 		shadowRoot.host.toggleAttribute('data-open', true);
-		panel.classList.add('def-cc-panel--open');
+		setState(panel, 'def-cc-panel--open', true);
 
 		// Show backdrop (drawer mode).
 		if (isDrawer && backdrop) {
-			backdrop.classList.add('def-cc-backdrop--visible');
+			setState(backdrop, 'def-cc-backdrop--visible', true);
 		}
 
 		// Hide trigger in drawer mode (it's behind the drawer anyway).
 		if (isDrawer && trigger) {
-			trigger.classList.add('def-cc-trigger--hidden');
+			setState(trigger, 'def-cc-trigger--hidden', true);
 		}
 
 		if (trigger) {
@@ -573,7 +577,7 @@
 
 		// iOS scroll lock
 		if (isMobile()) {
-			panel.classList.add('def-cc-panel--mobile-open');
+			setState(panel, 'def-cc-panel--mobile-open', true);
 		}
 	}
 
@@ -584,17 +588,17 @@
 
 		isOpen = false;
 		shadowRoot.host.toggleAttribute('data-open', false);
-		panel.classList.remove('def-cc-panel--open');
-		panel.classList.remove('def-cc-panel--mobile-open');
+		setState(panel, 'def-cc-panel--open', false);
+		setState(panel, 'def-cc-panel--mobile-open', false);
 
 		// Hide backdrop.
 		if (isDrawer && backdrop) {
-			backdrop.classList.remove('def-cc-backdrop--visible');
+			setState(backdrop, 'def-cc-backdrop--visible', false);
 		}
 
 		// Show trigger again.
 		if (isDrawer && trigger) {
-			trigger.classList.remove('def-cc-trigger--hidden');
+			setState(trigger, 'def-cc-trigger--hidden', false);
 		}
 
 		if (trigger) {
@@ -800,6 +804,7 @@
 			var logoWrap = document.createElement('div');
 			setClass(logoWrap, 'def-cc-greeting-bubble-logo');
 			var img = document.createElement('img');
+			img.setAttribute('part', 'greeting-bubble-logo-image');
 			img.src = config.logoUrl;
 			img.alt = '';
 			img.setAttribute('aria-hidden', 'true');

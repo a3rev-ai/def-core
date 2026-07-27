@@ -163,6 +163,7 @@
 		imgLink.setAttribute('tabindex', '-1');
 
 		var img = document.createElement('img');
+		img.setAttribute('part', 'result-card-image');
 		img.src = card.image_url || '';
 		img.alt = card.image_alt || card.title;
 		img.loading = 'lazy';
