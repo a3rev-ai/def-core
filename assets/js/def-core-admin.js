@@ -1223,6 +1223,7 @@
 
 	function initButtonAppearance() {
 		initIconUploader();
+		initLoadingMarkUploader();
 		initFloatingToggle();
 		initColorPreview();
 	}
@@ -1310,6 +1311,76 @@
 				if (preview) {
 					preview.innerHTML =
 						'<span class="def-core-no-logo">No icon selected</span>';
+				}
+				removeBtn.style.display = 'none';
+			});
+		}
+	}
+
+	// Loading-mark uploader — same wp.media flow as the custom icon.
+	function initLoadingMarkUploader() {
+		if (typeof wp === 'undefined' || typeof wp.media === 'undefined') {
+			return;
+		}
+
+		var selectBtn = document.getElementById('def-core-select-loading-mark');
+		var removeBtn = document.getElementById('def-core-remove-loading-mark');
+		var preview = document.getElementById('def-core-loading-mark-preview');
+		var markInput = document.getElementById('def_core_chat_loading_mark_id');
+
+		if (!selectBtn || !markInput) {
+			return;
+		}
+
+		var frame;
+
+		selectBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+
+			if (frame) {
+				frame.open();
+				return;
+			}
+
+			frame = wp.media({
+				title: 'Select Loading Mark',
+				button: { text: 'Use as Loading Mark' },
+				multiple: false,
+				library: { type: 'image' },
+			});
+
+			frame.on('select', function () {
+				var attachment = frame
+					.state()
+					.get('selection')
+					.first()
+					.toJSON();
+				markInput.value = attachment.id;
+
+				if (preview) {
+					// Original URL, not a resized thumbnail — a resized
+					// animated GIF would preview as a static frame.
+					preview.innerHTML =
+						'<img src="' +
+						escapeHtml(attachment.url) +
+						'" style="max-height: 48px; width: auto;" />';
+				}
+
+				if (removeBtn) {
+					removeBtn.style.display = 'inline-block';
+				}
+			});
+
+			frame.open();
+		});
+
+		if (removeBtn) {
+			removeBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				markInput.value = '0';
+				if (preview) {
+					preview.innerHTML =
+						'<span class="def-core-no-logo">Default spinner</span>';
 				}
 				removeBtn.style.display = 'none';
 			});

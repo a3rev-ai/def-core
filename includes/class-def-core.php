@@ -522,6 +522,7 @@ final class DEF_Core {
 			'buttonHoverColor' => get_option( 'def_core_chat_button_hover_color', '' ),
 			'buttonIcon'      => get_option( 'def_core_chat_button_icon', 'chat' ),
 			'buttonIconUrl'   => $this->get_button_icon_url(),
+			'loadingMarkUrl'  => $this->get_loading_mark_url(),
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// Greeting Bubble (v3.12.0) — proactive pop-up above the launcher.
@@ -1004,6 +1005,22 @@ final class DEF_Core {
 			return null;
 		}
 		$url = wp_get_attachment_image_url( $id, 'thumbnail' );
+		return $url ?: null;
+	}
+
+	/**
+	 * Get custom loading-mark URL from media library (replaceable loading
+	 * mark, theming contract T-D5). Original file URL, not a resized
+	 * thumbnail, so an animated GIF/SVG keeps its animation.
+	 *
+	 * @return string|null Mark URL or null.
+	 */
+	private function get_loading_mark_url(): ?string {
+		$id = (int) get_option( 'def_core_chat_loading_mark_id', 0 );
+		if ( $id <= 0 ) {
+			return null;
+		}
+		$url = wp_get_attachment_url( $id );
 		return $url ?: null;
 	}
 

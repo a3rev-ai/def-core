@@ -179,8 +179,8 @@
 			'  background: var(--def-cc-btn-color, ' +
 			btnColor +
 			'); color: #fff;' +
-			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
-			'  font-size: 14px; font-weight: 500; line-height: 1;' +
+			'  font-family: var(--def-cc-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);' +
+			'  font-size: var(--def-cc-font-size, 14px); font-weight: var(--def-cc-font-weight-medium, 500); line-height: 1;' +
 			'  cursor: pointer;' +
 			'  box-shadow: 0 6px 20px rgba(0,0,0,0.25);' +
 			'  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;' +
@@ -228,7 +228,7 @@
 			'  display: flex; flex-direction: column;' +
 			'  background: var(--def-cc-surface, #fff);' +
 			'  font-family: var(--def-cc-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);' +
-			'  font-size: 14px; line-height: 1.5; color: var(--def-cc-text, #1f2937);' +
+			'  font-size: var(--def-cc-font-size, 14px); line-height: var(--def-cc-line-height, 1.5); color: var(--def-cc-text, #1f2937);' +
 			'  overflow: hidden;' +
 			'  transform: translateY(24px); opacity: 0; pointer-events: none;' +
 			'  transition: transform 0.25s ease, opacity 0.25s ease;' +
@@ -294,13 +294,22 @@
 			/* Loading spinner */
 			'.def-cc-loading {' +
 			'  display: flex; align-items: center; justify-content: center;' +
-			'  flex: 1; gap: 8px; color: #9ca3af; font-size: 14px;' +
+			'  flex: 1; gap: 8px; color: #9ca3af; font-size: var(--def-cc-font-size, 14px);' +
 			'}' +
 			'.def-cc-loading-spinner {' +
 			'  width: 24px; height: 24px;' +
 			'  border: 3px solid #e5e7eb; border-top-color: #3b82f6;' +
 			'  border-radius: 50%;' +
 			'  animation: def-cc-spin 0.8s linear infinite;' +
+			'}' +
+			/* Tenant-supplied loading mark (T-D5) — rendered instead of the
+			 * spinner when config.loadingMarkUrl is set. Size themable via
+			 * --def-cc-loading-mark-size; the fallback applies during boot,
+			 * before the chat stylesheet (and its :host default) has loaded. */
+			'.def-cc-loading-mark {' +
+			'  width: var(--def-cc-loading-mark-size, 48px);' +
+			'  height: var(--def-cc-loading-mark-size, 48px);' +
+			'  object-fit: contain;' +
 			'}' +
 			'@keyframes def-cc-spin { to { transform: rotate(360deg); } }' +
 			/* Greeting Bubble (v3.12.0) — proactive pop-up above the launcher */
@@ -514,11 +523,27 @@
 		closeBtn.addEventListener('click', closePanel);
 		panel.appendChild(closeBtn);
 
-		// Loading state
+		// Loading state. A tenant-supplied loading mark (T-D5) replaces the
+		// CSS spinner when configured — built via DOM APIs, never innerHTML,
+		// because the URL is config data.
 		var loading = document.createElement('div');
 		setClass(loading, 'def-cc-loading');
-		loading.innerHTML =
-			'<div class="def-cc-loading-spinner" part="loading-spinner"></div><span part="loading-text">Loading chat...</span>';
+		if (config.loadingMarkUrl) {
+			var mark = document.createElement('img');
+			mark.className = 'def-cc-loading-mark';
+			mark.setAttribute('part', 'loading-mark');
+			mark.src = config.loadingMarkUrl;
+			mark.alt = '';
+			mark.setAttribute('aria-hidden', 'true');
+			loading.appendChild(mark);
+			var loadingText = document.createElement('span');
+			loadingText.setAttribute('part', 'loading-text');
+			loadingText.textContent = 'Loading chat...';
+			loading.appendChild(loadingText);
+		} else {
+			loading.innerHTML =
+				'<div class="def-cc-loading-spinner" part="loading-spinner"></div><span part="loading-text">Loading chat...</span>';
+		}
 		panel.appendChild(loading);
 
 		shadowRoot.appendChild(panel);
