@@ -455,6 +455,17 @@ final class DEF_Core_Admin {
 			$escalation[ $channel ] = ! empty( $stored['to'] ) ? implode( ', ', (array) $stored['to'] ) : '';
 		}
 
+		// Customer Chat hand-off form options (5.6.0).
+		$escalation_form = array(
+			'title'        => (string) get_option( 'def_core_chat_escalation_title', '' ),
+			'desc'         => (string) get_option( 'def_core_chat_escalation_desc', '' ),
+			'pref_enabled' => '1' === get_option( 'def_core_chat_escalation_pref_enabled', '0' ),
+			'pref_options' => (string) get_option( 'def_core_chat_escalation_pref_options', '' ),
+			'ack_enabled'  => '1' === get_option( 'def_core_chat_escalation_ack_enabled', '0' ),
+			'ack_subject'  => (string) get_option( 'def_core_chat_escalation_ack_subject', '' ),
+			'ack_body'     => (string) get_option( 'def_core_chat_escalation_ack_body', '' ),
+		);
+
 		// D-II: User roles data — only users with at least one DEF capability.
 		// Custom roles (R4): $roles_catalog was refreshed above (before the JS localize — the two
 		// MUST share one catalog); include users whose ONLY grant is a custom-role cap.
@@ -1121,9 +1132,34 @@ final class DEF_Core_Admin {
 			'escalation_setup_assistant' => 'setup_assistant',
 		);
 
+		// Customer Chat hand-off form options (5.6.0) — plain options that ride
+		// the escalation tab. Keys act as the allowlist; unknown keys are ignored.
+		$form_options = array(
+			'def_core_chat_escalation_title'        => 'sanitize_text_field',
+			'def_core_chat_escalation_desc'         => 'sanitize_text_field',
+			'def_core_chat_escalation_pref_enabled' => 'bool',
+			'def_core_chat_escalation_pref_options' => 'sanitize_textarea_field',
+			'def_core_chat_escalation_ack_enabled'  => 'bool',
+			'def_core_chat_escalation_ack_subject'  => 'sanitize_text_field',
+			'def_core_chat_escalation_ack_body'     => 'sanitize_textarea_field',
+		);
+
 		$saved = array();
 		foreach ( $data as $key => $email ) {
 			$key = sanitize_text_field( (string) $key );
+
+			if ( isset( $form_options[ $key ] ) ) {
+				$sanitizer = $form_options[ $key ];
+				if ( 'bool' === $sanitizer ) {
+					$value = ( '1' === (string) $email || 'true' === (string) $email ) ? '1' : '0';
+				} else {
+					$value = call_user_func( $sanitizer, (string) $email );
+				}
+				update_option( $key, $value );
+				$saved[] = $key;
+				continue;
+			}
+
 			if ( ! isset( $channels_map[ $key ] ) ) {
 				continue;
 			}

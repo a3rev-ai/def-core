@@ -30,6 +30,8 @@
 		loginSubmit: 'Log in',
 		sessionExpired: 'Session expired — please log in again',
 		escalate: 'Request Human Support',
+		escalateDesc: "Describe your issue below and we'll connect you with a human.",
+		escalatePref: 'How would you like us to contact you?',
 		escalateSubmit: 'Send',
 		escalateSuccess: 'Your email has been sent.',
 		uploadFailed: 'Upload failed. Please try again.',
@@ -866,8 +868,7 @@
 		title.textContent = t('escalate');
 		header.appendChild(title);
 		var desc = el('div', 'def-cc-escalation-desc');
-		desc.textContent =
-			'Describe your issue below and we\'ll connect you with a human.';
+		desc.textContent = t('escalateDesc');
 		header.appendChild(desc);
 		els.escalationHeader = header;
 		epanel.appendChild(header);
@@ -893,6 +894,26 @@
 
 		els.escalationAnonFields = anonFields;
 		formWrap.appendChild(anonFields);
+
+		// Preferred-contact select (5.6.0) — renders only when the admin has
+		// enabled it and configured options. First option preselected; the
+		// server re-validates the value against the same configured list.
+		if (config.escalationPrefOptions && config.escalationPrefOptions.length) {
+			var prefField = el('div', 'def-cc-escalation-field');
+			var prefLabel = el('label', 'def-cc-escalation-label');
+			prefLabel.textContent = t('escalatePref');
+			var prefSelect = el('select', 'def-cc-escalation-input def-cc-escalation-select');
+			for (var pi = 0; pi < config.escalationPrefOptions.length; pi++) {
+				var prefOpt = document.createElement('option');
+				prefOpt.value = config.escalationPrefOptions[pi];
+				prefOpt.textContent = config.escalationPrefOptions[pi];
+				prefSelect.appendChild(prefOpt);
+			}
+			els.escalationPref = prefSelect;
+			prefField.appendChild(prefLabel);
+			prefField.appendChild(prefSelect);
+			formWrap.appendChild(prefField);
+		}
 
 		// Subject + message (always visible).
 		formWrap.appendChild(
@@ -2646,6 +2667,7 @@
 		if (els.escalationPhone) els.escalationPhone.value = '';
 		if (els.escalationSubject) els.escalationSubject.value = '';
 		if (els.escalationMessage) els.escalationMessage.value = '';
+		if (els.escalationPref) els.escalationPref.selectedIndex = 0;
 		clearEscalationErrors();
 	}
 
@@ -2792,6 +2814,9 @@
 		};
 		if (replyTo) {
 			payload.reply_to = replyTo;
+		}
+		if (els.escalationPref && els.escalationPref.value) {
+			payload.preferred_contact = els.escalationPref.value;
 		}
 
 		var controller = new AbortController();
