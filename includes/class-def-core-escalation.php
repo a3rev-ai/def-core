@@ -560,6 +560,19 @@ final class DEF_Core_Escalation {
 			} elseif ( is_user_logged_in() ) {
 				$ack_to = wp_get_current_user()->user_email;
 			}
+			// Per-recipient cooldown (one ack per address per hour): the per-IP
+			// rate limit caps total volume but not concentration on a single
+			// victim address — without this, a scripted attacker rotating
+			// nothing but reply_to could direct hundreds of admin-branded
+			// emails at one mailbox.
+			if ( ! empty( $ack_to ) && is_email( $ack_to ) ) {
+				$ack_gate = 'def_core_ack_' . md5( strtolower( $ack_to ) );
+				if ( false !== get_transient( $ack_gate ) ) {
+					$ack_to = '';
+				} else {
+					set_transient( $ack_gate, 1, HOUR_IN_SECONDS );
+				}
+			}
 			if ( ! empty( $ack_to ) && is_email( $ack_to ) ) {
 				$ack_subject = (string) get_option( 'def_core_chat_escalation_ack_subject', '' );
 				$ack_body    = (string) get_option( 'def_core_chat_escalation_ack_body', '' );

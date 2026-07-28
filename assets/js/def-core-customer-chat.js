@@ -2667,6 +2667,7 @@
 		if (els.escalationPhone) els.escalationPhone.value = '';
 		if (els.escalationSubject) els.escalationSubject.value = '';
 		if (els.escalationMessage) els.escalationMessage.value = '';
+		if (els.escalationPref) els.escalationPref.selectedIndex = 0;
 		clearEscalationErrors();
 	}
 
