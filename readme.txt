@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.5.3
+Stable tag: 5.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.5.4 - 2026-07-28 =
+* Tweak: removed the dead "Logout / Session Expired" notice styles from the Customer Chat stylesheet. The 5.5.3 audit found that nothing in the plugin ever creates the .def-cc-logout-notice element — the rules were a leftover from an earlier session-expiry treatment (auth-state changes are handled by the chat menu's login/logout item today), so they styled an element that never rendered. The three --def-cc-warning-* tokens existed only to serve those rules and are removed with them; warning ambers were never part of the published theming contract (semantic colours are private by design). No visual or behavioural change.
 
 = 5.5.3 - 2026-07-28 =
 * Feature: Customer Chat theming — namespace hygiene. The theming contract can now be stated absolutely: only --def-cc-* custom properties cross the widget's Shadow DOM boundary. Three internals previously read page-level variables by accidental inheritance — a theme defining --accent-success, --accent-error or --text-secondary on :root (all common WordPress theme variable names) silently recoloured the widget's toast notifications and typing label. Those surfaces now have their own tokens: --def-cc-toast-success-bg / --def-cc-toast-error-bg / --def-cc-toast-text and --def-cc-typing-text. Seven more hardcoded internals move onto namespaced tokens: the speaker divider (--def-cc-divider-text/-bg/-border), the drag-and-drop overlay tint (--def-cc-drop-bg), the pending-upload chip (--def-cc-chip-pending-bg), the confirm/login dialog shadow (--def-cc-shadow-dialog) and the message-bubble shadow (--def-cc-shadow-bubble). Also fixed: --def-cc-warning-border previously had no consumer — the logout-notice rule hardcoded its border. The rule now reads the token, whose default is corrected to the #fcd34d it always specified. Zero visual change at defaults; every token defaults to the exact value its surface rendered before.

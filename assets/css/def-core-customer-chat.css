@@ -32,11 +32,6 @@
 	--def-cc-success: #10b981;
 	--def-cc-danger: #ef4444;
 	--def-cc-danger-hover: #dc2626;
-	--def-cc-warning-bg: #fef3c7;
-	/* #fcd34d, not amber-500: the default must match what the logout-notice
-	   rule — the token's only consumer — always specified while hardcoded. */
-	--def-cc-warning-border: #fcd34d;
-	--def-cc-warning-text: #92400e;
 	--def-cc-radius: 12px;
 	--def-cc-radius-sm: 8px;
 	--def-cc-radius-lg: 16px;
@@ -1105,39 +1100,6 @@
 
 .def-cc-confirm-btn--cancel:hover {
 	background: var(--def-cc-border);
-}
-
-/* ─── Logout / Session Expired Notice ───────────────────────────── */
-
-.def-cc-logout-notice {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 8px;
-	margin: 8px 16px;
-	padding: 10px 14px;
-	background: var(--def-cc-warning-bg);
-	border: 1px solid var(--def-cc-warning-border);
-	border-radius: var(--def-cc-radius-sm);
-	color: var(--def-cc-warning-text);
-	font-size: 13px;
-}
-
-.def-cc-logout-notice-btn {
-	padding: 6px 14px;
-	border: 1px solid #d97706;
-	border-radius: var(--def-cc-radius-control);
-	background: var(--def-cc-bg);
-	color: var(--def-cc-warning-text);
-	font-family: var(--def-cc-font);
-	font-size: 13px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: background 0.15s ease;
-}
-
-.def-cc-logout-notice-btn:hover {
-	background: #fffbeb;
 }
 
 /* ─── Escalation Form ───────────────────────────────────────────── */
