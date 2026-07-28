@@ -1593,6 +1593,11 @@
 		padding: 10px 12px;
 	}
 
+	/* NOTE: inert — the loader's base .def-cc-panel rule wins the
+	   equal-specificity collision (last-injected stylesheet, §1 source
+	   order), and already did before tokenisation. Reviving the mobile
+	   bump means landing it in getTriggerCSS(), a deliberate visual
+	   change (14→15px mobile body text). */
 	.def-cc-panel {
 		font-size: calc(var(--def-cc-font-size) + 1px);
 	}
@@ -1911,6 +1916,9 @@
  * tenant who uploads a taller image gets cropped, but the
  * recommended aspect renders fully. */
 @media (max-width: 480px) {
+	/* Hand-paired with the mobile .def-cc-messages padding: 12px literal
+	   above — change them together. (The desktop pair derives from
+	   --def-cc-space-panel-x; mobile stays literal by design.) */
 	.def-cc-welcome-banner {
 		width: calc(100% + 24px);
 		margin: -12px -12px 12px -12px;
