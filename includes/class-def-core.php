@@ -523,6 +523,7 @@ final class DEF_Core {
 			'buttonIcon'      => get_option( 'def_core_chat_button_icon', 'chat' ),
 			'buttonIconUrl'   => $this->get_button_icon_url(),
 			'loadingMarkUrl'  => $this->get_loading_mark_url(),
+			'escalationPrefOptions' => self::get_escalation_pref_options(),
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// Greeting Bubble (v3.12.0) — proactive pop-up above the launcher.
@@ -1025,6 +1026,22 @@ final class DEF_Core {
 	}
 
 	/**
+	 * Preferred-contact choices for the Customer Chat hand-off form (5.6.0).
+	 * One per line in the admin option; disabled or empty = no select rendered.
+	 * The server validates the submitted value against this same list.
+	 *
+	 * @return array<string> Option labels in configured order.
+	 */
+	public static function get_escalation_pref_options(): array {
+		if ( '1' !== get_option( 'def_core_chat_escalation_pref_enabled', '0' ) ) {
+			return array();
+		}
+		$raw   = (string) get_option( 'def_core_chat_escalation_pref_options', '' );
+		$lines = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', $raw ) ) );
+		return array_values( array_map( 'sanitize_text_field', $lines ) );
+	}
+
+	/**
 	 * Get i18n strings for chat widget.
 	 *
 	 * @return array Translatable strings.
@@ -1044,6 +1061,8 @@ final class DEF_Core {
 			'loginSubmit'          => __( 'Log in', 'digital-employees' ),
 			'sessionExpired'       => __( 'Session expired — please log in again', 'digital-employees' ),
 			'escalate'             => __( 'Request Human Support', 'digital-employees' ),
+			'escalateDesc'         => __( "Describe your issue below and we'll connect you with a human.", 'digital-employees' ),
+			'escalatePref'         => __( 'How would you like us to contact you?', 'digital-employees' ),
 			'escalateSubmit'       => __( 'Send', 'digital-employees' ),
 			'escalateSuccess'      => __( 'Your email has been sent.', 'digital-employees' ),
 			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
@@ -1056,6 +1075,19 @@ final class DEF_Core {
 			'connectionLost'       => __( 'Connection lost. Retrying...', 'digital-employees' ),
 			'rateLimited'          => __( 'Please wait a moment before sending another message', 'digital-employees' ),
 		);
+
+		// Per-site overrides for the hand-off form copy (5.6.0): the same form
+		// serves support on one site and sales lead capture on another, so the
+		// framing is admin-configurable. Empty options keep the defaults.
+		$custom_title = (string) get_option( 'def_core_chat_escalation_title', '' );
+		if ( '' !== $custom_title ) {
+			$strings['escalate'] = $custom_title;
+		}
+		$custom_desc = (string) get_option( 'def_core_chat_escalation_desc', '' );
+		if ( '' !== $custom_desc ) {
+			$strings['escalateDesc'] = $custom_desc;
+		}
+
 		return apply_filters( 'def_core_chat_strings', $strings );
 	}
 

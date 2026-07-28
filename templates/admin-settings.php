@@ -864,6 +864,56 @@ $first_tab = 'branding';
 			<?php endforeach; ?>
 		</div>
 
+		<div class="def-core-card">
+			<h2><?php esc_html_e( 'Customer Chat Hand-off Form', 'digital-employees' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'The form shown when a visitor asks to be connected with a person. On a support site the defaults fit; on a sales site you can reframe it as a next-step / contact form.', 'digital-employees' ); ?>
+			</p>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_title"><?php esc_html_e( 'Form title', 'digital-employees' ); ?></label>
+				<input type="text" id="def_core_chat_escalation_title" data-setting="def_core_chat_escalation_title" value="<?php echo esc_attr( $escalation_form['title'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Request Human Support', 'digital-employees' ); ?>" />
+				<p class="description"><?php esc_html_e( 'Leave empty for the default.', 'digital-employees' ); ?></p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_desc"><?php esc_html_e( 'Form description', 'digital-employees' ); ?></label>
+				<input type="text" id="def_core_chat_escalation_desc" data-setting="def_core_chat_escalation_desc" value="<?php echo esc_attr( $escalation_form['desc'] ); ?>" class="large-text" placeholder="<?php esc_attr_e( "Describe your issue below and we'll connect you with a human.", 'digital-employees' ); ?>" />
+				<p class="description"><?php esc_html_e( 'Leave empty for the default.', 'digital-employees' ); ?></p>
+			</div>
+
+			<div class="def-core-field">
+				<label>
+					<input type="checkbox" id="def_core_chat_escalation_pref_enabled" data-setting="def_core_chat_escalation_pref_enabled" value="1" <?php checked( $escalation_form['pref_enabled'] ); ?> />
+					<?php esc_html_e( 'Ask how the visitor would like to be contacted', 'digital-employees' ); ?>
+				</label>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_pref_options"><?php esc_html_e( 'Contact options (one per line, in order)', 'digital-employees' ); ?></label>
+				<textarea id="def_core_chat_escalation_pref_options" data-setting="def_core_chat_escalation_pref_options" rows="3" class="regular-text" placeholder="<?php esc_attr_e( "Phone call\nTeams meeting\nEmail", 'digital-employees' ); ?>"><?php echo esc_textarea( $escalation_form['pref_options'] ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'The first option is preselected. The select only renders when enabled and at least one option is set.', 'digital-employees' ); ?></p>
+			</div>
+
+			<div class="def-core-field">
+				<label>
+					<input type="checkbox" id="def_core_chat_escalation_ack_enabled" data-setting="def_core_chat_escalation_ack_enabled" value="1" <?php checked( $escalation_form['ack_enabled'] ); ?> />
+					<?php esc_html_e( 'Send an automatic acknowledgement to the visitor', 'digital-employees' ); ?>
+				</label>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_ack_subject"><?php esc_html_e( 'Acknowledgement subject', 'digital-employees' ); ?></label>
+				<input type="text" id="def_core_chat_escalation_ack_subject" data-setting="def_core_chat_escalation_ack_subject" value="<?php echo esc_attr( $escalation_form['ack_subject'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Thanks for reaching out', 'digital-employees' ); ?>" />
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_ack_body"><?php esc_html_e( 'Acknowledgement message', 'digital-employees' ); ?></label>
+				<textarea id="def_core_chat_escalation_ack_body" data-setting="def_core_chat_escalation_ack_body" rows="3" class="large-text" placeholder="<?php esc_attr_e( "Thanks for reaching out — we've received your message and a real person will be in touch soon.", 'digital-employees' ); ?>"><?php echo esc_textarea( $escalation_form['ack_body'] ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'Plain text, sent from the site\'s no-reply address. Visitor content is never included.', 'digital-employees' ); ?></p>
+			</div>
+		</div>
+
 		<div class="def-core-save-area">
 			<button type="button" class="button button-primary def-core-save-btn" data-tab="escalation">
 				<?php esc_html_e( 'Save Changes', 'digital-employees' ); ?>

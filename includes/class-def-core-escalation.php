@@ -512,12 +512,25 @@ final class DEF_Core_Escalation {
 
 		// Whitelist allowed client fields — prevent customers from injecting
 		// bcc, sender_email, user_copy_email, or other escalation fields.
-		$allowed_keys = array( 'subject', 'body', 'reply_to' );
+		$allowed_keys = array( 'subject', 'body', 'reply_to', 'preferred_contact' );
 		$safe_body = array();
 		foreach ( $allowed_keys as $key ) {
 			if ( isset( $body[ $key ] ) ) {
 				$safe_body[ $key ] = $body[ $key ];
 			}
+		}
+
+		// Preferred contact method (5.6.0): only meaningful when the admin has
+		// enabled the select, and only values from the configured list are
+		// accepted — the option list is the server-side allowlist. Valid values
+		// are prepended to the body server-side; anything else is dropped.
+		if ( isset( $safe_body['preferred_contact'] ) ) {
+			$pref         = sanitize_text_field( (string) $safe_body['preferred_contact'] );
+			$pref_options = DEF_Core::get_escalation_pref_options();
+			if ( '' !== $pref && in_array( $pref, $pref_options, true ) ) {
+				$safe_body['body'] = 'Preferred contact: ' . $pref . "\n\n" . (string) ( $safe_body['body'] ?? '' );
+			}
+			unset( $safe_body['preferred_contact'] );
 		}
 
 		// Force channel=customer server-side. Never allow the client to drive
@@ -532,7 +545,40 @@ final class DEF_Core_Escalation {
 			$inner_request->set_param( $key, $value );
 		}
 
-		return self::send_escalation_email( $inner_request );
+		$response = self::send_escalation_email( $inner_request );
+
+		// Auto-acknowledgement (5.6.0): a static, admin-configured "we'll be in
+		// touch" note to the person who reached out. Content is NEVER built from
+		// client input (no relay value), the recipient is the visitor's own
+		// reply-to (or the logged-in user's address), and the send rides the
+		// same per-IP rate limit as the escalation itself. Fire-and-forget:
+		// an ack failure must not fail the lead capture.
+		if ( 200 === $response->get_status() && '1' === get_option( 'def_core_chat_escalation_ack_enabled', '0' ) ) {
+			$ack_to = '';
+			if ( ! empty( $safe_body['reply_to'] ) && is_email( $safe_body['reply_to'] ) ) {
+				$ack_to = $safe_body['reply_to'];
+			} elseif ( is_user_logged_in() ) {
+				$ack_to = wp_get_current_user()->user_email;
+			}
+			if ( ! empty( $ack_to ) && is_email( $ack_to ) ) {
+				$ack_subject = (string) get_option( 'def_core_chat_escalation_ack_subject', '' );
+				$ack_body    = (string) get_option( 'def_core_chat_escalation_ack_body', '' );
+				if ( '' === $ack_subject ) {
+					$ack_subject = __( 'Thanks for reaching out', 'digital-employees' );
+				}
+				if ( '' === $ack_body ) {
+					$ack_body = __( "Thanks for reaching out — we've received your message and a real person will be in touch soon.", 'digital-employees' );
+				}
+				$ack_headers   = array( 'Content-Type: text/plain; charset=UTF-8' );
+				$ack_sender    = self::get_default_sender_email();
+				if ( ! empty( $ack_sender ) && is_email( $ack_sender ) ) {
+					$ack_headers[] = 'From: ' . $ack_sender;
+				}
+				wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers );
+			}
+		}
+
+		return $response;
 	}
 
 	/**
