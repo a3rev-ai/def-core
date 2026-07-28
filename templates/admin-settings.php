@@ -529,6 +529,31 @@ $first_tab = 'branding';
 			</div>
 
 			<div class="def-core-field">
+				<label><?php esc_html_e( 'Loading Mark', 'digital-employees' ); ?></label>
+				<div class="def-core-logo-upload">
+					<div id="def-core-loading-mark-preview" class="def-core-logo-preview">
+						<?php if ( $loading_mark_url ) : ?>
+							<img src="<?php echo esc_url( $loading_mark_url ); ?>" style="max-height: 48px; width: auto;" />
+						<?php else : ?>
+							<span class="def-core-no-logo"><?php esc_html_e( 'Default spinner', 'digital-employees' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<input type="hidden" id="def_core_chat_loading_mark_id" data-setting="def_core_chat_loading_mark_id" value="<?php echo esc_attr( $button_settings['loading_mark_id'] ); ?>" />
+					<p class="def-core-logo-actions">
+						<button type="button" class="button" id="def-core-select-loading-mark">
+							<?php esc_html_e( 'Select Mark', 'digital-employees' ); ?>
+						</button>
+						<button type="button" class="button" id="def-core-remove-loading-mark" style="<?php echo $button_settings['loading_mark_id'] ? '' : 'display: none;'; ?>">
+							<?php esc_html_e( 'Remove Mark', 'digital-employees' ); ?>
+						</button>
+					</p>
+					<p class="description">
+						<?php esc_html_e( 'Shown while the chat loads, in place of the default spinner — e.g. an animated brand mark. Recommended: square SVG, PNG or GIF.', 'digital-employees' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<div class="def-core-field">
 				<label for="def_core_chat_button_label"><?php esc_html_e( 'Button Label', 'digital-employees' ); ?></label>
 				<input
 					type="text"

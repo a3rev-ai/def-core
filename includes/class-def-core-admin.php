@@ -113,6 +113,10 @@ final class DEF_Core_Admin {
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_id',
 			),
+			'def_core_chat_loading_mark_id' => array(
+				'type'     => 'int',
+				'sanitize' => 'sanitize_logo_id',
+			),
 			'def_core_chat_show_floating' => array(
 				'type'     => 'bool',
 				'sanitize' => 'sanitize_bool_setting',
@@ -520,6 +524,7 @@ final class DEF_Core_Admin {
 			'icon'          => get_option( 'def_core_chat_button_icon', 'chat' ),
 			'label'         => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'icon_id'       => (int) get_option( 'def_core_chat_button_icon_id', 0 ),
+			'loading_mark_id' => (int) get_option( 'def_core_chat_loading_mark_id', 0 ),
 			'show_floating' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			'greeting_bubble_enabled' => '0' !== get_option( 'def_core_chat_greeting_bubble_enabled', '1' ),
 			'greeting_bubble_text'    => get_option( 'def_core_chat_greeting_bubble_text', "Hi! I'm your AI assistant\nI'm here to help!" ),
@@ -529,6 +534,13 @@ final class DEF_Core_Admin {
 		$button_icon_url = '';
 		if ( $button_settings['icon_id'] ) {
 			$button_icon_url = wp_get_attachment_image_url( $button_settings['icon_id'], 'thumbnail' );
+		}
+
+		// Loading-mark preview URL for admin. Original file URL, not a resized
+		// thumbnail — a resized animated GIF would preview as a static frame.
+		$loading_mark_url = '';
+		if ( $button_settings['loading_mark_id'] ) {
+			$loading_mark_url = wp_get_attachment_url( $button_settings['loading_mark_id'] );
 		}
 
 		// Setup Assistant drawer assets.

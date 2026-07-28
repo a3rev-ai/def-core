@@ -110,6 +110,25 @@
 	--def-cc-chip-pending-bg: #eff6ff;
 	--def-cc-shadow-dialog: 0 8px 32px rgba(0, 0, 0, 0.2);
 	--def-cc-shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+	/* ─── Theming contract — type + spacing (5.5.5) ───────────────
+	   The type scale and panel spacing, defaulting to the exact rendered
+	   values. Two hard floors are NOT tokenised by design: the composer
+	   input's 16px (below 16px iOS Safari zooms the viewport on focus)
+	   and the 44px tap targets (WCAG target-size floor). */
+	--def-cc-font-size: 14px;
+	--def-cc-font-size-sm: 13px;
+	--def-cc-font-size-xs: 12px;
+	--def-cc-font-size-message: 15px;
+	--def-cc-font-size-title: 18px;
+	--def-cc-font-weight-medium: 500;
+	--def-cc-font-weight-strong: 600;
+	--def-cc-line-height: 1.5;
+	--def-cc-line-height-message: 1.6;
+	--def-cc-space-panel-x: 16px;
+	--def-cc-space-panel-y: 12px;
+	--def-cc-space-message-gap: 12px;
+	--def-cc-loading-mark-size: 48px;
 	--def-cc-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
 	--def-cc-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.1);
 	/* --def-cc-primary MUST be a valid <color>: an invalid value makes this
@@ -151,8 +170,8 @@
 	background: var(--def-cc-btn-color);
 	color: #ffffff;
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	line-height: 1;
 	cursor: pointer;
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
@@ -232,7 +251,7 @@
 }
 
 .def-cc-trigger-label {
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	line-height: 1;
 }
 
@@ -254,8 +273,8 @@
 	flex-direction: column;
 	background: var(--def-cc-surface);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	line-height: 1.5;
+	font-size: var(--def-cc-font-size);
+	line-height: var(--def-cc-line-height);
 	color: var(--def-cc-text);
 	overflow: hidden;
 	/* Closed state */
@@ -328,7 +347,7 @@
 	flex: 1;
 	gap: 8px;
 	color: var(--def-cc-text-muted);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 }
 
 .def-cc-loading-spinner {
@@ -351,7 +370,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 12px 16px;
+	padding: var(--def-cc-space-panel-y) var(--def-cc-space-panel-x);
 	background: var(--def-cc-header-bg);
 	border-bottom: 1px solid var(--def-cc-header-border);
 	min-height: 52px;
@@ -375,7 +394,7 @@
 }
 
 .def-cc-header-business {
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 	font-size: 15px;
 	color: var(--def-cc-header-text);
 	white-space: nowrap;
@@ -468,7 +487,7 @@
 	border: none;
 	background: none;
 	font-family: var(--def-cc-font);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-text-form);
 	cursor: pointer;
 	text-align: left;
@@ -505,10 +524,10 @@
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: 16px;
+	padding: var(--def-cc-space-panel-x);
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: var(--def-cc-space-message-gap);
 	background: var(--def-cc-messages-bg);
 }
 
@@ -585,15 +604,15 @@
 
 .def-cc-offline-title {
 	font-size: 16px;
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text);
 }
 
 .def-cc-offline-message {
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-text-light);
 	max-width: 260px;
-	line-height: 1.5;
+	line-height: var(--def-cc-line-height);
 }
 
 /* ─── Markdown in Messages ──────────────────────────────────────── */
@@ -690,7 +709,7 @@
 	border-collapse: collapse;
 	width: 100%;
 	margin: 0.5em 0;
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 }
 
 .def-cc-message-content th,
@@ -702,7 +721,7 @@
 
 .def-cc-message-content th {
 	background: var(--def-cc-table-header-bg);
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 }
 
 /* ─── Thinking Indicator ────────────────────────────────────────── */
@@ -746,7 +765,7 @@
 .def-cc-composer {
 	flex-shrink: 0;
 	position: relative;
-	padding: 12px 16px;
+	padding: var(--def-cc-space-panel-y) var(--def-cc-space-panel-x);
 	border-top: 1px solid var(--def-cc-border);
 	background: var(--def-cc-bg);
 }
@@ -763,7 +782,7 @@
 	border: 1px solid var(--def-cc-border-input);
 	border-radius: var(--def-cc-radius-sm);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	line-height: 1.4;
 	color: var(--def-cc-input-text);
 	background: var(--def-cc-input-bg);
@@ -886,8 +905,8 @@
 	align-items: center;
 	gap: 8px;
 	color: var(--def-cc-primary);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 }
 
 .def-cc-drop-overlay-content svg {
@@ -914,7 +933,7 @@
 	padding: 4px 8px;
 	border: 1px solid var(--def-cc-border);
 	border-radius: var(--def-cc-radius-control);
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	color: var(--def-cc-text-form);
 	background: var(--def-cc-bg);
 }
@@ -975,7 +994,7 @@
 	background: transparent;
 	color: var(--def-cc-text-light);
 	cursor: pointer;
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	line-height: 1;
 	padding: 0;
 	flex-shrink: 0;
@@ -999,7 +1018,7 @@
 	transform: translateX(-50%);
 	background: var(--def-cc-tooltip-bg);
 	color: var(--def-cc-tooltip-text);
-	font-size: 12px;
+	font-size: var(--def-cc-font-size-xs);
 	padding: 4px 8px;
 	border-radius: var(--def-cc-radius-xs);
 	white-space: nowrap;
@@ -1055,13 +1074,13 @@
 
 .def-cc-confirm-title {
 	font-size: 16px;
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text);
 	margin-bottom: 8px;
 }
 
 .def-cc-confirm-desc {
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-text-light);
 	margin-bottom: 16px;
 }
@@ -1077,8 +1096,8 @@
 	border: none;
 	border-radius: var(--def-cc-radius-control);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -1137,14 +1156,14 @@
 }
 
 .def-cc-escalation-title {
-	font-size: 18px;
-	font-weight: 600;
+	font-size: var(--def-cc-font-size-title);
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text);
 	margin-bottom: 4px;
 }
 
 .def-cc-escalation-desc {
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-text-light);
 	margin-bottom: 16px;
 }
@@ -1155,8 +1174,8 @@
 
 .def-cc-escalation-label {
 	display: block;
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	color: var(--def-cc-text-form);
 	margin-bottom: 4px;
 }
@@ -1172,7 +1191,7 @@
 	border: 1px solid var(--def-cc-border-input);
 	border-radius: var(--def-cc-radius-sm);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-input-text);
 	background: var(--def-cc-input-bg);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1201,7 +1220,7 @@
 }
 
 .def-cc-escalation-error {
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	color: var(--def-cc-danger);
 	margin-top: 4px;
 }
@@ -1220,8 +1239,8 @@
 	background: var(--def-cc-primary);
 	color: var(--def-cc-primary-text);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -1242,7 +1261,7 @@
 	background: var(--def-cc-btn-secondary-bg);
 	color: var(--def-cc-text);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -1257,7 +1276,7 @@
 .def-cc-escalation-success-text,
 .def-cc-escalation-error-text {
 	font-size: 16px;
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text);
 }
 
@@ -1369,8 +1388,8 @@
 }
 
 .def-cc-login-title {
-	font-size: 18px;
-	font-weight: 600;
+	font-size: var(--def-cc-font-size-title);
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text);
 	margin-bottom: 16px;
 	text-align: center;
@@ -1382,7 +1401,7 @@
 	border: 1px solid #fecaca;
 	border-radius: var(--def-cc-radius-control);
 	color: var(--def-cc-danger-hover);
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	margin-bottom: 12px;
 }
 
@@ -1392,8 +1411,8 @@
 
 .def-cc-login-label {
 	display: block;
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	color: var(--def-cc-text-form);
 	margin-bottom: 4px;
 }
@@ -1404,7 +1423,7 @@
 	border: 1px solid var(--def-cc-border-input);
 	border-radius: var(--def-cc-radius-sm);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 	color: var(--def-cc-input-text);
 	background: var(--def-cc-input-bg);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -1424,8 +1443,8 @@
 	background: var(--def-cc-primary);
 	color: var(--def-cc-primary-text);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -1461,7 +1480,7 @@
 }
 
 .def-cc-login-links a {
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	color: var(--def-cc-primary);
 	text-decoration: none;
 }
@@ -1499,7 +1518,7 @@
 	gap: 6px;
 	padding: 4px 8px;
 	border-radius: var(--def-cc-radius-control);
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	background: var(--def-cc-file-chip-bg);
 	color: var(--def-cc-text-form);
 	border: 1px solid var(--def-cc-border);
@@ -1574,8 +1593,13 @@
 		padding: 10px 12px;
 	}
 
+	/* NOTE: inert — the loader's base .def-cc-panel rule wins the
+	   equal-specificity collision (last-injected stylesheet, §1 source
+	   order), and already did before tokenisation. Reviving the mobile
+	   bump means landing it in getTriggerCSS(), a deliberate visual
+	   change (14→15px mobile body text). */
 	.def-cc-panel {
-		font-size: 15px;
+		font-size: calc(var(--def-cc-font-size) + 1px);
 	}
 
 	.def-cc-message {
@@ -1642,7 +1666,7 @@
 	gap: 8px;
 	padding: 6px 10px;
 	margin: 2px 0;
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	color: var(--def-cc-text-light);
 	background: var(--def-cc-tool-status-bg);
 	border: 1px solid var(--def-cc-border);
@@ -1683,7 +1707,7 @@
 	padding: 8px 14px;
 	margin: 6px 0;
 	border-radius: var(--def-cc-radius-sm);
-	font-size: 13px;
+	font-size: var(--def-cc-font-size-sm);
 	background: var(--def-cc-toast-success-bg);
 	color: var(--def-cc-toast-text);
 	text-align: center;
@@ -1700,7 +1724,7 @@
 
 .cc-typing-label {
 	margin-left: 8px;
-	font-size: 12px;
+	font-size: var(--def-cc-font-size-xs);
 	color: var(--def-cc-typing-text);
 }
 
@@ -1719,8 +1743,8 @@
 	margin: 14px auto 10px;
 	max-width: 85%;
 	text-align: center;
-	font-size: 13px;
-	font-weight: 600;
+	font-size: var(--def-cc-font-size-sm);
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-divider-text);
 	background: var(--def-cc-divider-bg);
 	padding: 8px 16px;
@@ -1747,8 +1771,8 @@
 	border: 1px solid var(--def-cc-border);
 	color: var(--def-cc-text);
 	font-family: var(--def-cc-font);
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
 	line-height: 1.3;
 	cursor: pointer;
 	transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
@@ -1759,9 +1783,9 @@
 
 .def-cc-welcome-chip::before {
 	content: "+";
-	font-weight: 600;
+	font-weight: var(--def-cc-font-weight-strong);
 	color: var(--def-cc-text-light);
-	font-size: 14px;
+	font-size: var(--def-cc-font-size);
 }
 
 .def-cc-welcome-chip:hover {
@@ -1781,7 +1805,7 @@
 /* In Spotlight mode, chips have more room — bump padding + size slightly. */
 .def-cc-shell--spotlight .def-cc-welcome-chip {
 	padding: 10px 16px;
-	font-size: 15px;
+	font-size: calc(var(--def-cc-font-size) + 1px);
 }
 
 /* ─── Compliance footer (v2.7.0) ───────────────────────────────── */
@@ -1829,12 +1853,14 @@
  */
 
 .def-cc-message-content {
-	font-size: 15px;
-	line-height: 1.6;
+	font-size: var(--def-cc-font-size-message);
+	line-height: var(--def-cc-line-height-message);
 }
 
+/* Mode bumps ride the same token (+1px) so the readability ladder holds
+   when a theme changes the base size. */
 .def-cc-shell--spotlight .def-cc-message-content {
-	font-size: 16px;
+	font-size: calc(var(--def-cc-font-size-message) + 1px);
 }
 
 .def-cc-composer-input {
@@ -1857,8 +1883,8 @@
 
 .def-cc-welcome-banner {
 	flex-shrink: 0;
-	width: calc(100% + 32px); /* absorb the -16px L/R margins so right edge reaches the panel */
-	margin: -16px -16px 12px -16px; /* edge-to-edge under .def-cc-messages's padding */
+	width: calc(100% + 2 * var(--def-cc-space-panel-x)); /* absorb the negative L/R margins so right edge reaches the panel */
+	margin: calc(-1 * var(--def-cc-space-panel-x)) calc(-1 * var(--def-cc-space-panel-x)) 12px; /* edge-to-edge under .def-cc-messages's padding — derived from the same token so they can never drift */
 	overflow: hidden;
 	background: var(--def-cc-banner-bg);
 }
@@ -1890,6 +1916,9 @@
  * tenant who uploads a taller image gets cropped, but the
  * recommended aspect renders fully. */
 @media (max-width: 480px) {
+	/* Hand-paired with the mobile .def-cc-messages padding: 12px literal
+	   above — change them together. (The desktop pair derives from
+	   --def-cc-space-panel-x; mobile stays literal by design.) */
 	.def-cc-welcome-banner {
 		width: calc(100% + 24px);
 		margin: -12px -12px 12px -12px;
@@ -1915,7 +1944,7 @@
  */
 
 .def-cc-composer {
-	padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+	padding-bottom: calc(var(--def-cc-space-panel-y) + env(safe-area-inset-bottom, 0px));
 }
 
 @supports (height: 100svh) {
