@@ -33,8 +33,8 @@
 	--def-cc-danger: #ef4444;
 	--def-cc-danger-hover: #dc2626;
 	--def-cc-warning-bg: #fef3c7;
-	/* #fcd34d, not amber-500: the default must match what the logout notice —
-	   the token's only consumer — actually rendered while it was hardcoded. */
+	/* #fcd34d, not amber-500: the default must match what the logout-notice
+	   rule — the token's only consumer — always specified while hardcoded. */
 	--def-cc-warning-border: #fcd34d;
 	--def-cc-warning-text: #92400e;
 	--def-cc-radius: 12px;
