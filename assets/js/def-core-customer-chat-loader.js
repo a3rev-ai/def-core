@@ -353,6 +353,12 @@
 			'}' +
 			/* Mobile */
 			'@media (max-width: 480px) {' +
+			/* v2.7.0 mobile readability bump (15px body text). Lives HERE, not
+			 * in the chat stylesheet: this inline sheet is injected last and
+			 * wins the equal-specificity .def-cc-panel collision, which had
+			 * silently defeated the stylesheet copy since that ordering began.
+			 * Derived from the token so a themed base size carries through. */
+			'  .def-cc-panel { font-size: calc(var(--def-cc-font-size, 14px) + 1px); }' +
 			'  .def-cc-trigger { padding: 10px 12px; }' +
 			'  .def-cc-shell--modal { width: calc(100vw - 24px); height: min(80vh, 620px); ' +
 			pos +

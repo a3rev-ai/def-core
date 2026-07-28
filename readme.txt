@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.5.5
+Stable tag: 5.5.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.5.6 - 2026-07-28 =
+* Fix: restored the mobile readability bump — on phones the Customer Chat body text renders at 15px again, as originally shipped in v2.7.0. The bump had been silently inert: the widget's boot stylesheet is injected after the main stylesheet and won the style-order collision, pinning mobile body text at the 14px base. The live rule now sits in the boot stylesheet itself (which always wins) and is derived from --def-cc-font-size + 1px, so a theme's base-size override carries through on mobile too. Visible change on phones only: chat body text 14px → 15px.
 
 = 5.5.5 - 2026-07-28 =
 * Feature: Customer Chat theming — type & spacing tokens + a replaceable loading mark (theming contract, final tier). Thirteen new tokens complete the published contract: the type scale (--def-cc-font-size 14px, --def-cc-font-size-sm 13px, --def-cc-font-size-xs 12px, --def-cc-font-size-message 15px, --def-cc-font-size-title 18px, --def-cc-font-weight-medium 500, --def-cc-font-weight-strong 600, --def-cc-line-height 1.5, --def-cc-line-height-message 1.6) and the panel spacing (--def-cc-space-panel-x 16px, --def-cc-space-panel-y 12px, --def-cc-space-message-gap 12px). Mode-specific size bumps (Spotlight messages and chips) are now derived from the same tokens (+1px) so the readability ladder holds when a theme changes the base, and the welcome banner's edge-to-edge geometry is derived from the messages padding token so the two can never drift. Two hard floors are deliberately not tokenised: the composer input's 16px (below 16px iOS Safari zooms the viewport on focus) and the 44px tap targets (accessibility floor). The launcher button and the boot-time loading state now follow --def-cc-font / --def-cc-font-size too (previously hardcoded in the loader stylesheet). New: a replaceable loading mark — the Digital Employees settings page gains a "Loading Mark" media picker next to the chat Button Icon; the chosen image (SVG, PNG or GIF — animated marks keep their animation) renders in place of the default loading spinner while the chat module loads, sized by --def-cc-loading-mark-size (48px) and targetable as ::part(loading-mark). The plugin ships no brand asset — the default spinner remains when unset. Zero visual change at defaults.

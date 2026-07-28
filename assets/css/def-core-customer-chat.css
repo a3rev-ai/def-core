@@ -1593,11 +1593,9 @@
 		padding: 10px 12px;
 	}
 
-	/* NOTE: inert — the loader's base .def-cc-panel rule wins the
-	   equal-specificity collision (last-injected stylesheet, §1 source
-	   order), and already did before tokenisation. Reviving the mobile
-	   bump means landing it in getTriggerCSS(), a deliberate visual
-	   change (14→15px mobile body text). */
+	/* The LIVE copy of this rule is in getTriggerCSS() (§1 source order —
+	   the loader's inline sheet is injected last and wins the collision).
+	   This declaration documents the contract; keep the two in sync. */
 	.def-cc-panel {
 		font-size: calc(var(--def-cc-font-size) + 1px);
 	}
