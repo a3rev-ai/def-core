@@ -891,6 +891,9 @@
 		anonFields.appendChild(
 			escalationField('Phone', 'tel', 'escalationPhone', false)
 		);
+		anonFields.appendChild(
+			escalationField('Business website', 'text', 'escalationWebsite', false)
+		);
 
 		els.escalationAnonFields = anonFields;
 		formWrap.appendChild(anonFields);
@@ -2665,6 +2668,7 @@
 		if (els.escalationLastName) els.escalationLastName.value = '';
 		if (els.escalationEmail) els.escalationEmail.value = '';
 		if (els.escalationPhone) els.escalationPhone.value = '';
+		if (els.escalationWebsite) els.escalationWebsite.value = '';
 		if (els.escalationSubject) els.escalationSubject.value = '';
 		if (els.escalationMessage) els.escalationMessage.value = '';
 		if (els.escalationPref) els.escalationPref.selectedIndex = 0;
@@ -2776,9 +2780,11 @@
 			var lastName = els.escalationLastName.value.trim();
 			var email = els.escalationEmail.value.trim();
 			var phone = (els.escalationPhone.value || '').trim();
+			var website = (els.escalationWebsite.value || '').trim();
 			bodyParts.push('From: ' + firstName + ' ' + lastName);
 			bodyParts.push('Email: ' + email);
 			if (phone) bodyParts.push('Phone: ' + phone);
+			if (website) bodyParts.push('Website: ' + website);
 			bodyParts.push('');
 		}
 
