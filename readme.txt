@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.0
+Stable tag: 5.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.6.1 - 2026-07-29 =
+* Feature: the Customer Chat hand-off form gains an optional "Business website" field, shown below Phone for anonymous visitors. When filled it is added to the escalation email as a "Website:" line alongside Phone, so whoever follows up can see what the business is before the call. The field is never required, an empty value simply omits the line, and nothing is shown to logged-in users (their identity already comes from their account).
 
 = 5.6.0 - 2026-07-28 =
 * Feature: the Customer Chat hand-off form becomes configurable lead capture (Settings > Digital Employees > Escalation). The form a visitor gets when they ask for a person previously wore fixed support wording ("Request Human Support") on every site — wrong framing for a sales site. New: (1) configurable form title and description (empty keeps the current defaults, so nothing changes on update); (2) an optional "How would you like us to contact you?" select — admin-defined choices, one per line, shown in order with the first preselected; the submitted value is validated server-side against the configured list and prepended to the escalation email; (3) an optional automatic acknowledgement to the person who reached out — admin-configured subject and message, plain text, sent from the site's no-reply address; visitor-typed content is never included in it, and the send rides the escalation endpoint's existing per-IP rate limit. The escalation email already carries the recent conversation transcript, so with these options the hand-off doubles as a general contact / lead-capture form.
