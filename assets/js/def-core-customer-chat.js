@@ -201,6 +201,10 @@
 
 	// Escalation state.
 	var currentEscalationSubject = '';
+	// The assistant's reason for handing over, carried into the escalation
+	// email body (see showEscalation). Empty when the visitor opened the form
+	// from the menu rather than being offered it.
+	var currentEscalationReason = '';
 	// AbortController for the in-flight escalation POST, if any. Lifted to
 	// module scope so closeEscalation() can abort a pending send when the
 	// user cancels or closes the overlay mid-request.
@@ -1939,6 +1943,12 @@
 
 		// Progressive text rendering state.
 		var streamBuffer = '';
+		// Set when a tool runs, so the next text_delta knows it begins a NEW
+		// segment. The model often speaks before a tool call and again after
+		// it ("...right now." then "Done — I've flagged this"); both arrive as
+		// text_delta and concatenated straight into one bubble with nothing
+		// between them ("right now.Done"). Insert a paragraph break instead.
+		var segmentBreakPending = false;
 		var streamEl = null;
 		var wordDrainTimer = null;
 		var displayedLen = 0;
@@ -2028,6 +2038,7 @@
 					break;
 				case 'tool_start':
 					toolStatusEls[evt.tool] = renderToolStatusForStream(evt.tool, evt.subagent);
+					segmentBreakPending = true;
 					break;
 				case 'tool_done':
 					var doneEl = toolStatusEls[evt.tool];
@@ -2051,6 +2062,12 @@
 						msgEl.appendChild(contentEl);
 						els.messages.appendChild(msgEl);
 						streamEl = contentEl;
+					}
+					if (segmentBreakPending) {
+						segmentBreakPending = false;
+						if (streamBuffer && !/\s$/.test(streamBuffer)) {
+							streamBuffer += '\n\n';
+						}
 					}
 					streamBuffer += evt.text;
 					if (!wordDrainTimer) {
@@ -2098,6 +2115,7 @@
 
 					var wasStreamed = !!streamEl;
 					streamBuffer = '';
+					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;
 					displayedLen = 0;
@@ -2161,6 +2179,7 @@
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 					}
 					streamBuffer = '';
+					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;
 					displayedLen = 0;
@@ -2624,11 +2643,24 @@
 		var showAnon = !isAuthenticated();
 		els.escalationAnonFields.style.display = showAnon ? '' : 'none';
 
-		// Auto-fill subject.
+		// Auto-fill subject from the visitor's opening message (already capped
+		// at 60 chars). NOT from `reason` — that is the assistant's free-text
+		// explanation of why a person is needed, and DEF caps it at 500 chars,
+		// so using it here produced subject lines carrying a whole conversation
+		// summary, cut off mid-sentence. It goes in the body instead.
 		if (els.escalationSubject) {
-			els.escalationSubject.value =
-				reason || currentEscalationSubject || '';
+			// A thread restored from localStorage has no opening message from
+			// this session, so fall back to a 60-char slice of the reason —
+			// the server rejects an empty subject, and a blank required field
+			// is friction at the exact moment the visitor is handing over.
+			var subjectSeed = currentEscalationSubject;
+			if (!subjectSeed && reason) {
+				subjectSeed =
+					reason.length > 60 ? reason.substring(0, 60) + '...' : reason;
+			}
+			els.escalationSubject.value = subjectSeed || '';
 		}
+		currentEscalationReason = reason || '';
 
 		showEscalationState('form');
 		setState(els.escalationOverlay, 'def-cc-escalation-overlay--open', true);
@@ -2789,6 +2821,12 @@
 		}
 
 		bodyParts.push(message);
+
+		// Why the assistant handed over, when it offered the form itself.
+		if (currentEscalationReason) {
+			bodyParts.push('');
+			bodyParts.push('Assistant note: ' + currentEscalationReason);
+		}
 
 		// Append recent conversation transcript.
 		var recentMsgs = getRecentMessages(10);
@@ -3565,6 +3603,7 @@
 		threadId = null;
 		isContinuing = false;
 		currentEscalationSubject = '';
+		currentEscalationReason = '';
 
 		// Clear messages area.
 		clearMessages();
@@ -4001,6 +4040,7 @@
 		uploadEligible = false;
 		localThreads = [];
 		currentEscalationSubject = '';
+		currentEscalationReason = '';
 	}
 
 	// Expose public API.
