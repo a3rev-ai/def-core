@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.6.2 - 2026/07/30 =
+* Fix: the hand-off email's subject line is now taken from the visitor's opening message instead of the assistant's explanation of why it handed over. That explanation is free text and could run to 500 characters, so subjects arrived carrying a whole conversation summary, cut off mid-sentence. It is now included in the email body as an "Assistant note:" line, where its length does no harm.
+* Fix: when the assistant speaks, uses a tool, then speaks again, the two parts of its reply no longer run together into one another ("...right now.Done — I've flagged this"). They are now separated as distinct paragraphs, as they were written.
+* Fix: on a phone the hand-off form was taller than the panel, leaving the Send button below the fold with nothing to suggest scrolling. The Cancel/Send row is now pinned to the bottom of the form so it is always reachable.
+
 = 5.6.1 - 2026/07/29 =
 * Feature: the Customer Chat hand-off form gains an optional "Business website" field, shown below Phone for anonymous visitors. When filled it is added to the escalation email as a "Website:" line alongside Phone, so whoever follows up can see what the business is before the call. The field is never required, an empty value simply omits the line, and nothing is shown to logged-in users (their identity already comes from their account).
 

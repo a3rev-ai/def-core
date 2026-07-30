@@ -1229,6 +1229,19 @@
 	display: flex;
 	gap: 8px;
 	margin-top: 16px;
+	/* The panel is capped at 85% height and scrolls. On a phone the form is
+	   taller than that, so Send used to sit below the fold with nothing to
+	   suggest scrolling — a dead end at the point of hand-off. Pin the row to
+	   the bottom of the scroll container so it is always reachable, and let
+	   the fields scroll behind it.
+	   bottom is -24px, not 0, to offset the panel's own 24px bottom padding:
+	   at 0 the row sticks that far ABOVE the panel's visible edge and fields
+	   show through underneath it. The row's own padding-bottom fills that
+	   strip with the panel background. */
+	position: sticky;
+	bottom: -24px;
+	background: var(--def-cc-bg);
+	padding: 12px 0 24px;
 }
 
 .def-cc-escalation-submit {
