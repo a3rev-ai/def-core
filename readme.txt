@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.4
+Stable tag: 5.6.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.6.5 - 2026-08-05 =
+* Feature: My Documents panel in Staff AI - browse the documents your assistant has created for you, download them, or delete the ones you no longer need. Open it from the new document icon in the header.
 
 = 5.6.4 - 2026-08-04 =
 * Tweak: the Download button on generated files keeps its white label in all states - the site theme's visited-link colour was overriding it once a file had been downloaded, leaving dark text on the blue button.

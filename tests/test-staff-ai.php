@@ -259,6 +259,8 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
 	'a3-ai/v1/staff-ai/status',
 	'a3-ai/v1/staff-ai/tools',
+	'a3-ai/v1/staff-ai/documents',
+	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -292,6 +294,8 @@ assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/conversations']['
 assert_equals( 'POST', $_wp_test_rest_routes['a3-ai/v1/staff-ai/chat']['methods'], 'chat = POST' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/tools']['methods'], 'tools = GET' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/status']['methods'], 'status = GET' );
+assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents']['methods'], 'documents = GET' );
+assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'documents delete = DELETE' );
 
 // ── 4. Permission check: unauthenticated → 401 ─────────────────────────
 echo "\n[4] Permission check — unauthenticated\n";

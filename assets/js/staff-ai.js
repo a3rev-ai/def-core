@@ -2449,6 +2449,136 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
+	// MY DOCUMENTS PANEL (document library — slice 4)
+	// =============================================
+
+	(function initDocuments() {
+		const modal = document.getElementById('documentsModal');
+		if (!modal) return;
+
+		const openBtn = document.getElementById('documentsBtn');
+		const overflowBtn = document.getElementById('overflowDocuments');
+		const modalClose = document.getElementById('documentsModalClose');
+		const closeBtn = document.getElementById('documentsClose');
+		const refreshBtn = document.getElementById('documentsRefresh');
+		const statusEl = document.getElementById('documentsStatus');
+		const listEl = document.getElementById('documentsList');
+		let loading = false;
+
+		function open() {
+			modal.classList.add('visible');
+			loadList();
+		}
+		function close() {
+			modal.classList.remove('visible');
+		}
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'documents-status' + (message ? ' documents-status-' + (kind || 'muted') : '');
+		}
+
+		function formatSize(bytes) {
+			if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
+			if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+			return (bytes / 1048576).toFixed(1) + ' MB';
+		}
+
+		async function loadList() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('documentsLoading', 'Loading your documents…'), 'muted');
+			listEl.innerHTML = '';
+			try {
+				const data = await apiRequest('/documents');
+				const docs = Array.isArray(data.documents) ? data.documents : [];
+				if (docs.length === 0) {
+					setStatus(t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
+					return;
+				}
+				setStatus('', '');
+				docs.forEach(function (doc) { listEl.appendChild(renderRow(doc)); });
+			} catch (e) {
+				setStatus((e && e.message) || t('documentsLoadFailed', 'Could not load your documents.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+
+		function renderRow(doc) {
+			const row = document.createElement('div');
+			row.className = 'document-row';
+
+			const info = document.createElement('div');
+			info.className = 'document-info';
+			const name = document.createElement('span');
+			name.className = 'document-name';
+			name.textContent = doc.title || doc.document_id;
+			info.appendChild(name);
+			const meta = document.createElement('span');
+			meta.className = 'document-meta';
+			meta.textContent = [
+				(doc.file_type || '').toUpperCase(),
+				formatSize(doc.size_bytes),
+				formatTime(doc.created_at)
+			].filter(Boolean).join(' · ');
+			info.appendChild(meta);
+			row.appendChild(info);
+
+			const action = document.createElement('div');
+			action.className = 'document-action';
+
+			const href = safeHttpHref(doc.download_url);
+			if (href) {
+				const dl = document.createElement('a');
+				dl.className = 'document-btn document-btn-download';
+				dl.href = href;
+				dl.textContent = t('download', 'Download');
+				action.appendChild(dl);
+			}
+
+			const del = document.createElement('button');
+			del.type = 'button';
+			del.className = 'document-btn document-btn-delete';
+			del.textContent = t('documentsDelete', 'Delete');
+			del.addEventListener('click', function () { removeDoc(doc, del, row); });
+			action.appendChild(del);
+
+			row.appendChild(action);
+			return row;
+		}
+
+		async function removeDoc(doc, btn, row) {
+			const prompt = t('documentsConfirmDelete', 'Delete "%s"? This permanently removes it from your library.')
+				.replace('%s', doc.title || '');
+			if (!window.confirm(prompt)) return;
+			btn.disabled = true;
+			try {
+				await apiRequest('/documents/' + encodeURIComponent(doc.document_id), { method: 'DELETE' });
+				row.remove();
+				if (!listEl.children.length) {
+					setStatus(t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
+				}
+			} catch (e) {
+				btn.disabled = false;
+				setStatus((e && e.message) || t('documentsDeleteFailed', 'Could not delete the document.'), 'error');
+			}
+		}
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (overflowBtn) {
+			overflowBtn.addEventListener('click', function () {
+				if (overflowMenu) overflowMenu.classList.remove('open');
+				open();
+			});
+		}
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+	})();
+
+	// =============================================
 	// UPLOAD EVENT HANDLERS
 	// =============================================
 
