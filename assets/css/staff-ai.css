@@ -667,12 +667,13 @@ body {
 	text-transform: uppercase;
 }
 
-/* :visited and :hover carry the colour explicitly — the shell renders inside
-   the site theme, whose visited-link colour otherwise outranks the base rule
-   the moment the download URL has been clicked once. */
-.tool-output-download,
-.tool-output-download:visited,
-.tool-output-download:hover {
+/* The widget's own chat-link colour (.message-assistant .message-content a,
+   plus its .dark-theme variant) matches this button too and outranks a bare
+   class selector in every state, so the white label must carry the same
+   ancestry plus the class. Keep this block below those link rules. */
+.message-assistant .message-content a.tool-output-download,
+.message-assistant .message-content a.tool-output-download:visited,
+.message-assistant .message-content a.tool-output-download:hover {
 	color: #fff;
 }
 
