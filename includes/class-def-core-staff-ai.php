@@ -2697,29 +2697,15 @@ final class DEF_Core_Staff_AI
 			error_log('[DEF Staff AI Download] Backend URL: ' . $file_url);
 		}
 
-		// Build JWT for backend auth.
-		$user         = wp_get_current_user();
-		$capabilities = array();
-		if ($user->has_cap('def_staff_access')) {
-			$capabilities[] = 'def_staff_access';
+		// BFF proxy auth — the same header set as backend_request(). This
+		// download handler predated the BFF migration (API key only, no JWT)
+		// and kept sending a JWT that DEF's staff routes reject with 401.
+		$user    = wp_get_current_user();
+		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		if ( empty( $api_key ) ) {
+			wp_die(__('API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
 		}
-		if ($user->has_cap('def_management_access')) {
-			$capabilities[] = 'def_management_access';
-		}
-
-		$claims = array(
-			'sub'          => (string) $user->ID,
-			'email'        => $user->user_email,
-			'capabilities' => $capabilities,
-			'channel'      => 'staff_ai',
-			'iss'          => get_site_url(),
-			'aud'          => 'digital-employee-framework',
-		);
-
-		$token = DEF_Core_JWT::issue_token($claims, 300);
-		if (empty($token)) {
-			wp_die(__('Failed to generate token.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 500));
-		}
+		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
 
 		// Fetch file from backend.
 		$response = wp_remote_get(
@@ -2727,7 +2713,9 @@ final class DEF_Core_Staff_AI
 			array(
 				'timeout' => 30,
 				'headers' => array(
-					'Authorization' => 'Bearer ' . $token,
+					'X-DEF-API-Key'           => $api_key,
+					'X-DEF-User'              => (string) $user->ID,
+					'X-DEF-User-Capabilities' => implode( ',', $capabilities ),
 				),
 			)
 		);
