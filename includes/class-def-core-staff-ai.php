@@ -227,16 +227,11 @@ final class DEF_Core_Staff_AI
 		// Tool invocation now goes through /staff-ai/chat (Orchestrator).
 		// The /staff-ai/tools/invoke endpoint was removed in PR #19.
 
-		// File download proxy.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)',
-			array(
-				'methods'             => 'GET',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_download_file'),
-			)
-		);
+		// The REST file-download twin was removed in 5.6.3: it still carried
+		// the retired JWT auth (DEF 401s it — zero bytes ever served), had no
+		// product caller (downloads ride /staff-ai-download/ →
+		// handle_file_download), and a live-but-inert second download door
+		// invites a future maintainer to "fix" it without re-review.
 
 		// Content Agent review queue (PR-6): list pending staged drafts, apply, dismiss.
 		register_rest_route(
@@ -2430,130 +2425,6 @@ final class DEF_Core_Staff_AI
 		}
 
 		return new \WP_REST_Response($result, 200);
-	}
-
-	/**
-	 * REST handler: Download a generated file.
-	 *
-	 * Proxies file download from Python backend /api/files/{tenant}/{filename}
-	 * Uses the same authentication pattern as backend_request().
-	 *
-	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error File response or error.
-	 * @since 1.2.0
-	 */
-	public static function rest_download_file(\WP_REST_Request $request)
-	{
-		$tenant   = $request->get_param('tenant');
-		$filename = $request->get_param('filename');
-
-		if (empty($tenant) || empty($filename)) {
-			return new \WP_Error(
-				'invalid_params',
-				__('Invalid file path.', 'digital-employees'),
-				array('status' => 400)
-			);
-		}
-
-		// Get backend URL.
-		$base_url = self::get_api_base_url();
-		if (! $base_url) {
-			return new \WP_Error(
-				'staff_ai_not_configured',
-				__('Staff AI backend URL is not configured.', 'digital-employees'),
-				array('status' => 503)
-			);
-		}
-
-		$file_url = $base_url . '/api/files/' . urlencode($tenant) . '/' . rawurlencode($filename);
-
-		// Build JWT claims for backend auth (same as backend_request).
-		$user = wp_get_current_user();
-		if (! $user || 0 === $user->ID) {
-			return new \WP_Error(
-				'staff_ai_not_authenticated',
-				__('User not authenticated.', 'digital-employees'),
-				array('status' => 401)
-			);
-		}
-
-		$capabilities = array();
-		if ($user->has_cap('def_staff_access')) {
-			$capabilities[] = 'def_staff_access';
-		}
-		if ($user->has_cap('def_management_access')) {
-			$capabilities[] = 'def_management_access';
-		}
-
-		$claims = array(
-			'sub'          => (string) $user->ID,
-			'email'        => $user->user_email,
-			'capabilities' => $capabilities,
-			'channel'      => 'staff_ai',
-			'iss'          => get_site_url(),
-			'aud'          => 'digital-employee-framework',
-		);
-
-		$token = DEF_Core_JWT::issue_token($claims, 300);
-		if (empty($token)) {
-			return new \WP_Error(
-				'staff_ai_token_error',
-				__('Failed to generate authentication token.', 'digital-employees'),
-				array('status' => 500)
-			);
-		}
-
-		// Fetch file from backend.
-		$response = wp_remote_get(
-			$file_url,
-			array(
-				'timeout' => 30,
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $token,
-				),
-			)
-		);
-
-		if (is_wp_error($response)) {
-			return new \WP_Error(
-				'download_failed',
-				__('Failed to download file from backend.', 'digital-employees'),
-				array('status' => 500)
-			);
-		}
-
-		$status_code = wp_remote_retrieve_response_code($response);
-		if ($status_code !== 200) {
-			return new \WP_Error(
-				'file_not_found',
-				__('File not found or access denied.', 'digital-employees'),
-				array('status' => $status_code)
-			);
-		}
-
-		$body         = wp_remote_retrieve_body($response);
-		$content_type = wp_remote_retrieve_header($response, 'content-type');
-
-		// Extract clean filename (remove timestamp prefix).
-		$clean_filename = $filename;
-		if (preg_match('/^\d{8}_\d{6}_[a-f0-9]+_(.+)$/', $filename, $matches)) {
-			$clean_filename = $matches[1];
-		}
-
-		// SECURITY: Sanitize Content-Type — only allow safe MIME types, block text/html.
-		$safe_content_type = self::sanitize_proxy_content_type( $content_type );
-
-		// SECURITY: Sanitize filename — strip anything that could inject headers.
-		$safe_filename = self::sanitize_proxy_filename( $clean_filename );
-
-		// Send file response with security headers.
-		header( 'Content-Type: ' . $safe_content_type );
-		header( 'Content-Disposition: attachment; filename="' . $safe_filename . '"' );
-		header( 'Content-Length: ' . strlen( $body ) );
-		header( 'X-Content-Type-Options: nosniff' );
-		header( 'Cache-Control: no-cache, must-revalidate' );
-		echo $body;
-		exit;
 	}
 
 	/**
