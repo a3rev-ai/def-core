@@ -667,9 +667,17 @@ body {
 	text-transform: uppercase;
 }
 
+/* :visited and :hover carry the colour explicitly — the shell renders inside
+   the site theme, whose visited-link colour otherwise outranks the base rule
+   the moment the download URL has been clicked once. */
+.tool-output-download,
+.tool-output-download:visited,
+.tool-output-download:hover {
+	color: #fff;
+}
+
 .tool-output-download {
 	background: #2271b1;
-	color: #fff;
 	padding: 6px 12px;
 	border-radius: 4px;
 	font-size: 12px;
