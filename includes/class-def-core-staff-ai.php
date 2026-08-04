@@ -465,6 +465,29 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_user_integration_authorize'),
 			)
 		);
+
+		// "My Documents" panel (document library slice 4). The library is per-user:
+		// DEF scopes every query to the identity in the X-DEF-User header that
+		// backend_request() already forwards — nothing user-scoped rides in the URL
+		// or body, so one user can never list or delete another's documents.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/documents',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_documents'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
+			array(
+				'methods'             => 'DELETE',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_delete_document'),
+			)
+		);
 	}
 
 	/**
@@ -1410,6 +1433,93 @@ final class DEF_Core_Staff_AI
 			),
 			200
 		);
+	}
+
+	/**
+	 * REST handler: list the current user's generated documents ("My Documents" panel).
+	 *
+	 * Proxies DEF GET /api/staff-ai/documents. Each row is allowlisted to the seven
+	 * fields the panel renders so a future backend schema addition can't silently
+	 * surface sensitive fields to the client. DEF's relative /api/files/ download
+	 * URL is rewritten to the cookie-auth'd /staff-ai-download/ proxy page — the
+	 * same rewrite the chat download button already goes through.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, documents}).
+	 */
+	public static function rest_list_documents( \WP_REST_Request $request )
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/documents' );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$docs_in   = ( isset( $result['documents'] ) && is_array( $result['documents'] ) ) ? $result['documents'] : array();
+		$documents = array();
+		foreach ( $docs_in as $doc ) {
+			// Charset-check the id to the same alphabet the DELETE route accepts,
+			// so the two ends of the panel can never disagree on a valid id.
+			if ( ! is_array( $doc ) || empty( $doc['document_id'] )
+				|| ! preg_match( '/^[a-zA-Z0-9-]+$/', (string) $doc['document_id'] ) ) {
+				continue;
+			}
+			$download = '';
+			if ( isset( $doc['download_url'] ) && is_string( $doc['download_url'] )
+				&& preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
+				$download = home_url( '/staff-ai-download/' . rawurlencode( $m[1] ) . '/' . rawurlencode( $m[2] ) );
+			}
+			$documents[] = array(
+				'document_id'  => (string) $doc['document_id'],
+				'title'        => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
+				'file_type'    => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
+				'version'      => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
+				'size_bytes'   => isset( $doc['size_bytes'] ) ? (int) $doc['size_bytes'] : 0,
+				'created_at'   => ( isset( $doc['created_at'] ) && is_string( $doc['created_at'] ) ) ? $doc['created_at'] : '',
+				'download_url' => $download,
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'   => true,
+				'documents' => $documents,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: delete one of the current user's documents.
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/documents/{id}. DEF soft-deletes the
+	 * library row and hard-deletes the stored bytes; ownership is enforced
+	 * DEF-side from the forwarded identity, so a foreign id is a plain 404.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success}).
+	 */
+	public static function rest_delete_document( \WP_REST_Request $request )
+	{
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		if ( '' === $id ) {
+			return new \WP_Error(
+				'invalid_document_id',
+				__( 'A document id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( 'DELETE', '/api/staff-ai/documents/' . rawurlencode( $id ) );
+		if ( is_wp_error( $result ) ) {
+			// A vanished id is normal panel traffic (double-click, stale list) — return
+			// plain copy, not backend_request's diagnostic string carrying the backend URL.
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_not_found',
+					__( 'That document no longer exists.', 'digital-employees' ),
+					array( 'status' => 404 )
+				);
+			}
+			return $result;
+		}
+
+		return new \WP_REST_Response( array( 'success' => true ), 200 );
 	}
 
 	// ── Content Agent Engine 2.5: Clusters curation (targets + keyphrase queues) ──

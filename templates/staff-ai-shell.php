@@ -103,6 +103,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
 						</svg>
 					</button>
+					<button type="button" class="header-btn header-btn-icon" id="documentsBtn" title="<?php echo esc_attr__( 'My documents', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'My documents', 'digital-employees' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+							<polyline points="14 2 14 8 20 8"></polyline>
+							<line x1="16" y1="13" x2="8" y2="13"></line>
+							<line x1="16" y1="17" x2="8" y2="17"></line>
+						</svg>
+					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -159,6 +167,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
 							</svg>
 							<?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?>
+						</button>
+						<button type="button" id="overflowDocuments">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+								<polyline points="14 2 14 8 20 8"></polyline>
+								<line x1="16" y1="13" x2="8" y2="13"></line>
+								<line x1="16" y1="17" x2="8" y2="17"></line>
+							</svg>
+							<?php echo esc_html__( 'My documents', 'digital-employees' ); ?>
 						</button>
 						<button type="button" id="overflowInstall" style="display:none;">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -423,6 +440,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- My Documents Modal (document library — slice 4) -->
+		<div class="modal-overlay" id="documentsModal">
+			<div class="modal" style="max-width: 560px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="documentsModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="documents-intro"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
+					<div class="documents-status" id="documentsStatus"></div>
+					<div class="documents-list" id="documentsList"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -493,7 +528,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 			tooManyFiles: <?php echo wp_json_encode( __( 'Maximum 5 files per message', 'digital-employees' ) ); ?>,
 			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'digital-employees' ) ); ?>,
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
-			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>
+			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,
+			documentsLoading: <?php echo wp_json_encode( __( 'Loading your documents…', 'digital-employees' ) ); ?>,
+			documentsEmpty: <?php echo wp_json_encode( __( 'No documents yet — ask me to create one and it will appear here.', 'digital-employees' ) ); ?>,
+			documentsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your documents.', 'digital-employees' ) ); ?>,
+			documentsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
+			documentsConfirmDelete: <?php /* translators: %s: document title. */ echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
+			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>
