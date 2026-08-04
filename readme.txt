@@ -123,6 +123,9 @@ Chat messages, user display name, and session context — only when a user activ
 = 5.6.6 - 2026-08-05 =
 * Feature: My Documents panel in Staff AI - browse the documents your assistant has created for you, download them, or delete the ones you no longer need. Open it from the new document icon in the header.
 
+= 5.6.5 - 2026-08-05 =
+* Fix: the Download button on generated files now really does keep its white label. The 5.6.4 change guarded against the wrong override - the colour was being taken by the widget's own chat-link rule, which outranked the button's white in every state, not by the site theme's visited-link colour.
+
 = 5.6.4 - 2026-08-04 =
 * Tweak: the Download button on generated files keeps its white label in all states - the site theme's visited-link colour was overriding it once a file had been downloaded, leaving dark text on the blue button.
 
