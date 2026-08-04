@@ -259,7 +259,6 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/summarize',
 	'a3-ai/v1/staff-ai/status',
 	'a3-ai/v1/staff-ai/tools',
-	'a3-ai/v1/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -374,11 +373,14 @@ assert_true( preg_match( '/^[a-zA-Z0-9_-]+$/', 'thread_abc-123' ) === 1, 'valid 
 assert_true( preg_match( '/^[a-zA-Z0-9_-]+$/', '../etc/passwd' ) === 0, 'path traversal rejected by regex' );
 assert_true( preg_match( '/^[a-zA-Z0-9_-]+$/', 'thread<script>' ) === 0, 'XSS in thread ID rejected by regex' );
 
-// ── 12. File download route pattern ─────────────────────────────────────
-echo "\n[12] File download route pattern\n";
+// ── 12. File download REST twin stays deleted ────────────────────────────
+// 5.6.3: rest_download_file was removed — it still carried the retired JWT
+// auth (DEF 401s it), had no product caller (downloads ride the
+// /staff-ai-download/ rewrite), and a live-but-inert second download door
+// invites an unreviewed "fix". Downloads must have exactly ONE route.
+echo "\n[12] File download REST twin stays deleted\n";
 $file_route = 'a3-ai/v1/staff-ai/files/(?P<tenant>[^/]+)/(?P<filename>.+)';
-assert_true( isset( $_wp_test_rest_routes[ $file_route ] ), 'file download route registered' );
-assert_equals( 'GET', $_wp_test_rest_routes[ $file_route ]['methods'], 'file download is GET' );
+assert_true( ! isset( $_wp_test_rest_routes[ $file_route ] ), 'REST file-download twin is NOT registered' );
 
 // ── 13. Upload init — valid input ─────────────────────────────────────
 echo "\n[13] Upload init — valid input\n";

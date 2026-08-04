@@ -106,6 +106,16 @@ function t(key, fallback) {
 		var temp = document.createElement('div');
 		temp.innerHTML = html;
 		temp.querySelectorAll('a').forEach(function(a) {
+			// A generated-file link pasted into chat text carries DEF's
+			// canonical /api/files/ path, which 404s on the WordPress origin —
+			// route it through the same download endpoint as the button. Also
+			// fixes links in replayed history from before this change. Guard:
+			// an anchor DOMPurify stripped the href from must STAY dead —
+			// writing rewriteDownloadUrl(null) back would re-arm it as "null".
+			var href = a.getAttribute('href');
+			if (href) {
+				a.setAttribute('href', rewriteDownloadUrl(href));
+			}
 			a.setAttribute('target', '_blank');
 			a.setAttribute('rel', 'noopener noreferrer');
 		});

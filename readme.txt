@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.2
+Stable tag: 5.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.6.3 - 2026-08-04 =
+* Fix: the Download button on generated files works again. The download handler was still authenticating to the backend with the retired JWT method, which the backend has rejected since the proxy-auth migration - it now uses the same connection credentials as every other backend call.
+* Fix: file links the assistant writes into its chat replies no longer lead to a 404 page. They are now routed through the same download endpoint as the Download button, including links in older conversations when they are reloaded.
 
 = 5.6.2 - 2026-07-30 =
 * Fix: the hand-off email's subject line is now taken from the visitor's opening message instead of the assistant's explanation of why it handed over. That explanation is free text and could run to 500 characters, so subjects arrived carrying a whole conversation summary, cut off mid-sentence. It is now included in the email body as an "Assistant note:" line, where its length does no harm.
