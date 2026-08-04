@@ -620,6 +620,84 @@ foreach ( $allowed as $mime ) {
 	}
 }
 
+// ── 27. rest_list_documents — q forwarding to DEF ───────────────────────
+// Success-path stubs live here: every earlier section exercises error paths
+// only, so the wp_remote_* layer is first defined at this point (guarded).
+echo "\n[27] rest_list_documents q= forwarding\n";
+
+// The REAL DEF_Core_Encryption is loaded by wp-stubs.php; its get_secret
+// legacy-plaintext path returns a seeded option value as-is.
+$_wp_test_options['def_core_api_key'] = 'test-api-key';
+
+if ( ! class_exists( 'DEF_Core_Tools' ) ) {
+	class DEF_Core_Tools {
+		public static function get_user_def_capabilities( $user ): array { return array( 'def_staff_access' ); }
+	}
+}
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	function get_bloginfo( string $show = '' ): string { return ''; }
+}
+if ( ! function_exists( 'wp_remote_get' ) ) {
+	function wp_remote_get( string $url, array $args = array() ) {
+		$GLOBALS['_def_test_last_get_url'] = $url;
+		return array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '{"success":true,"documents":[]}',
+		);
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
+	function wp_remote_retrieve_response_code( $response ) {
+		return is_array( $response ) ? ( $response['response']['code'] ?? 0 ) : 0;
+	}
+}
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	function wp_remote_retrieve_body( $response ): string {
+		return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
+	}
+}
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data;
+		public $status;
+		public function __construct( $data = null, int $status = 200 ) {
+			$this->data   = $data;
+			$this->status = $status;
+		}
+	}
+}
+
+$_wp_test_current_user     = new WP_User( 1 );
+$_wp_test_current_user->ID = 1;
+
+$req = new WP_REST_Request();
+$req->set_param( 'q', 'Progress: 100%' );
+DEF_Core_Staff_AI::rest_list_documents( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents?q=Progress%3A%20100%25',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'q is trimmed + rawurlencoded onto the DEF path'
+);
+
+$GLOBALS['_def_test_last_get_url'] = '';
+$req = new WP_REST_Request();
+DEF_Core_Staff_AI::rest_list_documents( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'absent q adds no query string'
+);
+
+$GLOBALS['_def_test_last_get_url'] = '';
+$req = new WP_REST_Request();
+$req->set_param( 'q', '   ' );
+DEF_Core_Staff_AI::rest_list_documents( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'whitespace-only q adds no query string'
+);
+
 // Cleanup.
 $_wp_test_current_user = null;
 $_wp_test_user_caps    = array();

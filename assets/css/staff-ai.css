@@ -2062,6 +2062,21 @@ html {
 	line-height: 1.5;
 }
 
+.documents-search {
+	width: 100%;
+	margin: 0 0 12px;
+	padding: 8px 10px;
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text-primary);
+	font-size: 13px;
+}
+.documents-search:focus {
+	outline: none;
+	border-color: #2271b1;
+}
+
 .documents-status {
 	font-size: 13px;
 	margin-bottom: 10px;

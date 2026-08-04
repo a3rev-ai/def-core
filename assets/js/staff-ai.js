@@ -2463,7 +2463,13 @@ function t(key, fallback) {
 		const refreshBtn = document.getElementById('documentsRefresh');
 		const statusEl = document.getElementById('documentsStatus');
 		const listEl = document.getElementById('documentsList');
+		const searchEl = document.getElementById('documentsSearch');
 		let loading = false;
+		let searchTimer = null;
+
+		function searchTerm() {
+			return searchEl ? searchEl.value.trim() : '';
+		}
 
 		function open() {
 			modal.classList.add('visible');
@@ -2487,13 +2493,16 @@ function t(key, fallback) {
 		async function loadList() {
 			if (loading) return;
 			loading = true;
+			const term = searchTerm();
 			setStatus(t('documentsLoading', 'Loading your documents…'), 'muted');
 			listEl.innerHTML = '';
 			try {
-				const data = await apiRequest('/documents');
+				const data = await apiRequest('/documents' + (term ? '?q=' + encodeURIComponent(term) : ''));
 				const docs = Array.isArray(data.documents) ? data.documents : [];
 				if (docs.length === 0) {
-					setStatus(t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
+					setStatus(term
+						? t('documentsNoMatches', 'No documents match your search.')
+						: t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
 					return;
 				}
 				setStatus('', '');
@@ -2502,6 +2511,9 @@ function t(key, fallback) {
 				setStatus((e && e.message) || t('documentsLoadFailed', 'Could not load your documents.'), 'error');
 			} finally {
 				loading = false;
+				// A keystroke that landed mid-request was dropped by the
+				// `loading` guard — re-run for the newest term.
+				if (searchTerm() !== term) loadList();
 			}
 		}
 
@@ -2560,7 +2572,9 @@ function t(key, fallback) {
 				row.remove();
 				setStatus('', '');
 				if (!listEl.children.length) {
-					setStatus(t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
+					setStatus(searchTerm()
+						? t('documentsNoMatches', 'No documents match your search.')
+						: t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
 				}
 			} catch (e) {
 				btn.disabled = false;
@@ -2578,6 +2592,25 @@ function t(key, fallback) {
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		if (searchEl) {
+			// Debounced as-you-type; Enter searches immediately. The 'search'
+			// event covers the input's native clear (×) control.
+			searchEl.addEventListener('input', function () {
+				clearTimeout(searchTimer);
+				searchTimer = setTimeout(loadList, 300);
+			});
+			searchEl.addEventListener('keydown', function (e) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					clearTimeout(searchTimer);
+					loadList();
+				}
+			});
+			searchEl.addEventListener('search', function () {
+				clearTimeout(searchTimer);
+				loadList();
+			});
+		}
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 
