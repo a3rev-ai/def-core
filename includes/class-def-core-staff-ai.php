@@ -1455,7 +1455,10 @@ final class DEF_Core_Staff_AI
 		$docs_in   = ( isset( $result['documents'] ) && is_array( $result['documents'] ) ) ? $result['documents'] : array();
 		$documents = array();
 		foreach ( $docs_in as $doc ) {
-			if ( ! is_array( $doc ) || empty( $doc['document_id'] ) ) {
+			// Charset-check the id to the same alphabet the DELETE route accepts,
+			// so the two ends of the panel can never disagree on a valid id.
+			if ( ! is_array( $doc ) || empty( $doc['document_id'] )
+				|| ! preg_match( '/^[a-zA-Z0-9-]+$/', (string) $doc['document_id'] ) ) {
 				continue;
 			}
 			$download = '';
@@ -1504,6 +1507,15 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request( 'DELETE', '/api/staff-ai/documents/' . rawurlencode( $id ) );
 		if ( is_wp_error( $result ) ) {
+			// A vanished id is normal panel traffic (double-click, stale list) — return
+			// plain copy, not backend_request's diagnostic string carrying the backend URL.
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_not_found',
+					__( 'That document no longer exists.', 'digital-employees' ),
+					array( 'status' => 404 )
+				);
+			}
 			return $result;
 		}
 

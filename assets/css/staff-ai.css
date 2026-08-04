@@ -2077,6 +2077,10 @@ html {
 .documents-list {
 	display: flex;
 	flex-direction: column;
+	/* The library grows unbounded (DEF pages 200 rows) and the modal is fixed +
+	   vertically centered — without this the newest rows scroll off-viewport. */
+	max-height: 55vh;
+	overflow-y: auto;
 }
 
 .document-row {
@@ -2134,7 +2138,10 @@ html {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
-.document-btn-download {
+/* :visited included — a bare class rule loses to a:visited (the 5.6.4 lesson),
+   and a library link is by definition usually visited. */
+.document-btn-download,
+.document-btn-download:visited {
 	background: #2271b1;
 	border: none;
 	color: #fff;

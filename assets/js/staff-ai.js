@@ -2549,13 +2549,16 @@ function t(key, fallback) {
 		}
 
 		async function removeDoc(doc, btn, row) {
-			const prompt = t('documentsConfirmDelete', 'Delete "%s"? This permanently removes it from your library.')
-				.replace('%s', doc.title || '');
-			if (!window.confirm(prompt)) return;
+			// Function replacement — a title containing $& / $' would garble a
+			// string-pattern replace. Fallback matches the row label's.
+			const msg = t('documentsConfirmDelete', 'Delete "%s"? This permanently removes it from your library.')
+				.replace('%s', function () { return doc.title || doc.document_id; });
+			if (!window.confirm(msg)) return;
 			btn.disabled = true;
 			try {
 				await apiRequest('/documents/' + encodeURIComponent(doc.document_id), { method: 'DELETE' });
 				row.remove();
+				setStatus('', '');
 				if (!listEl.children.length) {
 					setStatus(t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
 				}

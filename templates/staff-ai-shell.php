@@ -533,8 +533,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsEmpty: <?php echo wp_json_encode( __( 'No documents yet — ask me to create one and it will appear here.', 'digital-employees' ) ); ?>,
 			documentsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your documents.', 'digital-employees' ) ); ?>,
 			documentsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
-			/* translators: %s: document title. */
-			documentsConfirmDelete: <?php echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
+			documentsConfirmDelete: <?php /* translators: %s: document title. */ echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
 			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>
 		}
 	};
