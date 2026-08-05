@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.7.1 - 2026/08/05 =
+* Improvement: chat requests now tell the assistant service which visitor they came from, so its flood protection counts one visitor at a time instead of your whole site. Nothing to configure. Sites behind a CDN or reverse proxy can supply the visitor IP their edge sets, via the new def_core_visitor_ip filter.
+
 = 5.7.0 - 2026/08/05 =
 * Feature: attach generated documents to a shared conversation - the Share dialog now lists your My Documents library, and selected documents are sent as real email attachments (up to 10 documents / 15MB per share).
 

@@ -7,6 +7,8 @@
  * - build_proxy_headers(false) does NOT include identity headers (customer chat privacy)
  * - Unicode display names survive rawurlencode round-trip
  * - Missing/empty identity fields produce no broken headers
+ * - X-DEF-Client-IP carries the visitor's own IP on every channel, is validated,
+ *   and ignores client-supplied forwarding headers
  *
  * Runs standalone (no WordPress bootstrap). Uses ReflectionMethod to access
  * the private build_proxy_headers() method.
@@ -93,6 +95,19 @@ if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter( string $hook, $callback, int $priority = 10, int $accepted_args = 1 ): void {}
 }
 
+// Minimal filter registry — get_visitor_ip() runs its value through apply_filters,
+// and test [10] registers a CDN-style override on it.
+global $_proxy_test_filters;
+$_proxy_test_filters = array();
+
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( string $hook, $value ) {
+		global $_proxy_test_filters;
+		$cb = $_proxy_test_filters[ $hook ] ?? null;
+		return $cb ? $cb( $value ) : $value;
+	}
+}
+
 if ( ! function_exists( 'add_rewrite_rule' ) ) {
 	function add_rewrite_rule( string $regex, string $query, string $after = 'bottom' ): void {}
 }
@@ -153,10 +168,10 @@ function assert_false( $value, string $label ): void {
 /**
  * Call the private build_proxy_headers() via reflection.
  */
-function call_build_proxy_headers( bool $include_capabilities = false ): array {
+function call_build_proxy_headers( bool $include_capabilities = false, bool $include_visitor_ip = true ): array {
 	$method = new ReflectionMethod( 'DEF_Core_Tools', 'build_proxy_headers' );
 	$method->setAccessible( true );
-	return $method->invoke( null, $include_capabilities );
+	return $method->invoke( null, $include_capabilities, $include_visitor_ip );
 }
 
 /**
@@ -283,6 +298,112 @@ assert_false( has_header( $headers, 'X-DEF-User-Display-Name:' ), 'no display na
 assert_false( has_header( $headers, 'X-DEF-User-Email:' ), 'no email when anonymous' );
 assert_false( has_header( $headers, 'X-DEF-User-Roles:' ), 'no roles when anonymous' );
 $_proxy_test_logged_in = true; // restore
+
+// ── 8. Visitor IP crosses on every channel ──────────────────────────────
+echo "\n[8] X-DEF-Client-IP — the visitor's IP, both channels, logged in or not\n";
+
+$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+foreach ( array( false, true ) as $with_caps ) {
+	$headers = call_build_proxy_headers( $with_caps );
+	$label   = $with_caps ? 'staff_ai' : 'customer chat';
+	assert_true(
+		get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+		"visitor IP sent for $label"
+	);
+}
+
+// Anonymous is the case that matters most — Customer Chat has no user to key on.
+$_proxy_test_logged_in = false;
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+	'visitor IP sent for an anonymous visitor'
+);
+$_proxy_test_logged_in = true;
+
+// ── 9. A client-supplied forwarding header is NOT the visitor IP ────────
+echo "\n[9] Spoofed forwarding headers are ignored — REMOTE_ADDR wins\n";
+
+$_SERVER['HTTP_X_FORWARDED_FOR']  = '198.51.100.7';
+$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.8';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+	'X-Forwarded-For / CF-Connecting-IP do not move the bucket'
+);
+unset( $_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_CF_CONNECTING_IP'] );
+
+// ── 10. CDN sites opt in through the filter ─────────────────────────────
+echo "\n[10] def_core_visitor_ip filter overrides (CDN topology)\n";
+
+$_proxy_test_filters['def_core_visitor_ip'] = fn( $ip ) => '198.51.100.99';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '198.51.100.99',
+	'filtered IP is forwarded'
+);
+
+// A filter returning junk must not put junk on the wire.
+$_proxy_test_filters['def_core_visitor_ip'] = fn( $ip ) => "not-an-ip\r\nX-Injected: 1";
+$headers = call_build_proxy_headers( false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'invalid filtered IP is dropped' );
+assert_false( has_header( $headers, 'X-Injected:' ), 'no header injection through the filter' );
+$_proxy_test_filters = array();
+
+// ── 11. No REMOTE_ADDR (WP-CLI) → no header, and no XFF rescue ──────────
+// The dangerous shape this pins: "REMOTE_ADDR is empty, so fall back to the
+// forwarding header". A spoofed XFF is present for exactly that reason — without it
+// the assertion passes even if such a fallback is added.
+echo "\n[11] No REMOTE_ADDR → header omitted, and a spoofed XFF does not rescue it\n";
+
+unset( $_SERVER['REMOTE_ADDR'] );
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.66';
+$headers = call_build_proxy_headers( false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP header off a web request' );
+assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'the rest of the headers still build' );
+unset( $_SERVER['HTTP_X_FORWARDED_FOR'] );
+
+// IPv6 is a valid visitor too. Deliberately a real global-unicast address and NOT the
+// 2001:db8::/32 documentation range: whether PHP counts that range as "reserved" varies
+// between builds (this passed on 8.4.6 locally and was dropped by CI's 8.4), so pinning it
+// would test the PHP build rather than this code. Harmless either way in production — a
+// documentation address is never a real visitor.
+$_SERVER['REMOTE_ADDR'] = '2606:4700:4700::1111';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '2606:4700:4700::1111',
+	'IPv6 visitor IP forwarded'
+);
+
+// ── 12. Un-rewritten proxy address is NOT a visitor ─────────────────────
+// A private/reserved REMOTE_ADDR is the proxy in front of WP, identical for every
+// visitor. Forwarding it would look like a per-visitor key to DEF while actually
+// being the site — and several sites would collide on the same 172.17.0.1.
+echo "\n[12] Private / reserved REMOTE_ADDR is not forwarded\n";
+
+foreach ( array( '10.0.0.5', '172.17.0.1', '192.168.1.10', '127.0.0.1', '::1', '169.254.1.1' ) as $private ) {
+	$_SERVER['REMOTE_ADDR'] = $private;
+	$headers = call_build_proxy_headers( false );
+	assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), "not forwarded: $private" );
+}
+
+// Carrier-grade NAT (100.64/10) is real mobile traffic — it must still be forwarded.
+$_SERVER['REMOTE_ADDR'] = '100.64.10.20';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '100.64.10.20',
+	'CGNAT visitor IP still forwarded (mobile networks)'
+);
+
+$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+// ── 13. Opt-out for calls that are not something the visitor did ────────
+echo "\n[13] include_visitor_ip = false omits the IP, keeps everything else\n";
+
+$headers = call_build_proxy_headers( false, false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP when opted out' );
+assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'API key still sent when opted out' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Proxy Identity Headers Tests: $pass passed, $fail failed ---\n";
