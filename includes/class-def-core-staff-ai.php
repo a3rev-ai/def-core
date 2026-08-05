@@ -25,6 +25,11 @@ final class DEF_Core_Staff_AI
 	 */
 	const ENDPOINT_SLUG = 'staff-ai';
 
+	// Share attachments: refuse politely above these — mail hosts commonly
+	// cap around 20-25MB total; both are attack ceilings, not product limits.
+	const SHARE_MAX_ATTACHMENT_COUNT = 10;
+	const SHARE_MAX_ATTACHMENT_BYTES = 15728640; // 15MB
+
 	/**
 	 * Allowed MIME types for file uploads.
 	 * UX-layer filtering only — DEF backend performs authoritative content validation.
@@ -2329,12 +2334,31 @@ final class DEF_Core_Staff_AI
 		// Whitelist allowed client fields — prevent staff users from injecting
 		// bcc, sender_email, user_copy_email, or other escalation fields.
 		// NOTE: 'channel' is NOT in the whitelist — forced server-side below.
+		// NOTE: 'document_ids' is deliberately NOT forwarded either — it is
+		// resolved to server-side file paths HERE and handed to the mailer as
+		// a PHP argument, so the escalation route never grows a client-
+		// suppliable attachment field.
 		$allowed_keys = array('to', 'subject', 'body');
 		$safe_body = array();
 		foreach ($allowed_keys as $key) {
 			if (isset($body[$key])) {
 				$safe_body[$key] = $body[$key];
 			}
+		}
+
+		// Optional document attachments. The permission model enforces
+		// itself: documents are resolved through the caller's OWN authenticated
+		// list + download path, so a user can only ever attach what they can
+		// already download.
+		$attachments = array();
+		$attach_dir  = '';
+		if ( ! empty( $body['document_ids'] ) ) {
+			$fetched = self::share_fetch_attachments( $body['document_ids'] );
+			if ( $fetched instanceof \WP_REST_Response ) {
+				return $fetched; // Polite refusal — nothing was sent.
+			}
+			$attachments = $fetched['paths'];
+			$attach_dir  = $fetched['dir'];
 		}
 
 		// Force channel=staff_ai server-side. This endpoint is exclusively
@@ -2361,7 +2385,222 @@ final class DEF_Core_Staff_AI
 			$inner_request->set_param($key, $value);
 		}
 
-		return \DEF_Core_Escalation::send_escalation_email($inner_request);
+		try {
+			return \DEF_Core_Escalation::send_escalation_email($inner_request, $attachments);
+		} finally {
+			self::share_cleanup_attachments( $attach_dir, $attachments );
+		}
+	}
+
+	/**
+	 * Resolve document ids to fetched temp files for share attachments.
+	 *
+	 * All-or-nothing: any invalid id, missing document, size overrun, or
+	 * fetch failure refuses the WHOLE share politely — never a silently
+	 * partial mail. Documents are resolved via the caller's own
+	 * authenticated document list and fetched through the same BFF-auth'd
+	 * download path the panel uses, so ownership is enforced by the
+	 * per-user blob key with no new ACL.
+	 *
+	 * @param mixed $document_ids Raw client value (expected: array of id strings).
+	 * @return array|\WP_REST_Response array('dir' => tmpdir, 'paths' => files) or a refusal response.
+	 */
+	private static function share_fetch_attachments( $document_ids )
+	{
+		if ( ! is_array( $document_ids ) || count( $document_ids ) > self::SHARE_MAX_ATTACHMENT_COUNT ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'VALIDATION_ERROR',
+					'message' => sprintf(
+						/* translators: %d: maximum number of documents per share. */
+						__( 'You can attach up to %d documents per share.', 'digital-employees' ),
+						self::SHARE_MAX_ATTACHMENT_COUNT
+					),
+				),
+				400
+			);
+		}
+		foreach ( $document_ids as $id ) {
+			// Same alphabet the panel routes accept — the ends can never disagree.
+			if ( ! is_string( $id ) || ! preg_match( '/^[a-zA-Z0-9-]+$/', $id ) ) {
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'VALIDATION_ERROR',
+						'message' => __( 'Invalid document id.', 'digital-employees' ),
+					),
+					400
+				);
+			}
+		}
+
+		// The caller's OWN document list — ownership check comes free.
+		$result = self::backend_request( 'GET', '/api/staff-ai/documents' );
+		if ( is_wp_error( $result ) ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'BACKEND_ERROR',
+					'message' => __( 'Could not load your documents. Nothing was sent.', 'digital-employees' ),
+				),
+				502
+			);
+		}
+		$by_id = array();
+		foreach ( ( isset( $result['documents'] ) && is_array( $result['documents'] ) ) ? $result['documents'] : array() as $doc ) {
+			if ( is_array( $doc ) && ! empty( $doc['document_id'] ) ) {
+				$by_id[ (string) $doc['document_id'] ] = $doc;
+			}
+		}
+
+		$selected    = array();
+		$total_bytes = 0;
+		foreach ( $document_ids as $id ) {
+			if ( ! isset( $by_id[ $id ] ) ) {
+				// Same plain copy as the panel's delete — no oracle.
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'NOT_FOUND',
+						'message' => __( 'Document not found.', 'digital-employees' ),
+					),
+					404
+				);
+			}
+			$selected[ $id ] = $by_id[ $id ];
+			$total_bytes    += isset( $by_id[ $id ]['size_bytes'] ) ? (int) $by_id[ $id ]['size_bytes'] : 0;
+		}
+		if ( $total_bytes > self::SHARE_MAX_ATTACHMENT_BYTES ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'VALIDATION_ERROR',
+					'message' => sprintf(
+						/* translators: %d: maximum total attachment size in MB. */
+						__( 'Attachments exceed the %dMB limit for shared emails. Nothing was sent — try fewer or smaller documents.', 'digital-employees' ),
+						(int) ( self::SHARE_MAX_ATTACHMENT_BYTES / MB_IN_BYTES )
+					),
+				),
+				400
+			);
+		}
+
+		$base_url = self::get_api_base_url();
+		$api_key  = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		if ( ! $base_url || empty( $api_key ) ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'BACKEND_ERROR',
+					'message' => __( 'Staff AI backend not configured.', 'digital-employees' ),
+				),
+				503
+			);
+		}
+		$user         = wp_get_current_user();
+		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
+
+		$dir = trailingslashit( get_temp_dir() ) . uniqid( 'def-share-', true );
+		if ( ! wp_mkdir_p( $dir ) ) {
+			return new \WP_REST_Response(
+				array(
+					'error'   => 'SERVER_ERROR',
+					'message' => __( 'Could not prepare attachments. Nothing was sent.', 'digital-employees' ),
+				),
+				500
+			);
+		}
+
+		$paths = array();
+		foreach ( $selected as $doc ) {
+			$m = array();
+			if ( ! isset( $doc['download_url'] ) || ! is_string( $doc['download_url'] )
+				|| ! preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
+				self::share_cleanup_attachments( $dir, $paths );
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'BACKEND_ERROR',
+						'message' => __( 'Could not fetch a document. Nothing was sent.', 'digital-employees' ),
+					),
+					502
+				);
+			}
+			// Normalize-then-encode: skew-safe whether DEF emits the filename
+			// raw or percent-encoded (same normalization as the panel rewrite).
+			$file_url = $base_url . '/api/files/' . rawurlencode( rawurldecode( $m[1] ) )
+				. '/' . rawurlencode( rawurldecode( $m[2] ) );
+			$response = wp_remote_get(
+				$file_url,
+				array(
+					'timeout' => 30,
+					'headers' => array(
+						'X-DEF-API-Key'           => $api_key,
+						'X-DEF-User'              => (string) $user->ID,
+						'X-DEF-User-Capabilities' => implode( ',', $capabilities ),
+					),
+				)
+			);
+			$bytes = is_wp_error( $response ) ? '' : wp_remote_retrieve_body( $response );
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) || '' === $bytes ) {
+				self::share_cleanup_attachments( $dir, $paths );
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'BACKEND_ERROR',
+						'message' => __( 'Could not fetch a document. Nothing was sent.', 'digital-employees' ),
+					),
+					502
+				);
+			}
+
+			// Recipient-friendly attachment name: the document title with the
+			// stored file's extension; fall back to the stored filename.
+			$stored_name = rawurldecode( $m[2] );
+			$ext         = pathinfo( $stored_name, PATHINFO_EXTENSION );
+			$title       = ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '';
+			$name        = sanitize_file_name( '' !== $title ? $title : $stored_name );
+			if ( '' === $name ) {
+				$name = 'document';
+			}
+			if ( '' !== $ext && strtolower( pathinfo( $name, PATHINFO_EXTENSION ) ) !== strtolower( $ext ) ) {
+				$name .= '.' . $ext;
+			}
+			$path = $dir . '/' . $name;
+			$n    = 2;
+			while ( in_array( $path, $paths, true ) || file_exists( $path ) ) {
+				$path = $dir . '/' . pathinfo( $name, PATHINFO_FILENAME ) . '-' . $n
+					. ( '' !== $ext ? '.' . $ext : '' );
+				$n++;
+			}
+			if ( false === file_put_contents( $path, $bytes ) ) {
+				self::share_cleanup_attachments( $dir, $paths );
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'SERVER_ERROR',
+						'message' => __( 'Could not prepare attachments. Nothing was sent.', 'digital-employees' ),
+					),
+					500
+				);
+			}
+			$paths[] = $path;
+		}
+
+		return array(
+			'dir'   => $dir,
+			'paths' => $paths,
+		);
+	}
+
+	/**
+	 * Remove share attachment temp files and their directory. Best-effort.
+	 *
+	 * @param string $dir   Temp directory ('' = nothing to clean).
+	 * @param array  $paths Files inside it.
+	 */
+	private static function share_cleanup_attachments( $dir, array $paths )
+	{
+		foreach ( $paths as $path ) {
+			if ( is_string( $path ) && file_exists( $path ) ) {
+				@unlink( $path );
+			}
+		}
+		if ( '' !== $dir && is_dir( $dir ) ) {
+			@rmdir( $dir );
+		}
 	}
 
 	/**

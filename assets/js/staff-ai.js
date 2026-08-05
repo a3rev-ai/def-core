@@ -186,6 +186,9 @@ function t(key, fallback) {
 	const shareTranscript = document.getElementById('shareTranscript');
 	const shareCancel = document.getElementById('shareCancel');
 	const shareSend = document.getElementById('shareSend');
+	const shareDocumentsSection = document.getElementById('shareDocumentsSection');
+	const shareDocumentsList = document.getElementById('shareDocumentsList');
+	const shareDocumentsHint = document.getElementById('shareDocumentsHint');
 
 	// Upload DOM references
 	const uploadBtn     = document.getElementById('uploadBtn');
@@ -1898,7 +1901,69 @@ function t(key, fallback) {
 		const hasRecipient = shareSelectedRecipients.length > 0;
 		const hasSubject = shareSubject.value.trim() !== '';
 		const hasMessage = shareMessage.value.trim() !== '';
-		shareSend.disabled = !(hasRecipient && hasSubject && hasMessage);
+		shareSend.disabled = !(hasRecipient && hasSubject && hasMessage) || shareDocsOverLimit();
+	}
+
+	// --- Share document attachments ---
+	// Mirror of the server cap — the server still enforces; this only gives
+	// instant feedback instead of a failed send.
+	const SHARE_ATTACH_MAX_BYTES = 15728640; // 15MB
+	let shareDocs = [];
+	let shareSelectedDocIds = [];
+
+	function shareDocSize(bytes) {
+		if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
+		if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+		return (bytes / 1048576).toFixed(1) + ' MB';
+	}
+
+	function shareDocsOverLimit() {
+		let total = 0;
+		shareDocs.forEach(function(doc) {
+			if (shareSelectedDocIds.indexOf(doc.document_id) !== -1) total += doc.size_bytes || 0;
+		});
+		return total > SHARE_ATTACH_MAX_BYTES;
+	}
+
+	function renderShareDocuments(docs) {
+		shareDocs = Array.isArray(docs) ? docs : [];
+		shareSelectedDocIds = [];
+		shareDocumentsList.innerHTML = '';
+		shareDocumentsHint.style.display = 'none';
+		if (shareDocs.length === 0) {
+			shareDocumentsSection.style.display = 'none';
+			return;
+		}
+		shareDocs.forEach(function(doc) {
+			const row = document.createElement('label');
+			row.className = 'share-document-row';
+			const cb = document.createElement('input');
+			cb.type = 'checkbox';
+			cb.value = doc.document_id;
+			cb.addEventListener('change', function() {
+				if (cb.checked) {
+					shareSelectedDocIds.push(doc.document_id);
+				} else {
+					shareSelectedDocIds = shareSelectedDocIds.filter(function(id) { return id !== doc.document_id; });
+				}
+				const over = shareDocsOverLimit();
+				shareDocumentsHint.textContent = over ? t('shareAttachLimit', 'Selected documents exceed the 15MB attachment limit.') : '';
+				shareDocumentsHint.style.display = over ? '' : 'none';
+				updateShareSendButton();
+			});
+			const name = document.createElement('span');
+			name.className = 'share-document-title';
+			name.textContent = doc.title || doc.document_id;
+			name.title = doc.title || '';
+			const size = document.createElement('span');
+			size.className = 'share-document-size';
+			size.textContent = shareDocSize(doc.size_bytes);
+			row.appendChild(cb);
+			row.appendChild(name);
+			row.appendChild(size);
+			shareDocumentsList.appendChild(row);
+		});
+		shareDocumentsSection.style.display = '';
 	}
 
 	// Enable/disable Send when fields change
@@ -2013,14 +2078,16 @@ function t(key, fallback) {
 		showShareLoading();
 
 		try {
-			// Fetch recipients + AI summary in parallel
-			const [settingsResp, summaryResp] = await Promise.all([
+			// Fetch recipients + AI summary + attachable documents in parallel.
+			// Documents are best-effort: a failure just hides the attach section.
+			const [settingsResp, summaryResp, docsResp] = await Promise.all([
 				apiRequest('/share-settings', {
 					method: 'GET'
 				}).catch(function() { throw new Error('Failed to load recipients'); }),
 				apiRequest('/conversations/' + encodeURIComponent(currentConversationId) + '/summarize', {
 					method: 'POST'
-				})
+				}),
+				apiRequest('/documents').catch(function() { return null; })
 			]);
 
 			// Populate token select with recipients (use recipient_options for display)
@@ -2032,6 +2099,7 @@ function t(key, fallback) {
 			shareSubject.value = (summaryResp && summaryResp.suggested_subject) || '';
 			shareMessage.value = (summaryResp && summaryResp.summary) || '';
 			shareTranscript.checked = true;
+			renderShareDocuments(docsResp && docsResp.documents);
 
 			updateShareSendButton();
 			showShareForm();
@@ -2063,13 +2131,17 @@ function t(key, fallback) {
 
 			// Extract email strings for the API call.
 			// channel is forced server-side — not sent from client.
+			const payload = {
+				to: selectedRecipients.map(function(r) { return r.email; }),
+				subject: shareSubject.value,
+				body: bodyText
+			};
+			if (shareSelectedDocIds.length > 0) {
+				payload.document_ids = shareSelectedDocIds.slice();
+			}
 			await apiRequest('/share-send', {
 				method: 'POST',
-				body: JSON.stringify({
-					to: selectedRecipients.map(function(r) { return r.email; }),
-					subject: shareSubject.value,
-					body: bodyText
-				})
+				body: JSON.stringify(payload)
 			});
 
 			shareModal.classList.remove('visible');
