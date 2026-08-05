@@ -449,6 +449,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="modal-body">
 					<p class="documents-intro"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
+					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search your documents by title', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search your documents by title…', 'digital-employees' ); ?>">
 					<div class="documents-status" id="documentsStatus"></div>
 					<div class="documents-list" id="documentsList"></div>
 				</div>
@@ -534,7 +535,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your documents.', 'digital-employees' ) ); ?>,
 			documentsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
 			documentsConfirmDelete: <?php /* translators: %s: document title. */ echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
-			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>
+			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>,
+			documentsNoMatches: <?php echo wp_json_encode( __( 'No documents match your search.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

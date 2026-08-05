@@ -2062,6 +2062,13 @@ html {
 	line-height: 1.5;
 }
 
+/* Deltas over .form-input, which carries the border/focus/placeholder theme. */
+.documents-search {
+	margin: 0 0 12px;
+	padding: 8px 10px;
+	font-size: 13px;
+}
+
 .documents-status {
 	font-size: 13px;
 	margin-bottom: 10px;

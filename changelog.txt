@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.6.7 - 2026/08/05 =
+* New: search box in the My Documents panel - filter your documents by title as you type.
+
 = 5.6.6 - 2026/08/05 =
 * Feature: My Documents panel in Staff AI - browse the documents your assistant has created for you, download them, or delete the ones you no longer need. Open it from the new document icon in the header.
 

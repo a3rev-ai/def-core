@@ -477,6 +477,13 @@ final class DEF_Core_Staff_AI
 				'methods'             => 'GET',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
 				'callback'            => array(__CLASS__, 'rest_list_documents'),
+				'args'                => array(
+					'q' => array(
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
 			)
 		);
 		register_rest_route(
@@ -1448,7 +1455,12 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function rest_list_documents( \WP_REST_Request $request )
 	{
-		$result = self::backend_request( 'GET', '/api/staff-ai/documents' );
+		$path = '/api/staff-ai/documents';
+		$q    = $request->get_param( 'q' );
+		if ( is_string( $q ) && '' !== trim( $q ) ) {
+			$path .= '?q=' . rawurlencode( trim( $q ) );
+		}
+		$result = self::backend_request( 'GET', $path );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
