@@ -210,7 +210,9 @@ final class DEF_Core_Tools {
 		$ch = curl_init( \DEF_Core::get_def_api_url_internal() . '/api/customer/identity' );
 		curl_setopt_array( $ch, array(
 			CURLOPT_HTTPGET        => true,
-			CURLOPT_HTTPHEADER     => self::build_proxy_headers(),
+			// No visitor IP: this fires on page render to warm a per-SITE config value,
+			// for visitors who may never open the chat, and nothing rate-limits it.
+			CURLOPT_HTTPHEADER     => self::build_proxy_headers( false, false ),
 			CURLOPT_TIMEOUT        => 4, // short — must not block page render on a DEF hiccup
 			CURLOPT_RETURNTRANSFER => true,
 		) );
@@ -235,6 +237,69 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * The visitor's own IP, for DEF's per-visitor rate limits.
+	 *
+	 * DEF sees this WP server's egress IP on every proxied request, so without this
+	 * header its "per-IP" limits bound a whole SITE rather than one visitor. Customer
+	 * Chat is anonymous, so the IP is the only visitor key that exists.
+	 *
+	 * REMOTE_ADDR only — the TCP peer as PHP sees it. A forwarding header is NOT read
+	 * here even when one is present: on a site that is not actually behind a proxy,
+	 * anyone can send X-Forwarded-For / CF-Connecting-IP, and def-core would then hand
+	 * DEF an attacker-chosen "visitor" per request — a limit keyed on that is no limit.
+	 *
+	 * Sites behind a CDN or reverse proxy see the edge/proxy address in REMOTE_ADDR. The
+	 * fix is at the web-server layer — mod_remoteip, nginx set_real_ip_from, or a
+	 * REMOTE_ADDR-rewriting plugin — so the real visitor lands in REMOTE_ADDR before this
+	 * runs, which is the same guidance DEF_Core_Escalation::get_client_ip() already gives
+	 * for its own rate limit. The filter below exists for setups that cannot do that.
+	 *
+	 * Only PUBLIC addresses are forwarded. A private or reserved REMOTE_ADDR (10.0.0.5,
+	 * 172.17.0.1, ::1) means an un-rewritten proxy sits in front, so the address is that
+	 * proxy — one constant for every visitor. Sending it would give DEF something that
+	 * LOOKS like a visitor key but is really the site again, hiding the fact that the
+	 * site is not per-visitor keyed; DEF counts the omission instead
+	 * (chat_limiter_site_keyed_total), so the gap is visible centrally.
+	 *
+	 * Anything not a public IP yields '' and the caller omits the header; DEF then falls
+	 * back to the connection peer, which is today's behaviour. That covers WP-CLI (no
+	 * REMOTE_ADDR at all) and WP-Cron (a loopback HTTP request, so REMOTE_ADDR is present
+	 * but is 127.0.0.1 — caught as non-public, not as absent).
+	 *
+	 * @return string A public IP, or '' when there is none to send.
+	 */
+	private static function get_visitor_ip(): string {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
+
+		/**
+		 * Filters the visitor IP def-core forwards to DEF.
+		 *
+		 * Must return ONE public IP — not an X-Forwarded-For chain ("1.2.3.4, 5.6.7.8"
+		 * fails validation and the header is silently omitted).
+		 *
+		 * Read a client-supplied header here ONLY after checking that the request
+		 * actually came through your edge (i.e. REMOTE_ADDR is one of its ranges). A
+		 * CDN-fronted origin usually stays directly reachable, and an unconditional
+		 * `$_SERVER['HTTP_CF_CONNECTING_IP']` lets anyone who finds the origin choose
+		 * their own rate-limit bucket on every request — no limit at all. Rewriting
+		 * REMOTE_ADDR at the server layer avoids this question entirely.
+		 *
+		 * @param string $ip The IP from REMOTE_ADDR.
+		 */
+		$ip = (string) apply_filters( 'def_core_visitor_ip', $ip );
+
+		$public = filter_var(
+			$ip,
+			FILTER_VALIDATE_IP,
+			FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+		);
+
+		return $public ? $ip : '';
+	}
+
+	/**
 	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
 	 * Always sends (when logged in): X-DEF-User (id) + X-DEF-User-Display-Name.
@@ -252,14 +317,27 @@ final class DEF_Core_Tools {
 	 * capabilities are intentionally NOT sent for it (privacy boundary); only the
 	 * display name above crosses.
 	 *
+	 * Sends X-DEF-Client-IP (the visitor, see get_visitor_ip) so DEF can rate-limit per
+	 * VISITOR. It reaches DEF over the API-key channel, which is what makes the IP
+	 * trustworthy at the other end. $include_visitor_ip is false for the one caller that
+	 * runs on a plain page view rather than on something the visitor did — an IP is
+	 * personal data, and "nothing is sent unless a visitor uses the chat" is a published
+	 * claim (readme.txt, External Services) that a config GET must not quietly break.
+	 *
 	 * @param bool $include_capabilities Whether to include capabilities + email/roles.
+	 * @param bool $include_visitor_ip   Whether to send the visitor's IP.
 	 * @return array HTTP header strings (indexed, not associative).
 	 */
-	private static function build_proxy_headers( $include_capabilities = false ) {
+	private static function build_proxy_headers( $include_capabilities = false, $include_visitor_ip = true ) {
 		$headers = array(
 			'Content-Type: application/json',
 			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
 		);
+
+		$visitor_ip = $include_visitor_ip ? self::get_visitor_ip() : '';
+		if ( '' !== $visitor_ip ) {
+			$headers[] = 'X-DEF-Client-IP: ' . $visitor_ip;
+		}
 
 		if ( is_user_logged_in() ) {
 			$headers[] = 'X-DEF-User: ' . get_current_user_id();
