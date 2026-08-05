@@ -46,11 +46,22 @@ jobs:
           def filled(v):
               return bool(v) and not (v.startswith('<') and v.endswith('>'))
           documented = filled(field("Target")) and filled(field("What to document"))
-          if na or documented:
-              print("Documentation block resolved (%s)." % ("N/A" if na else "documented"))
+          if na:
+              print("Documentation block resolved (N/A).")
+              sys.exit(0)
+          if documented:
+              # Tier vocabulary gate — the ENFORCED corpus tiers (tiers.py
+              # nesting: Sam sees site_admin only; Tess +tenant; Pip all).
+              tier_raw = field("Tier")
+              tier = re.split(r'[\s—–-]+', tier_raw, 1)[0].strip().lower() if tier_raw else ""
+              if tier not in {"site_admin", "tenant", "partner"}:
+                  print("::error title=Documentation Tier invalid::**Tier:** must be site_admin | tenant | partner (got: %r)." % tier_raw)
+                  print("Tier by WHICH SURFACE fronts the feature: def-core/WordPress-side -> site_admin (Sam's tier; anything else hides it from Sam); Tenant Portal -> tenant (Tess); Partner Portal -> partner (Pip). See review-panel STEP 4.")
+                  sys.exit(1)
+              print("Documentation block resolved (documented, tier=%s)." % tier)
               sys.exit(0)
           print("::error title=Documentation block unresolved::This PR changes user-facing paths but the ## Documentation block is not resolved.")
           print("Touched in-scope paths: %s" % ", ".join(in_scope))
-          print("Fix: in the PR description, tick the **N/A** box, or fill **Target** and **What to document**.")
+          print("Fix: in the PR description, tick the **N/A** box, or fill **Target** and **What to document** (with a valid **Tier:**).")
           sys.exit(1)
           PY
