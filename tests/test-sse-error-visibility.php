@@ -145,7 +145,10 @@ assert_true( 'error' === ( $evt['type'] ?? '' ), 'type is "error" — the shape 
 assert_true( ! empty( $evt['message'] ), 'carries a message (widgets fall back to generic copy without it)' );
 assert_true( 429 === ( $evt['status'] ?? 0 ), 'status rides along' );
 assert_true( 37 === ( $evt['retry_after'] ?? 0 ), 'retry_after rides along' );
-assert_true( strpos( $evt['message'], '37' ) !== false, 'the visitor is told how long to wait' );
+assert_true(
+	is_array( $evt ) && false !== strpos( (string) ( $evt['message'] ?? '' ), '37' ),
+	'the visitor is told how long to wait'
+);
 assert_true( strpos( $out, '{"detail"' ) === false, 'the upstream JSON document is NOT forwarded' );
 
 // ── 2. Emitted once, not per chunk ───────────────────────────────────────
@@ -160,10 +163,13 @@ assert_true( '' === $third, 'third chunk emits nothing' );
 echo "\n[3] Wait-time copy: seconds, one second, and unknown\n";
 
 $one = decode_frame( call_private( 'sse_error_payload', array( 429, 1 ) ) );
-assert_true( strpos( $one['message'], '1 second before' ) !== false, 'singular form for 1 second' );
+assert_true(
+	is_array( $one ) && false !== strpos( (string) ( $one['message'] ?? '' ), '1 second before' ),
+	'singular form for 1 second'
+);
 
 $none = decode_frame( call_private( 'sse_error_payload', array( 429, 0 ) ) );
-assert_true( ! empty( $none['message'] ), 'still a message with no Retry-After' );
+assert_true( is_array( $none ) && ! empty( $none['message'] ), 'still a message with no Retry-After' );
 assert_false( isset( $none['retry_after'] ), 'retry_after omitted when unknown, never sent as 0' );
 assert_true( 429 === $none['status'], 'status still present' );
 

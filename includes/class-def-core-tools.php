@@ -134,9 +134,13 @@ final class DEF_Core_Tools {
 			CURLOPT_WRITEFUNCTION   => function ( $ch, $data ) use ( &$state ) {
 				$out = self::stream_chunk( $data, $state );
 				if ( '' !== $out ) {
-					// Not escaped on purpose: this is an SSE frame consumed by JSON.parse,
-					// not HTML. Its only interpolated values are wp_json_encode'd ints and
-					// translator-supplied copy; esc_* here would corrupt the JSON.
+					// Not escaped on purpose, and the two branches differ: on 2xx this is a
+					// byte-for-byte relay of the upstream SSE stream (unchanged from before
+					// this function existed — main carried the same unsuppressed sniff); on
+					// non-2xx it is our own wp_json_encode'd frame. Either way it is consumed
+					// by JSON.parse, not rendered as HTML, and esc_* would corrupt it. The
+					// three consumers sanitise: renderMarkdown runs DOMPurify, showError and
+					// renderError use textContent.
 					echo $out; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					if ( ob_get_level() ) {
 						ob_flush();
@@ -153,8 +157,14 @@ final class DEF_Core_Tools {
 		if ( $result === false ) {
 			$error = curl_error( $ch );
 			curl_close( $ch );
-			echo "data: {\"type\":\"error\",\"message\":\"Backend connection failed.\"}\n\n";
-			flush();
+			// Only if nothing has spoken yet. A connection that dies mid-error-body (a
+			// LOW_SPEED_TIME kill, a gateway dropping a truncated 5xx) would otherwise put
+			// "Backend connection failed." directly beneath "Please wait 37 seconds" — two
+			// assistant bubbles, the correct one contradicted by a technical one.
+			if ( ! $state['error_sent'] ) {
+				echo "data: {\"type\":\"error\",\"message\":\"Backend connection failed.\"}\n\n";
+				flush();
+			}
 			return;
 		}
 
@@ -162,7 +172,7 @@ final class DEF_Core_Tools {
 
 		// A non-200 with an EMPTY body never reaches the write callback, so the visitor
 		// would still see nothing. Belt for that case; stream_chunk() covers the rest.
-		if ( $state['status'] >= 400 && ! $state['error_sent'] ) {
+		if ( $state['status'] >= 300 && ! $state['error_sent'] ) {
 			$state['error_sent'] = true;
 			// See the write callback: an SSE frame, wp_json_encode'd, never HTML.
 			echo self::sse_error_payload( $state['status'], $state['retry_after'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -194,17 +204,25 @@ final class DEF_Core_Tools {
 	 *
 	 * On a 2xx this returns the chunk **verbatim** — the streaming path is unchanged.
 	 *
-	 * On a non-200 it returns an SSE error event ONCE and swallows the body. That is the
-	 * whole point of this function: DEF answers a refused request with a JSON document, and
-	 * a JSON document echoed into an SSE stream parses as nothing, so a rate-limited
+	 * On anything >= 300 it returns an SSE error event ONCE and swallows the body. That is
+	 * the whole point of this function: DEF answers a refused request with a JSON document,
+	 * and a JSON document echoed into an SSE stream parses as nothing, so a rate-limited
 	 * visitor saw NO message at all — the ceiling worked and looked like a dead widget.
+	 *
+	 * 300 and not 400: CURLOPT_FOLLOWLOCATION is off, so a redirect surfaces AS the
+	 * response, and its HTML body is just as invisible as a JSON one. The upstream base URL
+	 * is admin-configurable, so an http->https edge redirect or a proxy normalising a
+	 * trailing slash would otherwise silence every chat on the site with no message and no
+	 * log — the identical dead-widget symptom this function exists to remove.
 	 *
 	 * @param string $data  Chunk of upstream body.
 	 * @param array  $state Mutated: 'error_sent'.
 	 * @return string Bytes to send to the client ('' to send nothing).
 	 */
 	private static function stream_chunk( string $data, array &$state ): string {
-		if ( $state['status'] < 400 ) {
+		if ( $state['status'] < 300 ) {
+			// Status 0 (headers never parsed) lands here too, which is the right fallback:
+			// relay, exactly as before this change.
 			return $data;
 		}
 		if ( $state['error_sent'] ) {
