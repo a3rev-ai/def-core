@@ -642,7 +642,7 @@ if ( ! function_exists( 'wp_remote_get' ) ) {
 		$GLOBALS['_def_test_last_get_url'] = $url;
 		return array(
 			'response' => array( 'code' => 200 ),
-			'body'     => '{"success":true,"documents":[]}',
+			'body'     => $GLOBALS['_def_test_get_body'] ?? '{"success":true,"documents":[]}',
 		);
 	}
 }
@@ -676,6 +676,48 @@ assert_equals(
 	'https://def-api.test/api/staff-ai/documents',
 	$GLOBALS['_def_test_last_get_url'] ?? '',
 	'whitespace-only q adds no query string'
+);
+
+// ── 28. rest_list_documents — download_url rewrite normalizes BOTH DEF forms ──
+// DEF emits download_url raw (pre-#836) or single-encoded (post-#836). WP
+// matches the pretty URL against the RAW request URI, and handle_file_download
+// urldecode()s exactly once — so the rewrite must emit exactly ONE encode for
+// either input form (normalize-then-encode; version-skew-safe both directions).
+echo "\n[28] rest_list_documents download_url normalize-then-encode\n";
+
+function _def_test_panel_download_url( string $backend_download_url ): string {
+	$GLOBALS['_def_test_get_body'] = json_encode( array(
+		'success'   => true,
+		'documents' => array( array(
+			'document_id'  => 'abc123-def',
+			'title'        => 'T',
+			'file_type'    => 'md',
+			'version'      => 1,
+			'size_bytes'   => 10,
+			'created_at'   => '2026-08-05T00:00:00',
+			'download_url' => $backend_download_url,
+		) ),
+	) );
+	$resp = DEF_Core_Staff_AI::rest_list_documents( new WP_REST_Request() );
+	unset( $GLOBALS['_def_test_get_body'] );
+	$data = is_object( $resp ) ? $resp->data : $resp;
+	return $data['documents'][0]['download_url'] ?? '';
+}
+
+assert_equals(
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	_def_test_panel_download_url( '/api/files/tenant-a/My Report.md' ),
+	'raw DEF form (pre-#836) → single-encoded'
+);
+assert_equals(
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	_def_test_panel_download_url( '/api/files/tenant-a/My%20Report.md' ),
+	'encoded DEF form (post-#836) → still single-encoded, no double-encode'
+);
+assert_equals(
+	'https://test.example.com/staff-ai-download/tenant-a/100%25%20Done.md',
+	_def_test_panel_download_url( '/api/files/tenant-a/100% Done.md' ),
+	'literal % in a raw name survives normalization (invalid %-sequence passes through rawurldecode)'
 );
 
 // Cleanup.
