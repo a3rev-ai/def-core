@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.8
+Stable tag: 5.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.0 - 2026-08-05 =
+* Feature: attach generated documents to a shared conversation - the Share dialog now lists your My Documents library, and selected documents are sent as real email attachments (up to 10 documents / 15MB per share).
 
 = 5.6.8 - 2026-08-05 =
 * Fix: the Download button in the My Documents panel works for documents whose filename contains spaces, whichever backend version is serving.

@@ -667,12 +667,18 @@ final class DEF_Core_Escalation {
 	/**
 	 * POST /wp-json/a3-ai/v1/escalation/send-email
 	 *
-	 * @param \WP_REST_Request $request The request object.
+	 * $attachments is a PHP-only argument (server-side file paths for
+	 * wp_mail). REST dispatch can never supply it — attachment paths must
+	 * never be client-suppliable or any caller could mail arbitrary server
+	 * files. Callers (Staff-AI share) resolve and fetch the files themselves.
+	 *
+	 * @param \WP_REST_Request $request     The request object.
+	 * @param array            $attachments Server-resolved file paths for wp_mail.
 	 * @return \WP_REST_Response The response object.
 	 * @since 1.1.0
 	 * @version 1.1.0
 	 */
-	public static function send_escalation_email( \WP_REST_Request $request ): \WP_REST_Response {
+	public static function send_escalation_email( \WP_REST_Request $request, array $attachments = array() ): \WP_REST_Response {
 		$body = $request->get_json_params();
 
 		// Validate required fields.
@@ -779,7 +785,7 @@ final class DEF_Core_Escalation {
 		}
 
 		// Send primary email.
-		$primary_sent = wp_mail( $to, $subject, $email_body, $headers );
+		$primary_sent = wp_mail( $to, $subject, $email_body, $headers, $attachments );
 
 		if ( ! $primary_sent ) {
 			return new \WP_REST_Response(
