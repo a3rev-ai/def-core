@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.7
+Stable tag: 5.6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, and session context — only when a user activ
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.6.8 - 2026-08-05 =
+* Improvement: chat requests now tell the assistant service which visitor they came from, so its flood protection counts one visitor at a time instead of your whole site. Nothing to configure. Sites behind a CDN or reverse proxy can supply the visitor IP their edge sets, via the new def_core_visitor_ip filter.
 
 = 5.6.7 - 2026-08-05 =
 * New: search box in the My Documents panel - filter your documents by title as you type.

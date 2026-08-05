@@ -235,6 +235,45 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * The visitor's own IP, for DEF's per-visitor rate limits.
+	 *
+	 * DEF sees this WP server's egress IP on every proxied request, so without this
+	 * header its "per-IP" limits bound a whole SITE rather than one visitor. Customer
+	 * Chat is anonymous, so the IP is the only visitor key that exists.
+	 *
+	 * REMOTE_ADDR only — the TCP peer as PHP sees it. A forwarding header is NOT read
+	 * here even when one is present: on a site that is not actually behind a proxy,
+	 * anyone can send X-Forwarded-For / CF-Connecting-IP, and def-core would then hand
+	 * DEF an attacker-chosen "visitor" per request — a limit keyed on that is no limit.
+	 *
+	 * Sites that ARE behind a CDN see the edge node in REMOTE_ADDR, which groups many
+	 * visitors under one key. Those site owners — the only ones who know the topology
+	 * is real — opt in via the filter and supply the header their edge sets.
+	 *
+	 * Invalid or absent (WP-Cron, WP-CLI) yields '' and the caller omits the header;
+	 * DEF then falls back to the connection peer, which is today's behaviour.
+	 *
+	 * @return string A valid IP, or '' when there is none to send.
+	 */
+	private static function get_visitor_ip(): string {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+
+		/**
+		 * Filters the visitor IP def-core forwards to DEF.
+		 *
+		 * For sites behind a CDN or reverse proxy, e.g.:
+		 *   add_filter( 'def_core_visitor_ip', fn( $ip ) => $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $ip );
+		 * Only add this if your edge really does overwrite that header — an
+		 * unfiltered client header lets a visitor pick their own rate-limit bucket.
+		 *
+		 * @param string $ip The IP from REMOTE_ADDR.
+		 */
+		$ip = (string) apply_filters( 'def_core_visitor_ip', $ip );
+
+		return filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : '';
+	}
+
+	/**
 	 * Build trusted BFF proxy headers for DEF backend requests.
 	 *
 	 * Always sends (when logged in): X-DEF-User (id) + X-DEF-User-Display-Name.
@@ -252,6 +291,10 @@ final class DEF_Core_Tools {
 	 * capabilities are intentionally NOT sent for it (privacy boundary); only the
 	 * display name above crosses.
 	 *
+	 * Also always sends X-DEF-Client-IP (the visitor, see get_visitor_ip) so DEF can
+	 * rate-limit per VISITOR. Everything here reaches DEF over the API-key channel,
+	 * which is what makes the IP trustworthy at the other end.
+	 *
 	 * @param bool $include_capabilities Whether to include capabilities + email/roles.
 	 * @return array HTTP header strings (indexed, not associative).
 	 */
@@ -260,6 +303,11 @@ final class DEF_Core_Tools {
 			'Content-Type: application/json',
 			'X-DEF-API-Key: ' . \DEF_Core_Encryption::get_secret( 'def_core_api_key' ),
 		);
+
+		$visitor_ip = self::get_visitor_ip();
+		if ( '' !== $visitor_ip ) {
+			$headers[] = 'X-DEF-Client-IP: ' . $visitor_ip;
+		}
 
 		if ( is_user_logged_in() ) {
 			$headers[] = 'X-DEF-User: ' . get_current_user_id();

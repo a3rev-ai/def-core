@@ -7,6 +7,8 @@
  * - build_proxy_headers(false) does NOT include identity headers (customer chat privacy)
  * - Unicode display names survive rawurlencode round-trip
  * - Missing/empty identity fields produce no broken headers
+ * - X-DEF-Client-IP carries the visitor's own IP on every channel, is validated,
+ *   and ignores client-supplied forwarding headers
  *
  * Runs standalone (no WordPress bootstrap). Uses ReflectionMethod to access
  * the private build_proxy_headers() method.
@@ -91,6 +93,19 @@ if ( ! function_exists( 'add_action' ) ) {
 
 if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter( string $hook, $callback, int $priority = 10, int $accepted_args = 1 ): void {}
+}
+
+// Minimal filter registry — get_visitor_ip() runs its value through apply_filters,
+// and test [10] registers a CDN-style override on it.
+global $_proxy_test_filters;
+$_proxy_test_filters = array();
+
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( string $hook, $value ) {
+		global $_proxy_test_filters;
+		$cb = $_proxy_test_filters[ $hook ] ?? null;
+		return $cb ? $cb( $value ) : $value;
+	}
 }
 
 if ( ! function_exists( 'add_rewrite_rule' ) ) {
@@ -283,6 +298,75 @@ assert_false( has_header( $headers, 'X-DEF-User-Display-Name:' ), 'no display na
 assert_false( has_header( $headers, 'X-DEF-User-Email:' ), 'no email when anonymous' );
 assert_false( has_header( $headers, 'X-DEF-User-Roles:' ), 'no roles when anonymous' );
 $_proxy_test_logged_in = true; // restore
+
+// ── 8. Visitor IP crosses on every channel ──────────────────────────────
+echo "\n[8] X-DEF-Client-IP — the visitor's IP, both channels, logged in or not\n";
+
+$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+foreach ( array( false, true ) as $with_caps ) {
+	$headers = call_build_proxy_headers( $with_caps );
+	$label   = $with_caps ? 'staff_ai' : 'customer chat';
+	assert_true(
+		get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+		"visitor IP sent for $label"
+	);
+}
+
+// Anonymous is the case that matters most — Customer Chat has no user to key on.
+$_proxy_test_logged_in = false;
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+	'visitor IP sent for an anonymous visitor'
+);
+$_proxy_test_logged_in = true;
+
+// ── 9. A client-supplied forwarding header is NOT the visitor IP ────────
+echo "\n[9] Spoofed forwarding headers are ignored — REMOTE_ADDR wins\n";
+
+$_SERVER['HTTP_X_FORWARDED_FOR']  = '198.51.100.7';
+$_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.8';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '203.0.113.44',
+	'X-Forwarded-For / CF-Connecting-IP do not move the bucket'
+);
+unset( $_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_CF_CONNECTING_IP'] );
+
+// ── 10. CDN sites opt in through the filter ─────────────────────────────
+echo "\n[10] def_core_visitor_ip filter overrides (CDN topology)\n";
+
+$_proxy_test_filters['def_core_visitor_ip'] = fn( $ip ) => '198.51.100.99';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '198.51.100.99',
+	'filtered IP is forwarded'
+);
+
+// A filter returning junk must not put junk on the wire.
+$_proxy_test_filters['def_core_visitor_ip'] = fn( $ip ) => "not-an-ip\r\nX-Injected: 1";
+$headers = call_build_proxy_headers( false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'invalid filtered IP is dropped' );
+assert_false( has_header( $headers, 'X-Injected:' ), 'no header injection through the filter' );
+$_proxy_test_filters = array();
+
+// ── 11. No REMOTE_ADDR (WP-Cron / WP-CLI) → no header ───────────────────
+echo "\n[11] No REMOTE_ADDR → header omitted, never empty\n";
+
+unset( $_SERVER['REMOTE_ADDR'] );
+$headers = call_build_proxy_headers( false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP header off a web request' );
+assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'the rest of the headers still build' );
+$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+// IPv6 is a valid visitor too.
+$_SERVER['REMOTE_ADDR'] = '2001:db8::1';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '2001:db8::1',
+	'IPv6 visitor IP forwarded'
+);
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Proxy Identity Headers Tests: $pass passed, $fail failed ---\n";
