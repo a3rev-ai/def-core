@@ -364,11 +364,15 @@ assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP header 
 assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'the rest of the headers still build' );
 unset( $_SERVER['HTTP_X_FORWARDED_FOR'] );
 
-// IPv6 is a valid visitor too.
-$_SERVER['REMOTE_ADDR'] = '2001:db8::1';
+// IPv6 is a valid visitor too. Deliberately a real global-unicast address and NOT the
+// 2001:db8::/32 documentation range: whether PHP counts that range as "reserved" varies
+// between builds (this passed on 8.4.6 locally and was dropped by CI's 8.4), so pinning it
+// would test the PHP build rather than this code. Harmless either way in production — a
+// documentation address is never a real visitor.
+$_SERVER['REMOTE_ADDR'] = '2606:4700:4700::1111';
 $headers = call_build_proxy_headers( false );
 assert_true(
-	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '2001:db8::1',
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '2606:4700:4700::1111',
 	'IPv6 visitor IP forwarded'
 );
 
