@@ -376,6 +376,41 @@ check( 1 === count( $GLOBALS['_wp_test_mail_calls'] ), 'no user-copy mail (field
 $header_blob = implode( '|', (array) ( $GLOBALS['_wp_test_mail_calls'][0]['headers'] ?? array() ) );
 check( false === stripos( $header_blob, 'evil.example' ), 'no injected Bcc header' );
 
+echo "Same-title documents attach with DISTINCT names (dedupe loop)\n";
+reset_state();
+$report_a = array(
+	'document_id'  => 'doc-same-a',
+	'title'        => 'Report',
+	'size_bytes'   => 6,
+	'download_url' => '/api/files/tenant-a/20260805_a_Report.md',
+);
+$report_b = array(
+	'document_id'  => 'doc-same-b',
+	'title'        => 'Report',
+	'size_bytes'   => 6,
+	'download_url' => '/api/files/tenant-a/20260805_b_Report.md',
+);
+$GLOBALS['_wp_test_remote_responses'][] = documents_list_response( array( $report_a, $report_b ) );
+$GLOBALS['_wp_test_remote_responses'][] = file_response( 'body-a' );
+$GLOBALS['_wp_test_remote_responses'][] = file_response( 'body-b' );
+$resp = DEF_Core_Staff_AI::rest_share_send( share_request( $base_share_body + array( 'document_ids' => array( 'doc-same-a', 'doc-same-b' ) ) ) );
+check( 200 === $resp->get_status(), 'status 200' );
+$mail = $GLOBALS['_wp_test_mail_calls'][0] ?? array( 'attachments' => array(), 'existed' => array() );
+check( 2 === count( $mail['attachments'] ), 'two attachments' );
+$names = array_map( 'basename', $mail['attachments'] );
+check( 2 === count( array_unique( $names ) ), 'distinct basenames (no silent overwrite), got: ' . implode( ', ', $names ) );
+check( ! in_array( false, $mail['existed'], true ), 'both files existed at send time' );
+
+echo "A duplicated id counts once against the cap and attaches once\n";
+reset_state();
+$half_cap = $doc_report;
+$half_cap['size_bytes'] = (int) ( DEF_Core_Staff_AI::SHARE_MAX_ATTACHMENT_BYTES / 2 ) + 100;
+$GLOBALS['_wp_test_remote_responses'][] = documents_list_response( array( $half_cap ) );
+$GLOBALS['_wp_test_remote_responses'][] = file_response( 'once' );
+$resp = DEF_Core_Staff_AI::rest_share_send( share_request( $base_share_body + array( 'document_ids' => array( 'doc-report-1', 'doc-report-1' ) ) ) );
+check( 200 === $resp->get_status(), 'not double-counted into a false 400' );
+check( 1 === count( $GLOBALS['_wp_test_mail_calls'][0]['attachments'] ?? array() ), 'attached exactly once' );
+
 echo "A failed file fetch refuses the whole share and cleans up\n";
 reset_state();
 $GLOBALS['_wp_test_remote_responses'][] = documents_list_response( array( $doc_report, $doc_plan ) );

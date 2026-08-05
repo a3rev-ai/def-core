@@ -2466,7 +2466,10 @@ final class DEF_Core_Staff_AI
 				);
 			}
 			$selected[ $id ] = $by_id[ $id ];
-			$total_bytes    += isset( $by_id[ $id ]['size_bytes'] ) ? (int) $by_id[ $id ]['size_bytes'] : 0;
+		}
+		// Sum AFTER keying by id so a duplicated id counts (and attaches) once.
+		foreach ( $selected as $doc ) {
+			$total_bytes += isset( $doc['size_bytes'] ) ? (int) $doc['size_bytes'] : 0;
 		}
 		if ( $total_bytes > self::SHARE_MAX_ATTACHMENT_BYTES ) {
 			return new \WP_REST_Response(
@@ -2510,7 +2513,8 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		$paths = array();
+		$paths         = array();
+		$fetched_bytes = 0;
 		foreach ( $selected as $doc ) {
 			$m = array();
 			if ( ! isset( $doc['download_url'] ) || ! is_string( $doc['download_url'] )
@@ -2551,6 +2555,23 @@ final class DEF_Core_Staff_AI
 						'message' => __( 'Could not fetch a document. Nothing was sent.', 'digital-employees' ),
 					),
 					502
+				);
+			}
+			// The cap was pre-checked on DEF-reported sizes; enforce it on the
+			// ACTUAL bytes too, so a stale/absent size_bytes can't slip past.
+			$fetched_bytes += strlen( $bytes );
+			if ( $fetched_bytes > self::SHARE_MAX_ATTACHMENT_BYTES ) {
+				self::share_cleanup_attachments( $dir, $paths );
+				return new \WP_REST_Response(
+					array(
+						'error'   => 'VALIDATION_ERROR',
+						'message' => sprintf(
+							/* translators: %d: maximum total attachment size in MB. */
+							__( 'Attachments exceed the %dMB limit for shared emails. Nothing was sent — try fewer or smaller documents.', 'digital-employees' ),
+							(int) ( self::SHARE_MAX_ATTACHMENT_BYTES / MB_IN_BYTES )
+						),
+					),
+					400
 				);
 			}
 
