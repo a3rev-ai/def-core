@@ -99,11 +99,6 @@ if ( ! function_exists( 'trailingslashit' ) ) {
 if ( ! function_exists( 'get_temp_dir' ) ) {
 	function get_temp_dir(): string { return sys_get_temp_dir(); }
 }
-if ( ! function_exists( 'wp_mkdir_p' ) ) {
-	function wp_mkdir_p( string $dir ): bool {
-		return is_dir( $dir ) || mkdir( $dir, 0777, true );
-	}
-}
 if ( ! function_exists( 'home_url' ) ) {
 	function home_url( string $path = '' ): string { return 'https://site.example' . $path; }
 }

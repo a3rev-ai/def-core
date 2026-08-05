@@ -2455,7 +2455,8 @@ final class DEF_Core_Staff_AI
 		$total_bytes = 0;
 		foreach ( $document_ids as $id ) {
 			if ( ! isset( $by_id[ $id ] ) ) {
-				// Same plain copy as the panel's delete — no oracle.
+				// One plain copy for every miss — unknown and foreign ids are
+				// indistinguishable (no oracle).
 				return new \WP_REST_Response(
 					array(
 						'error'   => 'NOT_FOUND',
@@ -2496,7 +2497,10 @@ final class DEF_Core_Staff_AI
 		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
 
 		$dir = trailingslashit( get_temp_dir() ) . uniqid( 'def-share-', true );
-		if ( ! wp_mkdir_p( $dir ) ) {
+		// mkdir, NOT wp_mkdir_p: must FAIL if the dir already exists (a
+		// pre-created dir/symlink in shared /tmp could capture the writes),
+		// and 0700 keeps the files private to the web user while they exist.
+		if ( ! @mkdir( $dir, 0700 ) ) {
 			return new \WP_REST_Response(
 				array(
 					'error'   => 'SERVER_ERROR',
@@ -2528,6 +2532,9 @@ final class DEF_Core_Staff_AI
 				$file_url,
 				array(
 					'timeout' => 30,
+					// Belt-and-braces: the cap is checked against DEF-reported
+					// size_bytes BEFORE fetching; this bounds the actual bytes too.
+					'limit_response_size' => self::SHARE_MAX_ATTACHMENT_BYTES,
 					'headers' => array(
 						'X-DEF-API-Key'           => $api_key,
 						'X-DEF-User'              => (string) $user->ID,
