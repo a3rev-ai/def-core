@@ -109,7 +109,7 @@ Go to **Digital Employees > Chat Settings**. You can set button position (left/r
 
 = What data is sent to the AI service? =
 
-Chat messages, user display name, and session context — only when a user actively sends a message. No data is transmitted when chat features are not in use. See the External Services section below.
+Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
@@ -620,7 +620,7 @@ This plugin connects to an external AI service to power the Customer Chat and St
 
 When the Customer Chat widget or Staff AI panel is used, chat messages are sent to the configured Digital Employee Framework (DEF) API server for processing by AI models. This connection is required for the chat features to function.
 
-* **What is sent:** Chat messages, user display name, and session context.
+* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection.
 * **When:** Only when a user or visitor actively sends a message via the chat interface.
 * **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
@@ -631,7 +631,7 @@ No data is sent to external services when the chat features are not in use. Site
 
 == Privacy Policy ==
 
-This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design. When chat features are used, messages are processed by the external AI service described in the External Services section above.
+This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design. When chat features are used, messages are processed by the external AI service described in the External Services section above, and the visitor's IP address is sent with them so that service can apply per-visitor flood protection.
 
 == License ==
 

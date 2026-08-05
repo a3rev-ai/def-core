@@ -168,10 +168,10 @@ function assert_false( $value, string $label ): void {
 /**
  * Call the private build_proxy_headers() via reflection.
  */
-function call_build_proxy_headers( bool $include_capabilities = false ): array {
+function call_build_proxy_headers( bool $include_capabilities = false, bool $include_visitor_ip = true ): array {
 	$method = new ReflectionMethod( 'DEF_Core_Tools', 'build_proxy_headers' );
 	$method->setAccessible( true );
-	return $method->invoke( null, $include_capabilities );
+	return $method->invoke( null, $include_capabilities, $include_visitor_ip );
 }
 
 /**
@@ -358,7 +358,6 @@ unset( $_SERVER['REMOTE_ADDR'] );
 $headers = call_build_proxy_headers( false );
 assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP header off a web request' );
 assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'the rest of the headers still build' );
-$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
 
 // IPv6 is a valid visitor too.
 $_SERVER['REMOTE_ADDR'] = '2001:db8::1';
@@ -367,6 +366,35 @@ assert_true(
 	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '2001:db8::1',
 	'IPv6 visitor IP forwarded'
 );
+
+// ── 12. Un-rewritten proxy address is NOT a visitor ─────────────────────
+// A private/reserved REMOTE_ADDR is the proxy in front of WP, identical for every
+// visitor. Forwarding it would look like a per-visitor key to DEF while actually
+// being the site — and several sites would collide on the same 172.17.0.1.
+echo "\n[12] Private / reserved REMOTE_ADDR is not forwarded\n";
+
+foreach ( array( '10.0.0.5', '172.17.0.1', '192.168.1.10', '127.0.0.1', '::1', '169.254.1.1' ) as $private ) {
+	$_SERVER['REMOTE_ADDR'] = $private;
+	$headers = call_build_proxy_headers( false );
+	assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), "not forwarded: $private" );
+}
+
+// Carrier-grade NAT (100.64/10) is real mobile traffic — it must still be forwarded.
+$_SERVER['REMOTE_ADDR'] = '100.64.10.20';
+$headers = call_build_proxy_headers( false );
+assert_true(
+	get_header_value( $headers, 'X-DEF-Client-IP: ' ) === '100.64.10.20',
+	'CGNAT visitor IP still forwarded (mobile networks)'
+);
+
+$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+// ── 13. Opt-out for calls that are not something the visitor did ────────
+echo "\n[13] include_visitor_ip = false omits the IP, keeps everything else\n";
+
+$headers = call_build_proxy_headers( false, false );
+assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP when opted out' );
+assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'API key still sent when opted out' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Proxy Identity Headers Tests: $pass passed, $fail failed ---\n";
