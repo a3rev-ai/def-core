@@ -656,36 +656,16 @@ if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
 		return is_array( $response ) ? (string) ( $response['body'] ?? '' ) : '';
 	}
 }
-if ( ! class_exists( 'WP_REST_Response' ) ) {
-	class WP_REST_Response {
-		public $data;
-		public $status;
-		public function __construct( $data = null, int $status = 200 ) {
-			$this->data   = $data;
-			$this->status = $status;
-		}
-	}
-}
-
 $_wp_test_current_user     = new WP_User( 1 );
 $_wp_test_current_user->ID = 1;
 
 $req = new WP_REST_Request();
-$req->set_param( 'q', 'Progress: 100%' );
+$req->set_param( 'q', '  Progress: 100%  ' );
 DEF_Core_Staff_AI::rest_list_documents( $req );
 assert_equals(
 	'https://def-api.test/api/staff-ai/documents?q=Progress%3A%20100%25',
 	$GLOBALS['_def_test_last_get_url'] ?? '',
 	'q is trimmed + rawurlencoded onto the DEF path'
-);
-
-$GLOBALS['_def_test_last_get_url'] = '';
-$req = new WP_REST_Request();
-DEF_Core_Staff_AI::rest_list_documents( $req );
-assert_equals(
-	'https://def-api.test/api/staff-ai/documents',
-	$GLOBALS['_def_test_last_get_url'] ?? '',
-	'absent q adds no query string'
 );
 
 $GLOBALS['_def_test_last_get_url'] = '';

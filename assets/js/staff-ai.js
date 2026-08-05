@@ -2497,7 +2497,10 @@ function t(key, fallback) {
 			setStatus(t('documentsLoading', 'Loading your documents…'), 'muted');
 			listEl.innerHTML = '';
 			try {
-				const data = await apiRequest('/documents' + (term ? '?q=' + encodeURIComponent(term) : ''));
+				// apiBase can be the plain-permalink ?rest_route= form — pick the
+				// separator accordingly (same idiom as def-core-product-cards.js).
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const data = await apiRequest('/documents' + (term ? sep + 'q=' + encodeURIComponent(term) : ''));
 				const docs = Array.isArray(data.documents) ? data.documents : [];
 				if (docs.length === 0) {
 					setStatus(term
@@ -2513,7 +2516,10 @@ function t(key, fallback) {
 				loading = false;
 				// A keystroke that landed mid-request was dropped by the
 				// `loading` guard — re-run for the newest term.
-				if (searchTerm() !== term) loadList();
+				if (searchTerm() !== term) {
+					clearTimeout(searchTimer);
+					loadList();
+				}
 			}
 		}
 
@@ -2593,8 +2599,8 @@ function t(key, fallback) {
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
 		if (searchEl) {
-			// Debounced as-you-type; Enter searches immediately. The 'search'
-			// event covers the input's native clear (×) control.
+			// Debounced as-you-type (the native clear control fires 'input'
+			// too); Enter searches immediately.
 			searchEl.addEventListener('input', function () {
 				clearTimeout(searchTimer);
 				searchTimer = setTimeout(loadList, 300);
@@ -2605,10 +2611,6 @@ function t(key, fallback) {
 					clearTimeout(searchTimer);
 					loadList();
 				}
-			});
-			searchEl.addEventListener('search', function () {
-				clearTimeout(searchTimer);
-				loadList();
 			});
 		}
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });

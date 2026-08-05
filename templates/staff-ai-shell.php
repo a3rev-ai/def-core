@@ -449,7 +449,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="modal-body">
 					<p class="documents-intro"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
-					<input type="search" class="documents-search" id="documentsSearch" placeholder="<?php echo esc_attr__( 'Search your documents by title…', 'digital-employees' ); ?>">
+					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search your documents by title', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search your documents by title…', 'digital-employees' ); ?>">
 					<div class="documents-status" id="documentsStatus"></div>
 					<div class="documents-list" id="documentsList"></div>
 				</div>
