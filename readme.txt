@@ -123,6 +123,9 @@ Chat messages, user display name, and session context — only when a user activ
 = 5.6.11 - 2026-08-05 =
 * Feature: attach generated documents to a shared conversation - the Share dialog now lists your My Documents library, and selected documents are sent as real email attachments (up to 10 documents / 15MB per share).
 
+= 5.6.8 - 2026-08-05 =
+* Fix: the Download button in the My Documents panel works for documents whose filename contains spaces, whichever backend version is serving.
+
 = 5.6.7 - 2026-08-05 =
 * New: search box in the My Documents panel - filter your documents by title as you type.
 

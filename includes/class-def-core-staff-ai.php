@@ -1481,7 +1481,15 @@ final class DEF_Core_Staff_AI
 			$download = '';
 			if ( isset( $doc['download_url'] ) && is_string( $doc['download_url'] )
 				&& preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
-				$download = home_url( '/staff-ai-download/' . rawurlencode( $m[1] ) . '/' . rawurlencode( $m[2] ) );
+				// Normalize-then-encode: DEF's download_url arrives raw (pre-#836)
+				// or single-encoded (post-#836). rawurldecode() no-ops on raw input
+				// (invalid %-sequences pass through), so the result is single-encoded
+				// for BOTH forms — version-skew-safe in either deploy order. WP
+				// matches this pretty URL against the RAW request URI (class-wp.php),
+				// so exactly one encode must survive to handle_file_download's
+				// single urldecode.
+				$download = home_url( '/staff-ai-download/' . rawurlencode( rawurldecode( $m[1] ) )
+					. '/' . rawurlencode( rawurldecode( $m[2] ) ) );
 			}
 			$documents[] = array(
 				'document_id'  => (string) $doc['document_id'],
