@@ -2160,9 +2160,11 @@ html {
 	font-size: 14px;
 	font-weight: 500;
 	color: var(--text-heading);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	/* Wrap, never truncate: the version stamp "(vN - date)" sits at the END
+	   of the title, and with four same-prefix versions listed an ellipsis
+	   makes them indistinguishable (Steve's 2026-08-05 canary nit). */
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 .document-meta {

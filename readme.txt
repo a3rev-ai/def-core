@@ -123,6 +123,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 = 5.7.3 - 2026-08-05 =
 * Fix: if the assistant service asks the chat to slow down (or is briefly unavailable), the visitor now sees a message saying so - including how long to wait. Previously the reply simply never arrived and the chat looked broken.
 
+= 5.7.2 - 2026-08-05 =
+* Tweak: document titles in the My Documents panel wrap instead of truncating, so the version stamp at the end of the title is always visible.
+
 = 5.7.1 - 2026-08-05 =
 * Improvement: chat requests now tell the assistant service which visitor they came from, so its flood protection counts one visitor at a time instead of your whole site. Nothing to configure. Sites behind a CDN or reverse proxy can supply the visitor IP their edge sets, via the new def_core_visitor_ip filter.
 
