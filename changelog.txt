@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.6.8 - 2026/08/05 =
+* Fix: the Download button in the My Documents panel works for documents whose filename contains spaces, whichever backend version is serving.
+
 = 5.6.7 - 2026/08/05 =
 * New: search box in the My Documents panel - filter your documents by title as you type.
 
