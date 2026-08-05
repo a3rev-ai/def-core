@@ -41,16 +41,36 @@ jobs:
           body = os.environ.get("PR_BODY") or ""
           na = re.search(r'-\s*\[\s*[xX]\s*\]\s*\*\*N/?A\*\*', body)
           def field(name):
-              m = re.search(r'\*\*' + re.escape(name) + r':\*\*\s*(.*)', body)
+              m = re.search(r'\*\*' + re.escape(name) + r':\*\*[^\S\n]*(.*)', body)
               return m.group(1).strip() if m else ""
           def filled(v):
               return bool(v) and not (v.startswith('<') and v.endswith('>'))
           documented = filled(field("Target")) and filled(field("What to document"))
-          if na or documented:
-              print("Documentation block resolved (%s)." % ("N/A" if na else "documented"))
+          if na and documented:
+              print("::error title=Documentation block contradictory::The block is BOTH a ticked N/A and a filled active block — pick one.")
+              sys.exit(1)
+          if na:
+              print("Documentation block resolved (N/A).")
+              sys.exit(0)
+          if documented:
+              # Tier gate — THIS repo's surfaces can only front these corpus
+              # tiers (tiers.py nesting: Sam sees site_admin only; Tess
+              # +tenant; Pip all). Placeholder / multi-option values fail.
+              ALLOWED = {"site_admin"}
+              tier_raw = field("Tier")
+              if "|" in tier_raw or (tier_raw.startswith('<') and tier_raw.endswith('>')):
+                  print("::error title=Documentation Tier unresolved::**Tier:** is still the template placeholder (%r) — pick exactly ONE." % tier_raw)
+                  sys.exit(1)
+              m2 = re.match(r'[\s`*_]*([A-Za-z_]+)', tier_raw)
+              tier = m2.group(1).lower() if m2 else ""
+              if tier not in ALLOWED:
+                  print("::error title=Documentation Tier invalid::**Tier:** must be one of %s for this repo (got: %r)." % (" | ".join(sorted(ALLOWED)), tier_raw))
+                  print("Tier by WHICH SURFACE fronts the feature: def-core/WordPress-side -> site_admin (Sam's tier; anything else hides it from Sam); Tenant Portal -> tenant (Tess); Partner Portal -> partner (Pip). See review-panel STEP 4.")
+                  sys.exit(1)
+              print("Documentation block resolved (documented, tier=%s)." % tier)
               sys.exit(0)
           print("::error title=Documentation block unresolved::This PR changes user-facing paths but the ## Documentation block is not resolved.")
           print("Touched in-scope paths: %s" % ", ".join(in_scope))
-          print("Fix: in the PR description, tick the **N/A** box, or fill **Target** and **What to document**.")
+          print("Fix: in the PR description, tick the **N/A** box, or fill **Target** and **What to document** (with a valid **Tier:**).")
           sys.exit(1)
           PY
