@@ -104,26 +104,49 @@ final class DEF_Core_Tools {
 		header( 'Cache-Control: no-cache' );
 		header( 'X-Accel-Buffering: no' );
 
+		// Upstream status + Retry-After, captured from the response headers so the body
+		// writer knows whether it is holding SSE or an error document. HTTP delivers
+		// headers before the body, so this is always populated first.
+		$state = array(
+			'status'      => 0,
+			'retry_after' => 0,
+			'error_sent'  => false,
+		);
+
 		$ch = curl_init( $url );
 		curl_setopt_array( $ch, array(
-			CURLOPT_POST           => true,
-			CURLOPT_HTTPHEADER     => $headers,
-			CURLOPT_POSTFIELDS     => $body,
+			CURLOPT_POST            => true,
+			CURLOPT_HTTPHEADER      => $headers,
+			CURLOPT_POSTFIELDS      => $body,
 			// No total timeout — stream as long as tokens are flowing.
 			// Kill only if the connection stalls (no data for 30 seconds).
 			// This prevents legitimate long responses (e.g. analysing a 34KB
 			// spec document) from being cut off at a fixed timeout, while
 			// still catching genuinely stalled connections.
-			CURLOPT_TIMEOUT        => 0,
+			CURLOPT_TIMEOUT         => 0,
 			CURLOPT_LOW_SPEED_LIMIT => 1,    // At least 1 byte/sec
 			CURLOPT_LOW_SPEED_TIME  => 30,   // Kill after 30s of no data
-			CURLOPT_RETURNTRANSFER => false,
-			CURLOPT_WRITEFUNCTION  => function ( $ch, $data ) {
-				echo $data;
-				if ( ob_get_level() ) {
-					ob_flush();
+			CURLOPT_RETURNTRANSFER  => false,
+			CURLOPT_HEADERFUNCTION  => function ( $ch, $header ) use ( &$state ) {
+				self::note_upstream_header( $header, $state );
+				return strlen( $header );
+			},
+			CURLOPT_WRITEFUNCTION   => function ( $ch, $data ) use ( &$state ) {
+				$out = self::stream_chunk( $data, $state );
+				if ( '' !== $out ) {
+					// Not escaped on purpose, and the two branches differ: on 2xx this is a
+					// byte-for-byte relay of the upstream SSE stream (unchanged from before
+					// this function existed — main carried the same unsuppressed sniff); on
+					// non-2xx it is our own wp_json_encode'd frame. Either way it is consumed
+					// by JSON.parse, not rendered as HTML, and esc_* would corrupt it. The
+					// three consumers sanitise: renderMarkdown runs DOMPurify, showError and
+					// renderError use textContent.
+					echo $out; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					if ( ob_get_level() ) {
+						ob_flush();
+					}
+					flush();
 				}
-				flush();
 				return strlen( $data );
 			},
 		) );
@@ -134,12 +157,126 @@ final class DEF_Core_Tools {
 		if ( $result === false ) {
 			$error = curl_error( $ch );
 			curl_close( $ch );
-			echo "data: {\"type\":\"error\",\"message\":\"Backend connection failed.\"}\n\n";
-			flush();
+			// Only if nothing has spoken yet. A connection that dies mid-error-body (a
+			// LOW_SPEED_TIME kill, a gateway dropping a truncated 5xx) would otherwise put
+			// "Backend connection failed." directly beneath "Please wait 37 seconds" — two
+			// assistant bubbles, the correct one contradicted by a technical one.
+			if ( ! $state['error_sent'] ) {
+				echo "data: {\"type\":\"error\",\"message\":\"Backend connection failed.\"}\n\n";
+				flush();
+			}
 			return;
 		}
 
 		curl_close( $ch );
+
+		// A non-200 with an EMPTY body never reaches the write callback, so the visitor
+		// would still see nothing. Belt for that case; stream_chunk() covers the rest.
+		if ( $state['status'] >= 300 && ! $state['error_sent'] ) {
+			$state['error_sent'] = true;
+			// See the write callback: an SSE frame, wp_json_encode'd, never HTML.
+			echo self::sse_error_payload( $state['status'], $state['retry_after'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			flush();
+		}
+	}
+
+	/**
+	 * Record the upstream status line and Retry-After from one response header.
+	 *
+	 * @param string $header One raw header line as curl delivers it.
+	 * @param array  $state  Mutated: 'status' and 'retry_after'.
+	 * @return void
+	 */
+	private static function note_upstream_header( string $header, array &$state ): void {
+		if ( preg_match( '#^HTTP/\S+\s+(\d{3})#', $header, $m ) ) {
+			// Last status line wins, so a 100-continue or a redirect hop cannot mask the
+			// real one.
+			$state['status'] = (int) $m[1];
+		} elseif ( preg_match( '#^Retry-After:\s*(\d{1,5})\s*$#i', $header, $m ) ) {
+			// Seconds form only. The HTTP-date form is legal but DEF never sends it, and a
+			// date we failed to parse would be worse than saying nothing.
+			$state['retry_after'] = (int) $m[1];
+		}
+	}
+
+	/**
+	 * What to write to the client for one chunk of upstream body.
+	 *
+	 * On a 2xx this returns the chunk **verbatim** — the streaming path is unchanged.
+	 *
+	 * On anything >= 300 it returns an SSE error event ONCE and swallows the body. That is
+	 * the whole point of this function: DEF answers a refused request with a JSON document,
+	 * and a JSON document echoed into an SSE stream parses as nothing, so a rate-limited
+	 * visitor saw NO message at all — the ceiling worked and looked like a dead widget.
+	 *
+	 * 300 and not 400: CURLOPT_FOLLOWLOCATION is off, so a redirect surfaces AS the
+	 * response, and its HTML body is just as invisible as a JSON one. The upstream base URL
+	 * is admin-configurable, so an http->https edge redirect or a proxy normalising a
+	 * trailing slash would otherwise silence every chat on the site with no message and no
+	 * log — the identical dead-widget symptom this function exists to remove.
+	 *
+	 * @param string $data  Chunk of upstream body.
+	 * @param array  $state Mutated: 'error_sent'.
+	 * @return string Bytes to send to the client ('' to send nothing).
+	 */
+	private static function stream_chunk( string $data, array &$state ): string {
+		if ( $state['status'] < 300 ) {
+			// Status 0 (headers never parsed) lands here too, which is the right fallback:
+			// relay, exactly as before this change.
+			return $data;
+		}
+		if ( $state['error_sent'] ) {
+			return '';
+		}
+		$state['error_sent'] = true;
+		return self::sse_error_payload( $state['status'], $state['retry_after'] );
+	}
+
+	/**
+	 * One SSE `error` event, in the shape both widgets already render.
+	 *
+	 * Customer Chat renders `evt.message` (def-core-customer-chat.js, case 'error') and
+	 * Staff AI renders it via showError(), each falling back to its own generic copy when
+	 * `message` is absent — which is why the message is built HERE rather than left to the
+	 * client: a 429 rendered as "Unable to connect" would be actively misleading. Note the
+	 * widgets carry their own `rateLimited` string for the non-streaming paths; this is the
+	 * streaming twin of it.
+	 *
+	 * `status` and `retry_after` ride along so a widget can act on them (backing the
+	 * composer off, for instance) without re-deriving anything.
+	 *
+	 * @param int $status      Upstream HTTP status.
+	 * @param int $retry_after Seconds from Retry-After, 0 when absent.
+	 * @return string A complete SSE frame.
+	 */
+	private static function sse_error_payload( int $status, int $retry_after ): string {
+		if ( 429 === $status ) {
+			$message = $retry_after > 0
+				? sprintf(
+					/* translators: %d: number of seconds to wait. */
+					_n(
+						'Please wait %d second before sending another message.',
+						'Please wait %d seconds before sending another message.',
+						$retry_after,
+						'digital-employees'
+					),
+					$retry_after
+				)
+				: __( 'Please wait a moment before sending another message.', 'digital-employees' );
+		} else {
+			$message = __( 'The assistant is unavailable right now. Please try again.', 'digital-employees' );
+		}
+
+		$payload = array(
+			'type'    => 'error',
+			'message' => $message,
+			'status'  => $status,
+		);
+		if ( $retry_after > 0 ) {
+			$payload['retry_after'] = $retry_after;
+		}
+
+		return 'data: ' . wp_json_encode( $payload ) . "\n\n";
 	}
 
 	/**

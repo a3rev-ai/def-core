@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.7.3 - 2026/08/05 =
+* Fix: if the assistant service asks the chat to slow down (or is briefly unavailable), the visitor now sees a message saying so - including how long to wait. Previously the reply simply never arrived and the chat looked broken.
+
 = 5.7.2 - 2026/08/05 =
 * Tweak: document titles in the My Documents panel wrap instead of truncating, so the version stamp at the end of the title is always visible.
 
