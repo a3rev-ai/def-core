@@ -261,13 +261,17 @@ final class DEF_Core_Tools {
 	 * site is not per-visitor keyed; DEF counts the omission instead
 	 * (chat_limiter_site_keyed_total), so the gap is visible centrally.
 	 *
-	 * Invalid, private or absent (WP-Cron, WP-CLI) yields '' and the caller omits the
-	 * header; DEF then falls back to the connection peer, which is today's behaviour.
+	 * Anything not a public IP yields '' and the caller omits the header; DEF then falls
+	 * back to the connection peer, which is today's behaviour. That covers WP-CLI (no
+	 * REMOTE_ADDR at all) and WP-Cron (a loopback HTTP request, so REMOTE_ADDR is present
+	 * but is 127.0.0.1 — caught as non-public, not as absent).
 	 *
 	 * @return string A public IP, or '' when there is none to send.
 	 */
 	private static function get_visitor_ip(): string {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip = isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '';
 
 		/**
 		 * Filters the visitor IP def-core forwards to DEF.

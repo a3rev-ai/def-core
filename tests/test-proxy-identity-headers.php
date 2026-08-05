@@ -351,13 +351,18 @@ assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'invalid filtered IP i
 assert_false( has_header( $headers, 'X-Injected:' ), 'no header injection through the filter' );
 $_proxy_test_filters = array();
 
-// ── 11. No REMOTE_ADDR (WP-Cron / WP-CLI) → no header ───────────────────
-echo "\n[11] No REMOTE_ADDR → header omitted, never empty\n";
+// ── 11. No REMOTE_ADDR (WP-CLI) → no header, and no XFF rescue ──────────
+// The dangerous shape this pins: "REMOTE_ADDR is empty, so fall back to the
+// forwarding header". A spoofed XFF is present for exactly that reason — without it
+// the assertion passes even if such a fallback is added.
+echo "\n[11] No REMOTE_ADDR → header omitted, and a spoofed XFF does not rescue it\n";
 
 unset( $_SERVER['REMOTE_ADDR'] );
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.66';
 $headers = call_build_proxy_headers( false );
 assert_false( has_header( $headers, 'X-DEF-Client-IP:' ), 'no visitor IP header off a web request' );
 assert_true( has_header( $headers, 'X-DEF-API-Key:' ), 'the rest of the headers still build' );
+unset( $_SERVER['HTTP_X_FORWARDED_FOR'] );
 
 // IPv6 is a valid visitor too.
 $_SERVER['REMOTE_ADDR'] = '2001:db8::1';
