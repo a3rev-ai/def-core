@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.6.9
+Stable tag: 5.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,8 +120,11 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 5.6.9 - 2026-08-05 =
+= 5.7.1 - 2026-08-05 =
 * Improvement: chat requests now tell the assistant service which visitor they came from, so its flood protection counts one visitor at a time instead of your whole site. Nothing to configure. Sites behind a CDN or reverse proxy can supply the visitor IP their edge sets, via the new def_core_visitor_ip filter.
+
+= 5.7.0 - 2026-08-05 =
+* Feature: attach generated documents to a shared conversation - the Share dialog now lists your My Documents library, and selected documents are sent as real email attachments (up to 10 documents / 15MB per share).
 
 = 5.6.8 - 2026-08-05 =
 * Fix: the Download button in the My Documents panel works for documents whose filename contains spaces, whichever backend version is serving.

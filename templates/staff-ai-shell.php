@@ -373,6 +373,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<?php echo esc_html__( 'Include conversation transcript', 'digital-employees' ); ?>
 							</label>
 						</div>
+						<div class="share-documents-section" id="shareDocumentsSection" style="display:none;">
+							<label class="form-label"><?php echo esc_html__( 'Attach documents', 'digital-employees' ); ?></label>
+							<div class="share-documents-list" id="shareDocumentsList"></div>
+							<p class="share-documents-hint" id="shareDocumentsHint" style="display:none;"></p>
+						</div>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="modal-btn modal-btn-secondary" id="shareCancel"><?php echo esc_html__( 'Cancel', 'digital-employees' ); ?></button>
@@ -521,6 +526,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			allRecipientsSelected: <?php echo wp_json_encode( __( 'All recipients selected', 'digital-employees' ) ); ?>,
 			failedToPrepareShare: <?php echo wp_json_encode( __( 'Failed to prepare share form.', 'digital-employees' ) ); ?>,
 			failedToSendShare: <?php echo wp_json_encode( __( 'Failed to send share email.', 'digital-employees' ) ); ?>,
+			shareAttachLimit: <?php echo wp_json_encode( __( 'Selected documents exceed the 15MB attachment limit.', 'digital-employees' ) ); ?>,
 			instructionsRequired: <?php echo wp_json_encode( __( 'Instructions are required.', 'digital-employees' ) ); ?>,
 			dropFilesHere: <?php echo wp_json_encode( __( 'Drop files here', 'digital-employees' ) ); ?>,
 			attachFile: <?php echo wp_json_encode( __( 'Attach file', 'digital-employees' ) ); ?>,
