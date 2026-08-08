@@ -2689,6 +2689,133 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
+	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
+	// =============================================
+
+	(function initMemories() {
+		const modal = document.getElementById('memoriesModal');
+		if (!modal) return;
+
+		const openBtn = document.getElementById('memoriesBtn');
+		const overflowBtn = document.getElementById('overflowMemories');
+		const modalClose = document.getElementById('memoriesModalClose');
+		const closeBtn = document.getElementById('memoriesClose');
+		const refreshBtn = document.getElementById('memoriesRefresh');
+		const statusEl = document.getElementById('memoriesStatus');
+		const listEl = document.getElementById('memoriesList');
+		let loading = false;
+
+		// Plain-language names for DEF's categories. An unknown category falls
+		// through to its own name rather than rendering a blank kind.
+		const categoryLabels = {
+			role: t('memoryCategoryRole', 'Your role'),
+			preferences: t('memoryCategoryPreferences', 'Preference'),
+			projects: t('memoryCategoryProjects', 'Project'),
+			habits: t('memoryCategoryHabits', 'How you work'),
+			context: t('memoryCategoryContext', 'Background')
+		};
+
+		function open() {
+			modal.classList.add('visible');
+			loadList();
+		}
+		function close() {
+			modal.classList.remove('visible');
+		}
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'memories-status' + (message ? ' memories-status-' + (kind || 'muted') : '');
+		}
+
+		async function loadList() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('memoriesLoading', 'Loading what Staff AI remembers…'), 'muted');
+			listEl.innerHTML = '';
+			try {
+				const data = await apiRequest('/memories');
+				const memories = Array.isArray(data.memories) ? data.memories : [];
+				if (memories.length === 0) {
+					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet.'), 'muted');
+					return;
+				}
+				setStatus('', '');
+				memories.forEach(function (memory) { listEl.appendChild(renderRow(memory)); });
+			} catch (e) {
+				// An error, never an empty list — DEF answers 503 when the store is
+				// unreachable, and "nothing here" would be a lie about their data.
+				setStatus((e && e.message) || t('memoriesLoadFailed', 'Could not load what Staff AI remembers.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+
+		function renderRow(memory) {
+			const row = document.createElement('div');
+			row.className = 'memory-row';
+
+			const info = document.createElement('div');
+			info.className = 'memory-info';
+			const content = document.createElement('span');
+			content.className = 'memory-content';
+			content.textContent = memory.content || '';
+			info.appendChild(content);
+			const meta = document.createElement('span');
+			meta.className = 'memory-meta';
+			meta.textContent = [
+				categoryLabels[memory.category] || memory.category || '',
+				// created_at, matching the order DEF sorts by — showing updated_at
+				// against a created_at sort renders dates that read out of sequence.
+				formatTime(memory.created_at)
+			].filter(Boolean).join(' · ');
+			info.appendChild(meta);
+			row.appendChild(info);
+
+			const del = document.createElement('button');
+			del.type = 'button';
+			del.className = 'memory-btn-delete';
+			del.textContent = t('memoriesDelete', 'Delete');
+			del.addEventListener('click', function () { removeMemory(memory, del, row); });
+			row.appendChild(del);
+
+			return row;
+		}
+
+		async function removeMemory(memory, btn, row) {
+			// Function replacement — remembered content containing $& / $' would
+			// garble a string-pattern replace (the doclib lesson).
+			const msg = t('memoriesConfirmDelete', 'Delete "%s"? It is removed now, but can be noted again from conversations you still have.')
+				.replace('%s', function () { return memory.content || ''; });
+			if (!window.confirm(msg)) return;
+			btn.disabled = true;
+			try {
+				await apiRequest('/memories/' + encodeURIComponent(memory.entry_id), { method: 'DELETE' });
+				row.remove();
+				setStatus('', '');
+				if (!listEl.children.length) {
+					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet.'), 'muted');
+				}
+			} catch (e) {
+				btn.disabled = false;
+				setStatus((e && e.message) || t('memoriesDeleteFailed', 'Could not delete that memory.'), 'error');
+			}
+		}
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (overflowBtn) {
+			overflowBtn.addEventListener('click', function () {
+				if (overflowMenu) overflowMenu.classList.remove('open');
+				open();
+			});
+		}
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+	})();
+
+	// =============================================
 	// UPLOAD EVENT HANDLERS
 	// =============================================
 

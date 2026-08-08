@@ -111,6 +111,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<line x1="16" y1="17" x2="8" y2="17"></line>
 						</svg>
 					</button>
+					<button type="button" class="header-btn header-btn-icon" id="memoriesBtn" title="<?php echo esc_attr__( 'What Staff AI remembers', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'What Staff AI remembers', 'digital-employees' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+						</svg>
+					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -176,6 +181,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<line x1="16" y1="17" x2="8" y2="17"></line>
 							</svg>
 							<?php echo esc_html__( 'My documents', 'digital-employees' ); ?>
+						</button>
+						<button type="button" id="overflowMemories">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+							</svg>
+							<?php echo esc_html__( 'What Staff AI remembers', 'digital-employees' ); ?>
 						</button>
 						<button type="button" id="overflowInstall" style="display:none;">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -464,6 +475,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- Memories Modal (what the assistant remembers about you — privacy slice B) -->
+		<div class="modal-overlay" id="memoriesModal">
+			<div class="modal" style="max-width: 560px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'What Staff AI remembers about you', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="memoriesModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="memories-intro"><?php echo esc_html__( 'Things Staff AI has noted from your conversations so you do not have to repeat yourself. Only you can see these — no administrator can read them.', 'digital-employees' ); ?></p>
+					<p class="memories-intro"><?php echo esc_html__( 'Deleting one removes it now. If the conversation it came from is still here it can be noted again — clear that conversation to stop it coming back.', 'digital-employees' ); ?></p>
+					<div class="memories-status" id="memoriesStatus"></div>
+					<div class="memories-list" id="memoriesList"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="memoriesRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="memoriesClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -542,7 +572,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
 			documentsConfirmDelete: <?php /* translators: %s: document title. */ echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
 			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>,
-			documentsNoMatches: <?php echo wp_json_encode( __( 'No documents match your search.', 'digital-employees' ) ); ?>
+			documentsNoMatches: <?php echo wp_json_encode( __( 'No documents match your search.', 'digital-employees' ) ); ?>,
+			memoriesLoading: <?php echo wp_json_encode( __( 'Loading what Staff AI remembers…', 'digital-employees' ) ); ?>,
+			memoriesEmpty: <?php echo wp_json_encode( __( 'Staff AI has not noted anything about you yet.', 'digital-employees' ) ); ?>,
+			memoriesLoadFailed: <?php echo wp_json_encode( __( 'Could not load what Staff AI remembers. Nothing has been forgotten — try again in a moment.', 'digital-employees' ) ); ?>,
+			memoriesDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
+			memoriesConfirmDelete: <?php /* translators: %s: the remembered fact. */ echo wp_json_encode( __( 'Delete "%s"? It is removed now, but can be noted again from conversations you still have.', 'digital-employees' ) ); ?>,
+			memoriesDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete that memory.', 'digital-employees' ) ); ?>,
+			memoryCategoryRole: <?php echo wp_json_encode( __( 'Your role', 'digital-employees' ) ); ?>,
+			memoryCategoryPreferences: <?php echo wp_json_encode( __( 'Preference', 'digital-employees' ) ); ?>,
+			memoryCategoryProjects: <?php echo wp_json_encode( __( 'Project', 'digital-employees' ) ); ?>,
+			memoryCategoryHabits: <?php echo wp_json_encode( __( 'How you work', 'digital-employees' ) ); ?>,
+			memoryCategoryContext: <?php echo wp_json_encode( __( 'Background', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.3
+Stable tag: 5.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.4 - 2026-08-08 =
+* Feature: Memories panel in Staff AI - see what the assistant has noted about you from your conversations, and delete anything you would rather it did not keep. Open it from the new bookmark icon in the header (or "What Staff AI remembers" in the mobile menu). Each entry shows the fact, roughly what kind of fact it is, and when. Only you can see your own memories - no administrator can read them. Deleting takes effect immediately; if the conversation the fact came from is still in your history it can be noted again, so clear that conversation to stop it coming back.
 
 = 5.7.3 - 2026-08-05 =
 * Fix: if the assistant service asks the chat to slow down (or is briefly unavailable), the visitor now sees a message saying so - including how long to wait. Previously the reply simply never arrived and the chat looked broken.
