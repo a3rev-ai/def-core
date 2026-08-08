@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.4
+Stable tag: 5.7.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.5 - 2026-08-09 =
+* Fix: your compliance / AI-disclosure notice no longer has a length limit. It was capped at 500 characters - about one paragraph - which is shorter than most real privacy statements. Write it as long as it needs to be.
+* Fix: settings text is never silently shortened. Several fields (display name, greeting bubble, button label, welcome chips, privacy link label) quietly cut what you typed when it was too long, so you could save a setting and not be told part of it was thrown away. They now either save what you wrote or tell you it is too long - never both.
+* Fix: a display name containing accented or non-Latin characters could be cut mid-character and stored as broken text.
 
 = 5.7.4 - 2026-08-08 =
 * Feature: Memories panel in Staff AI - see what the assistant has noted about you from your conversations, and delete anything you would rather it did not keep. Open it from the new bookmark icon in the header (or "What Staff AI remembers" in the mobile menu). Each entry shows the fact, roughly what kind of fact it is, and when. Only you can see your own memories - no administrator can read them. Deleting takes effect immediately; if the conversation the fact came from is still in your history it can be noted again, so clear that conversation to stop it coming back.
