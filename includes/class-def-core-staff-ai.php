@@ -500,6 +500,31 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_delete_document'),
 			)
 		);
+
+		// "Memories" panel (privacy slice B). Memories are per-user: DEF scopes
+		// every query to the identity in the X-DEF-User header that
+		// backend_request() already forwards — nothing user-scoped rides in the URL
+		// or body. There is no user_id parameter on the DEF side and there must be
+		// none here either; one would turn this back into an admin browse endpoint.
+		// Entry ids are UUID4, so the documents id pattern fits unchanged.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/memories',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_memories'),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
+			array(
+				'methods'             => 'DELETE',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_delete_memory'),
+			)
+		);
 	}
 
 	/**
@@ -1542,6 +1567,138 @@ final class DEF_Core_Staff_AI
 				);
 			}
 			return $result;
+		}
+
+		return new \WP_REST_Response( array( 'success' => true ), 200 );
+	}
+
+	/**
+	 * Replace a backend error whose message carries the INTERNAL DEF URL.
+	 *
+	 * The 404 and generic-4xx branches of backend_request() interpolate the URL
+	 * from get_def_api_url_internal() — a Docker/VNet host the browser must never
+	 * be shown (contrast get_def_api_url(), the browser-safe one). Those two get
+	 * $message; every other code (5xx, auth) is already URL-free and passes
+	 * through unchanged, so a misconfigured connection still names itself.
+	 *
+	 * The status is always preserved: a failure must stay a failure, never
+	 * degrade into a success with nothing in it.
+	 *
+	 * @param \WP_Error $error   Error from backend_request().
+	 * @param string    $message Plain copy to show instead.
+	 * @return \WP_Error
+	 */
+	private static function plain_backend_error( \WP_Error $error, string $message )
+	{
+		$code = $error->get_error_code();
+		if ( 'staff_ai_not_found' !== $code && 0 !== strpos( (string) $code, 'staff_ai_http_' ) ) {
+			return $error;
+		}
+		$data = $error->get_error_data();
+		return new \WP_Error(
+			$code,
+			$message,
+			array( 'status' => ( is_array( $data ) && isset( $data['status'] ) ) ? $data['status'] : 500 )
+		);
+	}
+
+	/**
+	 * REST handler: list what the assistant remembers about the current user
+	 * ("Memories" panel).
+	 *
+	 * Proxies DEF GET /api/staff-ai/memories. Each row is allowlisted to the five
+	 * fields DEF returns and the panel renders. DEF deliberately withholds
+	 * confidence, source and provenance — extractor machinery a person can only
+	 * argue with — so the allowlist is also the guard that keeps them out if a
+	 * future backend adds them back.
+	 *
+	 * A DEF 503 (database down) surfaces as an error, never as an empty list: an
+	 * empty list would read as "it has forgotten you", which is untrue.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, memories}).
+	 */
+	public static function rest_list_memories()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/memories' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load what Staff AI remembers. Nothing has been forgotten — try again in a moment.', 'digital-employees' )
+			);
+		}
+		$rows     = ( isset( $result['memories'] ) && is_array( $result['memories'] ) ) ? $result['memories'] : array();
+		$memories = array();
+		foreach ( $rows as $row ) {
+			// Charset-check the id to the same alphabet the DELETE handler accepts,
+			// so the two ends of the panel can never disagree on a valid id.
+			if ( ! is_array( $row ) || empty( $row['entry_id'] )
+				|| ! preg_match( '/^[a-zA-Z0-9-]+$/', (string) $row['entry_id'] ) ) {
+				continue;
+			}
+			$memories[] = array(
+				'entry_id'   => (string) $row['entry_id'],
+				'category'   => ( isset( $row['category'] ) && is_string( $row['category'] ) ) ? $row['category'] : '',
+				'content'    => ( isset( $row['content'] ) && is_string( $row['content'] ) ) ? $row['content'] : '',
+				'created_at' => ( isset( $row['created_at'] ) && is_string( $row['created_at'] ) ) ? $row['created_at'] : '',
+				'updated_at' => ( isset( $row['updated_at'] ) && is_string( $row['updated_at'] ) ) ? $row['updated_at'] : '',
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'memories' => $memories,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: forget one thing the assistant remembers about the current user.
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/memories/{id}. Ownership is enforced
+	 * DEF-side from the forwarded identity, so a foreign id is a plain 404.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success}).
+	 */
+	public static function rest_delete_memory( \WP_REST_Request $request )
+	{
+		// Charset-check the id HERE, not only in the route pattern: get_param()
+		// resolves JSON → POST → GET → URL (WP_REST_Request::get_parameter_order),
+		// so a query string outranks the path segment the regex matched — the id
+		// forwarded to DEF is not necessarily the one the route validated.
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		if ( ! preg_match( '/^[a-zA-Z0-9-]+$/', $id ) ) {
+			return new \WP_Error(
+				'invalid_memory_id',
+				__( 'A memory id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( 'DELETE', '/api/staff-ai/memories/' . rawurlencode( $id ) );
+		if ( is_wp_error( $result ) ) {
+			// Both of these are normal panel traffic — a vanished id (double-click,
+			// stale list) and DEF's 409 when the store changed under the delete. Plain
+			// copy, not backend_request's diagnostic string carrying the backend URL.
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_not_found',
+					__( 'That memory is already gone.', 'digital-employees' ),
+					array( 'status' => 404 )
+				);
+			}
+			if ( 'staff_ai_http_409' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_conflict',
+					__( 'Your memories changed while that was deleting. Refresh and try again.', 'digital-employees' ),
+					array( 'status' => 409 )
+				);
+			}
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not delete that memory.', 'digital-employees' )
+			);
 		}
 
 		return new \WP_REST_Response( array( 'success' => true ), 200 );
