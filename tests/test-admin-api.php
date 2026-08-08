@@ -394,6 +394,14 @@ if ( ! class_exists( 'DEF_Core' ) ) {
 // be loaded too or permission_check() fatals on a missing class.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-hmac-auth.php';
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
+// DEF_Core_Admin owns the `sanitize` callbacks in the settings map, and
+// rest_update_setting() guards them with is_callable() — so WITHOUT this load
+// every settings test in this file silently exercises the validator only, and
+// a truncation sitting in a sanitiser passes unnoticed. That is not
+// hypothetical: it happened while writing the v5.7.4 tests below, and only the
+// mutation check caught it. Loaded here, at the top, so it holds for the whole
+// file rather than just the sections after it.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
 
 // ── Test helpers ────────────────────────────────────────────────────────
 
@@ -1426,6 +1434,136 @@ $request->set_body_params( array( 'value' => 'verbose' ) );
 $response = $sa->rest_update_setting( $request );
 assert_equals( 400, $response->get_status(), 'invalid log level rejected' );
 assert_equals( 'VALIDATION_ERROR', $response->get_data()['error']['code'], 'error code is VALIDATION_ERROR' );
+
+// ── No silent truncation (2026-08-08) ───────────────────────────────────
+// INVERTED TESTS. The sanitisers used to cut with mb_substr while the
+// validators refused — "defense-in-depth" that was a trapdoor under a locked
+// door: anything reaching the sanitiser lost text with nothing said. A cap may
+// refuse, defer or report; it may never silently drop. Re-adding any of those
+// cuts fails here.
+//
+// Driven through rest_update_setting + get_option — the REAL save path, not the
+// sanitiser in isolation. A sanitiser that returns the full string while
+// something downstream truncates would pass a unit test and fail a user.
+echo "\n[51] Compliance text has NO length cap and round-trips intact\n";
+reset_test_state();
+setup_admin_user();
+
+assert_true(
+	is_callable( array( 'DEF_Core_Admin', 'sanitize_compliance_text' ) ),
+	'the sanitiser is loaded — otherwise rest_update_setting skips it and this section proves nothing'
+);
+
+// A real AI-disclosure / privacy notice, well past the deleted 500-char cap.
+$long_notice = 'This site uses an AI assistant. ' . str_repeat(
+	'Conversations may be processed by third-party AI providers to generate responses, and are retained for quality and compliance purposes. ',
+	12
+); // ~1,600 chars
+
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_compliance_text' );
+$request->set_param( 'key', 'def_core_chat_compliance_text' );
+$request->set_body_params( array( 'value' => $long_notice ) );
+$response = $sa->rest_update_setting( $request );
+
+// The sanitiser trims surrounding whitespace (deliberate — a whitespace-only
+// value must collapse to '' so the widget hides the footer). Everything else
+// must survive, so compare against the trimmed input, not the raw fixture.
+$expected = trim( $long_notice );
+
+assert_equals( 200, $response->get_status(), 'a 1,600-char legal notice is accepted' );
+assert_equals(
+	$expected,
+	get_option( 'def_core_chat_compliance_text', '' ),
+	'compliance text round-trips character-for-character — not cut at 500'
+);
+assert_equals(
+	mb_strlen( $expected ),
+	mb_strlen( (string) get_option( 'def_core_chat_compliance_text', '' ) ),
+	'stored length equals submitted length'
+);
+
+echo "\n[52] Over-length labels are REFUSED, never quietly shortened\n";
+reset_test_state();
+setup_admin_user();
+
+// Each: (option key, chars over its documented bound). The bound stays for now
+// on UI chrome; what must never happen is a silent cut.
+$refusals = array(
+	'def_core_display_name'              => 101,
+	'def_core_chat_greeting_bubble_text' => 201,
+	'def_core_chat_button_label'         => 31,
+	'def_core_chat_welcome_chip_1'       => 81,
+	'def_core_chat_welcome_chip_1_intro' => 1001,
+	'def_core_chat_privacy_link_label'   => 51,
+);
+
+foreach ( $refusals as $key => $too_long ) {
+	$before  = get_option( $key, '' );
+	$payload = str_repeat( 'x', $too_long );
+
+	$request = new WP_REST_Request( 'POST', "/def-core/v1/setup/setting/$key" );
+	$request->set_param( 'key', $key );
+	$request->set_body_params( array( 'value' => $payload ) );
+	$response = $sa->rest_update_setting( $request );
+
+	assert_equals( 400, $response->get_status(), "$key: over-length input is refused, not truncated" );
+	assert_equals( $before, get_option( $key, '' ), "$key: nothing was written" );
+}
+
+// The bounds must count CHARACTERS, not bytes. validate_display_name used
+// strlen() until 2026-08-08, so a 40-character Japanese name (120 bytes) was
+// refused with a message claiming it exceeded 100 characters. The ASCII cases
+// above cannot catch that — bytes and characters are the same number there.
+$mb_name = str_repeat( '漢', 80 ); // 80 characters, 240 bytes — under the 100 bound
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_display_name' );
+$request->set_param( 'key', 'def_core_display_name' );
+$request->set_body_params( array( 'value' => $mb_name ) );
+$response = $sa->rest_update_setting( $request );
+
+assert_equals( 200, $response->get_status(), 'an 80-character multibyte name is accepted (bounds count chars, not bytes)' );
+assert_equals( $mb_name, get_option( 'def_core_display_name', '' ), 'and is stored whole' );
+
+echo "\n[53] No sanitiser shortens its input — asserted one by one\n";
+// Belt-and-braces below the REST layer: called directly, none of these may cut.
+// This is what catches a truncation re-added under the validator.
+//
+// Deliberately per-sanitiser with its own name and message, NOT a pattern scan
+// for mb_substr: verifying one instance and generalising to the class is how
+// this kind of defect survives a review. Seven sanitisers, seven assertions.
+$sanitisers = array(
+	'sanitize_display_name'         => 500,   // cut at 100, and on BYTES
+	'sanitize_compliance_text'      => 5000,  // cut at 500
+	'sanitize_greeting_bubble_text' => 800,   // cut at 200
+	'sanitize_button_label'         => 300,   // cut at 30
+	'sanitize_welcome_chip'         => 400,   // cut at 80
+	'sanitize_welcome_chip_intro'   => 4000,  // cut at 1000
+	'sanitize_privacy_link_label'   => 200,   // cut at 50
+);
+
+foreach ( $sanitisers as $method => $length ) {
+	$output = DEF_Core_Admin::$method( str_repeat( 'a', $length ) );
+	assert_equals(
+		$length,
+		mb_strlen( $output ),
+		"DEF_Core_Admin::$method() returns its input whole (no truncation)"
+	);
+}
+
+// sanitize_display_name used substr(), which counts BYTES — a multibyte name
+// could be severed mid-character, producing mojibake rather than a short name.
+$mb_name = str_repeat( '漢', 80 ); // 80 characters, 240 bytes
+assert_equals(
+	80,
+	mb_strlen( DEF_Core_Admin::sanitize_display_name( $mb_name ) ),
+	'a multibyte display name survives whole, not severed mid-character'
+);
+
+// NOT asserted here: that sanitising still strips unsafe markup. That is
+// WordPress's contract (sanitize_text_field / sanitize_textarea_field), and
+// this harness stubs both — the textarea stub only trims, so an assertion
+// would be measuring the stub rather than the plugin. Neither sanitiser's
+// call to those functions changed in this PR; only the truncation after them
+// was removed.
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";

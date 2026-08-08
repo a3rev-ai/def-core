@@ -1241,7 +1241,11 @@ final class DEF_Core_Admin_API {
 		if ( ! is_string( $value ) ) {
 			return 'Display name must be a string.';
 		}
-		if ( strlen( $value ) > 100 ) {
+		// mb_strlen, not strlen: this said "100 characters" while counting BYTES,
+		// so a 40-character Japanese name (120 bytes) was refused with a message
+		// stating it was over 100 characters. It was the only length validator in
+		// this file still counting bytes (2026-08-08).
+		if ( mb_strlen( $value ) > 100 ) {
 			return 'Display name must be 100 characters or fewer.';
 		}
 		return true;
@@ -1372,17 +1376,29 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
-	 * Validate compliance footer text (max 500 chars).
+	 * Validate compliance footer text. NO length limit, deliberately.
+	 *
+	 * The 500-char cap was deleted on 2026-08-08 (Steve), from this validator
+	 * and from DEF_Core_Admin::sanitize_compliance_text. This field holds the
+	 * site owner's own legal / AI-disclosure notice; 500 characters is about
+	 * one paragraph and real notices routinely run longer. Capping it meant
+	 * refusing to let a site owner state their own legal text. Length is the
+	 * owner's call on their own site — the stored option is a longtext, so
+	 * nothing in the schema needs a bound either.
+	 *
+	 * Kept as a validator rather than removed from the map because
+	 * rest_update_setting() dereferences $config['validate'] unconditionally —
+	 * deleting the key would fatal, not skip.
+	 *
+	 * It still rejects non-scalars, which the old 500-char version did NOT: an
+	 * array reached `(string) array()` and stored the literal string "Array",
+	 * and an object raised an uncaught Error (HTTP 500). Both are now a clean 400.
 	 *
 	 * @param mixed $value The value to validate.
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_compliance_text( $value ) {
-		$str = (string) $value;
-		if ( mb_strlen( $str ) > 500 ) {
-			return 'Compliance text must be 500 characters or fewer.';
-		}
-		return true;
+		return is_scalar( $value ) ? true : 'Compliance text must be text.';
 	}
 
 	/**
