@@ -42,7 +42,10 @@
 		'chat_welcome_chip_2_intro':  { id: 'def_core_chat_welcome_chip_2_intro', max_length: 1000 },
 		'chat_welcome_chip_3':        { id: 'def_core_chat_welcome_chip_3',  max_length: 80 },
 		'chat_welcome_chip_3_intro':  { id: 'def_core_chat_welcome_chip_3_intro', max_length: 1000 },
-		'chat_compliance_text':       { id: 'def_core_chat_compliance_text', max_length: 500 },
+		// No max_length: the AI-disclosure notice is the site owner's own legal
+		// text and the server stopped bounding it in v5.7.4. Leaving 500 here
+		// would be worse than the server cap ever was — see the slice below.
+		'chat_compliance_text':       { id: 'def_core_chat_compliance_text' },
 		'chat_privacy_link_label':    { id: 'def_core_chat_privacy_link_label', max_length: 50 },
 		'chat_button_color':          { id: 'def_core_chat_button_color',  max_length: 7, type: 'color' },
 		'chat_button_hover_color':    { id: 'def_core_chat_button_hover_color', max_length: 7, type: 'color' },
@@ -1220,6 +1223,19 @@
 		}
 
 		// Cap value at max_length.
+		//
+		// WARNING (2026-08-08): this slice is a SILENT TRUNCATION OF STORED DATA,
+		// not just a display bound. The save response echoes the value the server
+		// actually stored; this cuts it, writes the short version into the field,
+		// and the next Save on that tab posts every [data-setting] value — so the
+		// stored value is overwritten with the sliced one and the admin is never
+		// told. It also slices UTF-16 code units, severing surrogate pairs.
+		//
+		// It is left in place for the fields whose server side still REFUSES
+		// over-length input (the server rejects before a long value could ever
+		// reach update_field, so the branch is unreachable for them). It was
+		// removed for chat_compliance_text, which no longer has a server bound.
+		// Removing the slice entirely is the class fix and is its own change.
 		value = String(value);
 		if (fieldConfig.max_length && value.length > fieldConfig.max_length) {
 			value = value.slice(0, fieldConfig.max_length);

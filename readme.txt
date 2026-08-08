@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.3
+Stable tag: 5.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.4 - 2026-08-08 =
+* Fix: your compliance / AI-disclosure notice no longer has a length limit. It was capped at 500 characters - about one paragraph - which is shorter than most real privacy statements. Write it as long as it needs to be.
+* Fix: settings text is never silently shortened. Several fields (display name, greeting bubble, button label, welcome chips, privacy link label) quietly cut what you typed when it was too long, so you could save a setting and not be told part of it was thrown away. They now either save what you wrote or tell you it is too long - never both.
+* Fix: a display name containing accented or non-Latin characters could be cut mid-character and stored as broken text.
 
 = 5.7.3 - 2026-08-05 =
 * Fix: if the assistant service asks the chat to slow down (or is briefly unavailable), the visitor now sees a message saying so - including how long to wait. Previously the reply simply never arrived and the chat looked broken.

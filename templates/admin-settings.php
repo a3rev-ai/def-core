@@ -740,15 +740,17 @@ $first_tab = 'branding';
 
 			<div class="def-core-field">
 				<label for="def_core_chat_compliance_text"><?php esc_html_e( 'AI Disclosure Notice', 'digital-employees' ); ?></label>
-				<input
-					type="text"
+				<?php // No maxlength: this is the site owner's own legal / AI-disclosure
+				// notice and its length is their call (2026-08-08). A maxlength here
+				// would silently swallow pasted overflow, which is the same silent
+				// drop the server-side cap was removed for. ?>
+				<textarea
 					id="def_core_chat_compliance_text"
 					data-setting="def_core_chat_compliance_text"
-					value="<?php echo esc_attr( $chat_settings['compliance_text'] ); ?>"
 					class="regular-text"
-					maxlength="500"
+					rows="4"
 					placeholder="<?php esc_attr_e( 'AI responses may be inaccurate. By using this assistant, you agree to our', 'digital-employees' ); ?>"
-				/>
+				><?php echo esc_textarea( $chat_settings['compliance_text'] ); ?></textarea>
 				<p class="description">
 					<?php
 					/* translators: %s: clickable "Ask your Setup Assistant" link that opens the Setup Assistant pre-seeded with field context. */
