@@ -261,6 +261,8 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/tools',
 	'a3-ai/v1/staff-ai/documents',
 	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
+	'a3-ai/v1/staff-ai/memories',
+	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -296,6 +298,8 @@ assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/tools']['methods'
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/status']['methods'], 'status = GET' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents']['methods'], 'documents = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'documents delete = DELETE' );
+assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
+assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
 
 // ── 4. Permission check: unauthenticated → 401 ─────────────────────────
 echo "\n[4] Permission check — unauthenticated\n";
@@ -641,7 +645,8 @@ if ( ! function_exists( 'wp_remote_get' ) ) {
 	function wp_remote_get( string $url, array $args = array() ) {
 		$GLOBALS['_def_test_last_get_url'] = $url;
 		return array(
-			'response' => array( 'code' => 200 ),
+			// Code is settable so a backend failure (e.g. DEF's 503) can be driven.
+			'response' => array( 'code' => $GLOBALS['_def_test_get_code'] ?? 200 ),
 			'body'     => $GLOBALS['_def_test_get_body'] ?? '{"success":true,"documents":[]}',
 		);
 	}
@@ -719,6 +724,160 @@ assert_equals(
 	_def_test_panel_download_url( '/api/files/tenant-a/100% Done.md' ),
 	'literal % in a raw name survives normalization (invalid %-sequence passes through rawurldecode)'
 );
+
+// ── 29. rest_list_memories — field allowlist round trip ─────────────────
+// The proxy remaps field by field, so an unlisted field vanishes silently and
+// the panel renders a blank column with no error anywhere. DEF returns exactly
+// entry_id / category / content / created_at / updated_at, and deliberately
+// withholds confidence, source and provenance — the allowlist is what keeps
+// them out if a future backend adds them back.
+echo "\n[29] rest_list_memories field allowlist\n";
+
+function _def_test_memories( array $rows ): array {
+	$GLOBALS['_def_test_get_body'] = json_encode( array( 'success' => true, 'memories' => $rows ) );
+	$resp = DEF_Core_Staff_AI::rest_list_memories();
+	unset( $GLOBALS['_def_test_get_body'] );
+	$data = is_object( $resp ) ? $resp->data : $resp;
+	return $data['memories'] ?? array();
+}
+
+$rows = _def_test_memories( array(
+	array(
+		'entry_id'         => '8f14e45f-ceea-467a-9e2f-6b2c40f5e1a3',
+		'category'         => 'preferences',
+		'content'          => 'Prefers short answers',
+		'created_at'       => '2026-08-07T01:00:00',
+		'updated_at'       => '2026-08-08T02:00:00',
+		'confidence'       => 0.9,
+		'source'           => 'extracted',
+		'source_thread_id' => 'thread-123',
+		'staleness_score'  => 0.4,
+	),
+) );
+assert_equals( 1, count( $rows ), 'a valid row survives' );
+$keys = array_keys( $rows[0] );
+sort( $keys );
+assert_equals(
+	array( 'category', 'content', 'created_at', 'entry_id', 'updated_at' ),
+	$keys,
+	'exactly the five DEF fields — no extras (order not pinned, nothing depends on it)'
+);
+assert_equals( 'Prefers short answers', $rows[0]['content'], 'content passes through' );
+assert_equals( 'preferences', $rows[0]['category'], 'category passes through' );
+assert_equals( '2026-08-08T02:00:00', $rows[0]['updated_at'], 'updated_at passes through' );
+
+// The panel's DELETE route only matches [a-zA-Z0-9-]+, so a row whose id the
+// route could never accept is dropped rather than rendered undeletable.
+assert_equals(
+	0,
+	count( _def_test_memories( array( array( 'entry_id' => 'not$a/uuid', 'content' => 'x' ) ) ) ),
+	'row with an unroutable entry_id is skipped'
+);
+assert_equals(
+	0,
+	count( _def_test_memories( array( array( 'category' => 'role', 'content' => 'x' ) ) ) ),
+	'row with no entry_id is skipped'
+);
+$rows = _def_test_memories( array( array( 'entry_id' => 'abc-123', 'category' => array( 'role' ) ) ) );
+assert_equals( '', $rows[0]['category'], 'non-string category coerces to empty, not to a PHP array' );
+
+// ── 30. rest_list_memories — a backend failure is an ERROR, not an empty list ──
+// DEF answers 503 when the store is unreachable. An empty list would read as
+// "it has forgotten you" — a lie about the user's own data.
+echo "\n[30] rest_list_memories 503 surfaces as an error\n";
+
+$GLOBALS['_def_test_get_code'] = 503;
+$result = DEF_Core_Staff_AI::rest_list_memories();
+unset( $GLOBALS['_def_test_get_code'] );
+$is_err = is_wp_error( $result );
+assert_true( $is_err, '503 returns WP_Error, not a 200 response' );
+// Guarded: a mutation that returns a response here must FAIL these two, not
+// fatal on ->get_error_data() and take every later section down with it.
+assert_equals( 503, $is_err ? ( $result->get_error_data()['status'] ?? 0 ) : 0, 'status 503 is preserved for the panel' );
+// The 5xx branch of backend_request carries no URL, so it reaches the user as-is.
+assert_true(
+	$is_err && strpos( $result->get_error_message(), 'def-api.test' ) === false,
+	'503 message does not leak the backend URL'
+);
+
+// A 404 means DEF does not serve this route (version skew / rollback), and that
+// branch of backend_request interpolates the INTERNAL backend URL. The panel
+// renders the message verbatim, so it must be replaced — while staying an error.
+$GLOBALS['_def_test_get_code'] = 404;
+$result = DEF_Core_Staff_AI::rest_list_memories();
+unset( $GLOBALS['_def_test_get_code'] );
+$is_err = is_wp_error( $result );
+assert_true( $is_err, '404 stays an error, not an empty list' );
+assert_equals( 404, $is_err ? ( $result->get_error_data()['status'] ?? 0 ) : 0, '404 status preserved' );
+assert_true(
+	strpos( $is_err ? $result->get_error_message() : '', 'def-api.test' ) === false,
+	'404 message does not leak the internal backend URL'
+);
+
+// ── 31. rest_delete_memory — id forwarding + plain copy on 404 / 409 ────
+echo "\n[31] rest_delete_memory\n";
+
+if ( ! function_exists( 'wp_remote_request' ) ) {
+	function wp_remote_request( string $url, array $args = array() ) {
+		$GLOBALS['_def_test_last_request'] = array( 'url' => $url, 'method' => $args['method'] ?? '' );
+		return array(
+			'response' => array( 'code' => $GLOBALS['_def_test_request_code'] ?? 200 ),
+			'body'     => $GLOBALS['_def_test_request_body'] ?? '{"success":true}',
+		);
+	}
+}
+
+$req = new WP_REST_Request();
+$req->set_param( 'id', '8f14e45f-ceea-467a-9e2f-6b2c40f5e1a3' );
+$resp = DEF_Core_Staff_AI::rest_delete_memory( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/memories/8f14e45f-ceea-467a-9e2f-6b2c40f5e1a3',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'entry id is forwarded on the DEF path — nothing user-scoped alongside it'
+);
+assert_equals( 'DELETE', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is DELETE' );
+assert_true( ! is_wp_error( $resp ), 'a successful delete returns a response' );
+
+$result = DEF_Core_Staff_AI::rest_delete_memory( new WP_REST_Request() );
+$is_err = is_wp_error( $result );
+assert_true( $is_err, 'missing id is rejected' );
+assert_equals( 'invalid_memory_id', $is_err ? $result->get_error_code() : '', 'missing id → invalid_memory_id' );
+
+// get_param() resolves JSON → POST → GET → URL, so a query string outranks the
+// path segment the route regex matched: an id that never passed the pattern can
+// still reach get_param(). The handler must charset-check it itself.
+$GLOBALS['_def_test_last_request'] = array();
+foreach ( array( '../../anything', 'abc 123', 'abc/def', '' ) as $bad_id ) {
+	$req = new WP_REST_Request();
+	$req->set_param( 'id', $bad_id );
+	$result = DEF_Core_Staff_AI::rest_delete_memory( $req );
+	$is_err = is_wp_error( $result );
+	assert_equals( 'invalid_memory_id', $is_err ? $result->get_error_code() : '', "id '$bad_id' is refused by the handler" );
+}
+assert_equals(
+	array(),
+	$GLOBALS['_def_test_last_request'],
+	'no refused id ever reached the backend'
+);
+
+// A vanished id and a concurrent-change 409 are both normal panel traffic, and
+// both must return plain copy — backend_request's diagnostic string carries the
+// internal backend URL.
+foreach ( array( 404 => 'staff_ai_not_found', 409 => 'staff_ai_conflict' ) as $code => $expected_error ) {
+	$GLOBALS['_def_test_request_code'] = $code;
+	$req = new WP_REST_Request();
+	$req->set_param( 'id', 'abc-123' );
+	$result = DEF_Core_Staff_AI::rest_delete_memory( $req );
+	unset( $GLOBALS['_def_test_request_code'] );
+	$is_err = is_wp_error( $result );
+	assert_true( $is_err, "$code returns WP_Error" );
+	assert_equals( $expected_error, $is_err ? $result->get_error_code() : '', "$code → $expected_error" );
+	assert_equals( $code, $is_err ? ( $result->get_error_data()['status'] ?? 0 ) : 0, "$code status preserved" );
+	assert_true(
+		strpos( $is_err ? $result->get_error_message() : '', 'def-api.test' ) === false,
+		"$code message does not leak the backend URL"
+	);
+}
 
 // Cleanup.
 $_wp_test_current_user = null;
