@@ -718,7 +718,23 @@ final class DEF_Core_Admin_API {
 		// persist a raw `<script>` payload that future code paths reading
 		// these values could surface to an HTML sink. Today's sinks are
 		// all `.textContent`, but defence-in-depth is cheap.
-		if ( ! empty( $config['sanitize'] ) && is_callable( $config['sanitize'] ) ) {
+		//
+		// "No sanitiser configured" is a legitimate skip. "The configured
+		// sanitiser is not callable" never is: the old single guard conflated
+		// the two, so a vanished sanitiser silently persisted UNSANITISED
+		// input and reported success (fail-open; held shut only by
+		// load_dependencies() require order). Now it refuses the write —
+		// same VALIDATION_ERROR contract the caller already speaks, plus
+		// _doing_it_wrong() so the developer sees the real cause.
+		if ( ! empty( $config['sanitize'] ) ) {
+			if ( ! is_callable( $config['sanitize'] ) ) {
+				_doing_it_wrong(
+					__METHOD__,
+					sprintf( 'Sanitize callback for setting "%s" is not callable; the write was refused.', $key ),
+					'5.7.6'
+				);
+				return $this->error_response( 'VALIDATION_ERROR', 'This setting could not be saved: its server-side sanitiser is unavailable. Nothing was changed.', 400 );
+			}
 			$value = call_user_func( $config['sanitize'], $value );
 		}
 
@@ -1266,7 +1282,14 @@ final class DEF_Core_Admin_API {
 		if ( $id === 0 ) {
 			return true;
 		}
-		if ( function_exists( 'wp_attachment_is_image' ) && ! wp_attachment_is_image( $id ) ) {
+		// Fail CLOSED: if the check function is unavailable the ID cannot be
+		// verified, and unverifiable is a refusal, not a pass. The old guard
+		// skipped validation entirely when wp_attachment_is_image() was
+		// absent, accepting any integer as a logo attachment ID (2026-08-10).
+		if ( ! function_exists( 'wp_attachment_is_image' ) ) {
+			return 'Logo could not be verified as an image.';
+		}
+		if ( ! wp_attachment_is_image( $id ) ) {
 			return 'Attachment is not a valid image.';
 		}
 		return true;
