@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.7.6 - 2026/08/10 =
+* Fix: three internal safety checks now refuse when they cannot run, instead of silently letting the value through. None was reachable on a working site; this hardens the failure mode so a future code change cannot quietly disable input cleaning, logo verification, or the public-only filter on page context.
+
 = 5.7.5 - 2026/08/09 =
 * Fix: your compliance / AI-disclosure notice no longer has a length limit. It was capped at 500 characters - about one paragraph - which is shorter than most real privacy statements. Write it as long as it needs to be.
 * Fix: settings text is never silently shortened. Several fields (display name, greeting bubble, button label, welcome chips, privacy link label) quietly cut what you typed when it was too long, so you could save a setting and not be told part of it was thrown away. They now either save what you wrote or tell you it is too long - never both.
