@@ -136,7 +136,12 @@ final class DEF_Core_Routes {
 					if ( ! is_user_logged_in() ) {
 						return false;
 					}
-					return current_user_can( 'def_staff_access' ) || current_user_can( 'def_management_access' );
+					if ( current_user_can( 'def_staff_access' ) || current_user_can( 'def_management_access' ) ) {
+						return true;
+					}
+					// Logged-in but uncapped: named refusal with actionable copy
+					// (5.7.7). Anonymous stays bare false above — 401 shape untouched.
+					return \DEF_Core_Staff_AI::access_denied_error();
 				},
 				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_stream' ),
 			)
@@ -158,7 +163,12 @@ final class DEF_Core_Routes {
 					if ( ! is_user_logged_in() ) {
 						return false;
 					}
-					return current_user_can( 'def_staff_access' ) || current_user_can( 'def_management_access' );
+					if ( current_user_can( 'def_staff_access' ) || current_user_can( 'def_management_access' ) ) {
+						return true;
+					}
+					// Logged-in but uncapped: named refusal with actionable copy
+					// (5.7.7). Anonymous stays bare false above — 401 shape untouched.
+					return \DEF_Core_Staff_AI::access_denied_error();
 				},
 				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_status' ),
 			)

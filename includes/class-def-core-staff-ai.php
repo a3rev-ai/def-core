@@ -546,11 +546,7 @@ final class DEF_Core_Staff_AI
 
 		// Capability gate.
 		if (! self::user_has_staff_ai_access()) {
-			return new \WP_Error(
-				'rest_forbidden',
-				__('You do not have permission to access Staff AI.', 'digital-employees'),
-				array('status' => 403)
-			);
+			return self::access_denied_error();
 		}
 
 		return true;
@@ -3103,7 +3099,7 @@ final class DEF_Core_Staff_AI
 
 		// Capability gate.
 		if (! self::user_has_staff_ai_access()) {
-			wp_die(__('Access denied. You need Staff AI access.', 'digital-employees'), __('Forbidden', 'digital-employees'), array('response' => 403));
+			wp_die(esc_html(self::access_denied_message()), __('Forbidden', 'digital-employees'), array('response' => 403));
 		}
 
 		// Get backend URL.
@@ -3274,6 +3270,43 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * The canonical access-denied copy, audience-aware.
+	 *
+	 * One message, one source. Before 5.7.7 the same refusal existed in three
+	 * variants across four surfaces (this page, rest_permission_check, the BFF
+	 * passthrough callbacks, the download wp_die), none of which said WHO can
+	 * fix it or WHERE — an admin hitting it had def_admin_access and could
+	 * have granted themselves access in User Roles without knowing it.
+	 *
+	 * @return string The refusal copy for the current user.
+	 */
+	public static function access_denied_message(): string
+	{
+		if (current_user_can('def_admin_access')) {
+			return __("Your account doesn't have Staff AI access yet. Grant it under Digital Employees → Settings → User Roles.", 'digital-employees');
+		}
+		return __("Your account doesn't have Staff AI access. Ask your site administrator to grant it in Digital Employees → Settings → User Roles.", 'digital-employees');
+	}
+
+	/**
+	 * The canonical access-denied WP_Error for REST refusals.
+	 *
+	 * Deliberately a DISTINCT, stable code — not rest_forbidden — so a caller
+	 * (or a test) can tell "the gate refused you" from every other 403/401 in
+	 * the stack by code rather than by status arithmetic.
+	 *
+	 * @return \WP_Error 403 with code def_staff_access_required.
+	 */
+	public static function access_denied_error(): \WP_Error
+	{
+		return new \WP_Error(
+			'def_staff_access_required',
+			self::access_denied_message(),
+			array('status' => 403)
+		);
+	}
+
+	/**
 	 * Render the access denied page.
 	 */
 	private static function render_access_denied(): void
@@ -3325,13 +3358,32 @@ final class DEF_Core_Staff_AI
 					color: #50575e;
 					line-height: 1.6;
 				}
+
+				.access-denied-action {
+					margin-top: 16px;
+				}
+
+				.access-denied-action a {
+					display: inline-block;
+					padding: 8px 16px;
+					background: #2271b1;
+					color: #fff;
+					border-radius: 3px;
+					text-decoration: none;
+				}
 			</style>
 		</head>
 
 		<body>
 			<div class="access-denied">
 				<h1><?php echo esc_html__('Access Denied', 'digital-employees'); ?></h1>
-				<p><?php echo esc_html__('You do not have permission to access Staff AI.', 'digital-employees'); ?></p>
+				<p><?php echo esc_html(self::access_denied_message()); ?></p>
+				<?php if (current_user_can('def_admin_access')) : ?>
+					<?php // The admin can fix this themselves — hand them the door, not just the path. ?>
+					<p class="access-denied-action">
+						<a href="<?php echo esc_url(admin_url('admin.php?page=def-core#user-roles')); ?>"><?php echo esc_html__('Open User Roles', 'digital-employees'); ?></a>
+					</p>
+				<?php endif; ?>
 			</div>
 		</body>
 
