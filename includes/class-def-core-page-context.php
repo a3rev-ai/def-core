@@ -235,8 +235,12 @@ final class DEF_Core_Page_Context {
 				continue;
 			}
 			// Defense: only public taxonomies (Sub-PR 0.1.a security review).
+			// Fail CLOSED: a taxonomy that cannot be resolved cannot be
+			// confirmed public, and this list feeds the page context sent to
+			// the LLM. The old check inverted on failure — falsy $tax_obj
+			// meant the term was INCLUDED (2026-08-10).
 			$tax_obj = function_exists( 'get_taxonomy' ) ? get_taxonomy( $tax_name ) : null;
-			if ( $tax_obj && empty( $tax_obj->public ) ) {
+			if ( ! $tax_obj || empty( $tax_obj->public ) ) {
 				continue;
 			}
 			$taxonomies[] = $tax_name;

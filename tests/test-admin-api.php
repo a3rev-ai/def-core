@@ -1565,6 +1565,59 @@ assert_equals(
 // call to those functions changed in this PR; only the truncation after them
 // was removed.
 
+echo "\n[54] A vanished sanitiser REFUSES the write — never a silent unsanitised save\n";
+// The old guard (`! empty( $config['sanitize'] ) && is_callable( ... )`) was
+// one check doing two jobs: "no sanitiser configured" (a legitimate skip) and
+// "the configured sanitiser has vanished" (never legitimate — it persisted
+// UNSANITISED input and reported success). These assertions pin the split.
+reset_test_state();
+setup_admin_user();
+
+if ( ! function_exists( '_doing_it_wrong' ) ) {
+	// WP core always defines this; the standalone harness must too, or the
+	// refusal branch under test would fatal on the developer notice instead
+	// of exercising the refusal.
+	function _doing_it_wrong( $function_name, $message, $version ) {
+		$GLOBALS['_doing_it_wrong_calls'][] = array( $function_name, $message, $version );
+	}
+}
+$GLOBALS['_doing_it_wrong_calls'] = array();
+
+// (a) Configured sanitiser vanishes → the write is refused on the caller's
+// existing VALIDATION_ERROR contract, and nothing reaches the option.
+$allowlist_prop = new ReflectionProperty( 'DEF_Core_Admin_API', 'setting_allowlist' );
+$allowlist_prop->setAccessible( true );
+$allowlist_backup = $allowlist_prop->getValue();
+
+$broken = $allowlist_backup;
+$broken['def_core_chat_welcome_chip_1']['sanitize'] = array( 'DEF_Core_Admin', 'sanitize_method_that_vanished' );
+$allowlist_prop->setValue( null, $broken );
+
+update_option( 'def_core_chat_welcome_chip_1', 'previous value' );
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_welcome_chip_1' );
+$request->set_param( 'key', 'def_core_chat_welcome_chip_1' );
+$request->set_body_params( array( 'value' => 'in-bounds label' ) );
+$response = $sa->rest_update_setting( $request );
+
+$allowlist_prop->setValue( null, $allowlist_backup ); // restore before asserting
+
+assert_equals( 400, $response->get_status(), 'vanished sanitiser: the write is refused, not silently unsanitised' );
+$body = $response->get_data();
+assert_equals( 'VALIDATION_ERROR', $body['error']['code'] ?? '', 'refusal speaks the existing VALIDATION_ERROR contract, not a new shape' );
+assert_equals( 'previous value', get_option( 'def_core_chat_welcome_chip_1', '' ), 'nothing was written' );
+assert_true( count( $GLOBALS['_doing_it_wrong_calls'] ) === 1, '_doing_it_wrong() fired once for the developer' );
+
+// (b) No sanitiser configured stays a legitimate skip: def_core_display_name
+// has no `sanitize` key in the allowlist, and its save must keep working.
+$entry = $allowlist_backup['def_core_display_name'];
+assert_true( ! isset( $entry['sanitize'] ), 'precondition: def_core_display_name really has no sanitiser configured' );
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_display_name' );
+$request->set_param( 'key', 'def_core_display_name' );
+$request->set_body_params( array( 'value' => 'Plain Name' ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'no-sanitiser-configured still saves — the split did not over-refuse' );
+assert_equals( 'Plain Name', get_option( 'def_core_display_name', '' ), 'and the value is stored' );
+
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

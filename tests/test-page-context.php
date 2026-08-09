@@ -44,6 +44,7 @@ $GLOBALS['fx'] = array(
 	'object_taxonomies'       => array(),  // post_type => list<string>
 	'object_terms'            => array(),  // post_id => list<object>
 	'taxonomies_public'       => array(),  // taxonomy_name => bool (default true)
+	'taxonomies_unregistered' => array(),  // taxonomy names get_taxonomy() resolves to false
 	'ancestors'               => array(),  // (term_id, taxonomy) => list<int>
 	'terms_by_id'             => array(),  // (term_id, taxonomy) => object
 	'document_title'          => 'Document Title',
@@ -71,6 +72,7 @@ function _fx_reset() {
 	$GLOBALS['fx']['object_taxonomies']        = array();
 	$GLOBALS['fx']['object_terms']             = array();
 	$GLOBALS['fx']['taxonomies_public']        = array();
+	$GLOBALS['fx']['taxonomies_unregistered']  = array();
 	$GLOBALS['fx']['ancestors']                = array();
 	$GLOBALS['fx']['terms_by_id']              = array();
 	$GLOBALS['fx']['locale']                   = 'en_US';
@@ -127,6 +129,12 @@ if ( ! function_exists( 'wp_get_object_terms' ) ) {
 }
 if ( ! function_exists( 'get_taxonomy' ) ) {
 	function get_taxonomy( $tax_name ) {
+		// Real WP returns false for an unregistered taxonomy — the previous
+		// stub could never say so, which is why the fail-open branch in
+		// collect_page_terms was untestable and survived.
+		if ( in_array( $tax_name, $GLOBALS['fx']['taxonomies_unregistered'] ?? array(), true ) ) {
+			return false;
+		}
 		$is_public = $GLOBALS['fx']['taxonomies_public'][ $tax_name ] ?? true;
 		return (object) array( 'name' => $tax_name, 'public' => $is_public );
 	}
@@ -394,6 +402,28 @@ $terms = DEF_Core_Page_Context::collect_page_terms( 1234 );
 $tax_names = array_column( $terms, 'taxonomy' );
 assert_test( in_array( 'product_cat', $tax_names, true ), 'public product_cat kept' );
 assert_test( ! in_array( 'internal-tag', $tax_names, true ), 'private internal-tag excluded' );
+
+// Unresolvable taxonomy excluded (fail closed). The old guard inverted on
+// failure — get_taxonomy() returning false meant the term was INCLUDED in
+// the page context sent to the LLM, on the one path where that matters.
+_fx_reset();
+_fx_set( array(
+	'is_product'        => true,
+	'queried_object_id' => 1234,
+	'post_type'         => 'product',
+	'object_taxonomies' => array( 'product' => array( 'product_cat', 'ghost-tax' ) ),
+	'object_terms'      => array(
+		1234 => array(
+			(object) array( 'taxonomy' => 'product_cat', 'term_id' => 89, 'slug' => 'shirts', 'name' => 'Shirts' ),
+			(object) array( 'taxonomy' => 'ghost-tax',   'term_id' => 41, 'slug' => 'ghost',  'name' => 'Ghost' ),
+		),
+	),
+	'taxonomies_unregistered' => array( 'ghost-tax' ),
+) );
+$terms = DEF_Core_Page_Context::collect_page_terms( 1234 );
+$tax_names = array_column( $terms, 'taxonomy' );
+assert_test( in_array( 'product_cat', $tax_names, true ), 'resolvable public taxonomy kept alongside an unresolvable one' );
+assert_test( ! in_array( 'ghost-tax', $tax_names, true ), 'unresolvable taxonomy excluded — cannot confirm public means fail closed' );
 
 // 10-cap
 _fx_reset();
