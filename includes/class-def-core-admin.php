@@ -848,12 +848,18 @@ final class DEF_Core_Admin {
 	/**
 	 * Sanitize display name.
 	 *
+	 * No truncation. The REST route (Setup Assistant) refuses over-length input
+	 * with a visible error; the admin settings form bounds it with a maxlength
+	 * attribute. Neither cuts silently.
+	 *
+	 * The substr() here also cut on BYTES, so a multibyte name could be
+	 * severed mid-character (removed 2026-08-08).
+	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Sanitized name (max 100 chars).
+	 * @return string Sanitized name.
 	 */
 	public static function sanitize_display_name( $value ): string {
-		$value = sanitize_text_field( (string) $value );
-		return substr( $value, 0, 100 );
+		return sanitize_text_field( (string) $value );
 	}
 
 	/**
@@ -922,22 +928,28 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Sanitize a welcome-state chip label (text + length cap 80 chars).
+	 * Sanitize a welcome-state chip label.
+	 *
+	 * Does NOT truncate. The REST route refuses over-length input with a visible
+	 * error and the settings form bounds it with maxlength; this sanitiser's job
+	 * is to strip unsafe markup, not to quietly shorten what someone typed
+	 * (2026-08-08).
+	 *
+	 * Known consequence, accepted: the cap this replaced also read "prevents
+	 * pill overflow", and unlike the compliance footer the chips got no CSS
+	 * replacement. Reachable only by an admin who bypasses the maxlength on
+	 * their own site, and it disfigures only their own widget.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Sanitised, truncated chip label.
+	 * @return string Sanitised chip label.
 	 */
 	public static function sanitize_welcome_chip( $value ): string {
-		$value = sanitize_text_field( (string) $value );
-		// 80 chars covers reasonable chip labels and prevents pill overflow.
-		if ( mb_strlen( $value ) > 80 ) {
-			$value = mb_substr( $value, 0, 80 );
-		}
-		return $value;
+		return sanitize_text_field( (string) $value );
 	}
 
 	/**
-	 * Sanitize a welcome-chip intro (multiline allowed, length cap 1000).
+	 * Sanitize a welcome-chip intro (multiline allowed, no length cap here —
+	 * the REST route refuses over 1000 chars visibly).
 	 *
 	 * Per-chip introduction text rendered as an assistant message when the
 	 * chip is clicked. Strips raw HTML; markdown is rendered client-side
@@ -945,47 +957,49 @@ final class DEF_Core_Admin {
 	 * empty/whitespace-only saves from triggering the intro path.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Sanitised, truncated intro text.
+	 * @return string Sanitised intro text.
 	 */
 	public static function sanitize_welcome_chip_intro( $value ): string {
-		$value = trim( sanitize_textarea_field( (string) $value ) );
-		if ( mb_strlen( $value ) > 1000 ) {
-			$value = mb_substr( $value, 0, 1000 );
-		}
-		return $value;
+		// No truncation. The REST route (Setup Assistant) refuses over-length
+		// input with a visible error; the admin settings form bounds it with a
+		// maxlength attribute. Neither cuts silently.
+		return trim( sanitize_textarea_field( (string) $value ) );
 	}
 
 	/**
-	 * Sanitize compliance footer text (multiline allowed, length cap 500).
+	 * Sanitize compliance footer text (multiline allowed, NO length cap).
+	 *
+	 * The 500-char cap was removed entirely on 2026-08-08 (Steve), from both
+	 * this sanitiser and the REST validator. This is the site owner's own legal
+	 * or AI-disclosure notice: 500 characters is about one paragraph, and real
+	 * privacy statements routinely run longer. We do not get to cap how long a
+	 * site owner's legal text is — if it makes the widget tall, that is their
+	 * call on their own site.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Sanitised, truncated compliance text.
+	 * @return string Sanitised compliance text.
 	 */
 	public static function sanitize_compliance_text( $value ): string {
 		// trim() collapses whitespace-only input to '' so the JS guard
 		// `if (config.complianceText)` correctly hides the footer instead
 		// of rendering an empty/whitespace lead with a dangling label.
-		$value = trim( sanitize_textarea_field( (string) $value ) );
-		if ( mb_strlen( $value ) > 500 ) {
-			$value = mb_substr( $value, 0, 500 );
-		}
-		return $value;
+		return trim( sanitize_textarea_field( (string) $value ) );
 	}
 
 	/**
-	 * Sanitize privacy / legal link label (text + length cap 50 chars).
+	 * Sanitize privacy / legal link label (no length cap here — the REST
+	 * validator refuses over 50 chars visibly).
 	 * Empty string is the documented "fall back to translated default"
 	 * value — sanitiser preserves empty.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string Sanitised, truncated link label.
+	 * @return string Sanitised link label.
 	 */
 	public static function sanitize_privacy_link_label( $value ): string {
-		$value = sanitize_text_field( (string) $value );
-		if ( mb_strlen( $value ) > 50 ) {
-			$value = mb_substr( $value, 0, 50 );
-		}
-		return $value;
+		// No truncation. The REST route (Setup Assistant) refuses over-length
+		// input with a visible error; the admin settings form bounds it with a
+		// maxlength attribute. Neither cuts silently.
+		return sanitize_text_field( (string) $value );
 	}
 
 	/**
@@ -1026,27 +1040,32 @@ final class DEF_Core_Admin {
 
 	public static function sanitize_button_label( $value ): string {
 		// Free-text label (e.g. "Chat", "Ask Joe", "AI Assist"). Strip HTML +
-		// control chars via sanitize_text_field, trim, truncate to 30 chars
-		// (defense-in-depth alongside the validator), and normalise empty to
+		// control chars via sanitize_text_field, trim, and normalise empty to
 		// the default "Chat" so every renderer (loader, shortcode) sees a
 		// usable value without its own fallback dance.
+		//
+		// No truncation. This used to cut at 30 chars and call it
+		// "defense-in-depth alongside the validator" — but the validator
+		// REFUSES and this CUT, so the pair was a trapdoor under a locked door:
+		// anything reaching the sanitiser lost text with nothing said (removed
+		// 2026-08-08).
 		$value = trim( sanitize_text_field( (string) $value ) );
-		$value = mb_substr( $value, 0, 30 );
 		return '' === $value ? 'Chat' : $value;
 	}
 
 	/**
 	 * Sanitize the greeting-bubble text. Uses sanitize_textarea_field so
 	 * admin-entered line breaks are preserved (the loader renders the text
-	 * with CSS `white-space: pre-line`). Trimmed + truncated to 200 chars as
-	 * defense-in-depth alongside the validator. Empty is preserved (admin's
-	 * way to hide the bubble without toggling the on/off switch).
+	 * with CSS `white-space: pre-line`). Empty is preserved (admin's way to
+	 * hide the bubble without toggling the on/off switch).
+	 *
+	 * No truncation — the REST route refuses over-length input visibly and the
+	 * settings form bounds it with maxlength (the 200-char cut went 2026-08-08).
 	 *
 	 * @since 3.12.0
 	 */
 	public static function sanitize_greeting_bubble_text( $value ): string {
-		$value = trim( sanitize_textarea_field( (string) $value ) );
-		return mb_substr( $value, 0, 200 );
+		return trim( sanitize_textarea_field( (string) $value ) );
 	}
 
 	/**
