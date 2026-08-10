@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.8
+Stable tag: 5.7.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.9 - 2026-08-10 =
+* Dev: every named size/count/time limit in the plugin's server code is now classified in a test-enforced registry - kept limits carry a one-line reason, and four that limit what you can do with your own content are flagged for a decision rather than silently kept. A new limit cannot land unclassified. The connection-timeout layout is pinned exactly, so a swap between the streaming and non-streaming timeouts cannot pass review unnoticed.
 
 = 5.7.8 - 2026-08-10 =
 * Dev: a test gate now watches for new inline length/count limits in the plugin's server code, so a bound on what you type or store cannot be added silently again (the class of defect fixed in 5.7.5). The streaming connection's watchdog settings are pinned by test for the same reason.
