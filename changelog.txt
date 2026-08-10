@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.7.8 - 2026/08/10 =
+* Dev: a test gate now watches for new inline length/count limits in the plugin's server code, so a bound on what you type or store cannot be added silently again (the class of defect fixed in 5.7.5). The streaming connection's watchdog settings are pinned by test for the same reason.
+
 = 5.7.7 - 2026/08/10 =
 * Tweak: the Staff AI "access denied" message now explains how access is granted. A user without Staff AI access is told to ask their site administrator, who manages it under Digital Employees -> Settings -> User Roles. Same message on the access page, API refusals, and file downloads - previously three different dead-end wordings - and API refusals carry a distinct error code so integrations can recognise the access refusal.
 
