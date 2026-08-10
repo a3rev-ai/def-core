@@ -318,7 +318,9 @@ $_wp_test_current_user->ID = 1;
 $_wp_test_user_caps        = array(); // No capabilities.
 $result = DEF_Core_Staff_AI::rest_permission_check();
 assert_true( is_wp_error( $result ), 'no capability returns WP_Error' );
-assert_equals( 'rest_forbidden', $result->get_error_code(), 'error code is rest_forbidden' );
+// 5.7.7: the capability refusal carries a DISTINCT named code so callers can
+// tell the gate from every other 403 (was the generic rest_forbidden).
+assert_equals( 'def_staff_access_required', $result->get_error_code(), 'error code is def_staff_access_required' );
 $data = $result->get_error_data();
 assert_equals( 403, $data['status'], 'HTTP status is 403' );
 

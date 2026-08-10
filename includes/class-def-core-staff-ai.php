@@ -546,11 +546,7 @@ final class DEF_Core_Staff_AI
 
 		// Capability gate.
 		if (! self::user_has_staff_ai_access()) {
-			return new \WP_Error(
-				'rest_forbidden',
-				__('You do not have permission to access Staff AI.', 'digital-employees'),
-				array('status' => 403)
-			);
+			return self::access_denied_error();
 		}
 
 		return true;
@@ -3103,7 +3099,7 @@ final class DEF_Core_Staff_AI
 
 		// Capability gate.
 		if (! self::user_has_staff_ai_access()) {
-			wp_die(__('Access denied. You need Staff AI access.', 'digital-employees'), __('Forbidden', 'digital-employees'), array('response' => 403));
+			wp_die(esc_html(self::access_denied_message()), __('Forbidden', 'digital-employees'), array('response' => 403));
 		}
 
 		// Get backend URL.
@@ -3274,6 +3270,45 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * The canonical access-denied copy.
+	 *
+	 * One message, one source. Before 5.7.7 the same refusal existed in three
+	 * variants across four surfaces (this page, rest_permission_check, the BFF
+	 * passthrough callbacks, the download wp_die), none of which said how
+	 * access is granted.
+	 *
+	 * The only population that can actually be refused is a signed-in user
+	 * holding no DEF capability: administrators and management users have
+	 * Staff AI access built in (map_def_capabilities grants def_staff_access
+	 * via map_meta_cap), so the copy speaks to the one audience that can
+	 * really see it — someone who needs their administrator.
+	 *
+	 * @return string The refusal copy.
+	 */
+	public static function access_denied_message(): string
+	{
+		return __("Your account doesn't have Staff AI access. Ask your site administrator to grant it in Digital Employees → Settings → User Roles.", 'digital-employees');
+	}
+
+	/**
+	 * The canonical access-denied WP_Error for REST refusals.
+	 *
+	 * Deliberately a DISTINCT, stable code — not rest_forbidden — so a caller
+	 * (or a test) can tell "the gate refused you" from every other 403/401 in
+	 * the stack by code rather than by status arithmetic.
+	 *
+	 * @return \WP_Error 403 with code def_staff_access_required.
+	 */
+	public static function access_denied_error(): \WP_Error
+	{
+		return new \WP_Error(
+			'def_staff_access_required',
+			self::access_denied_message(),
+			array('status' => 403)
+		);
+	}
+
+	/**
 	 * Render the access denied page.
 	 */
 	private static function render_access_denied(): void
@@ -3331,7 +3366,7 @@ final class DEF_Core_Staff_AI
 		<body>
 			<div class="access-denied">
 				<h1><?php echo esc_html__('Access Denied', 'digital-employees'); ?></h1>
-				<p><?php echo esc_html__('You do not have permission to access Staff AI.', 'digital-employees'); ?></p>
+				<p><?php echo esc_html(self::access_denied_message()); ?></p>
 			</div>
 		</body>
 

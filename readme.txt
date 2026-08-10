@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.6
+Stable tag: 5.7.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.7 - 2026-08-10 =
+* Tweak: the Staff AI "access denied" message now explains how access is granted. A user without Staff AI access is told to ask their site administrator, who manages it under Digital Employees -> Settings -> User Roles. Same message on the access page, API refusals, and file downloads - previously three different dead-end wordings - and API refusals carry a distinct error code so integrations can recognise the access refusal.
 
 = 5.7.6 - 2026-08-10 =
 * Fix: three internal safety checks now refuse when they cannot run, instead of silently letting the value through. None was reachable on a working site; this hardens the failure mode so a future code change cannot quietly disable input cleaning, logo verification, or the public-only filter on page context.
