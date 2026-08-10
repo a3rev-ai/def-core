@@ -190,23 +190,59 @@ assert_test( empty( $display_cut ), 'the display-name 100 cut is not back' );
 // system protection for a call that should never be long.
 echo "\n[4] CURLOPT streaming pin — the watchdog shape is load-bearing\n";
 
+// COUNT-BASED census, not presence checks (#275 panel, both legs): a presence
+// regex stays green through a 30→0 SWAP — the 0 it finds is just no longer on
+// the streaming call. Counting every value pins the whole layout: exactly one
+// infinite (streaming), exactly two finite 30s (request + download), exactly
+// one 4s (page render — must not block the page on a DEF hiccup), and the
+// total must reconcile, so a NEW curl call site cannot ride in unclassified.
 $tools_src = file_get_contents( dirname( __DIR__ ) . '/includes/class-def-core-tools.php' );
 
+$timeout_values = array();
+preg_match_all( '/CURLOPT_TIMEOUT\s*=>\s*(\d+)\s*,/', $tools_src, $m );
+foreach ( $m[1] as $v ) {
+	$timeout_values[ (int) $v ] = ( $timeout_values[ (int) $v ] ?? 0 ) + 1;
+}
+
 assert_test(
-	1 === preg_match( '/CURLOPT_TIMEOUT\s*=>\s*0\s*,/', $tools_src ),
-	'streaming: CURLOPT_TIMEOUT is 0 (a stream outlives any fixed timeout)'
+	1 === ( $timeout_values[0] ?? 0 ),
+	'exactly ONE infinite CURLOPT_TIMEOUT (the SSE stream — a stream outlives any fixed timeout)'
 );
 assert_test(
-	1 === preg_match( '/CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,/', $tools_src ),
+	2 === ( $timeout_values[30] ?? 0 ),
+	'exactly TWO finite 30s CURLOPT_TIMEOUTs (request + download — system protection for calls that should never be long)'
+);
+assert_test(
+	1 === ( $timeout_values[4] ?? 0 ),
+	'exactly ONE 4s CURLOPT_TIMEOUT (page-context fetch — must not block page render on a DEF hiccup)'
+);
+assert_test(
+	4 === array_sum( $timeout_values ),
+	'CURLOPT_TIMEOUT census reconciles at 4 sites — a new curl call site must be classified here, not ridden in'
+);
+assert_test(
+	1 === preg_match_all( '/CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,/', $tools_src ),
 	'streaming: CURLOPT_LOW_SPEED_LIMIT is 1 byte/sec — the real watchdog, half 1'
 );
 assert_test(
-	1 === preg_match( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/', $tools_src ),
+	1 === preg_match_all( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/', $tools_src ),
 	'streaming: CURLOPT_LOW_SPEED_TIME is 30s — the real watchdog, half 2'
 );
+
+// BLOCK ANCHORS — the census alone cannot see a clean SWAP (0↔30 preserves
+// the value multiset; proven by this slice's own first mutation run). The
+// infinite timeout must sit IN the block that carries the low-speed watchdog,
+// and the 4s must sit ON the line that states its page-render reason.
 assert_test(
-	1 === preg_match( '/CURLOPT_TIMEOUT\s*=>\s*30\s*,/', $tools_src ),
-	'non-streaming: CURLOPT_TIMEOUT stays finite at 30s'
+	1 === preg_match(
+		'/CURLOPT_TIMEOUT\s*=>\s*0\s*,\s*\n\s*CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,[^\n]*\n\s*CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/',
+		$tools_src
+	),
+	'block anchor: the infinite timeout is adjacent to its low-speed watchdog pair — a 0↔30 swap cannot stay green'
+);
+assert_test(
+	1 === preg_match( '/CURLOPT_TIMEOUT\s*=>\s*4\s*,\s*\/\/[^\n]*page render/', $tools_src ),
+	'block anchor: the 4s timeout sits on the line stating its page-render reason'
 );
 
 // ── Summary ──────────────────────────────────────────────────────────────────
