@@ -198,8 +198,14 @@ echo "\n[4] CURLOPT streaming pin — the watchdog shape is load-bearing\n";
 // total must reconcile, so a NEW curl call site cannot ride in unclassified.
 $tools_src = file_get_contents( dirname( __DIR__ ) . '/includes/class-def-core-tools.php' );
 
+// The census and the 0-block anchor run on COMMENT-STRIPPED source — a
+// commented-out `CURLOPT_TIMEOUT => 30,` must not inflate the count or
+// satisfy an anchor. Only the 4s reason-anchor reads raw source: it
+// deliberately asserts a comment.
+$tools_code = preg_replace( array( '~//[^\n]*~', '~/\*.*?\*/~s' ), '', $tools_src );
+
 $timeout_values = array();
-preg_match_all( '/CURLOPT_TIMEOUT\s*=>\s*(\d+)\s*,/', $tools_src, $m );
+preg_match_all( '/CURLOPT_TIMEOUT\s*=>\s*(\d+)\s*,/', $tools_code, $m );
 foreach ( $m[1] as $v ) {
 	$timeout_values[ (int) $v ] = ( $timeout_values[ (int) $v ] ?? 0 ) + 1;
 }
@@ -221,11 +227,11 @@ assert_test(
 	'CURLOPT_TIMEOUT census reconciles at 4 sites — a new curl call site must be classified here, not ridden in'
 );
 assert_test(
-	1 === preg_match_all( '/CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,/', $tools_src ),
+	1 === preg_match_all( '/CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,/', $tools_code ),
 	'streaming: CURLOPT_LOW_SPEED_LIMIT is 1 byte/sec — the real watchdog, half 1'
 );
 assert_test(
-	1 === preg_match_all( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/', $tools_src ),
+	1 === preg_match_all( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/', $tools_code ),
 	'streaming: CURLOPT_LOW_SPEED_TIME is 30s — the real watchdog, half 2'
 );
 
@@ -235,8 +241,8 @@ assert_test(
 // and the 4s must sit ON the line that states its page-render reason.
 assert_test(
 	1 === preg_match(
-		'/CURLOPT_TIMEOUT\s*=>\s*0\s*,\s*\n\s*CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,[^\n]*\n\s*CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/',
-		$tools_src
+		'/CURLOPT_TIMEOUT\s*=>\s*0\s*,\s*\n\s*CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,\s*\n\s*CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/',
+		$tools_code
 	),
 	'block anchor: the infinite timeout is adjacent to its low-speed watchdog pair — a 0↔30 swap cannot stay green'
 );

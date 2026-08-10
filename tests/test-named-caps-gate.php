@@ -16,9 +16,11 @@
  * - system          — what breaks if absent is stated beside it. KEEP.
  * - ui_chrome       — presentation-side bound; nothing breaks. KEEP, flagged:
  *                     the 0c class, reviewed when its surface is.
- * - delete_required — RATIONS A USER. The gate flags it; the deletion is its
- *                     own decided slice (Steve decides the kill list), never a
- *                     side effect of a gate PR.
+ * - delete_required — RATIONS A USER. The gate flags it; the deletion lands
+ *                     in the queued bounds-deletion slice. The doctrine was
+ *                     decided ONCE (Steve, 2026-08-10) — every instance it
+ *                     covers is pre-decided; nothing goes back for
+ *                     per-instance blessing.
  *
  * THE REGISTRY IS NOT A BLESSING. `system` entries carry their one-line
  * reason and can be re-litigated any time; `delete_required` entries are
@@ -159,7 +161,7 @@ const CAPS_REGISTRY = array(
 	),
 	'includes/class-def-core-media.php::MAX_BYTES' => array(
 		'class' => 'system',
-		'why'   => 'Bounds the remote READ on image sideload — the bound-the-read class, not a cap on stored content.',
+		'why'   => 'Acceptance bound on the inbound base64 image payload — refuses pre-decode with a stated reason; not a cap on stored content.',
 	),
 	'includes/class-def-core-oauth.php::PKCE_TTL' => array(
 		'class' => 'system',
@@ -183,7 +185,7 @@ const CAPS_REGISTRY = array(
 	),
 	'includes/class-def-core-staff-ai.php::UPLOAD_MAX_SIZE_BYTES' => array(
 		'class' => 'delete_required',
-		'why'   => 'RATIONS: 10MB on a staff user\'s own upload, TIGHTER than the platform\'s decided 50MB server-side ceiling (DEF #861) on the same pipeline — the redundant neighbour, at a stale value.',
+		'why'   => 'RATIONS: hardcoded 10MB copy of this pipeline\'s server ceiling (UPLOAD_MAX_FILE_MB, default 10MB, env-tunable) — equal today, but the hardcoded doll becomes the BINDING one the day the env ceiling rises. Deletion grants no headroom today.',
 	),
 	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_URLS' => array(
 		'class' => 'delete_required',
@@ -195,7 +197,7 @@ const CAPS_REGISTRY = array(
 	),
 	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_FILE_BYTES' => array(
 		'class' => 'system',
-		'why'   => 'Bounds the decoded READ of reference files — the bound-the-read class.',
+		'why'   => 'Acceptance bound on the total DECODED size of reference files — refuses over-size, never slices.',
 	),
 	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_TEXT' => array(
 		'class' => 'system',
