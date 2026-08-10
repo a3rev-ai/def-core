@@ -1,7 +1,7 @@
 *** Digital Employee Framework - Core Changelog ***
 
 = 5.7.7 - 2026/08/10 =
-* Tweak: the Staff AI "access denied" message now tells you how to fix it. An administrator is pointed at Digital Employees -> Settings -> User Roles (with a direct link on the access page); a staff member is told to ask their administrator, with the same path to pass along. Same message on the access page, API refusals, and file downloads - previously three different dead-end wordings.
+* Tweak: the Staff AI "access denied" message now explains how access is granted. A user without Staff AI access is told to ask their site administrator, who manages it under Digital Employees -> Settings -> User Roles. Same message on the access page, API refusals, and file downloads - previously three different dead-end wordings - and API refusals carry a distinct error code so integrations can recognise the access refusal.
 
 = 5.7.6 - 2026/08/10 =
 * Fix: three internal safety checks now refuse when they cannot run, instead of silently letting the value through. None was reachable on a working site; this hardens the failure mode so a future code change cannot quietly disable input cleaning, logo verification, or the public-only filter on page context.

@@ -3270,21 +3270,23 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * The canonical access-denied copy, audience-aware.
+	 * The canonical access-denied copy.
 	 *
 	 * One message, one source. Before 5.7.7 the same refusal existed in three
 	 * variants across four surfaces (this page, rest_permission_check, the BFF
-	 * passthrough callbacks, the download wp_die), none of which said WHO can
-	 * fix it or WHERE — an admin hitting it had def_admin_access and could
-	 * have granted themselves access in User Roles without knowing it.
+	 * passthrough callbacks, the download wp_die), none of which said how
+	 * access is granted.
 	 *
-	 * @return string The refusal copy for the current user.
+	 * The only population that can actually be refused is a signed-in user
+	 * holding no DEF capability: administrators and management users have
+	 * Staff AI access built in (map_def_capabilities grants def_staff_access
+	 * via map_meta_cap), so the copy speaks to the one audience that can
+	 * really see it — someone who needs their administrator.
+	 *
+	 * @return string The refusal copy.
 	 */
 	public static function access_denied_message(): string
 	{
-		if (current_user_can('def_admin_access')) {
-			return __("Your account doesn't have Staff AI access yet. Grant it under Digital Employees → Settings → User Roles.", 'digital-employees');
-		}
 		return __("Your account doesn't have Staff AI access. Ask your site administrator to grant it in Digital Employees → Settings → User Roles.", 'digital-employees');
 	}
 
@@ -3358,19 +3360,6 @@ final class DEF_Core_Staff_AI
 					color: #50575e;
 					line-height: 1.6;
 				}
-
-				.access-denied-action {
-					margin-top: 16px;
-				}
-
-				.access-denied-action a {
-					display: inline-block;
-					padding: 8px 16px;
-					background: #2271b1;
-					color: #fff;
-					border-radius: 3px;
-					text-decoration: none;
-				}
 			</style>
 		</head>
 
@@ -3378,12 +3367,6 @@ final class DEF_Core_Staff_AI
 			<div class="access-denied">
 				<h1><?php echo esc_html__('Access Denied', 'digital-employees'); ?></h1>
 				<p><?php echo esc_html(self::access_denied_message()); ?></p>
-				<?php if (current_user_can('def_admin_access')) : ?>
-					<?php // The admin can fix this themselves — hand them the door, not just the path. ?>
-					<p class="access-denied-action">
-						<a href="<?php echo esc_url(admin_url('admin.php?page=def-core#user-roles')); ?>"><?php echo esc_html__('Open User Roles', 'digital-employees'); ?></a>
-					</p>
-				<?php endif; ?>
 			</div>
 		</body>
 

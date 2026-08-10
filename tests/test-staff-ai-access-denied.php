@@ -3,15 +3,20 @@
  * Staff AI access-denied refusals — copy, code, and shape (5.7.7).
  *
  * One message, one source: DEF_Core_Staff_AI::access_denied_message() is the
- * canonical audience-aware copy, and access_denied_error() the canonical REST
- * refusal with the DISTINCT code `def_staff_access_required` — so a caller can
- * tell "the gate refused you" from every other 401/403 by code, not status
- * arithmetic (the 2026-08-09 wpunit probe could not distinguish a rejected
- * gate from an absent backend; the named code is the fix for that class).
+ * canonical copy, and access_denied_error() the canonical REST refusal with
+ * the DISTINCT code `def_staff_access_required` — so a caller can tell "the
+ * gate refused you" from every other 401/403 by code, not status arithmetic
+ * (the 2026-08-09 wpunit probe could not distinguish a rejected gate from an
+ * absent backend; the named code is the fix for that class).
  *
  * Also pins what must NOT change: anonymous callers still get bare `false`
- * from the BFF passthrough callbacks (the 401 shape), and the capability gate
- * itself refuses exactly the same population as before.
+ * from the BFF passthrough callbacks (the 401 shape).
+ *
+ * NOT pinned here, deliberately: that administrators PASS the gate. That is
+ * map_def_capabilities (map_meta_cap) behaviour, and this harness's
+ * current_user_can stub does not model the filter — a stub-level pin either
+ * way would assert the stub, not the plugin. It belongs to the wpunit suite
+ * against real WP.
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -126,19 +131,13 @@ function as_user( ?int $id, array $caps ): void {
 	$_wp_test_user_caps    = $caps;
 }
 
-// ── [1] The canonical copy is audience-aware ────────────────────────────────
-echo "\n[1] access_denied_message() speaks to the right audience\n";
-
-as_user( 5, array( 'def_admin_access' ) );
-$admin_msg = DEF_Core_Staff_AI::access_denied_message();
-assert_test( strpos( $admin_msg, 'Grant it under' ) !== false, 'an admin is told to grant it themselves' );
-assert_test( strpos( $admin_msg, 'User Roles' ) !== false, 'the admin copy names the User Roles destination' );
+// ── [1] The canonical copy says who can fix it and where ────────────────────
+echo "\n[1] access_denied_message() tells the user who can fix it and where\n";
 
 as_user( 6, array() );
-$user_msg = DEF_Core_Staff_AI::access_denied_message();
-assert_test( strpos( $user_msg, 'Ask your site administrator' ) !== false, 'a non-admin is told who can fix it' );
-assert_test( strpos( $user_msg, 'User Roles' ) !== false, 'the non-admin copy still names the path to relay' );
-assert_test( $admin_msg !== $user_msg, 'the two audiences get different copy' );
+$msg = DEF_Core_Staff_AI::access_denied_message();
+assert_test( strpos( $msg, 'Ask your site administrator' ) !== false, 'the user is told who can fix it' );
+assert_test( strpos( $msg, 'User Roles' ) !== false, 'the copy names the path to relay to their administrator' );
 
 // ── [2] The canonical error carries the named code ──────────────────────────
 echo "\n[2] access_denied_error() is a named, stable refusal\n";
@@ -165,10 +164,6 @@ assert_test( true === DEF_Core_Staff_AI::rest_permission_check(), 'def_staff_acc
 
 as_user( 9, array( 'def_management_access' ) );
 assert_test( true === DEF_Core_Staff_AI::rest_permission_check(), 'def_management_access passes' );
-
-as_user( 10, array( 'manage_options', 'def_admin_access' ) );
-$admin_only = DEF_Core_Staff_AI::rest_permission_check();
-assert_test( $admin_only instanceof WP_Error && 'def_staff_access_required' === $admin_only->get_error_code(), 'admin WITHOUT staff access is still refused — the copy fix did not widen the gate' );
 
 // ── [4] The BFF passthrough callbacks: false for anon, named error uncapped ─
 echo "\n[4] BFF passthrough callbacks keep the 401 shape and name the 403\n";
