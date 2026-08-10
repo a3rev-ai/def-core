@@ -16,6 +16,12 @@
  */
 
 .def-chat-trigger-btn {
+	/* No length cap on the label (5.7.11): a long label ellipsizes inside a
+	   viewport-bounded button instead of pushing the launcher off-layout.
+	   The ellipsis trio lives on the LABEL SPAN below — text-overflow on a
+	   flex container never reaches a flex item and hard-clips mid-glyph
+	   (#277 panel, box-model). */
+	max-width: min(320px, calc(100vw - 32px));
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
@@ -89,7 +95,12 @@
 }
 
 .def-chat-trigger-btn-label {
-	display: inline-block;
+	/* The trio + min-width: 0 make the ellipsis real: a flex item refuses to
+	   shrink below its content without min-width: 0, and text-overflow on the
+	   container never reaches this span (5.7.11). */
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.9
+Stable tag: 5.7.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.7.11 - 2026-08-11 =
+* Improvement: ten limits on your own content are gone. Settings text fields (display name, greeting bubble, button label, welcome chips and their intros, privacy link label) accept any length everywhere - the earlier releases stopped silent shortening, this one removes the limits themselves. Long values are handled by presentation: a long chip label wraps, a long greeting scrolls inside its bubble, a long button label is tidied with an ellipsis. Staff AI uploads no longer enforce a 10MB limit in the plugin - your platform's own upload ceiling is the one limit, and its message is shown as-is. Content-creation reference URLs and files no longer have per-item count limits in the plugin.
 
 = 5.7.9 - 2026-08-10 =
 * Dev: every named size/count/time limit in the plugin's server code is now classified in a test-enforced registry - kept limits carry a one-line reason, and four that limit what you can do with your own content are flagged for a decision rather than silently kept. A new limit cannot land unclassified. The connection-timeout layout is pinned exactly, so a swap between the streaming and non-streaming timeouts cannot pass review unnoticed.

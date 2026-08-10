@@ -535,7 +535,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 		?>,
 		upload: {
 			maxFiles: 5,
-			maxSizeBytes: <?php echo DEF_Core_Staff_AI::UPLOAD_MAX_SIZE_BYTES; ?>,
 			allowedExtensions: <?php echo wp_json_encode( array(
 				'.png', '.jpg', '.jpeg', '.gif', '.webp',
 				'.pdf', '.txt', '.md', '.csv', '.docx', '.xlsx',
@@ -560,7 +559,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			instructionsRequired: <?php echo wp_json_encode( __( 'Instructions are required.', 'digital-employees' ) ); ?>,
 			dropFilesHere: <?php echo wp_json_encode( __( 'Drop files here', 'digital-employees' ) ); ?>,
 			attachFile: <?php echo wp_json_encode( __( 'Attach file', 'digital-employees' ) ); ?>,
-			fileTooLarge: <?php echo wp_json_encode( __( 'File exceeds 10MB limit', 'digital-employees' ) ); ?>,
 			unsupportedType: <?php echo wp_json_encode( __( 'Unsupported file type', 'digital-employees' ) ); ?>,
 			tooManyFiles: <?php echo wp_json_encode( __( 'Maximum 5 files per message', 'digital-employees' ) ); ?>,
 			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'digital-employees' ) ); ?>,

@@ -848,9 +848,9 @@ final class DEF_Core_Admin {
 	/**
 	 * Sanitize display name.
 	 *
-	 * No truncation. The REST route (Setup Assistant) refuses over-length input
-	 * with a visible error; the admin settings form bounds it with a maxlength
-	 * attribute. Neither cuts silently.
+	 * No truncation, and since 5.7.11 no length bound anywhere — the REST
+	 * validator's refusal and the form's maxlength both went with the ten-bounds
+	 * deletion. A display name is the site owner's own text.
 	 *
 	 * The substr() here also cut on BYTES, so a multibyte name could be
 	 * severed mid-character (removed 2026-08-08).
@@ -930,15 +930,11 @@ final class DEF_Core_Admin {
 	/**
 	 * Sanitize a welcome-state chip label.
 	 *
-	 * Does NOT truncate. The REST route refuses over-length input with a visible
-	 * error and the settings form bounds it with maxlength; this sanitiser's job
-	 * is to strip unsafe markup, not to quietly shorten what someone typed
-	 * (2026-08-08).
-	 *
-	 * Known consequence, accepted: the cap this replaced also read "prevents
-	 * pill overflow", and unlike the compliance footer the chips got no CSS
-	 * replacement. Reachable only by an admin who bypasses the maxlength on
-	 * their own site, and it disfigures only their own widget.
+	 * Does NOT truncate, and since 5.7.11 no length bound anywhere — the REST
+	 * refusal and the form maxlength both went with the ten-bounds deletion.
+	 * This sanitiser's job is to strip unsafe markup, not to bound length.
+	 * Pill overflow is handled where presentation problems belong: the widget
+	 * CSS wraps a long chip label into a multi-line pill (overflow-wrap).
 	 *
 	 * @param mixed $value The value to sanitize.
 	 * @return string Sanitised chip label.
@@ -948,8 +944,8 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Sanitize a welcome-chip intro (multiline allowed, no length cap here —
-	 * the REST route refuses over 1000 chars visibly).
+	 * Sanitize a welcome-chip intro (multiline allowed, no length bound
+	 * anywhere since 5.7.11).
 	 *
 	 * Per-chip introduction text rendered as an assistant message when the
 	 * chip is clicked. Strips raw HTML; markdown is rendered client-side
@@ -960,9 +956,7 @@ final class DEF_Core_Admin {
 	 * @return string Sanitised intro text.
 	 */
 	public static function sanitize_welcome_chip_intro( $value ): string {
-		// No truncation. The REST route (Setup Assistant) refuses over-length
-		// input with a visible error; the admin settings form bounds it with a
-		// maxlength attribute. Neither cuts silently.
+		// No truncation, and no length bound anywhere (5.7.11).
 		return trim( sanitize_textarea_field( (string) $value ) );
 	}
 
@@ -996,9 +990,7 @@ final class DEF_Core_Admin {
 	 * @return string Sanitised link label.
 	 */
 	public static function sanitize_privacy_link_label( $value ): string {
-		// No truncation. The REST route (Setup Assistant) refuses over-length
-		// input with a visible error; the admin settings form bounds it with a
-		// maxlength attribute. Neither cuts silently.
+		// No truncation, and no length bound anywhere (5.7.11).
 		return sanitize_text_field( (string) $value );
 	}
 
@@ -1044,11 +1036,11 @@ final class DEF_Core_Admin {
 		// the default "Chat" so every renderer (loader, shortcode) sees a
 		// usable value without its own fallback dance.
 		//
-		// No truncation. This used to cut at 30 chars and call it
-		// "defense-in-depth alongside the validator" — but the validator
-		// REFUSES and this CUT, so the pair was a trapdoor under a locked door:
-		// anything reaching the sanitiser lost text with nothing said (removed
-		// 2026-08-08).
+		// No truncation, and since 5.7.11 no length bound anywhere. The old
+		// 30-char cut called itself "defense-in-depth alongside the validator"
+		// — but the validator REFUSED and this CUT, a trapdoor under a locked
+		// door (cut removed 2026-08-08; the validator's bound followed in the
+		// ten-bounds deletion).
 		$value = trim( sanitize_text_field( (string) $value ) );
 		return '' === $value ? 'Chat' : $value;
 	}
@@ -1059,8 +1051,9 @@ final class DEF_Core_Admin {
 	 * with CSS `white-space: pre-line`). Empty is preserved (admin's way to
 	 * hide the bubble without toggling the on/off switch).
 	 *
-	 * No truncation — the REST route refuses over-length input visibly and the
-	 * settings form bounds it with maxlength (the 200-char cut went 2026-08-08).
+	 * No truncation, and since 5.7.11 no length bound anywhere — the REST
+	 * refusal and the form maxlength both went with the ten-bounds deletion
+	 * (the 200-char cut itself went 2026-08-08).
 	 *
 	 * @since 3.12.0
 	 */

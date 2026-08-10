@@ -175,6 +175,11 @@
 			'  z-index: 999998;' +
 			'  display: inline-flex; align-items: center; gap: 8px;' +
 			'  width: fit-content; width: -moz-fit-content;' +
+			/* No length cap on the label (5.7.11): the launcher lives in a
+			   shadow root, so the document-level trigger CSS cannot reach it —
+			   the containment must live HERE. A long label ellipsizes inside a
+			   viewport-bounded button instead of growing across the screen. */
+			'  max-width: min(320px, calc(100vw - 32px));' +
 			'  padding: 10px 14px; border: none; border-radius: 24px;' +
 			'  background: var(--def-cc-btn-color, ' +
 			btnColor +
@@ -185,6 +190,12 @@
 			'  box-shadow: 0 6px 20px rgba(0,0,0,0.25);' +
 			'  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;' +
 			'  -webkit-tap-highlight-color: transparent;' +
+			'}' +
+			'.def-cc-trigger-label {' +
+			/* The ellipsis must live ON the label span: text-overflow on a flex
+			   container never reaches a flex item, and without min-width: 0 the
+			   item refuses to shrink below its content. */
+			'  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' +
 			'}' +
 			'.def-cc-trigger:hover {' +
 			'  background: var(--def-cc-btn-hover, ' +
@@ -320,14 +331,23 @@
 			'  box-shadow: 0 10px 28px rgba(0,0,0,0.18);' +
 			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
 			'  font-size: 14px; line-height: 1.45; color: #1f2937;' +
-			'  cursor: pointer; display: flex; align-items: flex-start; gap: 10px;' +
+			'  cursor: pointer;' +
 			'  animation: def-cc-greeting-enter 0.3s ease both;' +
+			'}' +
+			/* No length cap on the greeting text (5.7.11): a long greeting
+			   scrolls INSIDE this wrapper, never past the viewport top. The
+			   scroll cannot live on the bubble itself — the dismiss × overhangs
+			   the bubble's corner, and absolute descendants of a scroll
+			   container are clipped by it (#277 panel, box-model). */
+			'.def-cc-greeting-bubble-scroll {' +
+			'  display: flex; align-items: flex-start; gap: 10px;' +
+			'  max-height: 60vh; overflow-y: auto;' +
 			'}' +
 			'.def-cc-greeting-bubble--left { right: auto; left: 16px; }' +
 			'.def-cc-greeting-bubble:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }' +
 			'.def-cc-greeting-bubble-logo { flex-shrink: 0; width: 32px; height: 32px; border-radius: 6px; overflow: hidden; }' +
 			'.def-cc-greeting-bubble-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }' +
-			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; margin: 0; }' +
+			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; overflow-wrap: break-word; margin: 0; }' +
 			'.def-cc-greeting-bubble-close {' +
 			'  position: absolute; top: -8px; right: -8px;' +
 			'  width: 22px; height: 22px; padding: 0;' +
@@ -821,6 +841,12 @@
 		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
 		var bubble = document.createElement('div');
 		setClass(bubble, 'def-cc-greeting-bubble' + (pos === 'left' ? ' def-cc-greeting-bubble--left' : ''));
+
+		// Scroll wrapper: logo + text live here so a long greeting scrolls
+		// without the bubble's overhanging x being clipped by the scrollbox.
+		var scrollWrap = document.createElement('div');
+		setClass(scrollWrap, 'def-cc-greeting-bubble-scroll');
+		bubble.appendChild(scrollWrap);
 		bubble.setAttribute('role', 'button');
 		bubble.setAttribute('tabindex', '0');
 		bubble.setAttribute('aria-label', 'Open chat');
@@ -834,13 +860,13 @@
 			img.alt = '';
 			img.setAttribute('aria-hidden', 'true');
 			logoWrap.appendChild(img);
-			bubble.appendChild(logoWrap);
+			scrollWrap.appendChild(logoWrap);
 		}
 
 		var text = document.createElement('div');
 		setClass(text, 'def-cc-greeting-bubble-text');
 		text.textContent = config.greetingBubbleText; // CSS white-space: pre-line preserves newlines
-		bubble.appendChild(text);
+		scrollWrap.appendChild(text);
 
 		var close = document.createElement('button');
 		setClass(close, 'def-cc-greeting-bubble-close');

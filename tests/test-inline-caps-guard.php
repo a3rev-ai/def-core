@@ -100,12 +100,6 @@ function scan_inline_caps(): array {
 
 const BASELINE = array(
 	'includes/class-def-core-admin-api.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $str ) > 1000 ) {' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $str ) > 50 ) {' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $str ) > 80 ) {' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $value ) > 100 ) {' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $value ) > 200 ) {' => 1,
-	'includes/class-def-core-admin-api.php::if ( mb_strlen( $value ) > 30 ) {' => 1,
 	'includes/class-def-core-admin.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::if ( count( $results ) >= 10 ) {' => 1,
 	'includes/class-def-core-admin.php::if ( mb_strlen( $value ) > 2048 ) {' => 1,

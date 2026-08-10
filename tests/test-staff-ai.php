@@ -414,7 +414,7 @@ if ( is_wp_error( $result ) ) {
 	assert_true(
 		$result->get_error_code() !== 'invalid_filename'
 		&& $result->get_error_code() !== 'unsupported_media_type'
-		&& $result->get_error_code() !== 'payload_too_large',
+		&& $result->get_error_code() !== 'invalid_size',
 		'valid input does not fail validation'
 	);
 }
@@ -447,21 +447,12 @@ assert_equals( 'unsupported_media_type', $result->get_error_code(), 'error code 
 $data = $result->get_error_data();
 assert_equals( 415, $data['status'], 'HTTP status is 415' );
 
-// ── 16. Upload init — file too large → 413 ───────────────────────────
-echo "\n[16] Upload init — file too large\n";
-$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
-$request->set_body_params( array(
-	'filename'   => 'big.pdf',
-	'mime_type'  => 'application/pdf',
-	'size_bytes' => 20000000, // 20MB, over 10MB limit.
-) );
-$result = DEF_Core_Staff_AI::rest_upload_init( $request );
-assert_true( is_wp_error( $result ), 'too-large file returns WP_Error' );
-assert_equals( 'payload_too_large', $result->get_error_code(), 'error code is payload_too_large' );
-$data = $result->get_error_data();
-assert_equals( 413, $data['status'], 'HTTP status is 413' );
+// ── 16. (moved) — the no-client-ceiling + BFF-legibility block needs the
+// success-path stubs first defined at section 27, so it now runs as
+// section 31 at the end of this file.
 
-// ── 17. Upload init — zero size → 413 ────────────────────────────────
+// ── 17. Upload init — zero size → 400 invalid_size ───────────────────
+// Malformed is not a ration: the zero/negative check stays, as its own code.
 echo "\n[17] Upload init — zero size\n";
 $request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
 $request->set_body_params( array(
@@ -471,7 +462,7 @@ $request->set_body_params( array(
 ) );
 $result = DEF_Core_Staff_AI::rest_upload_init( $request );
 assert_true( is_wp_error( $result ), 'zero size returns WP_Error' );
-assert_equals( 'payload_too_large', $result->get_error_code(), 'zero size triggers payload_too_large' );
+assert_equals( 'invalid_size', $result->get_error_code(), 'zero size is refused as malformed (400), not as over-limit' );
 
 // ── 18. Upload commit — valid file_id ─────────────────────────────────
 echo "\n[18] Upload commit — valid file_id\n";
@@ -574,31 +565,8 @@ assert_equals( 'unsupported_media_type', $result->get_error_code(), 'octet-strea
 
 // ── 25. Upload init — boundary size values ────────────────────────────
 echo "\n[25] Upload init — boundary size values\n";
-// Exactly at the 10MB limit — should pass validation.
-$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
-$request->set_body_params( array(
-	'filename'   => 'exact.pdf',
-	'mime_type'  => 'application/pdf',
-	'size_bytes' => 10485760, // Exactly 10MB.
-) );
-$result = DEF_Core_Staff_AI::rest_upload_init( $request );
-if ( is_wp_error( $result ) ) {
-	assert_true(
-		$result->get_error_code() !== 'payload_too_large',
-		'exactly 10MB passes size validation'
-	);
-}
-
-// 1 byte over the limit — should fail.
-$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
-$request->set_body_params( array(
-	'filename'   => 'over.pdf',
-	'mime_type'  => 'application/pdf',
-	'size_bytes' => 10485761, // 10MB + 1 byte.
-) );
-$result = DEF_Core_Staff_AI::rest_upload_init( $request );
-assert_true( is_wp_error( $result ), '10MB+1 returns WP_Error' );
-assert_equals( 'payload_too_large', $result->get_error_code(), '10MB+1 triggers payload_too_large' );
+// (boundary probes for the deleted 10MB ceiling moved to section 31 —
+// they reach backend_request, which needs the section-27 stubs.)
 
 // ── 26. All allowed MIME types accepted ───────────────────────────────
 echo "\n[26] All allowed MIME types accepted\n";
@@ -884,6 +852,80 @@ foreach ( array( 404 => 'staff_ai_not_found', 409 => 'staff_ai_conflict' ) as $c
 // Cleanup.
 $_wp_test_current_user = null;
 $_wp_test_user_caps    = array();
+
+// ── 31. Upload init — NO client-side size ceiling (5.7.11) ───────────
+// The 10MB UPLOAD_MAX_SIZE_BYTES twin was deleted: the server's env-tunable
+// UPLOAD_MAX_FILE_MB is the one ceiling, and its refusal must surface
+// LEGIBLY through the BFF reshaping seam — asserted on the surfaced
+// message, not just the status (the ten-bounds rider). Runs here because
+// the success-path stubs (wp_remote_request, DEF_Core_Tools) exist from
+// section 27 on.
+echo "\n[31] Upload init — over-size reaches the server; the refusal surfaces legibly\n";
+
+$_wp_test_options['def_core_api_key'] = 'test-api-key';
+$_wp_test_current_user     = new WP_User( 1 );
+$_wp_test_current_user->ID = 1;
+
+// (a) def-core no longer refuses: a 20MB init that used to 413 client-side
+// now succeeds end-to-end against a healthy backend stub.
+$GLOBALS['_def_test_request_code'] = 200;
+$GLOBALS['_def_test_request_body'] = '{"success":true,"file_id":"upload_ok"}';
+$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+$request->set_body_params( array(
+	'filename'   => 'big.pdf',
+	'mime_type'  => 'application/pdf',
+	'size_bytes' => 20000000, // 20MB — was refused client-side before 5.7.11.
+) );
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( ! is_wp_error( $result ), '20MB init passes def-core — no client-side ceiling' );
+
+// (b) the deleted boundary: 10MB and 10MB+1 are indistinguishable to def-core.
+foreach ( array( 10485760, 10485761 ) as $boundary_probe ) {
+	$request = new WP_REST_Request( 'POST', '/staff-ai/uploads/init' );
+	$request->set_body_params( array(
+		'filename'   => 'probe.pdf',
+		'mime_type'  => 'application/pdf',
+		'size_bytes' => $boundary_probe,
+	) );
+	$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+	assert_true( ! is_wp_error( $result ), "size $boundary_probe passes def-core (no boundary at the old 10MB)" );
+}
+
+// (c) BFF legibility, pinned against the LIVE PRODUCER's shapes — not an
+// invented one. DEF's real over-size refusal on this path is HTTP 400 with a
+// DICT detail (upload_routes.py:238-244; DEF has no 413 here). The first
+// version of this pin stubbed 413 + a string detail — a shape DEF never
+// produces — and stayed green while the real dict stringified to "Array"
+// (#277 security leg). The wire-the-live-producer lesson, applied to itself.
+$GLOBALS['_def_test_request_code'] = 400;
+$GLOBALS['_def_test_request_body'] = '{"detail":{"error":"validation_failed","message":"File size exceeds maximum of 50.0MB"}}';
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'server 400 surfaces as an error' );
+assert_equals( 'staff_ai_http_400', $result->get_error_code(), 'the 400 keeps its identity through the seam' );
+$data = $result->get_error_data();
+assert_equals( 400, $data['status'], 'HTTP status stays 400' );
+$msg = $result->get_error_message();
+assert_true(
+	false !== strpos( $msg, 'File size exceeds maximum of 50.0MB' ),
+	"the SERVER's dict message reaches the user — the seam is legible, not just green"
+);
+assert_true( false === strpos( $msg, 'Array' ), 'the dict never stringifies to "Array"' );
+assert_true( false === strpos( $msg, 'def-api.test' ), 'the internal DEF URL is not shown to the user' );
+
+// (d) the 422-list shape (Pydantic) — DEF's count/validation refusals: the
+// entry msgs flatten into the user-facing message.
+$GLOBALS['_def_test_request_code'] = 422;
+$GLOBALS['_def_test_request_body'] = '{"detail":[{"loc":["body","urls"],"msg":"ensure this value has at most 5 items","type":"value_error.list.max_items"}]}';
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'server 422 surfaces as an error' );
+$msg = $result->get_error_message();
+assert_true(
+	false !== strpos( $msg, 'ensure this value has at most 5 items' ),
+	'a Pydantic 422 list flattens to its msg strings'
+);
+assert_true( false === strpos( $msg, 'Array' ), 'the list never stringifies to "Array"' );
+$GLOBALS['_def_test_request_code'] = 200;
+$GLOBALS['_def_test_request_body'] = '{"success":true}';
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
