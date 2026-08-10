@@ -1257,13 +1257,6 @@ final class DEF_Core_Admin_API {
 		if ( ! is_string( $value ) ) {
 			return 'Display name must be a string.';
 		}
-		// mb_strlen, not strlen: this said "100 characters" while counting BYTES,
-		// so a 40-character Japanese name (120 bytes) was refused with a message
-		// stating it was over 100 characters. It was the only length validator in
-		// this file still counting bytes (2026-08-08).
-		if ( mb_strlen( $value ) > 100 ) {
-			return 'Display name must be 100 characters or fewer.';
-		}
 		return true;
 	}
 
@@ -1371,30 +1364,24 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
-	 * Validate a welcome-state chip label (max 80 chars).
+	 * Validate a welcome-state chip label.
 	 *
 	 * @param mixed $value The value to validate.
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_welcome_chip( $value ) {
 		$str = (string) $value;
-		if ( mb_strlen( $str ) > 80 ) {
-			return 'Welcome chip text must be 80 characters or fewer.';
-		}
 		return true;
 	}
 
 	/**
-	 * Validate a welcome-chip intro text (max 1000 chars).
+	 * Validate a welcome-chip intro text.
 	 *
 	 * @param mixed $value The value to validate.
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_welcome_chip_intro( $value ) {
 		$str = (string) $value;
-		if ( mb_strlen( $str ) > 1000 ) {
-			return 'Welcome chip intro text must be 1000 characters or fewer.';
-		}
 		return true;
 	}
 
@@ -1425,16 +1412,13 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
-	 * Validate privacy / legal link label (max 50 chars).
+	 * Validate privacy / legal link label.
 	 *
 	 * @param mixed $value The value to validate.
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_privacy_link_label( $value ) {
 		$str = (string) $value;
-		if ( mb_strlen( $str ) > 50 ) {
-			return 'Link label must be 50 characters or fewer.';
-		}
 		return true;
 	}
 
@@ -1481,9 +1465,6 @@ final class DEF_Core_Admin_API {
 		if ( ! is_string( $value ) ) {
 			return 'Button label must be a string.';
 		}
-		if ( mb_strlen( $value ) > 30 ) {
-			return 'Button label must be 30 characters or fewer.';
-		}
 		// Empty is allowed — the sanitiser normalises it to the default "Chat".
 		return true;
 	}
@@ -1500,9 +1481,6 @@ final class DEF_Core_Admin_API {
 	private function validate_greeting_bubble_text( $value ) {
 		if ( ! is_string( $value ) ) {
 			return 'Greeting bubble text must be a string.';
-		}
-		if ( mb_strlen( $value ) > 200 ) {
-			return 'Greeting bubble text must be 200 characters or fewer.';
 		}
 		return true;
 	}

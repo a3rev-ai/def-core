@@ -315,7 +315,9 @@
 			/* Greeting Bubble (v3.12.0) — proactive pop-up above the launcher */
 			'.def-cc-greeting-bubble {' +
 			'  position: fixed; bottom: 72px; right: 16px; z-index: 999997;' +
-			'  max-width: 280px; padding: 14px 16px;' +
+			'  max-width: 280px; max-height: 60vh; overflow-y: auto; padding: 14px 16px;' +
+			/* No length cap on the greeting text (5.7.11): a long greeting scrolls
+			   inside the bubble instead of growing past the viewport top. */
 			'  background: #ffffff; border-radius: 14px;' +
 			'  box-shadow: 0 10px 28px rgba(0,0,0,0.18);' +
 			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
@@ -327,7 +329,7 @@
 			'.def-cc-greeting-bubble:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }' +
 			'.def-cc-greeting-bubble-logo { flex-shrink: 0; width: 32px; height: 32px; border-radius: 6px; overflow: hidden; }' +
 			'.def-cc-greeting-bubble-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }' +
-			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; margin: 0; }' +
+			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; overflow-wrap: break-word; margin: 0; }' +
 			'.def-cc-greeting-bubble-close {' +
 			'  position: absolute; top: -8px; right: -8px;' +
 			'  width: 22px; height: 22px; padding: 0;' +

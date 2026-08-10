@@ -131,7 +131,6 @@ $first_tab = 'branding';
 					data-setting="def_core_display_name"
 					value="<?php echo esc_attr( $branding['display_name'] ); ?>"
 					class="regular-text"
-					maxlength="100"
 				/>
 				<p class="description">
 					<?php esc_html_e( 'Shown in chat headers when no logo is available. Defaults to your site name.', 'digital-employees' ); ?>
@@ -561,7 +560,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_button_label"
 					value="<?php echo esc_attr( $button_settings['label'] ); ?>"
 					class="regular-text"
-					maxlength="30"
 					placeholder="<?php esc_attr_e( 'Chat', 'digital-employees' ); ?>"
 				/>
 				<p class="description">
@@ -614,7 +612,6 @@ $first_tab = 'branding';
 					id="def_core_chat_greeting_bubble_text"
 					data-setting="def_core_chat_greeting_bubble_text"
 					rows="3"
-					maxlength="200"
 					class="large-text"
 				><?php echo esc_textarea( $button_settings['greeting_bubble_text'] ); ?></textarea>
 				<p class="description">
@@ -634,7 +631,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_1"
 					value="<?php echo esc_attr( $chat_settings['welcome_chip_1'] ); ?>"
 					class="regular-text"
-					maxlength="80"
 					placeholder="<?php esc_attr_e( 'e.g. Help me find the right product', 'digital-employees' ); ?>"
 				/>
 			</div>
@@ -646,7 +642,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_1_intro"
 					class="large-text"
 					rows="4"
-					maxlength="1000"
 					placeholder="<?php esc_attr_e( "e.g. Hi there! I'd love to help you find the right product. To narrow it down, could you tell me what you're shopping for and roughly the size or budget you're looking at?", 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['welcome_chip_1_intro'] ); ?></textarea>
 				<p class="description">
@@ -673,7 +668,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_2"
 					value="<?php echo esc_attr( $chat_settings['welcome_chip_2'] ); ?>"
 					class="regular-text"
-					maxlength="80"
 					placeholder="<?php esc_attr_e( 'e.g. Check stock availability', 'digital-employees' ); ?>"
 				/>
 			</div>
@@ -685,7 +679,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_2_intro"
 					class="large-text"
 					rows="4"
-					maxlength="1000"
 					placeholder="<?php esc_attr_e( 'e.g. Happy to check stock for you. Which product or category are you interested in, and which store or postcode should I check?', 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['welcome_chip_2_intro'] ); ?></textarea>
 			</div>
@@ -698,7 +691,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_3"
 					value="<?php echo esc_attr( $chat_settings['welcome_chip_3'] ); ?>"
 					class="regular-text"
-					maxlength="80"
 					placeholder="<?php esc_attr_e( 'e.g. Get expert advice or inspiration', 'digital-employees' ); ?>"
 				/>
 			</div>
@@ -710,7 +702,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_welcome_chip_3_intro"
 					class="large-text"
 					rows="4"
-					maxlength="1000"
 					placeholder="<?php esc_attr_e( "e.g. I'd love to help you get started on a project or find some inspiration. To give you the best advice, could you let me know what you're thinking of working on?", 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['welcome_chip_3_intro'] ); ?></textarea>
 				<p class="description">
@@ -775,7 +766,6 @@ $first_tab = 'branding';
 					data-setting="def_core_chat_privacy_link_label"
 					value="<?php echo esc_attr( $chat_settings['privacy_link_label'] ); ?>"
 					class="regular-text"
-					maxlength="50"
 					placeholder="<?php esc_attr_e( 'Terms & Conditions', 'digital-employees' ); ?>"
 				/>
 			</div>

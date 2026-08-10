@@ -47,18 +47,14 @@ final class DEF_Core_Staff_AI
 		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 	);
 
-	/**
-	 * Maximum file size in bytes (10MB).
-	 */
-	const UPLOAD_MAX_SIZE_BYTES = 10485760;
 
 	/**
-	 * "Create with reference sources" caps (Engine 2.5). These mirror the DEF
-	 * contract exactly — DEF re-validates authoritatively; these are BFF sanity
-	 * caps that reject obviously over-budget payloads with a clear 400.
+	 * "Create with reference sources" acceptance bounds (Engine 2.5). DEF
+	 * re-validates authoritatively; these refuse oversize PAYLOADS (decoded
+	 * bytes, pasted text) with a clear 400. The per-item COUNT caps that sat
+	 * here were deleted in 5.7.11 — counts ration a management user's own
+	 * references, and DEF's budget owns that decision.
 	 */
-	const CREATE_MAX_REFERENCE_URLS       = 5;
-	const CREATE_MAX_REFERENCE_FILES      = 2;
 	const CREATE_MAX_REFERENCE_FILE_BYTES = 10485760; // 10MB total decoded.
 	const CREATE_MAX_REFERENCE_TEXT       = 20000;
 	const CREATE_ALLOWED_FILE_EXT         = array( 'pdf', 'docx', 'txt', 'csv', 'xlsx' );
@@ -839,9 +835,6 @@ final class DEF_Core_Staff_AI
 			if ( ! is_array( $raw['urls'] ) ) {
 				return $err( __( 'reference_sources.urls must be a list of URLs.', 'digital-employees' ) );
 			}
-			if ( count( $raw['urls'] ) > self::CREATE_MAX_REFERENCE_URLS ) {
-				return $err( __( 'At most 5 reference URLs are allowed.', 'digital-employees' ) );
-			}
 			$urls = array();
 			foreach ( $raw['urls'] as $u ) {
 				$u = is_string( $u ) ? trim( $u ) : '';
@@ -876,9 +869,6 @@ final class DEF_Core_Staff_AI
 		if ( isset( $raw['files'] ) ) {
 			if ( ! is_array( $raw['files'] ) ) {
 				return $err( __( 'reference_sources.files must be a list.', 'digital-employees' ) );
-			}
-			if ( count( $raw['files'] ) > self::CREATE_MAX_REFERENCE_FILES ) {
-				return $err( __( 'At most 2 reference files are allowed.', 'digital-employees' ) );
 			}
 			$files = array();
 			$bytes = 0;
@@ -1703,15 +1693,11 @@ final class DEF_Core_Staff_AI
 	// ── Content Agent Engine 2.5: Clusters curation (targets + keyphrase queues) ──
 
 	/**
-	 * Maximum reference URLs per target (mirrors the DEF contract — every stored
-	 * URL is fetched at derive, so the cap is real cost control, not cosmetics).
-	 */
-	const TARGET_MAX_REFERENCE_URLS = 5;
-
-	/**
-	 * Validate a client-supplied reference_urls list: an array of at most 5
-	 * http(s) URLs. Returns the cleaned list, or a WP_Error naming the problem —
-	 * an invalid entry is rejected explicitly, never silently dropped.
+	 * Validate a client-supplied reference_urls list: an array of http(s)
+	 * URLs. Returns the cleaned list, or a WP_Error naming the problem —
+	 * an invalid entry is rejected explicitly, never silently dropped. No
+	 * count cap (5.7.11): DEF owns any per-target bound, and its refusal
+	 * comes back through this same error path.
 	 *
 	 * @param mixed $raw Raw reference_urls from the request body.
 	 * @return array|\WP_Error Cleaned URL list or error.
@@ -1722,13 +1708,6 @@ final class DEF_Core_Staff_AI
 			return new \WP_Error(
 				'invalid_reference_urls',
 				__( 'reference_urls must be a list of URLs.', 'digital-employees' ),
-				array( 'status' => 400 )
-			);
-		}
-		if ( count( $raw ) > self::TARGET_MAX_REFERENCE_URLS ) {
-			return new \WP_Error(
-				'invalid_reference_urls',
-				__( 'A target can have at most 5 reference URLs.', 'digital-employees' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -2213,13 +2192,16 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		// Validate file size.
-		if ($size <= 0 || $size > self::UPLOAD_MAX_SIZE_BYTES) {
-			error_log('[DEF Upload] Rejected file size: ' . $size . ' bytes for file: ' . $filename . ' from user ' . get_current_user_id());
+		// Malformed size is refused here; the SIZE CEILING is the server's
+		// (UPLOAD_MAX_FILE_MB, env-tunable) — its 413 surfaces through the
+		// BFF seam with the server's own message (5.7.11). A hardcoded copy
+		// here was the binding doll the day the env ceiling rose.
+		if ($size <= 0) {
+			error_log('[DEF Upload] Rejected malformed file size: ' . $size . ' bytes for file: ' . $filename . ' from user ' . get_current_user_id());
 			return new \WP_Error(
-				'payload_too_large',
-				__('File exceeds maximum size of 10MB.', 'digital-employees'),
-				array('status' => 413)
+				'invalid_size',
+				__('File size is invalid.', 'digital-employees'),
+				array('status' => 400)
 			);
 		}
 

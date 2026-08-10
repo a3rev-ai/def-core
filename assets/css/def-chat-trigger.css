@@ -16,6 +16,12 @@
  */
 
 .def-chat-trigger-btn {
+	/* No length cap on the label (5.7.11): a long label ellipsizes inside a
+	   viewport-bounded button instead of pushing the launcher off-layout. */
+	max-width: min(320px, calc(100vw - 32px));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;

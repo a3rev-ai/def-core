@@ -183,18 +183,6 @@ const CAPS_REGISTRY = array(
 		'class' => 'system',
 		'why'   => 'The byte half of the same transport ceiling (~SMTP message limits).',
 	),
-	'includes/class-def-core-staff-ai.php::UPLOAD_MAX_SIZE_BYTES' => array(
-		'class' => 'delete_required',
-		'why'   => 'RATIONS: hardcoded 10MB copy of this pipeline\'s server ceiling (UPLOAD_MAX_FILE_MB, default 10MB, env-tunable) — equal today, but the hardcoded doll becomes the BINDING one the day the env ceiling rises. Deletion grants no headroom today.',
-	),
-	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_URLS' => array(
-		'class' => 'delete_required',
-		'why'   => 'RATIONS: count cap on a management user\'s own reference URLs; the fetch cost belongs to the server-side budget, not a client-side count.',
-	),
-	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_FILES' => array(
-		'class' => 'delete_required',
-		'why'   => 'RATIONS: same class as CREATE_MAX_REFERENCE_URLS — a count, not a resource bound.',
-	),
 	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_FILE_BYTES' => array(
 		'class' => 'system',
 		'why'   => 'Acceptance bound on the total DECODED size of reference files — refuses over-size, never slices.',
@@ -202,10 +190,6 @@ const CAPS_REGISTRY = array(
 	'includes/class-def-core-staff-ai.php::CREATE_MAX_REFERENCE_TEXT' => array(
 		'class' => 'system',
 		'why'   => 'Prompt-size bound on pasted reference text — LLM context protection.',
-	),
-	'includes/class-def-core-staff-ai.php::TARGET_MAX_REFERENCE_URLS' => array(
-		'class' => 'delete_required',
-		'why'   => 'RATIONS: same class as CREATE_MAX_REFERENCE_URLS.',
 	),
 );
 

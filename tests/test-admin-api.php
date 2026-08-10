@@ -1297,8 +1297,10 @@ $request->set_body_params( array( 'value' => 99 ) );
 $response = $sa->rest_update_setting( $request );
 assert_equals( 400, $response->get_status(), 'non-image attachment rejected' );
 
-// ── 43. Display name max length ─────────────────────────────────────────
-echo "\n[43] Display name max length\n";
+// ── 43. Display name — no length bound (5.7.11) ─────────────────────────
+// The 100-char bound went with the ten-bounds deletion; the former boundary
+// is asserted meaningless on both sides. Non-string refusal unchanged.
+echo "\n[43] Display name has no length bound\n";
 reset_test_state();
 setup_admin_user();
 
@@ -1306,7 +1308,7 @@ $request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_dis
 $request->set_param( 'key', 'def_core_display_name' );
 $request->set_body_params( array( 'value' => str_repeat( 'a', 101 ) ) );
 $response = $sa->rest_update_setting( $request );
-assert_equals( 400, $response->get_status(), '101 chars rejected' );
+assert_equals( 200, $response->get_status(), '101 chars accepted — the former bound is gone' );
 
 $request->set_body_params( array( 'value' => str_repeat( 'a', 100 ) ) );
 $response = $sa->rest_update_setting( $request );
@@ -1482,13 +1484,15 @@ assert_equals(
 	'stored length equals submitted length'
 );
 
-echo "\n[52] Over-length labels are REFUSED, never quietly shortened\n";
+echo "\n[52] Formerly-bounded fields now round-trip WHOLE (ten-bounds deletion, 5.7.11)\n";
 reset_test_state();
 setup_admin_user();
 
-// Each: (option key, chars over its documented bound). The bound stays for now
-// on UI chrome; what must never happen is a silent cut.
-$refusals = array(
+// Each: (option key, one char past its FORMER bound). In 5.7.5 these six were
+// refusals; the ten-bounds deletion removed the bounds everywhere (REST
+// validator, form maxlength, drawer max_length), so the same payloads must
+// now save and round-trip character-for-character — the inverted pin.
+$former_bounds = array(
 	'def_core_display_name'              => 101,
 	'def_core_chat_greeting_bubble_text' => 201,
 	'def_core_chat_button_label'         => 31,
@@ -1497,18 +1501,25 @@ $refusals = array(
 	'def_core_chat_privacy_link_label'   => 51,
 );
 
-foreach ( $refusals as $key => $too_long ) {
-	$before  = get_option( $key, '' );
-	$payload = str_repeat( 'x', $too_long );
+foreach ( $former_bounds as $key => $just_over ) {
+	$payload = str_repeat( 'x', $just_over );
 
 	$request = new WP_REST_Request( 'POST', "/def-core/v1/setup/setting/$key" );
 	$request->set_param( 'key', $key );
 	$request->set_body_params( array( 'value' => $payload ) );
 	$response = $sa->rest_update_setting( $request );
 
-	assert_equals( 400, $response->get_status(), "$key: over-length input is refused, not truncated" );
-	assert_equals( $before, get_option( $key, '' ), "$key: nothing was written" );
+	assert_equals( 200, $response->get_status(), "$key: one char past the former bound is accepted" );
+	assert_equals( $payload, get_option( $key, '' ), "$key: stored whole — not truncated, not refused" );
 }
+
+// And a far-past probe on one representative field: no hidden higher bound.
+$request = new WP_REST_Request( 'POST', '/def-core/v1/setup/setting/def_core_chat_welcome_chip_1' );
+$request->set_param( 'key', 'def_core_chat_welcome_chip_1' );
+$request->set_body_params( array( 'value' => str_repeat( 'y', 5000 ) ) );
+$response = $sa->rest_update_setting( $request );
+assert_equals( 200, $response->get_status(), 'a 5,000-char chip label is accepted — no hidden higher bound' );
+assert_equals( 5000, mb_strlen( (string) get_option( 'def_core_chat_welcome_chip_1', '' ) ), 'and stored whole' );
 
 // The bounds must count CHARACTERS, not bytes. validate_display_name used
 // strlen() until 2026-08-08, so a 40-character Japanese name (120 bytes) was

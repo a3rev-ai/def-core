@@ -366,15 +366,16 @@ foreach ( $bad_cases as $label => $body ) {
 	assert_same( array(), $GLOBALS['_t_http_log'], "$label → no backend call" );
 }
 
-// reference_urls: over the cap and invalid entries are rejected explicitly.
+// reference_urls: no def-core count cap (5.7.11) — six URLs are FORWARDED;
+// DEF owns any per-target bound. Invalid entries are still rejected explicitly.
 http_reset();
 $six  = array_map( static function ( $i ) { return "https://docs.test/$i"; }, range( 1, 6 ) );
 $resp = DEF_Core_Staff_AI::rest_create_content_target( req_json( array(
 	'item_type' => 'page', 'item_id' => '1', 'title' => 'T', 'url' => 'https://x.test/',
 	'reference_urls' => $six,
 ) ) );
-assert_true( is_wp_error( $resp ), '6 reference URLs → WP_Error' );
-assert_same( 'invalid_reference_urls', $resp->get_error_code(), '6 URLs → invalid_reference_urls' );
+assert_true( ! is_wp_error( $resp ), '6 reference URLs pass def-core (count cap deleted)' );
+assert_true( ! empty( $GLOBALS['_t_http_log'] ), '6 URLs are forwarded to the backend — the deletion moved the decision, not lost it' );
 http_reset();
 $resp = DEF_Core_Staff_AI::rest_create_content_target( req_json( array(
 	'item_type' => 'page', 'item_id' => '1', 'title' => 'T', 'url' => 'https://x.test/',
@@ -591,15 +592,12 @@ assert_same( array( 'keyphrase' => 'plain' ), $sent, 'no sources → legacy body
 
 // Validation rejects over-cap / wrong-type / disallowed payloads before any call.
 $ten_mb_plus = base64_encode( str_repeat( 'x', ( 10 * 1024 * 1024 ) + 1 ) );
+// The two COUNT cases (> 5 urls, > 2 files) left this map in 5.7.11 — counts
+// rationed the user and were deleted; they are asserted as FORWARDED below.
+// Payload/type/shape refusals stay: they protect the system, not the budget.
 $ref_bad     = array(
-	'> 5 urls'        => array( 'urls' => array_map( static function ( $i ) { return "https://d.test/$i"; }, range( 1, 6 ) ) ),
 	'non-http url'    => array( 'urls' => array( 'javascript:alert(1)' ) ),
 	'text too long'   => array( 'text' => str_repeat( 'a', 20001 ) ),
-	'> 2 files'       => array( 'files' => array(
-		array( 'filename' => 'a.pdf', 'content_b64' => 'YQ==' ),
-		array( 'filename' => 'b.pdf', 'content_b64' => 'Yg==' ),
-		array( 'filename' => 'c.pdf', 'content_b64' => 'Yw==' ),
-	) ),
 	'bad file type'   => array( 'files' => array( array( 'filename' => 'evil.exe', 'content_b64' => 'YQ==' ) ) ),
 	'files too big'   => array( 'files' => array( array( 'filename' => 'big.pdf', 'content_b64' => $ten_mb_plus ) ) ),
 	'urls not a list' => array( 'urls' => 'https://d.test/x' ),
@@ -611,6 +609,23 @@ foreach ( $ref_bad as $label => $rs ) {
 	assert_same( 'invalid_reference_sources', $resp->get_error_code(), "$label → invalid_reference_sources" );
 	assert_same( 400, $resp->get_error_data()['status'] ?? null, "$label → 400" );
 	assert_same( array(), $GLOBALS['_t_http_log'], "$label → no backend call" );
+}
+
+// Inverted pins (5.7.11): the deleted COUNT caps must not return — six URLs
+// and three files pass def-core and are forwarded to DEF, whose budget owns
+// any count decision.
+foreach ( array(
+	'6 urls forwarded'  => array( 'urls' => array_map( static function ( $i ) { return "https://d.test/$i"; }, range( 1, 6 ) ) ),
+	'3 files forwarded' => array( 'files' => array(
+		array( 'filename' => 'a.pdf', 'content_b64' => 'YQ==' ),
+		array( 'filename' => 'b.pdf', 'content_b64' => 'Yg==' ),
+		array( 'filename' => 'c.pdf', 'content_b64' => 'Yw==' ),
+	) ),
+) as $label => $rs ) {
+	http_reset();
+	$resp = DEF_Core_Staff_AI::rest_content_create( req_json( array( 'keyphrase' => 'kp', 'reference_sources' => $rs ) ) );
+	assert_true( ! is_wp_error( $resp ), "reference_sources $label (count caps deleted)" );
+	assert_true( ! empty( $GLOBALS['_t_http_log'] ), "$label — reached the backend" );
 }
 
 // ── 9. Local target-search picker ───────────────────────────────────────

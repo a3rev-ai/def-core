@@ -30,23 +30,23 @@
 	var FIELD_MAP = {
 		'api_url':                    { id: 'def_core_staff_ai_api_url',   max_length: 2000 },
 		'api_key':                    { id: 'def_core_api_key',            max_length: 256 },
-		'display_name':               { id: 'def_core_display_name',       max_length: 100 },
+		'display_name':               { id: 'def_core_display_name' },
 		'chat_hero_image_id':         { id: 'def_core_chat_hero_image_id', max_length: 10 },
 		'chat_hero_image_mobile_id':  { id: 'def_core_chat_hero_image_mobile_id', max_length: 10 },
 		'chat_drawer_width':          { id: 'def_core_chat_drawer_width',  max_length: 5 },
 		'chat_spotlight_width':       { id: 'def_core_chat_spotlight_width',  max_length: 5 },
 		'chat_spotlight_height':      { id: 'def_core_chat_spotlight_height', max_length: 5 },
-		'chat_welcome_chip_1':        { id: 'def_core_chat_welcome_chip_1',  max_length: 80 },
-		'chat_welcome_chip_1_intro':  { id: 'def_core_chat_welcome_chip_1_intro', max_length: 1000 },
-		'chat_welcome_chip_2':        { id: 'def_core_chat_welcome_chip_2',  max_length: 80 },
-		'chat_welcome_chip_2_intro':  { id: 'def_core_chat_welcome_chip_2_intro', max_length: 1000 },
-		'chat_welcome_chip_3':        { id: 'def_core_chat_welcome_chip_3',  max_length: 80 },
-		'chat_welcome_chip_3_intro':  { id: 'def_core_chat_welcome_chip_3_intro', max_length: 1000 },
-		// No max_length: the AI-disclosure notice is the site owner's own legal
-		// text and the server stopped bounding it in v5.7.5. Leaving 500 here
-		// would be worse than the server cap ever was — see the slice below.
+		'chat_welcome_chip_1':        { id: 'def_core_chat_welcome_chip_1' },
+		'chat_welcome_chip_1_intro':  { id: 'def_core_chat_welcome_chip_1_intro' },
+		'chat_welcome_chip_2':        { id: 'def_core_chat_welcome_chip_2' },
+		'chat_welcome_chip_2_intro':  { id: 'def_core_chat_welcome_chip_2_intro' },
+		'chat_welcome_chip_3':        { id: 'def_core_chat_welcome_chip_3' },
+		'chat_welcome_chip_3_intro':  { id: 'def_core_chat_welcome_chip_3_intro' },
+		// No max_length on free-text content fields (5.7.11): the server
+		// stopped bounding them — a client-side slice here would be the last
+		// silent truncation left standing. See the slice warning below.
 		'chat_compliance_text':       { id: 'def_core_chat_compliance_text' },
-		'chat_privacy_link_label':    { id: 'def_core_chat_privacy_link_label', max_length: 50 },
+		'chat_privacy_link_label':    { id: 'def_core_chat_privacy_link_label' },
 		'chat_button_color':          { id: 'def_core_chat_button_color',  max_length: 7, type: 'color' },
 		'chat_button_hover_color':    { id: 'def_core_chat_button_hover_color', max_length: 7, type: 'color' },
 		'allowed_origins':            { id: 'def_core_allowed_origins',    max_length: 2000 },
