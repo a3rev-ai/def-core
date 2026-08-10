@@ -414,7 +414,7 @@ if ( is_wp_error( $result ) ) {
 	assert_true(
 		$result->get_error_code() !== 'invalid_filename'
 		&& $result->get_error_code() !== 'unsupported_media_type'
-		&& $result->get_error_code() !== 'payload_too_large',
+		&& $result->get_error_code() !== 'invalid_size',
 		'valid input does not fail validation'
 	);
 }
@@ -891,19 +891,39 @@ foreach ( array( 10485760, 10485761 ) as $boundary_probe ) {
 	assert_true( ! is_wp_error( $result ), "size $boundary_probe passes def-core (no boundary at the old 10MB)" );
 }
 
-// (c) BFF legibility: the server refuses with its own 413 + detail, and the
-// user-facing error carries the server's message through the reshaping seam.
-$GLOBALS['_def_test_request_code'] = 413;
-$GLOBALS['_def_test_request_body'] = '{"detail":"File exceeds the 50MB upload limit"}';
+// (c) BFF legibility, pinned against the LIVE PRODUCER's shapes — not an
+// invented one. DEF's real over-size refusal on this path is HTTP 400 with a
+// DICT detail (upload_routes.py:238-244; DEF has no 413 here). The first
+// version of this pin stubbed 413 + a string detail — a shape DEF never
+// produces — and stayed green while the real dict stringified to "Array"
+// (#277 security leg). The wire-the-live-producer lesson, applied to itself.
+$GLOBALS['_def_test_request_code'] = 400;
+$GLOBALS['_def_test_request_body'] = '{"detail":{"error":"validation_failed","message":"File size exceeds maximum of 50.0MB"}}';
 $result = DEF_Core_Staff_AI::rest_upload_init( $request );
-assert_true( is_wp_error( $result ), 'server 413 surfaces as an error' );
-assert_equals( 'staff_ai_http_413', $result->get_error_code(), 'the 413 keeps its identity through the seam' );
+assert_true( is_wp_error( $result ), 'server 400 surfaces as an error' );
+assert_equals( 'staff_ai_http_400', $result->get_error_code(), 'the 400 keeps its identity through the seam' );
 $data = $result->get_error_data();
-assert_equals( 413, $data['status'], 'HTTP status stays 413' );
+assert_equals( 400, $data['status'], 'HTTP status stays 400' );
+$msg = $result->get_error_message();
 assert_true(
-	false !== strpos( $result->get_error_message(), 'File exceeds the 50MB upload limit' ),
-	"the SERVER's message reaches the user — the seam is legible, not just green"
+	false !== strpos( $msg, 'File size exceeds maximum of 50.0MB' ),
+	"the SERVER's dict message reaches the user — the seam is legible, not just green"
 );
+assert_true( false === strpos( $msg, 'Array' ), 'the dict never stringifies to "Array"' );
+assert_true( false === strpos( $msg, 'def-api.test' ), 'the internal DEF URL is not shown to the user' );
+
+// (d) the 422-list shape (Pydantic) — DEF's count/validation refusals: the
+// entry msgs flatten into the user-facing message.
+$GLOBALS['_def_test_request_code'] = 422;
+$GLOBALS['_def_test_request_body'] = '{"detail":[{"loc":["body","urls"],"msg":"ensure this value has at most 5 items","type":"value_error.list.max_items"}]}';
+$result = DEF_Core_Staff_AI::rest_upload_init( $request );
+assert_true( is_wp_error( $result ), 'server 422 surfaces as an error' );
+$msg = $result->get_error_message();
+assert_true(
+	false !== strpos( $msg, 'ensure this value has at most 5 items' ),
+	'a Pydantic 422 list flattens to its msg strings'
+);
+assert_true( false === strpos( $msg, 'Array' ), 'the list never stringifies to "Array"' );
 $GLOBALS['_def_test_request_code'] = 200;
 $GLOBALS['_def_test_request_body'] = '{"success":true}';
 

@@ -934,7 +934,7 @@ final class DEF_Core_Admin {
 	 * refusal and the form maxlength both went with the ten-bounds deletion.
 	 * This sanitiser's job is to strip unsafe markup, not to bound length.
 	 * Pill overflow is handled where presentation problems belong: the widget
-	 * CSS ellipsizes a long chip label (the compliance-footer pattern).
+	 * CSS wraps a long chip label into a multi-line pill (overflow-wrap).
 	 *
 	 * @param mixed $value The value to sanitize.
 	 * @return string Sanitised chip label.

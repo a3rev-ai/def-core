@@ -569,6 +569,46 @@ final class DEF_Core_Staff_AI
 	 * @return array|\WP_Error Response data or WP_Error.
 	 * @since 1.1.0
 	 */
+	/**
+	 * Flatten a DEF error `detail` to a human-readable string.
+	 *
+	 * DEF's refusals are not always strings: validation refusals carry a
+	 * dict ({"error": "validation_failed", "message": "..."}) and FastAPI
+	 * 422s carry a list of {loc, msg, type} dicts. Passing either into
+	 * sprintf('%s') prints "Array" — the honest refusal became illegible
+	 * (found by #277's security leg against the live producer, on the exact
+	 * rider that existed to prevent it). Nothing here is a leak: the detail
+	 * is already the server's user-destined message.
+	 *
+	 * @param mixed $detail Raw `detail` from the DEF error body.
+	 * @return string Human-readable detail, or '' when there is none.
+	 */
+	private static function stringify_backend_detail($detail): string
+	{
+		if (is_string($detail)) {
+			return $detail;
+		}
+		if (is_array($detail)) {
+			// Dict shape: the server's message IS the user-facing refusal.
+			if (isset($detail['message']) && is_string($detail['message'])) {
+				return $detail['message'];
+			}
+			// Pydantic 422 list: flatten each entry's msg.
+			$msgs = array();
+			foreach ($detail as $entry) {
+				if (is_array($entry) && isset($entry['msg']) && is_string($entry['msg'])) {
+					$msgs[] = $entry['msg'];
+				}
+			}
+			if (! empty($msgs)) {
+				return implode('; ', $msgs);
+			}
+			// Unknown structure: JSON beats "Array".
+			return (string) wp_json_encode($detail);
+		}
+		return '';
+	}
+
 	private static function backend_request(string $method, string $endpoint, array $body = array())
 	{
 		$base_url = self::get_api_base_url();
@@ -674,7 +714,7 @@ final class DEF_Core_Staff_AI
 
 		// Map backend errors to clean UI-safe errors.
 		if ($status >= 400) {
-			$backend_detail = isset($data['detail']) ? $data['detail'] : '';
+			$backend_detail = self::stringify_backend_detail(isset($data['detail']) ? $data['detail'] : '');
 
 			// Handle different error status codes - each branch MUST set both $error_code and $error_message.
 			if (401 === $status || 403 === $status) {
@@ -701,23 +741,29 @@ final class DEF_Core_Staff_AI
 					$status
 				);
 			} else {
-				// Any other 4xx error (400, 405, 422, etc.)
+				// Any other 4xx error (400, 405, 422, etc.). Post ten-bounds
+				// deletion this is the ROUTINE refusal path (over-size upload,
+				// over-budget references): the server's own message IS the
+				// user-facing refusal, and the internal DEF URL must not ride
+				// along with it — the browser never sees that URL anywhere
+				// else, and every routine refusal was about to print it. The
+				// URL stays in the WP_DEBUG log line below for diagnostics.
 				$error_code    = 'staff_ai_http_' . $status;
 				$error_message = sprintf(
-					/* translators: 1: HTTP status code, 2: backend error detail, 3: full URL */
-					__('Backend error (HTTP %1$d) calling %3$s: %2$s', 'digital-employees'),
+					/* translators: 1: HTTP status code, 2: backend error detail */
+					__('The assistant service declined this request (HTTP %1$d): %2$s', 'digital-employees'),
 					$status,
-					$backend_detail ? $backend_detail : __('Unknown error', 'digital-employees'),
-					$url
+					$backend_detail ? $backend_detail : __('Unknown error', 'digital-employees')
 				);
 			}
 
 			// Log detailed error in debug mode for troubleshooting.
 			if (defined('WP_DEBUG') && WP_DEBUG) {
 				$debug_info = sprintf(
-					'Staff AI backend error: status=%d, endpoint=%s, detail=%s',
+					'Staff AI backend error: status=%d, endpoint=%s, url=%s, detail=%s',
 					$status,
 					$endpoint,
+					$url,
 					$backend_detail ? $backend_detail : 'none'
 				);
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

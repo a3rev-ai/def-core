@@ -54,7 +54,11 @@
 		'escalation_setup_assistant': { id: 'escalation_setup_assistant',  max_length: 320 },
 		'chat_display_mode':          { type: 'radio', name: 'def_core_chat_display_mode', max_length: 10 },
 		'chat_button_icon':           { type: 'radio', name: 'def_core_chat_button_icon', max_length: 10 },
-		'chat_button_label':          { id: 'def_core_chat_button_label', max_length: 30 }
+		// max_length removed 5.7.11 (ten-bounds deletion): with the REST bound
+		// gone this slice was the field's ONLY remaining cut — silent, with no
+		// refusing partner. Found by the #277 panel; the entry sits after the
+		// radio fields, apart from the content block, which is how it was missed.
+		'chat_button_label':          { id: 'def_core_chat_button_label' }
 	};
 
 	var TOOL_STATUS_LABELS = {
