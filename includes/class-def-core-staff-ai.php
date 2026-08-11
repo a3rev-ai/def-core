@@ -521,6 +521,30 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_delete_memory'),
 			)
 		);
+
+		// Email Triage schedule (S4b). Per-user like the Memories panel: DEF keys
+		// the schedule to the X-DEF-User identity backend_request() forwards -
+		// nothing user-scoped rides in the URL or body, and a user id smuggled in
+		// the body is ignored DEF-side (pinned there). This is the Staff-AI
+		// channel's first per-user WRITE-back settings route; the PUT is
+		// FULL-REPLACE (DEF fills omitted fields with defaults), so the card
+		// always sends the complete schedule object.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/triage-schedule',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_get_triage_schedule'),
+				),
+				array(
+					'methods'             => 'PUT',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_put_triage_schedule'),
+				),
+			)
+		);
 	}
 
 	/**
@@ -1680,6 +1704,146 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'  => true,
 				'memories' => $memories,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Allowlist one triage-schedule object to the five fields the card renders.
+	 *
+	 * The same guard the Memories panel uses: if a future backend adds fields,
+	 * they stay out of the panel until someone decides they belong there.
+	 *
+	 * @param array $row Raw schedule from DEF.
+	 * @return array Allowlisted schedule.
+	 */
+	private static function allowlist_triage_schedule( array $row ): array
+	{
+		$destinations = array();
+		if ( isset( $row['destinations'] ) && is_array( $row['destinations'] ) ) {
+			foreach ( $row['destinations'] as $dest ) {
+				if ( in_array( $dest, array( 'email', 'slack', 'teams' ), true ) ) {
+					$destinations[] = $dest;
+				}
+			}
+		}
+		return array(
+			'enabled'           => ! empty( $row['enabled'] ),
+			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
+			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
+			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
+			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
+		);
+	}
+
+	/**
+	 * REST handler: the current user's Email Triage schedule.
+	 *
+	 * Proxies DEF GET /api/staff-ai/triage-schedule. A user with no schedule gets
+	 * honest disabled defaults from DEF, never a 404 - the card always has
+	 * something true to render. A DEF 503 surfaces as an error, never as
+	 * defaults: defaults would read as "your schedule is off", which is unknown.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 */
+	public static function rest_get_triage_schedule()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/triage-schedule' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load your triage schedule. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['schedule'] ) && is_array( $result['schedule'] ) ) ? $result['schedule'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'schedule' => self::allowlist_triage_schedule( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: save the current user's Email Triage schedule.
+	 *
+	 * Proxies DEF PUT /api/staff-ai/triage-schedule, which is FULL-REPLACE: the
+	 * complete object is validated here and forwarded whole (an omitted field
+	 * would silently reset DEF-side - the card never sends a partial body).
+	 * Validation rejects explicitly, never silently drops or coerces - the same
+	 * refuse-visibly contract DEF enforces authoritatively behind this proxy.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 */
+	public static function rest_put_triage_schedule( \WP_REST_Request $request )
+	{
+		$enabled      = $request->get_param( 'enabled' );
+		$hour         = $request->get_param( 'send_hour_local' );
+		$minute       = $request->get_param( 'send_minute_local' );
+		$timezone     = $request->get_param( 'timezone' );
+		$destinations = $request->get_param( 'destinations' );
+
+		$problems = array();
+		if ( ! is_bool( $enabled ) ) {
+			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
+		}
+		if ( ! is_int( $hour ) || $hour < 0 || $hour > 23 ) {
+			$problems[] = __( 'The send hour must be a whole number from 0 to 23.', 'digital-employees' );
+		}
+		if ( ! is_int( $minute ) || $minute < 0 || $minute > 59 ) {
+			$problems[] = __( 'The send minute must be a whole number from 0 to 59.', 'digital-employees' );
+		}
+		if ( ! is_string( $timezone ) || '' === $timezone || strlen( $timezone ) > 64 ) {
+			$problems[] = __( 'The timezone must be a timezone name of at most 64 characters.', 'digital-employees' );
+		}
+		$clean_destinations = array();
+		if ( is_array( $destinations ) && ! empty( $destinations ) ) {
+			foreach ( $destinations as $dest ) {
+				if ( ! in_array( $dest, array( 'email', 'slack', 'teams' ), true ) ) {
+					$clean_destinations = null;
+					break;
+				}
+				$clean_destinations[] = $dest;
+			}
+		} else {
+			$clean_destinations = null;
+		}
+		if ( null === $clean_destinations ) {
+			$problems[] = __( 'Destinations must be one or more of: email, slack, teams.', 'digital-employees' );
+		}
+		if ( ! empty( $problems ) ) {
+			return new \WP_Error(
+				'def_triage_schedule_invalid',
+				implode( ' ', $problems ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/triage-schedule',
+			array(
+				'enabled'           => $enabled,
+				'send_hour_local'   => $hour,
+				'send_minute_local' => $minute,
+				'timezone'          => $timezone,
+				'destinations'      => array_values( array_unique( $clean_destinations ) ),
+			)
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not save your triage schedule. Your previous settings are unchanged - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['schedule'] ) && is_array( $result['schedule'] ) ) ? $result['schedule'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'schedule' => self::allowlist_triage_schedule( $row ),
 			),
 			200
 		);

@@ -2302,3 +2302,24 @@ html {
 .memory-btn-delete:hover {
 	color: var(--banner-error-text);
 }
+
+/* Email Triage schedule (S4b) - reuses the modal + form primitives. */
+.schedule-intro {
+	font-size: 13px;
+	color: var(--text-secondary);
+	line-height: 1.5;
+	margin: 0 0 14px;
+}
+.schedule-toggle-row { margin-bottom: 14px; }
+.schedule-dest-row {
+	display: block;
+	margin-top: 8px;
+}
+.schedule-status {
+	min-height: 18px;
+	font-size: 13px;
+	margin-top: 10px;
+	color: var(--text-tertiary);
+}
+.schedule-status-error { color: var(--banner-error-text); }
+.schedule-status-ok { color: var(--text-secondary); }

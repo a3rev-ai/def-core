@@ -2815,6 +2815,131 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
+	// EMAIL TRIAGE SCHEDULE (S4b) - the user's own daily digest settings
+	// =============================================
+
+	(function initTriageSchedule() {
+		var modal = document.getElementById('scheduleModal');
+		if (!modal) return;
+		var openBtn = document.getElementById('scheduleBtn');
+		var overflowBtn = document.getElementById('overflowSchedule');
+		var modalClose = document.getElementById('scheduleModalClose');
+		var closeBtn = document.getElementById('scheduleClose');
+		var saveBtn = document.getElementById('scheduleSave');
+		var statusEl = document.getElementById('scheduleStatus');
+		var enabledEl = document.getElementById('scheduleEnabled');
+		var timeEl = document.getElementById('scheduleTime');
+		var tzEl = document.getElementById('scheduleTimezone');
+		var destEls = {
+			email: document.getElementById('scheduleDestEmail'),
+			slack: document.getElementById('scheduleDestSlack'),
+			teams: document.getElementById('scheduleDestTeams')
+		};
+		var loading = false;
+		// Save stays DISARMED until one successful load: the PUT is full-replace,
+		// so saving over a failed load would overwrite the real schedule with the
+		// form's defaults (Code panel F1).
+		if (saveBtn) saveBtn.disabled = true;
+
+		function setStatus(msg, kind) {
+			statusEl.textContent = msg || '';
+			statusEl.className = 'schedule-status' + (kind ? ' schedule-status-' + kind : '');
+		}
+
+		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
+
+		function fillTimezones(selected) {
+			var zones = [];
+			try { zones = Intl.supportedValuesOf('timeZone').slice(); } catch (e) { zones = []; }
+			var site = (window.StaffAIConfig && StaffAIConfig.siteTimezone) || '';
+			[site, selected, 'UTC'].forEach(function (z) {
+				// Only IANA-shaped names: a manual-offset site tz ('+10:00') would be
+				// an option the backend can only refuse (Code panel F2).
+				if (z && (z === 'UTC' || z.indexOf('/') !== -1) && zones.indexOf(z) === -1) zones.unshift(z);
+			});
+			tzEl.textContent = '';
+			zones.forEach(function (z) {
+				var opt = document.createElement('option');
+				opt.value = z;
+				opt.textContent = z;
+				if (z === selected) opt.selected = true;
+				tzEl.appendChild(opt);
+			});
+		}
+
+		function fill(schedule) {
+			enabledEl.checked = !!schedule.enabled;
+			timeEl.value = pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
+			fillTimezones(schedule.timezone || 'UTC');
+			var dests = schedule.destinations || ['email'];
+			Object.keys(destEls).forEach(function (k) {
+				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
+			});
+		}
+
+		async function load() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('scheduleLoading', 'Loading your schedule…'));
+			try {
+				var data = await apiRequest('/triage-schedule');
+				fill((data && data.schedule) || {});
+				setStatus('');
+				if (saveBtn) saveBtn.disabled = false;
+			} catch (e) {
+				setStatus((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'), 'error');
+				if (saveBtn) saveBtn.disabled = true;
+			} finally {
+				loading = false;
+			}
+		}
+
+		async function save() {
+			var parts = (timeEl.value || '07:00').split(':');
+			var dests = Object.keys(destEls).filter(function (k) { return destEls[k] && destEls[k].checked; });
+			if (!dests.length) {
+				setStatus(t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error');
+				return;
+			}
+			// FULL-REPLACE contract (DEF #890): always the complete object - a
+			// partial body would silently reset the omitted fields DEF-side.
+			var payload = {
+				enabled: !!enabledEl.checked,
+				send_hour_local: parseInt(parts[0], 10) || 0,
+				send_minute_local: parseInt(parts[1], 10) || 0,
+				timezone: tzEl.value || 'UTC',
+				destinations: dests
+			};
+			saveBtn.disabled = true;
+			setStatus(t('scheduleSaving', 'Saving…'));
+			try {
+				var data = await apiRequest('/triage-schedule', { method: 'PUT', body: JSON.stringify(payload) });
+				fill((data && data.schedule) || payload);
+				setStatus(t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
+			} catch (e) {
+				setStatus((e && e.message) || t('scheduleSaveFailed', 'Could not save your triage schedule.'), 'error');
+			} finally {
+				saveBtn.disabled = false;
+			}
+		}
+
+		function open() { modal.classList.add('visible'); load(); }
+		function close() { modal.classList.remove('visible'); }
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (overflowBtn) {
+			overflowBtn.addEventListener('click', function () {
+				if (overflowMenu) overflowMenu.classList.remove('open');
+				open();
+			});
+		}
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (saveBtn) saveBtn.addEventListener('click', save);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+	})();
+
+	// =============================================
 	// UPLOAD EVENT HANDLERS
 	// =============================================
 

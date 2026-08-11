@@ -99,6 +99,10 @@ function scan_inline_caps(): array {
 // ── The baseline — EXPLICITLY UNREVIEWED, measured 2026-08-10 ────────────────
 
 const BASELINE = array(
+	// Door-check for DEF's String(64) timezone column, mirrored from the DEF
+	// route it proxies: REFUSES visibly (400, field named), never truncates;
+	// every real IANA zone name fits. Classified at introduction (S4b card).
+	'includes/class-def-core-staff-ai.php::if ( ! is_string( $timezone ) || \'\' === $timezone || strlen( $timezone ) > 64 ) {' => 1,
 	'includes/class-def-core-admin-api.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::if ( count( $results ) >= 10 ) {' => 1,

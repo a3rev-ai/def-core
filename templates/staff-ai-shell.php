@@ -116,6 +116,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
 						</svg>
 					</button>
+					<button type="button" class="header-btn header-btn-icon" id="scheduleBtn" title="<?php echo esc_attr__( 'Email triage schedule', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Email triage schedule', 'digital-employees' ); ?>">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="10"></circle>
+							<polyline points="12 6 12 12 16 14"></polyline>
+						</svg>
+					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -187,6 +193,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
 							</svg>
 							<?php echo esc_html__( 'What Staff AI remembers', 'digital-employees' ); ?>
+						</button>
+						<button type="button" id="overflowSchedule">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="12" cy="12" r="10"></circle>
+								<polyline points="12 6 12 12 16 14"></polyline>
+							</svg>
+							<?php echo esc_html__( 'Email triage schedule', 'digital-employees' ); ?>
 						</button>
 						<button type="button" id="overflowInstall" style="display:none;">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -494,6 +507,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- Email Triage schedule (S4b) - the user's own daily digest settings -->
+		<div class="modal-overlay" id="scheduleModal">
+			<div class="modal" style="max-width: 480px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Email triage schedule', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="scheduleModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="schedule-intro"><?php echo esc_html__( 'Once a day, Staff AI can read your mailbox, stage reply drafts in your Drafts folder, and send you a digest of what needs your attention. Only you can turn this on, and only for your own mailbox.', 'digital-employees' ); ?></p>
+					<div class="form-group schedule-toggle-row">
+						<label class="share-toggle-label"><input type="checkbox" id="scheduleEnabled" class="share-transcript-toggle"> <?php echo esc_html__( 'Send me a daily inbox digest', 'digital-employees' ); ?></label>
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="scheduleTime"><?php echo esc_html__( 'Send time', 'digital-employees' ); ?></label>
+						<input type="time" class="form-input" id="scheduleTime" value="07:00">
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="scheduleTimezone"><?php echo esc_html__( 'Timezone', 'digital-employees' ); ?></label>
+						<select class="form-input" id="scheduleTimezone"></select>
+					</div>
+					<div class="form-group">
+						<span class="form-label"><?php echo esc_html__( 'Deliver to', 'digital-employees' ); ?></span>
+						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
+						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
+						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
+					</div>
+					<div class="schedule-status" id="scheduleStatus"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-primary" id="scheduleSave"><?php echo esc_html__( 'Save schedule', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -503,6 +550,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		userEmail: <?php echo wp_json_encode( $user->user_email ); ?>,
 		apiBase: <?php echo wp_json_encode( $api_base ); ?>,
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
+		siteTimezone: <?php echo wp_json_encode( wp_timezone_string() ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
 		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
@@ -581,7 +629,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 			memoryCategoryPreferences: <?php echo wp_json_encode( __( 'Preference', 'digital-employees' ) ); ?>,
 			memoryCategoryProjects: <?php echo wp_json_encode( __( 'Project', 'digital-employees' ) ); ?>,
 			memoryCategoryHabits: <?php echo wp_json_encode( __( 'How you work', 'digital-employees' ) ); ?>,
-			memoryCategoryContext: <?php echo wp_json_encode( __( 'Background', 'digital-employees' ) ); ?>
+			memoryCategoryContext: <?php echo wp_json_encode( __( 'Background', 'digital-employees' ) ); ?>,
+			scheduleLoading: <?php echo wp_json_encode( __( 'Loading your schedule…', 'digital-employees' ) ); ?>,
+			scheduleLoadFailed: <?php echo wp_json_encode( __( 'Could not load your triage schedule. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			scheduleSaving: <?php echo wp_json_encode( __( 'Saving…', 'digital-employees' ) ); ?>,
+			scheduleSaved: <?php echo wp_json_encode( __( 'Saved. Your digest follows this schedule from its next send time.', 'digital-employees' ) ); ?>,
+			scheduleSaveFailed: <?php echo wp_json_encode( __( 'Could not save your triage schedule. Your previous settings are unchanged.', 'digital-employees' ) ); ?>,
+			scheduleNeedDestination: <?php echo wp_json_encode( __( 'Pick at least one destination for your digest.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

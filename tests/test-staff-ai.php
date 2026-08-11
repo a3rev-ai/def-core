@@ -263,6 +263,7 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
 	'a3-ai/v1/staff-ai/memories',
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
+	'a3-ai/v1/staff-ai/triage-schedule',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -300,6 +301,9 @@ assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents']['meth
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'documents delete = DELETE' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
+$_sched_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/triage-schedule'];
+assert_equals( 'GET', $_sched_handlers[0]['methods'] ?? '', 'triage-schedule handler 0 = GET' );
+assert_equals( 'PUT', $_sched_handlers[1]['methods'] ?? '', 'triage-schedule handler 1 = PUT' );
 
 // ── 4. Permission check: unauthenticated → 401 ─────────────────────────
 echo "\n[4] Permission check — unauthenticated\n";
@@ -789,7 +793,7 @@ echo "\n[31] rest_delete_memory\n";
 
 if ( ! function_exists( 'wp_remote_request' ) ) {
 	function wp_remote_request( string $url, array $args = array() ) {
-		$GLOBALS['_def_test_last_request'] = array( 'url' => $url, 'method' => $args['method'] ?? '' );
+		$GLOBALS['_def_test_last_request'] = array( 'url' => $url, 'method' => $args['method'] ?? '', 'body' => $args['body'] ?? '' );
 		return array(
 			'response' => array( 'code' => $GLOBALS['_def_test_request_code'] ?? 200 ),
 			'body'     => $GLOBALS['_def_test_request_body'] ?? '{"success":true}',
@@ -926,6 +930,102 @@ assert_true(
 assert_true( false === strpos( $msg, 'Array' ), 'the list never stringifies to "Array"' );
 $GLOBALS['_def_test_request_code'] = 200;
 $GLOBALS['_def_test_request_body'] = '{"success":true}';
+
+// ── Triage schedule (S4b): GET allowlist, 503-honesty, PUT full-replace ──
+// The card is the Staff-AI channel's first per-user WRITE-back settings
+// surface; the shapes pinned here are the ones the next such route will copy.
+echo "\n[TS-1] rest_get_triage_schedule field allowlist\n";
+
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'  => true,
+	'schedule' => array(
+		'enabled'           => true,
+		'send_hour_local'   => 7,
+		'send_minute_local' => 30,
+		'timezone'          => 'Australia/Brisbane',
+		'destinations'      => array( 'email', 'slack', 'carrier-pigeon' ),
+		'internal_field'    => 'must-not-pass',
+	),
+) );
+$resp = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+$data     = is_object( $resp ) ? $resp->data : $resp;
+$schedule = $data['schedule'] ?? array();
+$keys     = array_keys( $schedule );
+sort( $keys );
+assert_equals(
+	array( 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	$keys,
+	'exactly the five schedule fields - no extras'
+);
+assert_equals( array( 'email', 'slack' ), $schedule['destinations'], 'unknown destination types are dropped' );
+assert_equals( 'Australia/Brisbane', $schedule['timezone'], 'timezone passes through' );
+assert_equals( 30, $schedule['send_minute_local'], 'minute passes through' );
+
+echo "\n[TS-2] rest_get_triage_schedule 503 surfaces as an error, never defaults\n";
+$GLOBALS['_def_test_get_code'] = 503;
+$result = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_code'] );
+assert_true( is_wp_error( $result ), 'a backend 503 is an error, not disabled-defaults' );
+$msg = is_wp_error( $result ) ? $result->get_error_message() : '';
+assert_true( false === strpos( $msg, 'def-api.test' ), 'the internal DEF URL is not shown to the user' );
+
+echo "\n[TS-3] rest_put_triage_schedule refuses bad shapes before the backend\n";
+$GLOBALS['_def_test_last_request'] = array();
+$bad_bodies = array(
+	'missing enabled'   => array( 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ) ),
+	'hour out of range' => array( 'enabled' => true, 'send_hour_local' => 24, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ) ),
+	'minute not int'    => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 'zero', 'timezone' => 'UTC', 'destinations' => array( 'email' ) ),
+	'timezone too long' => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => str_repeat( 'x', 65 ), 'destinations' => array( 'email' ) ),
+	'unknown dest'      => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'webhook' ) ),
+	'empty dests'       => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array() ),
+);
+foreach ( $bad_bodies as $label => $body ) {
+	$req = new WP_REST_Request();
+	foreach ( $body as $k => $v ) {
+		$req->set_param( $k, $v );
+	}
+	$result = DEF_Core_Staff_AI::rest_put_triage_schedule( $req );
+	$is_err = is_wp_error( $result );
+	assert_equals( 'def_triage_schedule_invalid', $is_err ? $result->get_error_code() : '', "PUT refused: $label" );
+}
+assert_equals( array(), $GLOBALS['_def_test_last_request'], 'no refused body ever reached the backend' );
+
+echo "\n[TS-4] rest_put_triage_schedule forwards the FULL object (full-replace)\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'success'  => true,
+	'schedule' => array(
+		'enabled'           => true,
+		'send_hour_local'   => 7,
+		'send_minute_local' => 0,
+		'timezone'          => 'Australia/Brisbane',
+		'destinations'      => array( 'email', 'slack', 'teams' ),
+	),
+) );
+$req = new WP_REST_Request();
+$req->set_param( 'enabled', true );
+$req->set_param( 'send_hour_local', 7 );
+$req->set_param( 'send_minute_local', 0 );
+$req->set_param( 'timezone', 'Australia/Brisbane' );
+$req->set_param( 'destinations', array( 'email', 'slack', 'teams', 'slack' ) );
+$resp = DEF_Core_Staff_AI::rest_put_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a valid PUT succeeds' );
+assert_equals( 'PUT', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is PUT' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/triage-schedule',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the DEF path carries nothing user-scoped'
+);
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+$sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
+sort( $sent_keys );
+assert_equals(
+	array( 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	$sent_keys,
+	'the COMPLETE object is forwarded - DEF PUT is full-replace, a partial body would silently reset fields'
+);
+assert_equals( array( 'email', 'slack', 'teams' ), $sent['destinations'], 'destinations forwarded deduplicated' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
