@@ -20,3 +20,24 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - name: Run tests
         run: composer test
+  wpunit:
+    # The five tests/wpunit files (bridge-security, jwt-integration,
+    # permission-callbacks, route-registration, woocommerce-optionality) run
+    # against REAL WordPress via wp-env — the map_meta_cap grants, route
+    # registration and capability gates the standalone stubs cannot model.
+    # Never executed in CI before 5.7.12. WordPress + PHP are pinned by
+    # .wp-env.json (WordPress/WordPress#6.9.1, PHP 8.0), so a WP point
+    # release cannot turn this job red on an unrelated morning.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Start the pinned WordPress test environment
+        run: npx wp-env start
+      - name: Install composer dependencies inside the test container
+        run: npx wp-env run tests-cli --env-cwd=wp-content/plugins/def-core -- composer install --no-interaction
+      - name: Run wpunit suite
+        run: npm run test:phpunit

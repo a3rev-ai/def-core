@@ -50,16 +50,23 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	 * Test that Staff AI routes are registered.
 	 */
 	public function test_staff_ai_routes_registered(): void {
+		// /staff-ai/tools/invoke was removed in PR #19 (tool invocation goes
+		// through /staff-ai/chat) — this list asserted it for years while the
+		// suite never ran in CI (fixed 5.7.12, the wpunit→CI slice).
 		$expected = array(
 			'/a3-ai/v1/staff-ai/conversations',
 			'/a3-ai/v1/staff-ai/chat',
 			'/a3-ai/v1/staff-ai/status',
 			'/a3-ai/v1/staff-ai/tools',
-			'/a3-ai/v1/staff-ai/tools/invoke',
 		);
 		foreach ( $expected as $route ) {
 			$this->assertArrayHasKey( $route, $this->routes, "Staff AI route missing: $route" );
 		}
+		$this->assertArrayNotHasKey(
+			'/a3-ai/v1/staff-ai/tools/invoke',
+			$this->routes,
+			'tools/invoke stays removed (PR #19) — a re-registration needs its own review'
+		);
 	}
 
 	/**
