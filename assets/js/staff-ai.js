@@ -2836,6 +2836,10 @@ function t(key, fallback) {
 			teams: document.getElementById('scheduleDestTeams')
 		};
 		var loading = false;
+		// Save stays DISARMED until one successful load: the PUT is full-replace,
+		// so saving over a failed load would overwrite the real schedule with the
+		// form's defaults (Code panel F1).
+		if (saveBtn) saveBtn.disabled = true;
 
 		function setStatus(msg, kind) {
 			statusEl.textContent = msg || '';
@@ -2849,7 +2853,9 @@ function t(key, fallback) {
 			try { zones = Intl.supportedValuesOf('timeZone').slice(); } catch (e) { zones = []; }
 			var site = (window.StaffAIConfig && StaffAIConfig.siteTimezone) || '';
 			[site, selected, 'UTC'].forEach(function (z) {
-				if (z && zones.indexOf(z) === -1) zones.unshift(z);
+				// Only IANA-shaped names: a manual-offset site tz ('+10:00') would be
+				// an option the backend can only refuse (Code panel F2).
+				if (z && (z === 'UTC' || z.indexOf('/') !== -1) && zones.indexOf(z) === -1) zones.unshift(z);
 			});
 			tzEl.textContent = '';
 			zones.forEach(function (z) {
@@ -2879,8 +2885,10 @@ function t(key, fallback) {
 				var data = await apiRequest('/triage-schedule');
 				fill((data && data.schedule) || {});
 				setStatus('');
+				if (saveBtn) saveBtn.disabled = false;
 			} catch (e) {
 				setStatus((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'), 'error');
+				if (saveBtn) saveBtn.disabled = true;
 			} finally {
 				loading = false;
 			}
