@@ -156,17 +156,63 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test: Staff AI status endpoint — admin (manage_options) passes.
+	 * Test: Staff AI status — an admin PASSES, via the ratified built-in model.
+	 *
+	 * Access is built in for def_admin_access / def_management_access holders:
+	 * map_def_capabilities (map_meta_cap, 9130808) grants def_staff_access
+	 * through the capability system, NOT through the admin role itself. On a
+	 * real site ensure_def_admin_capability() gives every administrator
+	 * def_admin_access; the factory user has no such grant, so the fixture
+	 * makes it explicit — real WP's map_meta_cap then does the passing, which
+	 * is exactly what this test pins (see the unhook mutation in the PR).
 	 */
 	public function test_status_passes_for_admin(): void {
+		$admin = get_user_by( 'id', $this->admin_id );
+		$admin->add_cap( 'def_admin_access' );
 		wp_set_current_user( $this->admin_id );
 
 		$request  = new WP_REST_Request( 'GET', '/a3-ai/v1/staff-ai/status' );
 		$response = $this->server->dispatch( $request );
 
-		// Admin should get past permission check (not 401/403).
-		$this->assertNotEquals( 401, $response->get_status(), 'Admin should not get 401 on status' );
-		$this->assertNotEquals( 403, $response->get_status(), 'Admin should not get 403 on status' );
+		$this->assertNotEquals( 401, $response->get_status(), 'Admin with def_admin_access should not get 401 on status' );
+		$this->assertNotEquals( 403, $response->get_status(), 'Admin with def_admin_access should not get 403 on status' );
+	}
+
+	/**
+	 * Test: the boundary nobody had named — manage_options ALONE stays refused.
+	 *
+	 * Built-in Staff AI access rides def_admin_access / def_management_access,
+	 * never the bare administrator role. The refusal carries the named code
+	 * def_staff_access_required (5.7.7) precisely so this assertion can tell
+	 * the gate from every other 401/403 — including an absent backend.
+	 */
+	public function test_status_refuses_manage_options_alone(): void {
+		wp_set_current_user( $this->admin_id ); // administrator role, NO def caps
+
+		$request  = new WP_REST_Request( 'GET', '/a3-ai/v1/staff-ai/status' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertEquals( 403, $response->get_status(), 'manage_options alone is refused' );
+		$data = $response->get_data();
+		$this->assertEquals(
+			'def_staff_access_required',
+			$data['code'] ?? '',
+			'the refusal is the GATE (named code), not a backend accident'
+		);
+	}
+
+	/**
+	 * Test: a user with no DEF caps gets the named 403 — the inverse pin.
+	 */
+	public function test_status_refuses_no_caps_user_with_named_code(): void {
+		wp_set_current_user( $this->subscriber_id );
+
+		$request  = new WP_REST_Request( 'GET', '/a3-ai/v1/staff-ai/status' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertEquals( 403, $response->get_status(), 'no-caps user is refused with 403' );
+		$data = $response->get_data();
+		$this->assertEquals( 'def_staff_access_required', $data['code'] ?? '', 'and the code names the gate' );
 	}
 
 	/**
@@ -228,21 +274,44 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test: Setup Assistant routes pass the permission gate for a def_admin_access user.
+	 * Fetch a registered route's permission callback from the live server.
 	 *
-	 * The backend proxy call then fails (no DEF backend in tests), but the
-	 * permission check passes — so we assert the status is NOT 401/403.
+	 * @param string $route Full route path.
+	 * @return callable The route's permission_callback.
+	 */
+	private function permission_callback_for( string $route ): callable {
+		$routes = $this->server->get_routes();
+		$this->assertArrayHasKey( $route, $routes, "route registered: $route" );
+		$cb = $routes[ $route ][0]['permission_callback'] ?? null;
+		$this->assertIsCallable( $cb, "permission_callback present on $route" );
+		return $cb;
+	}
+
+	/**
+	 * Test: Setup Assistant routes pass the permission GATE for a
+	 * def_admin_access user — asserted on the callback DIRECTLY.
+	 *
+	 * The old version dispatched through the route and asserted the status was
+	 * not 401/403 — but the proxied backend also produces 401s, so the test's
+	 * outcome depended on whether anything answered at the backend URL during
+	 * the run (observed flipping with a crash-looping local def-api; a CI
+	 * runner has no backend at all). Invoking the captured callback tests the
+	 * gate and only the gate, in any environment.
 	 */
 	public function test_setup_assistant_thread_routes_pass_for_admin_cap_user(): void {
 		wp_set_current_user( $this->admin_cap_user_id );
 
-		$get = $this->server->dispatch( new WP_REST_Request( 'GET', '/a3-ai/v1/setup-assistant/active-thread' ) );
-		$this->assertNotEquals( 401, $get->get_status(), 'def_admin_access user should not get 401 on active-thread' );
-		$this->assertNotEquals( 403, $get->get_status(), 'def_admin_access user should not get 403 on active-thread' );
+		$get = $this->permission_callback_for( '/a3-ai/v1/setup-assistant/active-thread' );
+		$this->assertTrue( true === call_user_func( $get, new WP_REST_Request() ), 'active-thread gate passes def_admin_access' );
 
-		$post = $this->server->dispatch( new WP_REST_Request( 'POST', '/a3-ai/v1/setup-assistant/clear' ) );
-		$this->assertNotEquals( 401, $post->get_status(), 'def_admin_access user should not get 401 on clear' );
-		$this->assertNotEquals( 403, $post->get_status(), 'def_admin_access user should not get 403 on clear' );
+		$post = $this->permission_callback_for( '/a3-ai/v1/setup-assistant/clear' );
+		$this->assertTrue( true === call_user_func( $post, new WP_REST_Request() ), 'clear gate passes def_admin_access' );
+
+		// And the same callbacks REFUSE without the capability — the pair that
+		// proves we captured a real gate, not a passthrough.
+		wp_set_current_user( $this->subscriber_id );
+		$this->assertNotTrue( call_user_func( $get, new WP_REST_Request() ), 'active-thread gate refuses a no-caps user' );
+		$this->assertNotTrue( call_user_func( $post, new WP_REST_Request() ), 'clear gate refuses a no-caps user' );
 	}
 
 	/**
