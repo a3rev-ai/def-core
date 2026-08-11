@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.7.13
+Stable tag: 5.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 5.7.13 - 2026-08-11 =
+= 5.8.0 - 2026-08-11 =
 * Improvement: New Email triage schedule card in the Staff AI console - set your own daily inbox digest time, timezone and delivery destinations (your inbox, Slack, Teams). Only you can turn it on, and only for your own mailbox.
 
 = 5.7.12 - 2026-08-11 =
