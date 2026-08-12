@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.8.2
+Stable tag: 5.8.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.8.3 - 2026-08-12 =
+* Improvement: upload failures no longer lose your work. If attached files fail to upload, sending is refused with the reason shown - Staff AI previously sent the message without its files when every attachment had failed, and Customer Chat refused silently. Customer Chat now keeps your typed message when an upload fails, and shows the server's own explanation (including how long to wait when rate limited) instead of a generic error.
 
 = 5.8.2 - 2026-08-12 =
 * Staff AI: the schedule card's "Saved." status now renders as a green success pill (both themes) instead of a plain grey line
