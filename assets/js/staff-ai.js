@@ -206,7 +206,6 @@ function t(key, fallback) {
 	let lastSuggestion = null;       // Phase 10.1: last suggestion shown
 
 	// Upload state
-	const UPLOAD_MAX_FILES = StaffAIConfig.upload.maxFiles;
 	const UPLOAD_ALLOWED_EXT = StaffAIConfig.upload.allowedExtensions;
 
 	const UPLOAD_EXT_TO_MIME = {
@@ -996,12 +995,10 @@ function t(key, fallback) {
 		if (UPLOAD_ALLOWED_EXT.indexOf(ext) === -1) {
 			return t('unsupportedType', 'Unsupported file type: ' + ext);
 		}
-		// No client-side size ceiling (5.7.11): the server's env-tunable
-		// ceiling (UPLOAD_MAX_FILE_MB) is the one bound, and its refusal
-		// surfaces through the upload error path with the server's message.
-		if (stagedFiles.filter(function(f) { return f.status !== 'failed'; }).length >= UPLOAD_MAX_FILES) {
-			return t('tooManyFiles', 'Maximum ' + UPLOAD_MAX_FILES + ' files per message');
-		}
+		// No client-side size ceiling (5.7.11) or file-count bound (5.8.1):
+		// the server's env-tunable ceiling (UPLOAD_MAX_FILE_MB) and its
+		// per-tenant upload rate limiter are the bounds, and their refusals
+		// surface through the upload error path with the server's message.
 		return null;
 	}
 

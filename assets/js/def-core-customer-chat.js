@@ -78,7 +78,6 @@
 			'.gif': 'image/gif',
 			'.webp': 'image/webp',
 		},
-		maxFilesPerMessage: 3,
 	};
 
 	// ─── SSE STREAMING LABELS (Phase 9 PR 2) ──────────────────────
@@ -2958,7 +2957,6 @@
 
 	function handleAttachClick() {
 		if (!uploadEligible || isComposerDisabled) return;
-		if (stagedFiles.length >= UPLOAD_CONFIG.maxFilesPerMessage) return;
 		els.fileInput.value = '';
 		els.fileInput.click();
 	}
@@ -2968,7 +2966,6 @@
 		if (!files || files.length === 0) return;
 
 		for (var i = 0; i < files.length; i++) {
-			if (stagedFiles.length >= UPLOAD_CONFIG.maxFilesPerMessage) break;
 			stageFile(files[i]);
 		}
 	}
