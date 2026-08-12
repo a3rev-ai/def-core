@@ -2277,6 +2277,23 @@
 				return pump();
 			})
 			.then(function () {
+				// The reader hitting EOF does NOT mean the events are done:
+				// the queue is PACED (tool events delay processing), so the
+				// done event may still be waiting when the stream closes.
+				// Drain first — bounded, so a wedged queue can never
+				// re-create the very lock this handler exists to fix.
+				return new Promise(function (resolve) {
+					var waitedMs = 0;
+					(function waitDrain() {
+						if ((eventQueue.length === 0 && !processing) || waitedMs >= 10000) {
+							return resolve();
+						}
+						waitedMs += 100;
+						setTimeout(waitDrain, 100);
+					})();
+				});
+			})
+			.then(function () {
 				// Completion is unconditional (5.8.4, decided): a stream that
 				// ended cleanly WITHOUT a done/error event — proxy timeout,
 				// worker death mid-stream — must never eat the session. Keep

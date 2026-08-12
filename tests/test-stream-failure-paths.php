@@ -54,10 +54,17 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
-		'/return pump\(\);\s*\n\s*\}\)\s*\n\s*\.then\(function \(\) \{[\s\S]{0,900}?if \(streamTerminated\) return;/',
+		'/return pump\(\);\s*\n\s*\}\)\s*\n\s*\.then\(function \(\) \{[\s\S]{0,2000}?if \(streamTerminated\) return;/',
 		$customer_js
 	),
 	'customer: a completion handler follows the pump — clean EOF without done/error is handled'
+);
+assert_test(
+	1 === preg_match(
+		'/eventQueue\.length === 0 && !processing\) \|\| waitedMs >= 10000/',
+		$customer_js
+	),
+	'customer: the handler DRAINS the paced event queue first (bounded) — a queued done event cannot be misread as truncation'
 );
 assert_test(
 	1 === preg_match(
