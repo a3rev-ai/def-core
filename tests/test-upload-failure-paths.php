@@ -103,21 +103,26 @@ assert_test(
 	'customer: bare Init failed / Commit failed throws are gone'
 );
 assert_test(
-	1 === preg_match( '/if \(!res\.ok\) return refusalError\(res, \'Init failed\'\);/', $customer_js ) &&
-	1 === preg_match( '/if \(!commitRes\.ok\) return refusalError\(commitRes, \'Commit failed\'\);/', $customer_js ),
-	'customer: init AND commit failures parse the server body via refusalError'
+	1 === preg_match( '/if \(!res\.ok\) return refusalError\(res, t\(\'uploadInitFailed\'\)\);/', $customer_js ) &&
+	1 === preg_match( '/if \(!commitRes\.ok\) return refusalError\(commitRes, t\(\'uploadCommitFailed\'\)\);/', $customer_js ),
+	'customer: init AND commit failures parse the server body via refusalError (localized fallbacks, 5.8.4)'
 );
 assert_test(
 	1 === preg_match( '/function refusalError\(res, fallback\) \{[\s\S]{0,900}?err\.status = res\.status;/', $customer_js ),
 	'customer: refusalError attaches the HTTP status to the error'
 );
 assert_test(
-	1 === preg_match( '/if \(res\.status === 429 && typeof retryAfter === \'number\'\) \{/', $customer_js ),
+	1 === preg_match( '/if \(res\.status === 429 && typeof detail\.retry_after === \'number\'\) \{/', $customer_js ),
 	'customer: a 429 refusal appends the retry window from detail.retry_after (numbers only)'
 );
+// 5.8.4 upgraded the proxy_error denylist to an ALLOWLIST — the pin moved
+// with it: server copy renders ONLY behind SAFE_REFUSAL_CODES; there is no
+// data.message arm at all, so unknown codes (proxy_error included) fall to
+// the generic fallback by construction.
 assert_test(
-	1 === preg_match( '/data\.code !== \'proxy_error\' && typeof data\.message === \'string\'/', $customer_js ),
-	'customer: proxy_error curl text (backend hostname) never renders — static fallback instead'
+	1 === preg_match( '/SAFE_REFUSAL_CODES\[detail\.error\]/', $customer_js ) &&
+	1 !== preg_match( '/function refusalError\([\s\S]{0,900}?data\.message/', $customer_js ),
+	'customer: refusalError renders server copy ONLY for allowlisted codes — unknown codes fall to generic'
 );
 assert_test(
 	1 !== preg_match( '/Promise\.reject\(new Error\(\'Upload failed\'\)\)/', $customer_js ) &&

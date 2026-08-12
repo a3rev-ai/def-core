@@ -76,11 +76,18 @@ function t(key, fallback) {
 	};
 	const SSE_TOOL_PACING_MS = 400;
 
-	// HTML escape helper
+	// HTML escape helper. Escapes QUOTES too (5.8.4, matching the customer
+	// widget): the old text-node serialization left " and ' intact, which is
+	// safe in text context but an attribute breakout everywhere else — the
+	// utility must be safe for every call site, present and future.
 	function escapeHtml(str) {
-		const div = document.createElement('div');
-		div.appendChild(document.createTextNode(str));
-		return div.innerHTML;
+		if (!str) return '';
+		return String(str)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;');
 	}
 
 	// Markdown rendering — converts assistant markdown to sanitized HTML.
@@ -139,15 +146,35 @@ function t(key, fallback) {
 		const data = await response.json();
 		if (!response.ok) {
 			const errorCode = data.code || data.error || '';
-			const errorMsg = data.message || data.error || 'Request failed';
+			// DEF refusals arrive as {detail:{error, message, retry_after}}
+			// (FastAPI); WP-layer errors as {code, message}. Both render
+			// their string message; objects never reach a banner (5.8.4).
+			var detailMsg = extractServerMessage(data);
+			var errorMsg = detailMsg || (typeof data.message === 'string' && data.message) || (typeof data.error === 'string' && data.error) || 'Request failed';
+			var detail = data && data.detail;
+			if (response.status === 429 && detail && typeof detail.retry_after === 'number') {
+				errorMsg += ' ' + t('retrySuffix', '(retry in %ds)').replace('%d', String(detail.retry_after));
+			}
 			console.error('Staff AI API error:', {
 				code: errorCode,
 				message: errorMsg,
 				data: data
 			});
-			throw new Error(errorCode ? '[' + errorCode + '] ' + errorMsg : errorMsg);
+			var err = new Error(detailMsg ? errorMsg : (errorCode ? '[' + errorCode + '] ' + errorMsg : errorMsg));
+			err.status = response.status;
+			throw err;
 		}
 		return data;
+	}
+
+	// String-safe extraction of a server refusal message (5.8.4): the DEF
+	// shape's detail.message, a plain-string detail, or nothing. Never
+	// returns an object — "[object Object]" cannot reach a banner.
+	function extractServerMessage(data) {
+		var detail = data && data.detail;
+		if (detail && typeof detail.message === 'string') return detail.message;
+		if (typeof detail === 'string') return detail;
+		return '';
 	}
 
 	// Elements
@@ -1121,7 +1148,10 @@ function t(key, fallback) {
 					+ spinnerHtml
 					+ '</div>'
 					+ '<div class="upload-chip-text">'
-					+ '<span class="upload-chip-name" title="' + escapeHtml(f.file.name) + '">' + escapeHtml(f.file.name) + '</span>'
+					// Filename tooltip is set via el.title property assignment
+					// after render (5.8.4) — never interpolated into an
+					// attribute, so no crafted filename can break out.
+					+ '<span class="upload-chip-name">' + escapeHtml(f.file.name) + '</span>'
 					+ '<span class="upload-chip-size">' + size + '</span>'
 					+ '</div>'
 					+ '<button type="button" class="upload-chip-remove" aria-label="Remove">&times;</button>'
@@ -1129,6 +1159,14 @@ function t(key, fallback) {
 					+ '</div>';
 			}
 		}).join('');
+
+		// Filename tooltips via property assignment (5.8.4) — the structural
+		// XSS fix: the value never passes through the HTML parser at all.
+		stagedArea.querySelectorAll('.upload-chip').forEach(function(chipEl) {
+			var f = stagedFiles.filter(function(x) { return x.localId === parseInt(chipEl.dataset.id, 10); })[0];
+			var nameEl = chipEl.querySelector('.upload-chip-name');
+			if (f && nameEl) nameEl.title = f.file.name;
+		});
 
 		// Attach remove handlers (tiles and chips).
 		stagedArea.querySelectorAll('.upload-chip-remove, .upload-tile-remove').forEach(function(btn) {
@@ -1589,8 +1627,14 @@ function t(key, fallback) {
 			});
 
 			if (!response.ok) {
+				// String-safe extraction (5.8.4): a DEF refusal object here
+				// used to stringify to "[object Object]" in the banner.
 				var errText = '';
-				try { errText = (await response.json()).detail || ''; } catch (e) { /* ignore */ }
+				try {
+					var errData = await response.json();
+					errText = extractServerMessage(errData) ||
+						(typeof errData.message === 'string' ? errData.message : '');
+				} catch (e) { /* ignore */ }
 				throw new Error(errText || 'Stream request failed (' + response.status + ')');
 			}
 

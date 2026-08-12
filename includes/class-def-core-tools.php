@@ -303,9 +303,12 @@ final class DEF_Core_Tools {
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 
 		if ( $response === false ) {
-			$error = curl_error( $ch );
+			// The curl text (backend hostname included) stays SERVER-side
+			// (5.8.4, decided): full detail to the plugin log for ops,
+			// generic message to every client.
+			\DEF_Core_Logger::error( 'proxy', 'Backend connection failed: ' . curl_error( $ch ), array( 'url' => $url ) );
 			curl_close( $ch );
-			return new \WP_Error( 'proxy_error', 'Backend connection failed: ' . $error, array( 'status' => 502 ) );
+			return new \WP_Error( 'proxy_error', 'Backend connection failed.', array( 'status' => 502 ) );
 		}
 
 		curl_close( $ch );
@@ -679,9 +682,11 @@ final class DEF_Core_Tools {
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 
 		if ( $response === false ) {
-			$error = curl_error( $ch );
+			// Same producer trim as json_proxy (5.8.4): curl detail to the
+			// plugin log, generic message to the client.
+			\DEF_Core_Logger::error( 'proxy', 'Backend connection failed: ' . curl_error( $ch ), array( 'url' => $url ) );
 			curl_close( $ch );
-			return new \WP_Error( 'proxy_error', 'Backend connection failed: ' . $error, array( 'status' => 502 ) );
+			return new \WP_Error( 'proxy_error', 'Backend connection failed.', array( 'status' => 502 ) );
 		}
 
 		curl_close( $ch );

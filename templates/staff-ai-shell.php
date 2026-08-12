@@ -607,6 +607,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			dropFilesHere: <?php echo wp_json_encode( __( 'Drop files here', 'digital-employees' ) ); ?>,
 			attachFile: <?php echo wp_json_encode( __( 'Attach file', 'digital-employees' ) ); ?>,
 			unsupportedType: <?php echo wp_json_encode( __( 'Unsupported file type', 'digital-employees' ) ); ?>,
+			retrySuffix: <?php /* translators: %d: seconds until the rate limit window reopens. */ echo wp_json_encode( __( '(retry in %ds)', 'digital-employees' ) ); ?>,
 			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'digital-employees' ) ); ?>,
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
 			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,
