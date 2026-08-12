@@ -1068,8 +1068,11 @@ function t(key, fallback) {
 	}
 
 	function hasActiveFiles() {
+		// 'uploading' is active (5.8.3): a send during a slow transfer must
+		// flow through uploadAllStagedFiles' stall-guarded wait — excluding
+		// it sent the text fileless and wiped the spinning chips.
 		return stagedFiles.some(function(f) {
-			return f.status === 'staged' || f.status === 'uploaded';
+			return f.status === 'staged' || f.status === 'uploading' || f.status === 'uploaded';
 		});
 	}
 
@@ -1207,6 +1210,9 @@ function t(key, fallback) {
 		}
 
 		renderStagedFiles();
+		// A settling background upload changes the active set — refresh the
+		// send button so a failure can't leave it stale-enabled (5.8.3).
+		updateSendButton();
 	}
 
 	async function uploadAllStagedFiles() {
@@ -1412,18 +1418,22 @@ function t(key, fallback) {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
 
-		if (!text && !hasFiles) return;
 		if (isLoading || isReadOnly) return;
 
 		// Failure paths are loud (5.8.3): any failed chip refuses the send
-		// with its reason. Without this, hasActiveFiles()=false skipped the
-		// upload block entirely — the text went out FILELESS and the success
-		// path's clearStagedFiles() wiped the failed chips, silently.
+		// with its reason — ABOVE the empty-input return, so failed-only +
+		// empty input is refused loudly too (a background upload failure
+		// leaves the send button enabled). Without this, hasActiveFiles()=
+		// false skipped the upload block entirely — the text went out
+		// FILELESS and the success path's clearStagedFiles() wiped the
+		// failed chips, silently.
 		var failedChips = stagedFiles.filter(function(f) { return f.status === 'failed'; });
 		if (failedChips.length > 0) {
 			showError(failedChips[0].error || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
 			return;
 		}
+
+		if (!text && !hasFiles) return;
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);

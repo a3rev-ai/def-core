@@ -1790,7 +1790,10 @@
 		var hasFiles =
 			stagedFiles.length > 0 &&
 			stagedFiles.some(function (f) {
-				return f.status === 'staged';
+				// 'uploaded' counts (5.8.3): chips green-ticked on a prior
+				// attempt must ride this send — counting only 'staged'
+				// silently dropped them after a partial failure.
+				return f.status === 'staged' || f.status === 'uploaded';
 			});
 		var hasFailedFiles = stagedFiles.some(function (f) {
 			return f.status === 'failed';
@@ -3179,8 +3182,18 @@
 			return f.status === 'staged';
 		});
 
+		// Chips already 'uploaded' on a prior attempt keep their fileIds and
+		// ride this send (5.8.3) — returning only the fresh uploads silently
+		// dropped every green-ticked file after a partial failure, exactly
+		// the path the failed-chip refusal coaches users down.
+		function uploadedFileIds() {
+			return stagedFiles
+				.filter(function (f) { return f.status === 'uploaded' && f.fileId; })
+				.map(function (f) { return f.fileId; });
+		}
+
 		if (filesToUpload.length === 0) {
-			return Promise.resolve([]);
+			return Promise.resolve(uploadedFileIds());
 		}
 
 		// Mark all as uploading.
@@ -3196,14 +3209,12 @@
 				return uploadSingleFile(staged, conversationId);
 			})
 		).then(function (results) {
-			var fileIds = [];
 			var anyFailed = false;
 
 			for (var j = 0; j < results.length; j++) {
 				if (results[j].success) {
 					filesToUpload[j].status = 'uploaded';
 					filesToUpload[j].fileId = results[j].fileId;
-					fileIds.push(results[j].fileId);
 				} else {
 					filesToUpload[j].status = 'failed';
 					filesToUpload[j].error =
@@ -3228,7 +3239,7 @@
 				return Promise.reject(aggErr);
 			}
 
-			return fileIds;
+			return uploadedFileIds();
 		});
 	}
 
@@ -3253,7 +3264,7 @@
 					(data && data.code !== 'proxy_error' && typeof data.message === 'string' && data.message) ||
 					fallback;
 				var retryAfter = detail && detail.retry_after;
-				if (res.status === 429 && retryAfter) {
+				if (res.status === 429 && typeof retryAfter === 'number') {
 					msg += ' (retry in ' + retryAfter + 's)';
 				}
 				var err = new Error(msg);

@@ -56,6 +56,31 @@ assert_test(
 	strpos( $staff_js, 'var failedChips' ) < strpos( $staff_js, 'await uploadAllStagedFiles()' ),
 	'staff: the refusal sits BEFORE the upload block — the fileless-send hole cannot be re-reached'
 );
+$staff_send = substr(
+	$staff_js,
+	strpos( $staff_js, 'async function sendMessage()' ),
+	strpos( $staff_js, 'async function sendMessageSync(' ) - strpos( $staff_js, 'async function sendMessage()' )
+);
+assert_test(
+	strpos( $staff_send, 'var failedChips' ) !== false &&
+	strpos( $staff_send, 'if (!text && !hasFiles) return;' ) !== false &&
+	strpos( $staff_send, 'var failedChips' ) < strpos( $staff_send, 'if (!text && !hasFiles) return;' ),
+	'staff: the refusal also precedes the empty-input return — failed-only + empty input is loud'
+);
+assert_test(
+	1 === preg_match(
+		'/function hasActiveFiles\(\) \{[\s\S]{0,400}?\'staged\' \|\| f\.status === \'uploading\' \|\| f\.status === \'uploaded\'/',
+		$staff_js
+	),
+	'staff: \'uploading\' is in the active set — a mid-upload send flows through the wait, never fileless'
+);
+assert_test(
+	1 === preg_match(
+		'/entry\.status = \'failed\';[\s\S]{0,300}?renderStagedFiles\(\);[\s\S]{0,200}?updateSendButton\(\);/',
+		$staff_js
+	),
+	'staff: a settling background upload refreshes the send button — no stale-enabled state'
+);
 
 // Customer: the bare silent block is gone; the branch surfaces the reason.
 assert_test(
@@ -87,8 +112,8 @@ assert_test(
 	'customer: refusalError attaches the HTTP status to the error'
 );
 assert_test(
-	1 === preg_match( '/if \(res\.status === 429 && retryAfter\) \{/', $customer_js ),
-	'customer: a 429 refusal appends the retry window from detail.retry_after'
+	1 === preg_match( '/if \(res\.status === 429 && typeof retryAfter === \'number\'\) \{/', $customer_js ),
+	'customer: a 429 refusal appends the retry window from detail.retry_after (numbers only)'
 );
 assert_test(
 	1 === preg_match( '/data\.code !== \'proxy_error\' && typeof data\.message === \'string\'/', $customer_js ),
@@ -134,6 +159,19 @@ assert_test(
 	1 === preg_match( '/filesToUpload\[j\]\.errorStatus = results\[j\]\.errorStatus;/', $customer_js ) &&
 	1 === preg_match( '/errorStatus: err\.status,/', $customer_js ),
 	'customer: errorStatus is plumbed from the per-file catch onto the chip'
+);
+assert_test(
+	1 === preg_match(
+		'/var hasFiles =[\s\S]{0,400}?f\.status === \'staged\' \|\| f\.status === \'uploaded\';/',
+		$customer_js
+	),
+	'customer: green-ticked chips count at send — removing failed chips cannot silently drop the rest'
+);
+assert_test(
+	1 === preg_match( '/function uploadedFileIds\(\) \{/', $customer_js ) &&
+	1 === preg_match( '/return Promise\.resolve\(uploadedFileIds\(\)\);/', $customer_js ) &&
+	1 === preg_match( '/return uploadedFileIds\(\);/', $customer_js ),
+	'customer: the send returns EVERY uploaded chip\'s fileId — prior-attempt uploads ride along'
 );
 $hce = substr( $customer_js, strpos( $customer_js, 'function handleChatError(' ), 900 );
 assert_test(
