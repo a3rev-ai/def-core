@@ -3240,10 +3240,13 @@
 			.catch(function () { return {}; })
 			.then(function (data) {
 				var detail = data && data.detail;
+				// proxy_error messages embed curl's own text (backend
+				// hostname included) — infra detail that must not reach an
+				// anonymous transcript. Those fall to the static fallback.
 				var msg =
 					(detail && detail.message) ||
 					(typeof detail === 'string' ? detail : '') ||
-					(data && data.message) ||
+					(data && data.code !== 'proxy_error' && data.message) ||
 					fallback;
 				var retryAfter = detail && detail.retry_after;
 				if (res.status === 429 && retryAfter) {

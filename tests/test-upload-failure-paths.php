@@ -91,6 +91,10 @@ assert_test(
 	'customer: a 429 refusal appends the retry window from detail.retry_after'
 );
 assert_test(
+	1 === preg_match( '/data\.code !== \'proxy_error\' && data\.message/', $customer_js ),
+	'customer: proxy_error curl text (backend hostname) never renders — static fallback instead'
+);
+assert_test(
 	1 !== preg_match( '/Promise\.reject\(new Error\(\'Upload failed\'\)\)/', $customer_js ) &&
 	1 === preg_match( '/aggErr\.isUploadFailure = true;/', $customer_js ),
 	'customer: the aggregate rejection carries the first failure\'s reason, not a bare Upload failed'
