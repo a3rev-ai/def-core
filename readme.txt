@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.8.4
+Stable tag: 5.8.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.8.5 - 2026-08-12 =
+* Improvement: Customer Chat no longer enforces its own upload size limit - your platform's upload ceiling is the one limit, and if a file is too large the platform's own message is shown. Raising the platform ceiling no longer requires a plugin update.
 
 = 5.8.4 - 2026-08-12 =
 * Improvement: chat failures are now always honest and never lock the widget. If a streaming reply is cut off mid-way, the chat says the reply may be incomplete and gives you the composer back - previously the widget could stay stuck. Staff AI error messages now show the server's actual explanation (including retry timing when rate limited) instead of a generic failure, and technical connection details stay in the site log instead of appearing in chat.

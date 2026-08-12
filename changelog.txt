@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.8.5 - 2026/08/12 =
+* Improvement: Customer Chat no longer enforces its own upload size limit - your platform's upload ceiling is the one limit, and if a file is too large the platform's own message is shown. Raising the platform ceiling no longer requires a plugin update.
+
 = 5.8.4 - 2026/08/12 =
 * Improvement: chat failures are now always honest and never lock the widget. If a streaming reply is cut off mid-way, the chat says the reply may be incomplete and gives you the composer back - previously the widget could stay stuck. Staff AI error messages now show the server's actual explanation (including retry timing when rate limited) instead of a generic failure, and technical connection details stay in the site log instead of appearing in chat.
 * Security: hardened the Staff AI upload area against a crafted-filename issue.
