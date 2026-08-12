@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.8.2 - 2026/08/12 =
+* Staff AI: the schedule card's "Saved." status now renders as a green success pill (both themes) instead of a plain grey line
+
 = 5.8.1 - 2026/08/12 =
 * Improvement: the per-message file count limits are gone from both chat widgets. Staff AI no longer refuses at 5 files per message, and Customer Chat no longer silently ignores files beyond 3 - every file you attach is staged and uploaded, and your platform's upload governance is the one limit.
 
