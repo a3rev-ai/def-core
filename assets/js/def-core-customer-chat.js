@@ -3071,8 +3071,9 @@
 		// No client-side size ceiling (5.8.5, the staff widget's 5.7.11
 		// parity): the server's env-tunable ceiling (UPLOAD_MAX_FILE_MB) is
 		// the one bound, and its refusal is an allowlisted validation_failed
-		// literal — the server's own message reaches the visitor. The old
-		// 10MB JS twin had drifted below the platform's real 50MB ceiling.
+		// literal — the server's own message reaches the visitor. A JS twin
+		// of an env dial can only ever drift; raising the platform ceiling
+		// must never require a plugin release.
 		var ext = getFileExtension(file.name);
 		if (UPLOAD_CONFIG.allowedExtensions.indexOf(ext) === -1) {
 			return t('fileTypeNotSupported');

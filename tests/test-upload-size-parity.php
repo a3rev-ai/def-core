@@ -5,11 +5,12 @@
  *
  * The customer widget carried a 10MB client-side ceiling (config key, the
  * validateFilePreflight size check, the fileTooLarge string in JS and PHP)
- * while the platform's real bound — DEF's env-tunable UPLOAD_MAX_FILE_MB —
- * sat at 50MB: the JS twin had drifted and was refusing files the platform
- * accepts. Deleted whole-chain; the server's refusal is an allowlisted
- * validation_failed literal, so the visitor sees the server's own message.
- * The zero-size check STAYS — malformed input, not a cap.
+ * duplicating DEF's env-tunable UPLOAD_MAX_FILE_MB. A JS twin of an env
+ * dial can only ever drift, and raising the platform ceiling must never
+ * require a plugin release. Deleted whole-chain; the server's refusal is
+ * an allowlisted validation_failed literal, so the visitor sees the
+ * server's own message. The zero-size check STAYS — malformed input, not
+ * a cap.
  *
  * @package def-core/tests
  */
