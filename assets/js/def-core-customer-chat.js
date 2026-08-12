@@ -2288,6 +2288,12 @@
 						if ((eventQueue.length === 0 && !processing) || waitedMs >= 10000) {
 							return resolve();
 						}
+						// Kick a stalled queue (panel M1): rAF pacing suspends
+						// in hidden tabs while this setTimeout keeps counting —
+						// without the kick, tabbing away mid-stream turned the
+						// cap into a false truncation. Idempotent (re-entrancy
+						// guarded); the cap now guards true wedges only.
+						if (!processing && eventQueue.length > 0) processEventQueue();
 						waitedMs += 100;
 						setTimeout(waitDrain, 100);
 					})();
@@ -3311,6 +3317,8 @@
 		rate_limited: 1,
 		LIMIT_HARD_CAP: 1,
 		storage_error: 1,
+		upload_incomplete: 1,
+		upload_mismatch: 1,
 	};
 
 	// Build a rejected promise carrying the server's own refusal (message +

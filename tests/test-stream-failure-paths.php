@@ -68,6 +68,20 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
+		'/if \(!processing && eventQueue\.length > 0\) processEventQueue\(\);\s*\n\s*waitedMs \+= 100;/',
+		$customer_js
+	),
+	'customer: the drain KICKS a stalled queue — hidden-tab rAF suspension cannot fake a truncation'
+);
+assert_test(
+	1 === preg_match(
+		'/var SAFE_REFUSAL_CODES = \{\s*validation_failed: 1,\s*rate_limited: 1,\s*LIMIT_HARD_CAP: 1,\s*storage_error: 1,\s*upload_incomplete: 1,\s*upload_mismatch: 1,\s*\};/',
+		$customer_js
+	),
+	'customer: the allowlist carries exactly the six enumerated-safe codes — an emptied or altered map goes red'
+);
+assert_test(
+	1 === preg_match(
 		'/if \(streamTerminated\) return;[\s\S]{0,900}?appendMessage\(\'assistant\', t\(\'streamIncomplete\'\)\);\s*\n\s*setComposerDisabled\(false\);/',
 		$customer_js
 	),
