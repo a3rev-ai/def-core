@@ -1298,6 +1298,11 @@
 		if (err && err.status === 429) {
 			msg = t('rateLimited');
 		}
+		if (err && err.isUploadFailure && err.message) {
+			// An upload refusal carries the server's own copy (5.8.3) —
+			// show it rather than the generic connection/rate strings.
+			msg = err.message;
+		}
 		appendMessage('assistant', msg);
 		setComposerDisabled(false);
 	}
@@ -1791,12 +1796,25 @@
 			return f.status === 'failed';
 		});
 
+		if (hasFailedFiles) {
+			// Failure paths are loud (5.8.3): a send with failed chips is
+			// refused WITH the reason — the old bare return told the visitor
+			// nothing. Chips keep their per-file reasons; remove them to send.
+			var firstFailed = stagedFiles.filter(function (f) {
+				return f.status === 'failed';
+			})[0];
+			var reason = (firstFailed && firstFailed.error) || t('uploadFailed');
+			var lastContent = els.messages && els.messages.lastElementChild &&
+				els.messages.lastElementChild.querySelector &&
+				els.messages.lastElementChild.querySelector('.def-cc-message-content');
+			if (!(lastContent && lastContent.textContent === reason)) {
+				appendMessage('assistant', reason);
+			}
+			return;
+		}
 		if (!text && !hasFiles) return;
-		if (hasFailedFiles) return; // Block send if any files failed.
 
 		setComposerDisabled(true);
-		els.input.value = '';
-		autoResizeInput();
 
 		// Upload files first if any.
 		var uploadPromise = hasFiles
@@ -1805,6 +1823,12 @@
 
 		uploadPromise
 			.then(function (fileIds) {
+				// Typed text survives failure (5.8.3): the composer clears
+				// only here, after the upload path has succeeded — an upload
+				// failure must never eat the visitor's message.
+				els.input.value = '';
+				autoResizeInput();
+
 				// Build display message.
 				var displayText = text;
 				if (fileIds.length > 0 && !text) {
@@ -3180,6 +3204,7 @@
 					filesToUpload[j].status = 'failed';
 					filesToUpload[j].error =
 						results[j].error || t('uploadFailed');
+					filesToUpload[j].errorStatus = results[j].errorStatus;
 					anyFailed = true;
 				}
 			}
@@ -3187,11 +3212,47 @@
 			renderStagedAttachments();
 
 			if (anyFailed) {
-				return Promise.reject(new Error('Upload failed'));
+				// The aggregate rejection carries the FIRST failure's own
+				// reason and status (5.8.3) — the old bare 'Upload failed'
+				// hid the server's copy from handleChatError.
+				var firstFailed = filesToUpload.filter(function (f) {
+					return f.status === 'failed';
+				})[0];
+				var aggErr = new Error((firstFailed && firstFailed.error) || t('uploadFailed'));
+				aggErr.status = firstFailed && firstFailed.errorStatus;
+				aggErr.isUploadFailure = true;
+				return Promise.reject(aggErr);
 			}
 
 			return fileIds;
 		});
+	}
+
+	// Build a rejected promise carrying the server's own refusal (message +
+	// status) from a non-OK BFF response (5.8.3). DEF's init/commit errors
+	// arrive as {detail: {message, retry_after, …}} (FastAPI) passed through
+	// the proxy verbatim; proxy failures arrive as {message} (WP_Error). The
+	// Retry-After HEADER does not survive the proxy — the body's
+	// detail.retry_after is the one source.
+	function refusalError(res, fallback) {
+		return res
+			.json()
+			.catch(function () { return {}; })
+			.then(function (data) {
+				var detail = data && data.detail;
+				var msg =
+					(detail && detail.message) ||
+					(typeof detail === 'string' ? detail : '') ||
+					(data && data.message) ||
+					fallback;
+				var retryAfter = detail && detail.retry_after;
+				if (res.status === 429 && retryAfter) {
+					msg += ' (retry in ' + retryAfter + 's)';
+				}
+				var err = new Error(msg);
+				err.status = res.status;
+				throw err;
+			});
 	}
 
 	function uploadSingleFile(staged, conversationId) {
@@ -3220,7 +3281,7 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller1);
-				if (!res.ok) throw new Error('Init failed');
+				if (!res.ok) return refusalError(res, 'Init failed');
 				return res.json();
 			})
 			.then(function (initData) {
@@ -3264,7 +3325,7 @@
 					}
 				).then(function (commitRes) {
 					untrackAbort(controller3);
-					if (!commitRes.ok) throw new Error('Commit failed');
+					if (!commitRes.ok) return refusalError(commitRes, 'Commit failed');
 					return { success: true, fileId: fileId };
 				});
 			})
@@ -3272,6 +3333,7 @@
 				return {
 					success: false,
 					error: err.message || t('uploadFailed'),
+					errorStatus: err.status,
 				};
 			});
 	}

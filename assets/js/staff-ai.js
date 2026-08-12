@@ -1415,6 +1415,16 @@ function t(key, fallback) {
 		if (!text && !hasFiles) return;
 		if (isLoading || isReadOnly) return;
 
+		// Failure paths are loud (5.8.3): any failed chip refuses the send
+		// with its reason. Without this, hasActiveFiles()=false skipped the
+		// upload block entirely — the text went out FILELESS and the success
+		// path's clearStagedFiles() wiped the failed chips, silently.
+		var failedChips = stagedFiles.filter(function(f) { return f.status === 'failed'; });
+		if (failedChips.length > 0) {
+			showError(failedChips[0].error || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
+			return;
+		}
+
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
 		var pendingOutcome = suggResult.outcome;
