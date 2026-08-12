@@ -35,7 +35,6 @@
 		escalateSubmit: 'Send',
 		escalateSuccess: 'Your email has been sent.',
 		uploadFailed: 'Upload failed. Please try again.',
-		fileTooLarge: 'File too large — maximum 10MB',
 		fileTypeNotSupported: 'File type not supported',
 		offlineTitle: 'Chat is currently unavailable',
 		offlineMessage: 'This feature is being set up. Please check back soon.',
@@ -65,7 +64,6 @@
 	};
 
 	var UPLOAD_CONFIG = {
-		maxSizeBytes: 10 * 1024 * 1024, // 10MB
 		allowedExtensions: [
 			'.pdf', '.docx', '.xlsx', '.csv', '.md', '.txt',
 			'.png', '.jpg', '.jpeg', '.gif', '.webp',
@@ -3070,9 +3068,11 @@
 		if (!file || file.size === 0) {
 			return 'File is empty';
 		}
-		if (file.size > UPLOAD_CONFIG.maxSizeBytes) {
-			return t('fileTooLarge');
-		}
+		// No client-side size ceiling (5.8.5, the staff widget's 5.7.11
+		// parity): the server's env-tunable ceiling (UPLOAD_MAX_FILE_MB) is
+		// the one bound, and its refusal is an allowlisted validation_failed
+		// literal — the server's own message reaches the visitor. The old
+		// 10MB JS twin had drifted below the platform's real 50MB ceiling.
 		var ext = getFileExtension(file.name);
 		if (UPLOAD_CONFIG.allowedExtensions.indexOf(ext) === -1) {
 			return t('fileTypeNotSupported');
