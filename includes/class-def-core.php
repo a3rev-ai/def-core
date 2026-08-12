@@ -1074,6 +1074,11 @@ final class DEF_Core {
 			'connectionError'      => __( 'Unable to connect. Please try again.', 'digital-employees' ),
 			'connectionLost'       => __( 'Connection lost. Retrying...', 'digital-employees' ),
 			'rateLimited'          => __( 'Please wait a moment before sending another message', 'digital-employees' ),
+			'streamIncomplete'     => __( 'Connection lost — the reply above may be incomplete.', 'digital-employees' ),
+			/* translators: %d: seconds until the rate limit window reopens. */
+			'retrySuffix'          => __( '(retry in %ds)', 'digital-employees' ),
+			'uploadInitFailed'     => __( 'Upload could not start. Please try again.', 'digital-employees' ),
+			'uploadCommitFailed'   => __( 'Upload could not be completed. Please try again.', 'digital-employees' ),
 		);
 
 		// Per-site overrides for the hand-off form copy (5.6.0): the same form

@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.8.4 - 2026/08/12 =
+* Improvement: chat failures are now always honest and never lock the widget. If a streaming reply is cut off mid-way, the chat says the reply may be incomplete and gives you the composer back - previously the widget could stay stuck. Staff AI error messages now show the server's actual explanation (including retry timing when rate limited) instead of a generic failure, and technical connection details stay in the site log instead of appearing in chat.
+* Security: hardened the Staff AI upload area against a crafted-filename issue.
+
 = 5.8.3 - 2026/08/12 =
 * Improvement: upload failures no longer lose your work. If attached files fail to upload, sending is refused with the reason shown - Staff AI previously sent the message without its files when every attachment had failed, and Customer Chat refused silently. Customer Chat now keeps your typed message when an upload fails, and shows the server's own explanation (including how long to wait when rate limited) instead of a generic error.
 

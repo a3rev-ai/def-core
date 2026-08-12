@@ -43,6 +43,11 @@
 		connectionLost: 'Connection lost. Retrying...',
 		rateLimited:
 			'Please wait a moment before sending another message',
+		streamIncomplete:
+			'Connection lost — the reply above may be incomplete.',
+		retrySuffix: '(retry in %ds)',
+		uploadInitFailed: 'Upload could not start. Please try again.',
+		uploadCommitFailed: 'Upload could not be completed. Please try again.',
 	};
 
 	var SANITIZE_CONFIG = {
@@ -1970,6 +1975,10 @@
 		var eventQueue = [];
 		var processing = false;
 		var lastToolTime = 0;
+		// Set by the terminal SSE events (done / error). A stream that ends
+		// WITHOUT one of them used to leave the composer disabled forever
+		// (5.8.4) — completion handling below re-enables unconditionally.
+		var streamTerminated = false;
 
 		// Progressive text rendering state.
 		var streamBuffer = '';
@@ -2105,6 +2114,7 @@
 					}
 					break;
 				case 'done':
+					streamTerminated = true;
 					hideThinking(thinkingEl);
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
@@ -2191,6 +2201,7 @@
 					}
 					break;
 				case 'error':
+					streamTerminated = true;
 					hideThinking(thinkingEl);
 					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (wordDrainTimer) clearTimeout(wordDrainTimer);
@@ -2264,6 +2275,60 @@
 				}
 
 				return pump();
+			})
+			.then(function () {
+				// The reader hitting EOF does NOT mean the events are done:
+				// the queue is PACED (tool events delay processing), so the
+				// done event may still be waiting when the stream closes.
+				// Drain first — bounded at ~100 polls (>=10s of wall time;
+				// LONGER in a throttled hidden tab, where setTimeout is
+				// clamped — the desirable direction, since a hidden tab is
+				// exactly where pacing stalls), so a wedged queue can never
+				// re-create the very lock this handler exists to fix.
+				return new Promise(function (resolve) {
+					var waitedMs = 0;
+					(function waitDrain() {
+						if ((eventQueue.length === 0 && !processing) || waitedMs >= 10000) {
+							return resolve();
+						}
+						// Kick a stalled queue (panel M1): rAF pacing suspends
+						// in hidden tabs while this setTimeout keeps counting —
+						// without the kick, tabbing away mid-stream turned the
+						// cap into a false truncation. Idempotent (re-entrancy
+						// guarded); the cap now guards true wedges only.
+						if (!processing && eventQueue.length > 0) processEventQueue();
+						waitedMs += 100;
+						setTimeout(waitDrain, 100);
+					})();
+				});
+			})
+			.then(function () {
+				// Completion is unconditional (5.8.4, decided): a stream that
+				// ended cleanly WITHOUT a done/error event — proxy timeout,
+				// worker death mid-stream — must never eat the session. Keep
+				// whatever streamed, say honestly that it may be incomplete,
+				// and ALWAYS give the composer back. No auto-retry; streaming
+				// behaviour is otherwise untouched (arch decision pending).
+				if (streamTerminated) return;
+				hideThinking(thinkingEl);
+				if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+				if (wordDrainTimer) clearTimeout(wordDrainTimer);
+				if (streamEl) {
+					var partial = (streamBuffer || '').trim();
+					if (partial) {
+						streamEl.innerHTML = renderMarkdown(partial);
+					}
+					setState(streamEl.parentNode, 'def-cc-message--streaming', false);
+				}
+				streamBuffer = '';
+				segmentBreakPending = false;
+				streamEl = null;
+				wordDrainTimer = null;
+				displayedLen = 0;
+				thinkingStatusEl = null;
+				persona.reset();
+				appendMessage('assistant', t('streamIncomplete'));
+				setComposerDisabled(false);
 			})
 			.catch(function (err) {
 				handleChatError(err, thinkingEl);
@@ -3243,29 +3308,43 @@
 		});
 	}
 
+	// Server copy renders ONLY for known-safe refusal codes (ALLOWLIST,
+	// decided 2026-08-12 — upgraded from the 5.8.3 proxy_error denylist).
+	// Every listed code's message is a fixed literal or an echo of the
+	// visitor's own request fields (producers enumerated in the #282 panel).
+	// Anything unrecognized — WP-layer codes included — falls to generic
+	// copy, so a new producer can never leak infra detail to an anonymous
+	// transcript by default.
+	var SAFE_REFUSAL_CODES = {
+		validation_failed: 1,
+		rate_limited: 1,
+		LIMIT_HARD_CAP: 1,
+		storage_error: 1,
+		upload_incomplete: 1,
+		upload_mismatch: 1,
+	};
+
 	// Build a rejected promise carrying the server's own refusal (message +
-	// status) from a non-OK BFF response (5.8.3). DEF's init/commit errors
-	// arrive as {detail: {message, retry_after, …}} (FastAPI) passed through
-	// the proxy verbatim; proxy failures arrive as {message} (WP_Error). The
-	// Retry-After HEADER does not survive the proxy — the body's
-	// detail.retry_after is the one source.
+	// status) from a non-OK BFF response. DEF's init/commit errors arrive as
+	// {detail: {error, message, retry_after, …}} (FastAPI) passed through the
+	// proxy verbatim. The Retry-After HEADER does not survive the proxy —
+	// the body's detail.retry_after is the one source.
 	function refusalError(res, fallback) {
 		return res
 			.json()
 			.catch(function () { return {}; })
 			.then(function (data) {
 				var detail = data && data.detail;
-				// proxy_error messages embed curl's own text (backend
-				// hostname included) — infra detail that must not reach an
-				// anonymous transcript. Those fall to the static fallback.
-				var msg =
-					(detail && typeof detail.message === 'string' && detail.message) ||
-					(typeof detail === 'string' ? detail : '') ||
-					(data && data.code !== 'proxy_error' && typeof data.message === 'string' && data.message) ||
-					fallback;
-				var retryAfter = detail && detail.retry_after;
-				if (res.status === 429 && typeof retryAfter === 'number') {
-					msg += ' (retry in ' + retryAfter + 's)';
+				var msg = fallback;
+				// hasOwnProperty.call: a bare [detail.error] lookup traverses
+				// the prototype chain, so "constructor"/"__proto__" would
+				// pass the gate (panel finding). Own keys only.
+				if (detail && typeof detail.message === 'string' &&
+					Object.prototype.hasOwnProperty.call(SAFE_REFUSAL_CODES, detail.error)) {
+					msg = detail.message;
+					if (res.status === 429 && typeof detail.retry_after === 'number') {
+						msg += ' ' + t('retrySuffix').replace('%d', String(detail.retry_after));
+					}
 				}
 				var err = new Error(msg);
 				err.status = res.status;
@@ -3299,7 +3378,7 @@
 		})
 			.then(function (res) {
 				untrackAbort(controller1);
-				if (!res.ok) return refusalError(res, 'Init failed');
+				if (!res.ok) return refusalError(res, t('uploadInitFailed'));
 				return res.json();
 			})
 			.then(function (initData) {
@@ -3343,7 +3422,7 @@
 					}
 				).then(function (commitRes) {
 					untrackAbort(controller3);
-					if (!commitRes.ok) return refusalError(commitRes, 'Commit failed');
+					if (!commitRes.ok) return refusalError(commitRes, t('uploadCommitFailed'));
 					return { success: true, fileId: fileId };
 				});
 			})
