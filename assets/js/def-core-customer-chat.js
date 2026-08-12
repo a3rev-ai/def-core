@@ -2280,7 +2280,10 @@
 				// The reader hitting EOF does NOT mean the events are done:
 				// the queue is PACED (tool events delay processing), so the
 				// done event may still be waiting when the stream closes.
-				// Drain first — bounded, so a wedged queue can never
+				// Drain first — bounded at ~100 polls (>=10s of wall time;
+				// LONGER in a throttled hidden tab, where setTimeout is
+				// clamped — the desirable direction, since a hidden tab is
+				// exactly where pacing stalls), so a wedged queue can never
 				// re-create the very lock this handler exists to fix.
 				return new Promise(function (resolve) {
 					var waitedMs = 0;

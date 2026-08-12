@@ -75,6 +75,13 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
+		'/waitedMs \+= 100;\s*\n\s*setTimeout\(waitDrain, 100\);/',
+		$customer_js
+	),
+	'customer: the drain RE-SCHEDULES itself — deleting the setTimeout hangs the truncation path forever (Claude-Main #283 REQUIRED)'
+);
+assert_test(
+	1 === preg_match(
 		'/var SAFE_REFUSAL_CODES = \{\s*validation_failed: 1,\s*rate_limited: 1,\s*LIMIT_HARD_CAP: 1,\s*storage_error: 1,\s*upload_incomplete: 1,\s*upload_mismatch: 1,\s*\};/',
 		$customer_js
 	),
