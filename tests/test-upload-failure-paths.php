@@ -64,7 +64,7 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
-		'/if \(hasFailedFiles\) \{[\s\S]{0,700}?appendMessage\(\'assistant\', reason\);[\s\S]{0,50}?\}\s*\n\s*return;/',
+		'/if \(hasFailedFiles\) \{[\s\S]{0,1000}?appendMessage\(\'assistant\', reason\);[\s\S]{0,50}?\}\s*\n\s*return;/',
 		$customer_js
 	),
 	'customer: a send with failed chips surfaces the first chip\'s reason in the transcript'
@@ -91,7 +91,7 @@ assert_test(
 	'customer: a 429 refusal appends the retry window from detail.retry_after'
 );
 assert_test(
-	1 === preg_match( '/data\.code !== \'proxy_error\' && data\.message/', $customer_js ),
+	1 === preg_match( '/data\.code !== \'proxy_error\' && typeof data\.message === \'string\'/', $customer_js ),
 	'customer: proxy_error curl text (backend hostname) never renders — static fallback instead'
 );
 assert_test(
@@ -120,8 +120,27 @@ assert_test(
 	'customer: the input is NOT cleared at send time before the upload'
 );
 assert_test(
-	1 === preg_match( '/\.then\(function \(fileIds\) \{[\s\S]{0,400}?els\.input\.value = \'\';/', $submit_body ),
-	'customer: the input clears only inside the upload success path'
+	1 === preg_match(
+		'/appendUserMessage\(displayText, fileIds\);\s*\n\s*clearStagedFiles\(\);[\s\S]{0,400}?els\.input\.value = \'\';/',
+		$submit_body
+	),
+	'customer: the input clears only after uploads succeeded AND the message is in the transcript'
+);
+assert_test(
+	1 === preg_match( '/lastContent\.textContent\.trim\(\) === reason\.trim\(\)/', $customer_js ),
+	'customer: the dedupe guard trims both sides — marked\'s trailing newline made bare === inert'
+);
+assert_test(
+	1 === preg_match( '/filesToUpload\[j\]\.errorStatus = results\[j\]\.errorStatus;/', $customer_js ) &&
+	1 === preg_match( '/errorStatus: err\.status,/', $customer_js ),
+	'customer: errorStatus is plumbed from the per-file catch onto the chip'
+);
+$hce = substr( $customer_js, strpos( $customer_js, 'function handleChatError(' ), 900 );
+assert_test(
+	strpos( $hce, 'err.status === 429' ) !== false &&
+	strpos( $hce, 'err.isUploadFailure' ) !== false &&
+	strpos( $hce, 'err.status === 429' ) < strpos( $hce, 'err.isUploadFailure' ),
+	'customer: in handleChatError the upload refusal branch comes AFTER the 429 branch — the server\'s copy wins'
 );
 
 // ── Summary ──────────────────────────────────────────────────────────────────

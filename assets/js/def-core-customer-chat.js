@@ -1807,7 +1807,10 @@
 			var lastContent = els.messages && els.messages.lastElementChild &&
 				els.messages.lastElementChild.querySelector &&
 				els.messages.lastElementChild.querySelector('.def-cc-message-content');
-			if (!(lastContent && lastContent.textContent === reason)) {
+			// .trim() both sides: marked renders "<p>…</p>\n", so the
+			// bubble's textContent carries a trailing newline the raw
+			// reason lacks — bare === never matched (panel finding).
+			if (!(lastContent && lastContent.textContent.trim() === reason.trim())) {
 				appendMessage('assistant', reason);
 			}
 			return;
@@ -1823,12 +1826,6 @@
 
 		uploadPromise
 			.then(function (fileIds) {
-				// Typed text survives failure (5.8.3): the composer clears
-				// only here, after the upload path has succeeded — an upload
-				// failure must never eat the visitor's message.
-				els.input.value = '';
-				autoResizeInput();
-
 				// Build display message.
 				var displayText = text;
 				if (fileIds.length > 0 && !text) {
@@ -1843,6 +1840,13 @@
 				// Render user message.
 				appendUserMessage(displayText, fileIds);
 				clearStagedFiles();
+
+				// Typed text survives failure (5.8.3): the composer clears
+				// only here — uploads succeeded AND the message is in the
+				// transcript. A failure anywhere earlier leaves the
+				// visitor's text in the input.
+				els.input.value = '';
+				autoResizeInput();
 
 				// Track first message for escalation subject.
 				if (!currentEscalationSubject && text) {
@@ -3244,9 +3248,9 @@
 				// hostname included) — infra detail that must not reach an
 				// anonymous transcript. Those fall to the static fallback.
 				var msg =
-					(detail && detail.message) ||
+					(detail && typeof detail.message === 'string' && detail.message) ||
 					(typeof detail === 'string' ? detail : '') ||
-					(data && data.code !== 'proxy_error' && data.message) ||
+					(data && data.code !== 'proxy_error' && typeof data.message === 'string' && data.message) ||
 					fallback;
 				var retryAfter = detail && detail.retry_after;
 				if (res.status === 429 && retryAfter) {
