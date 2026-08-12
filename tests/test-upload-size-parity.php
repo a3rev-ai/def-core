@@ -56,6 +56,10 @@ assert_test(
 	1 === preg_match( '/File is empty/', $customer_js ),
 	'positive anchors: the zero-size refusal (malformed input) and the type refusal both stay'
 );
+assert_test(
+	0 === preg_match( '/\.size\s*>=?\s/', $customer_js ),
+	'negative pin: NO greater-than size comparison anywhere in the widget — a ceiling re-grown at ANY call site goes red (the only size checks left are === 0 and the < 20MB thumbnail render guard)'
+);
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
