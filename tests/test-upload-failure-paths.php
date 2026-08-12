@@ -120,9 +120,10 @@ assert_test(
 // data.message arm at all, so unknown codes (proxy_error included) fall to
 // the generic fallback by construction.
 assert_test(
-	1 === preg_match( '/SAFE_REFUSAL_CODES\[detail\.error\]/', $customer_js ) &&
+	1 === preg_match( '/Object\.prototype\.hasOwnProperty\.call\(SAFE_REFUSAL_CODES, detail\.error\)/', $customer_js ) &&
+	1 !== preg_match( '/SAFE_REFUSAL_CODES\[detail\.error\]/', $customer_js ) &&
 	1 !== preg_match( '/function refusalError\([\s\S]{0,900}?data\.message/', $customer_js ),
-	'customer: refusalError renders server copy ONLY for allowlisted codes — unknown codes fall to generic'
+	'customer: refusalError renders server copy ONLY for OWN allowlisted keys — prototype-chain names and unknown codes fall to generic'
 );
 assert_test(
 	1 !== preg_match( '/Promise\.reject\(new Error\(\'Upload failed\'\)\)/', $customer_js ) &&

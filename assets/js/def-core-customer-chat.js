@@ -3325,7 +3325,11 @@
 			.then(function (data) {
 				var detail = data && data.detail;
 				var msg = fallback;
-				if (detail && typeof detail.message === 'string' && SAFE_REFUSAL_CODES[detail.error]) {
+				// hasOwnProperty.call: a bare [detail.error] lookup traverses
+				// the prototype chain, so "constructor"/"__proto__" would
+				// pass the gate (panel finding). Own keys only.
+				if (detail && typeof detail.message === 'string' &&
+					Object.prototype.hasOwnProperty.call(SAFE_REFUSAL_CODES, detail.error)) {
 					msg = detail.message;
 					if (res.status === 429 && typeof detail.retry_after === 'number') {
 						msg += ' ' + t('retrySuffix').replace('%d', String(detail.retry_after));
