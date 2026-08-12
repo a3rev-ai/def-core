@@ -9,7 +9,9 @@
  * `maxFilesPerMessage: 3` bit only on the file-picker path — paste and
  * drag/drop never checked it — and bit SILENTLY (bare return/break, no
  * message). Both deleted in 5.8.1. Deletions get inverted tests, never
- * deleted ones: these pins fail if any bound grows back.
+ * deleted ones: these pins fail if a bound grows back at the sites it
+ * lived or at the staging sinks those sites feed. (Site-pinning cannot
+ * cover every conceivable new site — the caps gates own the class.)
  *
  * Runs standalone (no WordPress bootstrap) — JS and template pins are source
  * scans, the instrument available to this suite for browser-side code.
@@ -66,8 +68,18 @@ assert_test(
 	'positive anchor: validateFile still refuses unsupported extensions'
 );
 assert_test(
-	1 === preg_match( '/file-count bound \(5\.8\.1\)/', $staff_js ),
-	'block anchor: the deletion is documented where the bound lived'
+	1 === preg_match(
+		'/return t\(\'unsupportedType\'[^;]+;\s*\}\s*(?:\/\/[^\n]*\s*)*return null;\s*\}/',
+		$staff_js
+	),
+	'block anchor: validateFile is type-check then null — no count refusal can live in its body'
+);
+assert_test(
+	1 === preg_match(
+		'/function stageFile\(file\) \{\s*var error = validateFile\(file\);/',
+		$staff_js
+	),
+	'block anchor: staff stageFile opens straight into validateFile — no count gate at the sink'
 );
 
 // ── Customer widget: maxFilesPerMessage and both silent gates are gone ──────
@@ -89,6 +101,13 @@ assert_test(
 		$customer_js
 	),
 	'block anchor: handleAttachClick goes straight from eligibility to the picker — no silent count no-op'
+);
+assert_test(
+	1 === preg_match(
+		'/function stageFile\(file, status, fileId, error\) \{\s*(?:\/\/[^\n]*\s*)*if \(typeof status === \'undefined\' \|\| status === null\) \{\s*error = validateFilePreflight\(file\);/',
+		$customer_js
+	),
+	'block anchor: customer stageFile (the common sink for picker, paste and drop) opens straight into preflight — no count gate'
 );
 
 // ── Summary ──────────────────────────────────────────────────────────────────

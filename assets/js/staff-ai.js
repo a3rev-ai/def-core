@@ -1044,7 +1044,9 @@ function t(key, fallback) {
 		stagedFiles = stagedFiles.filter(function(f) { return f.localId !== localId; });
 		hideError();
 
-		// Re-validate any failed files — they may now pass (e.g. count dropped below max).
+		// Re-validate any failed files. Validation is type-only now (5.8.1),
+		// so this returns upload-failed chips of valid types to 'staged' —
+		// they are re-uploaded by the next send. Type-refused chips stay failed.
 		stagedFiles.forEach(function(f) {
 			if (f.status === 'failed') {
 				var err = validateFile(f.file);
@@ -1215,14 +1217,25 @@ function t(key, fallback) {
 		}
 
 		// Wait for any files still uploading (started by stageFile in background).
-		var maxWaitMs = 30000;
+		// A stall guard, not a batch clock (5.8.1): with the file-count bound
+		// gone, batch duration scales with what the user attached, so a flat
+		// whole-batch timeout would fail honest large batches. Uploads all
+		// start before this loop, so the in-flight count only ever shrinks —
+		// a shrink is progress, and only 30s with NO progress fails the rest.
+		var stallLimitMs = 30000;
 		var pollIntervalMs = 200;
-		var waited = 0;
-		while (waited < maxWaitMs) {
+		var stalledMs = 0;
+		var lastUploadingCount = -1;
+		for (;;) {
 			var stillUploading = stagedFiles.filter(function(f) { return f.status === 'uploading'; });
 			if (stillUploading.length === 0) break;
+			if (stillUploading.length !== lastUploadingCount) {
+				lastUploadingCount = stillUploading.length;
+				stalledMs = 0;
+			}
+			if (stalledMs >= stallLimitMs) break;
 			await new Promise(function(resolve) { setTimeout(resolve, pollIntervalMs); });
-			waited += pollIntervalMs;
+			stalledMs += pollIntervalMs;
 		}
 
 		// Treat any files still stuck in 'uploading' after timeout as failed
