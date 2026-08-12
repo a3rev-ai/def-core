@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.8.0
+Stable tag: 5.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.8.1 - 2026-08-12 =
+* Improvement: the per-message file count limits are gone from both chat widgets. Staff AI no longer refuses at 5 files per message, and Customer Chat no longer silently ignores files beyond 3 - every file you attach is staged and uploaded, and your platform's upload governance is the one limit.
 
 = 5.8.0 - 2026-08-11 =
 * Improvement: New Email triage schedule card in the Staff AI console - set your own daily inbox digest time, timezone and delivery destinations (your inbox, Slack, Teams). Only you can turn it on, and only for your own mailbox.
