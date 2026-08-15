@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.8.5
+Stable tag: 5.8.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.8.6 - 2026-08-16 =
+* New: a Run now button on your Email Triage schedule. Triage runs shortly after you press it instead of waiting for tomorrow's send time, and the digest arrives exactly the way your daily one does - so what you are testing is the real schedule, not a preview of it.
 
 = 5.8.5 - 2026-08-12 =
 * Improvement: Customer Chat no longer enforces its own upload size limit - your platform's upload ceiling is the one limit, and if a file is too large the platform's own message is shown. Raising the platform ceiling no longer requires a plugin update.

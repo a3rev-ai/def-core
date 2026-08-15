@@ -264,6 +264,7 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/memories',
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
 	'a3-ai/v1/staff-ai/triage-schedule',
+	'a3-ai/v1/staff-ai/triage-schedule/run-now',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -304,6 +305,15 @@ assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<i
 $_sched_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/triage-schedule'];
 assert_equals( 'GET', $_sched_handlers[0]['methods'] ?? '', 'triage-schedule handler 0 = GET' );
 assert_equals( 'PUT', $_sched_handlers[1]['methods'] ?? '', 'triage-schedule handler 1 = PUT' );
+// Run Now is a POST with NO body: the run belongs to the logged-in caller and
+// DEF resolves that from the forwarded identity, so there is no field here that
+// could name someone else's mailbox.
+$_run_now = $_wp_test_rest_routes['a3-ai/v1/staff-ai/triage-schedule/run-now'];
+assert_equals( 'POST', $_run_now[0]['methods'] ?? '', 'triage run-now = POST' );
+assert_true(
+	is_array( $_run_now[0]['permission_callback'] ?? null ),
+	'triage run-now carries a permission callback'
+);
 
 // ── 4. Permission check: unauthenticated → 401 ─────────────────────────
 echo "\n[4] Permission check — unauthenticated\n";
@@ -1026,6 +1036,32 @@ assert_equals(
 	'the COMPLETE object is forwarded - DEF PUT is full-replace, a partial body would silently reset fields'
 );
 assert_equals( array( 'email', 'slack', 'teams' ), $sent['destinations'], 'destinations forwarded deduplicated' );
+
+echo "\n[TS-5] rest_run_now_triage_schedule asks DEF, carrying nothing user-scoped\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'run_now' => array() ) );
+$resp = DEF_Core_Staff_AI::rest_run_now_triage_schedule();
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'run-now succeeds' );
+assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is POST' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/triage-schedule/run-now',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the DEF path carries nothing user-scoped - the owner comes from the forwarded identity'
+);
+$run_sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+assert_equals(
+	array(),
+	is_array( $run_sent ) ? $run_sent : array( 'unexpected' ),
+	'an EMPTY body - no field exists that could name another user mailbox'
+);
+
+echo "\n[TS-6] rest_run_now_triage_schedule surfaces a DEF failure, never a silent no-op\n";
+$GLOBALS['_def_test_request_code'] = 503;
+$resp = DEF_Core_Staff_AI::rest_run_now_triage_schedule();
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $resp ), 'a DEF failure is an error, not a cheerful success' );
+$run_msg = is_wp_error( $resp ) ? $resp->get_error_message() : '';
+assert_true( false === strpos( $run_msg, 'def-api.test' ), 'the internal DEF URL is not shown to the user' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
