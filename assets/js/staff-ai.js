@@ -2893,8 +2893,15 @@ function t(key, fallback) {
 		var openBtn = document.getElementById('navScheduled');
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
+		var backBtn = document.getElementById('scheduleBack');
 		var saveBtn = document.getElementById('scheduleSave');
-		var runNowBtn = document.getElementById('scheduleRunNow');
+		var createBtn = document.getElementById('scheduleCreate');
+		var titleEl = document.getElementById('scheduleTitle');
+		var listView = document.getElementById('scheduleListView');
+		var formView = document.getElementById('scheduleFormView');
+		var taskList = document.getElementById('scheduleTaskList');
+		var emptyEl = document.getElementById('scheduleEmpty');
+		var listStatus = document.getElementById('scheduleListStatus');
 		var statusEl = document.getElementById('scheduleStatus');
 		var enabledEl = document.getElementById('scheduleEnabled');
 		var timeEl = document.getElementById('scheduleTime');
@@ -2905,14 +2912,11 @@ function t(key, fallback) {
 			teams: document.getElementById('scheduleDestTeams')
 		};
 		var loading = false;
-		// Save stays DISARMED until one successful load: the PUT is full-replace,
-		// so saving over a failed load would overwrite the real schedule with the
-		// form's defaults (Code panel F1).
-		if (saveBtn) saveBtn.disabled = true;
+		var current = null;          // last schedule loaded, or null when none exists
 
-		function setStatus(msg, kind) {
-			statusEl.textContent = msg || '';
-			statusEl.className = 'schedule-status' + (kind ? ' schedule-status-' + kind : '');
+		function setStatus(el, msg, kind) {
+			el.textContent = msg || '';
+			el.className = 'schedule-status' + (kind ? ' schedule-status-' + kind : '');
 		}
 
 		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
@@ -2922,8 +2926,8 @@ function t(key, fallback) {
 			try { zones = Intl.supportedValuesOf('timeZone').slice(); } catch (e) { zones = []; }
 			var site = (window.StaffAIConfig && StaffAIConfig.siteTimezone) || '';
 			[site, selected, 'UTC'].forEach(function (z) {
-				// Only IANA-shaped names: a manual-offset site tz ('+10:00') would be
-				// an option the backend can only refuse (Code panel F2).
+				// Only IANA-shaped names: a manual-offset site tz would be an option
+				// the backend can only refuse (Code panel F2).
 				if (z && (z === 'UTC' || z.indexOf('/') !== -1) && zones.indexOf(z) === -1) zones.unshift(z);
 			});
 			tzEl.textContent = '';
@@ -2946,17 +2950,164 @@ function t(key, fallback) {
 			});
 		}
 
+		function cadenceTime(s) {
+			// The badge time. Built from the stored hour/minute rather than a
+			// server string, so it follows the reader's locale.
+			var d = new Date();
+			d.setHours(s.send_hour_local || 0, s.send_minute_local || 0, 0, 0);
+			return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		}
+
+		function runStatusText(status) {
+			// DEF's run status is a machine enum. Rendering it raw put strings
+			// like "nothing_to_do" — and, on the 08-16 canary, "llm:error" — in
+			// front of the user in every locale. An unknown value still shows,
+			// truncated: an unrecognised status is information, not a reason to
+			// hide that the run had one.
+			var known = {
+				running: t('runStatusRunning', 'Running'),
+				succeeded: t('runStatusSucceeded', 'Succeeded'),
+				nothing_to_do: t('runStatusNothing', 'Nothing to do'),
+				failed: t('runStatusFailed', 'Failed'),
+				skipped: t('runStatusSkipped', 'Skipped'),
+				expired: t('runStatusExpired', 'Did not finish')
+			};
+			return known[status] || String(status).slice(0, 40);
+		}
+
+		function whenText(at) {
+			if (!at) return '';
+			var d = new Date(at);
+			if (isNaN(d.getTime())) return '';
+			return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' +
+				d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		}
+
+		function el(tag, cls, text) {
+			var n = document.createElement(tag);
+			if (cls) n.className = cls;
+			// textContent, never innerHTML. The run status is backend-supplied and
+			// the rest is ours, but the rule holds for the whole card.
+			if (text !== undefined) n.textContent = text;
+			return n;
+		}
+
+		function iconBtn(glyph, label, onClick) {
+			var b = el('button', 'task-card-icon', glyph);
+			b.type = 'button';
+			b.title = label;
+			b.setAttribute('aria-label', label);
+			b.addEventListener('click', onClick);
+			return b;
+		}
+
+		function renderCard(schedule) {
+			var card = el('div', 'task-card');
+
+			var head = el('div', 'task-card-head');
+			head.appendChild(el('span', 'task-card-name', t('taskTriageName', 'Email Triage')));
+			var actions = el('div', 'task-card-actions');
+			actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), showForm));
+			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { remove(del); });
+			actions.appendChild(del);
+			head.appendChild(actions);
+			card.appendChild(head);
+
+			card.appendChild(el('p', 'task-card-desc', t('taskTriageDesc',
+				'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.')));
+
+			var meta = el('div', 'task-card-meta');
+			// %s, not concatenation — the file's own pattern (documents, memories).
+			// A glued-on fragment cannot reorder for a language that needs the time
+			// first.
+			meta.appendChild(el('span', 'task-badge' + (schedule.enabled ? '' : ' task-badge-off'),
+				schedule.enabled
+					? t('taskEveryDay', 'Every day at ~%s').replace('%s', cadenceTime(schedule))
+					: t('taskPaused', 'Not scheduled')));
+			var lastRun = schedule.last_run;
+			if (lastRun && lastRun.status) {
+				var when = whenText(lastRun.at);
+				meta.appendChild(el('span', 'task-last-run',
+					t('taskLastRun', 'Last run: %s').replace('%s', runStatusText(lastRun.status)) +
+					(when ? ' · ' + when : '')));
+			}
+			card.appendChild(meta);
+
+			// Only when the schedule is on. Run now runs THE SCHEDULE, so DEF
+			// refuses a switched-off one with a 409 (D-S6) — offering a control
+			// that can only fail is worse than not offering it.
+			if (schedule.enabled) {
+				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
+				run.type = 'button';
+				run.addEventListener('click', function () { runNow(run); });
+				card.appendChild(run);
+			}
+
+			return card;
+		}
+
+		function renderList() {
+			taskList.textContent = '';
+			if (!current || !current.exists) {
+				emptyEl.style.display = '';
+				return;
+			}
+			emptyEl.style.display = 'none';
+			taskList.appendChild(renderCard(current));
+		}
+
+		function showList() {
+			if (titleEl) titleEl.textContent = t('scheduleTasksTitle', 'Scheduled tasks');
+			listView.style.display = '';
+			formView.style.display = 'none';
+			if (backBtn) backBtn.style.display = 'none';
+			if (saveBtn) saveBtn.style.display = 'none';
+			setStatus(statusEl, '');
+		}
+
+		function showForm() {
+			// Re-fill every time. Without this the form keeps whatever was last
+			// typed into it: Edit, change the time, Back without saving, Edit
+			// again and the abandoned value is still there waiting for a Save.
+			// Worse after Remove — `current` is null, and a form still holding the
+			// deleted task would recreate it on one click.
+			fill(current || {});
+			if (titleEl) titleEl.textContent = t('scheduleEditTitle', 'Email triage schedule');
+			listView.style.display = 'none';
+			formView.style.display = '';
+			if (backBtn) backBtn.style.display = '';
+			if (saveBtn) saveBtn.style.display = '';
+			setStatus(listStatus, '');
+		}
+
 		async function load() {
 			if (loading) return;
 			loading = true;
-			setStatus(t('scheduleLoading', 'Loading your schedule…'));
+			setStatus(listStatus, t('scheduleLoading', 'Loading your schedule…'));
 			try {
 				var data = await apiRequest('/triage-schedule');
-				fill((data && data.schedule) || {});
-				setStatus('');
+				var s = (data && data.schedule) || {};
+				// `exists` is STATED by DEF, not inferred. Guessing it from the
+				// values was wrong in both directions: a user who saved the
+				// defaults unchanged is byte-identical to one with no row.
+				s.last_run = (data && data.last_run) || null;
+				s.exists = !!s.exists;
+				current = s;
+				fill(s);
+				renderList();
+				setStatus(listStatus, '');
 				if (saveBtn) saveBtn.disabled = false;
 			} catch (e) {
-				setStatus((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'), 'error');
+				current = null;
+				// Clear WITHOUT rendering the empty state. Leaving the previous
+				// card up kept Edit/Remove/Run now live against state we can no
+				// longer vouch for — but "you have no scheduled tasks" is equally
+				// wrong, because a failed read is UNKNOWN, not empty. That is the
+				// same substitution rest_get_triage_schedule's docblock forbids
+				// when it refuses to answer defaults on a 503.
+				taskList.textContent = '';
+				emptyEl.style.display = 'none';
+				setStatus(listStatus, (e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'), 'error');
 				if (saveBtn) saveBtn.disabled = true;
 			} finally {
 				loading = false;
@@ -2967,11 +3118,11 @@ function t(key, fallback) {
 			var parts = (timeEl.value || '07:00').split(':');
 			var dests = Object.keys(destEls).filter(function (k) { return destEls[k] && destEls[k].checked; });
 			if (!dests.length) {
-				setStatus(t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error');
+				setStatus(statusEl, t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error');
 				return;
 			}
-			// FULL-REPLACE contract (DEF #890): always the complete object - a
-			// partial body would silently reset the omitted fields DEF-side.
+			// FULL-REPLACE contract: always the complete object - a partial body
+			// would silently reset the omitted fields DEF-side.
 			var payload = {
 				enabled: !!enabledEl.checked,
 				send_hour_local: parseInt(parts[0], 10) || 0,
@@ -2980,42 +3131,66 @@ function t(key, fallback) {
 				destinations: dests
 			};
 			saveBtn.disabled = true;
-			setStatus(t('scheduleSaving', 'Saving…'));
+			setStatus(statusEl, t('scheduleSaving', 'Saving…'));
 			try {
 				var data = await apiRequest('/triage-schedule', { method: 'PUT', body: JSON.stringify(payload) });
-				fill((data && data.schedule) || payload);
-				setStatus(t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
+				var s = (data && data.schedule) || payload;
+				s.exists = true;
+				s.last_run = current ? current.last_run : null;
+				current = s;
+				fill(s);
+				renderList();
+				showList();
+				setStatus(listStatus, t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
 			} catch (e) {
-				setStatus((e && e.message) || t('scheduleSaveFailed', 'Could not save your triage schedule.'), 'error');
+				setStatus(statusEl, (e && e.message) || t('scheduleSaveFailed', 'Could not save your triage schedule.'), 'error');
 			} finally {
 				saveBtn.disabled = false;
 			}
 		}
 
-		async function runNow() {
-			// Deliberately does NOT save first. Run Now tests the schedule that is
-			// actually stored, so silently saving the form would test something
-			// the user never committed to.
-			runNowBtn.disabled = true;
-			setStatus(t('scheduleRunning', 'Asking for a run…'));
+		async function runNow(btn) {
+			// Deliberately does NOT save first. Run now tests the schedule that is
+			// actually stored, so silently saving the form would test something the
+			// user never committed to.
+			btn.disabled = true;
+			setStatus(listStatus, t('scheduleRunning', 'Asking for a run…'));
 			try {
 				await apiRequest('/triage-schedule/run-now', { method: 'POST' });
-				setStatus(t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
+				setStatus(listStatus, t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
 			} catch (e) {
-				setStatus((e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
+				setStatus(listStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
 			} finally {
-				runNowBtn.disabled = false;
+				btn.disabled = false;
 			}
 		}
 
-		function open() { modal.classList.add('visible'); load(); }
+		async function remove(btn) {
+			// Retires the SETUP. The mailbox connection is untouched and stays
+			// usable by chat; disconnecting that grant is a separate control.
+			if (!window.confirm(t('taskDeleteConfirm', 'Remove Email Triage? Your mailbox stays connected.'))) return;
+			btn.disabled = true;
+			setStatus(listStatus, t('taskDeleting', 'Removing…'));
+			try {
+				await apiRequest('/triage-schedule', { method: 'DELETE' });
+				current = null;
+				renderList();
+				setStatus(listStatus, t('taskDeleted', 'Email Triage removed. Nothing is scheduled for you now.'), 'ok');
+			} catch (e) {
+				btn.disabled = false;
+				setStatus(listStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
+			}
+		}
+
+		function open() { modal.classList.add('visible'); showList(); load(); }
 		function close() { modal.classList.remove('visible'); }
 
 		if (openBtn) openBtn.addEventListener('click', open);
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (backBtn) backBtn.addEventListener('click', function () { showList(); renderList(); });
+		if (createBtn) createBtn.addEventListener('click', showForm);
 		if (saveBtn) saveBtn.addEventListener('click', save);
-		if (runNowBtn) runNowBtn.addEventListener('click', runNow);
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 

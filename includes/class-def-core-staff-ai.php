@@ -543,6 +543,11 @@ final class DEF_Core_Staff_AI
 					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
 					'callback'            => array(__CLASS__, 'rest_put_triage_schedule'),
 				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_triage_schedule'),
+				),
 			)
 		);
 
@@ -1744,6 +1749,9 @@ final class DEF_Core_Staff_AI
 			}
 		}
 		return array(
+			// STATED by DEF, never inferred here: a user who saved the defaults
+			// unchanged is byte-identical to a user with no row at all.
+			'exists'            => ! empty( $row['exists'] ),
 			'enabled'           => ! empty( $row['enabled'] ),
 			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
@@ -1776,9 +1784,34 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'  => true,
 				'schedule' => self::allowlist_triage_schedule( $row ),
+				'last_run' => self::allowlist_last_run( $result['last_run'] ?? null ),
 			),
 			200
 		);
+	}
+
+	/**
+	 * Allowlist the last-run summary to status + timestamp.
+	 *
+	 * DEF already withholds the digest, which carries mail subjects, sender
+	 * addresses and drafted reply text. This is the second gate, and it is here
+	 * for the same reason as the schedule allowlist: if a future backend adds
+	 * fields, they stay out of the card until someone decides they belong.
+	 *
+	 * @param mixed $row Raw last_run from DEF, or null when nothing has run.
+	 * @return array|null {status, at}, or null.
+	 */
+	private static function allowlist_last_run( $row )
+	{
+		if ( ! is_array( $row ) ) {
+			return null;
+		}
+		$status = isset( $row['status'] ) && is_string( $row['status'] ) ? $row['status'] : '';
+		$at     = isset( $row['at'] ) && is_string( $row['at'] ) ? $row['at'] : '';
+		if ( '' === $status ) {
+			return null;
+		}
+		return array( 'status' => $status, 'at' => $at );
 	}
 
 	/**
@@ -1859,6 +1892,37 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'  => true,
 				'schedule' => self::allowlist_triage_schedule( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: retire the current user's Email Triage setup.
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/triage-schedule. This retires the SETUP,
+	 * not the mailbox connection - the OAuth grant is untouched and stays usable
+	 * by chat. Disconnecting that grant is a separate control on Connections.
+	 *
+	 * Idempotent DEF-side, so a second click or a second tab is a 200, not an
+	 * error. Ownership is resolved DEF-side from the forwarded identity; there is
+	 * no field on this request that could name another user's schedule.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, deleted}).
+	 */
+	public static function rest_delete_triage_schedule()
+	{
+		$result = self::backend_request( 'DELETE', '/api/staff-ai/triage-schedule' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not remove your Email Triage setup. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'deleted' => ! empty( $result['deleted'] ),
 			),
 			200
 		);

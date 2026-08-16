@@ -305,6 +305,7 @@ assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<i
 $_sched_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/triage-schedule'];
 assert_equals( 'GET', $_sched_handlers[0]['methods'] ?? '', 'triage-schedule handler 0 = GET' );
 assert_equals( 'PUT', $_sched_handlers[1]['methods'] ?? '', 'triage-schedule handler 1 = PUT' );
+assert_equals( 'DELETE', $_sched_handlers[2]['methods'] ?? '', 'triage-schedule handler 2 = DELETE' );
 // Run Now is a POST with NO body: the run belongs to the logged-in caller and
 // DEF resolves that from the forwarded identity, so there is no field here that
 // could name someone else's mailbox.
@@ -964,9 +965,9 @@ $schedule = $data['schedule'] ?? array();
 $keys     = array_keys( $schedule );
 sort( $keys );
 assert_equals(
-	array( 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'destinations', 'enabled', 'exists', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$keys,
-	'exactly the five schedule fields - no extras'
+	'exactly the six schedule fields - no extras'
 );
 assert_equals( array( 'email', 'slack' ), $schedule['destinations'], 'unknown destination types are dropped' );
 assert_equals( 'Australia/Brisbane', $schedule['timezone'], 'timezone passes through' );
@@ -1072,6 +1073,55 @@ unset( $GLOBALS['_def_test_request_code'] );
 assert_true( is_wp_error( $resp ), 'a DEF failure is an error, not a cheerful success' );
 $run_msg = is_wp_error( $resp ) ? $resp->get_error_message() : '';
 assert_true( false === strpos( $run_msg, 'def-api.test' ), 'the internal DEF URL is not shown to the user' );
+
+echo "\n[TS-9] rest_delete_triage_schedule retires the SETUP, carrying nothing user-scoped\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );
+$resp = DEF_Core_Staff_AI::rest_delete_triage_schedule();
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'delete succeeds' );
+assert_equals( 'DELETE', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is DELETE' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/triage-schedule',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the DEF path carries nothing user-scoped - the owner comes from the forwarded identity'
+);
+assert_true( true === ( $resp->get_data()['deleted'] ?? null ), 'the deleted flag is passed through' );
+
+echo "\n[TS-10] the last-run summary is allowlisted to status and time - never the digest\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'  => true,
+	'schedule' => array( 'enabled' => true ),
+	// A backend that grew fields must not leak them into the card. The digest
+	// carries mail subjects, sender addresses and drafted reply text.
+	'last_run' => array(
+		'status' => 'failed',
+		'at'     => '2026-08-16T09:05:00+00:00',
+		'digest' => array( 'mailbox' => 'owner@example.com', 'items' => array( 'secret subject' ) ),
+	),
+) );
+$resp = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+$last = $resp->get_data()['last_run'] ?? array();
+assert_equals( array( 'status', 'at' ), array_keys( $last ), 'exactly status and at' );
+assert_equals( 'failed', $last['status'] ?? '', 'status passed through' );
+assert_true(
+	false === strpos( json_encode( $resp->get_data() ), 'secret subject' ),
+	'the digest never rides along'
+);
+
+echo "\n[TS-11] no runs yet reads as null, never an invented status\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success' => true, 'schedule' => array( 'enabled' => true ), 'last_run' => null,
+) );
+$resp = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+// array_key_exists, not ??: the null-coalesce treats a present null and an
+// absent key identically, so `?? 'missing'` could never distinguish them.
+$_data = $resp->get_data();
+assert_true(
+	array_key_exists( 'last_run', $_data ) && null === $_data['last_run'],
+	'last_run is present and null - the card shows no status rather than inventing one'
+);
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";

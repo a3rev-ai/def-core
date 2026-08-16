@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 5.9.1 - 2026/08/16 =
+* New: Scheduled now shows your tasks as a list. Each task has its own card with what it does, when it runs, how the last run went, and a Run now button - and you can remove a task you no longer want. Removing a task leaves your mailbox connection alone.
+
 = 5.9.0 - 2026/08/16 =
 * Improvement: Documents, Scheduled, Memories and Connections now sit in the Staff AI sidebar as named menu items instead of unlabelled icons in the header - you can see what they are without hovering over each one to find out.
 
