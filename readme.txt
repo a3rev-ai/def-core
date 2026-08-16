@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.9.2
+Stable tag: 5.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 5.9.2 - 2026-08-16 =
+= 5.10.0 - 2026-08-17 =
 * New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection on top of the one you had. Disconnect appears on any app you have a live connection to - including one that shows Connect because the connection outlived the setup behind it. It ends your own access only: your team's connection to the app stays, and you can connect again later.
 * Improvement: the Reconnect link is gone. It only ever appeared when you were already connected, where it did nothing - and on the rare occasion it did act, it added a second connection instead of replacing the first. To relink an app, or to switch which account it uses, disconnect it and connect again.
 

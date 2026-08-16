@@ -2598,6 +2598,12 @@ function t(key, fallback) {
 				// that would be the same overclaim the old copy made in the other direction.
 				if (res && res.failed) {
 					setStatus(t('integrationsDisconnectPartial', 'Some of your access could not be ended. Try again, or ask an administrator.'), 'error');
+				} else if (!res || !res.requested) {
+					// Nothing was found to end. Saying "Disconnected" here is the overclaim
+					// this whole change exists to remove: the control is offered on EVIDENCE
+					// of a grant, and the evidence can be wrong (a stored app name that does
+					// not match what the provider calls it). Report what actually happened.
+					setStatus(t('integrationsNothingToEnd', 'No live connection to this app was found to end. If you still have access, reconnect and try again.'), 'muted');
 				} else {
 					setStatus(t('integrationsDisconnected', 'Disconnected. Ending access with the provider can take a moment.'), 'muted');
 				}

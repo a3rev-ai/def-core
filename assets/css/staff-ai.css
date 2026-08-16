@@ -2235,10 +2235,9 @@ html {
 	color: var(--text-heading);
 }
 
-/* Disconnect (C2). Understated next to Reconnect — the user is usually on this row
-   for another reason — but NOT identical to it: a destructive control that is
-   distinguishable only on hover is indistinguishable on touch, where the two read as
-   two identical adjacent underlined links. Tinted at rest, full weight on hover. */
+/* Disconnect (C2). Understated — the user is usually on this row for another reason —
+   but visibly destructive at rest, not only on hover: on touch there is no hover, and a
+   control that ends access must never look like an ordinary link. Full weight on hover. */
 .integration-btn-danger {
 	color: #a5473a;
 }
