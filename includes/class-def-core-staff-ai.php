@@ -545,6 +545,21 @@ final class DEF_Core_Staff_AI
 				),
 			)
 		);
+
+		// Run Now. POST with no body at all: the run belongs to whoever is
+		// logged in, and DEF resolves that from the forwarded identity - there
+		// is no field here that could name another user's mailbox.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/triage-schedule/run-now',
+			array(
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_run_now_triage_schedule'),
+				),
+			)
+		);
 	}
 
 	/**
@@ -1844,6 +1859,52 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'  => true,
 				'schedule' => self::allowlist_triage_schedule( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: ask for an off-schedule run of the current user's triage.
+	 *
+	 * Proxies DEF POST /api/staff-ai/triage-schedule/run-now. Nothing runs here
+	 * and nothing runs in DEF either: the request is recorded and the platform
+	 * scheduler picks it up on its next pass, so a manual run travels exactly
+	 * the path the daily run does - which is the whole point of the button.
+	 * That is why the success message promises a run "shortly" rather than
+	 * pretending the digest is already on its way.
+	 *
+	 * A user who has never set triage up gets DEF's 404 surfaced as a plain
+	 * message rather than a silent no-op.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, message}).
+	 */
+	public static function rest_run_now_triage_schedule()
+	{
+		$result = self::backend_request( 'POST', '/api/staff-ai/triage-schedule/run-now', array() );
+		if ( is_wp_error( $result ) ) {
+			// Both refusals are things the user can fix, and the generic copy
+			// ("try again in a moment") can never be true for either - so each
+			// gets its own message instead of the fallback:
+			//   404 - no schedule saved yet. Reachable in plain use: the modal
+			//         renders honest defaults without creating a row, so Run now
+			//         before Save lands here.
+			//   409 - the schedule is switched off. Run now runs THE SCHEDULE,
+			//         so there is nothing to run until it is on.
+			$code = $result->get_error_code();
+			if ( 'staff_ai_http_409' === $code ) {
+				$fallback = __( 'Turn on your Email Triage schedule before running it.', 'digital-employees' );
+			} elseif ( 'staff_ai_not_found' === $code ) {
+				$fallback = __( 'Save your Email Triage schedule before running it.', 'digital-employees' );
+			} else {
+				$fallback = __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' );
+			}
+			return self::plain_backend_error( $result, $fallback );
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ),
 			),
 			200
 		);

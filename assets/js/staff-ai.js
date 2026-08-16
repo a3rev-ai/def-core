@@ -2900,6 +2900,7 @@ function t(key, fallback) {
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
 		var saveBtn = document.getElementById('scheduleSave');
+		var runNowBtn = document.getElementById('scheduleRunNow');
 		var statusEl = document.getElementById('scheduleStatus');
 		var enabledEl = document.getElementById('scheduleEnabled');
 		var timeEl = document.getElementById('scheduleTime');
@@ -2997,6 +2998,22 @@ function t(key, fallback) {
 			}
 		}
 
+		async function runNow() {
+			// Deliberately does NOT save first. Run Now tests the schedule that is
+			// actually stored, so silently saving the form would test something
+			// the user never committed to.
+			runNowBtn.disabled = true;
+			setStatus(t('scheduleRunning', 'Asking for a run…'));
+			try {
+				await apiRequest('/triage-schedule/run-now', { method: 'POST' });
+				setStatus(t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
+			} catch (e) {
+				setStatus((e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
+			} finally {
+				runNowBtn.disabled = false;
+			}
+		}
+
 		function open() { modal.classList.add('visible'); load(); }
 		function close() { modal.classList.remove('visible'); }
 
@@ -3010,6 +3027,7 @@ function t(key, fallback) {
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (saveBtn) saveBtn.addEventListener('click', save);
+		if (runNowBtn) runNowBtn.addEventListener('click', runNow);
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 

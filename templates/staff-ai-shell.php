@@ -537,6 +537,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleRunNow"><?php echo esc_html__( 'Run now', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-primary" id="scheduleSave"><?php echo esc_html__( 'Save schedule', 'digital-employees' ); ?></button>
 				</div>
 			</div>
@@ -634,7 +635,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduleSaving: <?php echo wp_json_encode( __( 'Saving…', 'digital-employees' ) ); ?>,
 			scheduleSaved: <?php echo wp_json_encode( __( 'Saved. Your digest follows this schedule from its next send time.', 'digital-employees' ) ); ?>,
 			scheduleSaveFailed: <?php echo wp_json_encode( __( 'Could not save your triage schedule. Your previous settings are unchanged.', 'digital-employees' ) ); ?>,
-			scheduleNeedDestination: <?php echo wp_json_encode( __( 'Pick at least one destination for your digest.', 'digital-employees' ) ); ?>
+			scheduleNeedDestination: <?php echo wp_json_encode( __( 'Pick at least one destination for your digest.', 'digital-employees' ) ); ?>,
+			scheduleRunning: <?php echo wp_json_encode( __( 'Asking for a run…', 'digital-employees' ) ); ?>,
+			scheduleRunQueued: <?php echo wp_json_encode( __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ) ); ?>,
+			scheduleRunFailed: <?php echo wp_json_encode( __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>
