@@ -1510,6 +1510,11 @@ final class DEF_Core_Staff_AI
 				'category'   => ( isset( $app['category'] ) && is_string( $app['category'] ) ) ? $app['category'] : '',
 				'no_auth'    => ! empty( $app['no_auth'] ),
 				'authorized' => ! empty( $app['authorized'] ),
+				// Whether there is a grant to END - per-toolkit, which is the scope the
+				// revoke acts on. Distinct from 'authorized' (per auth config), and the
+				// Disconnect control is gated on this one so it cannot go missing from a
+				// row whose grant outlived the server its tools point at.
+				'has_grant'  => ! empty( $app['has_grant'] ),
 			);
 		}
 
@@ -1525,8 +1530,6 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * REST handler: start/confirm THIS user's hosted OAuth for one connected app.
-	 *
 	 * REST handler: end the current user's own connection to one app.
 	 *
 	 * Proxies DEF POST /api/staff-ai/user/integrations/{server_id}/disconnect.
@@ -1575,6 +1578,8 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * REST handler: start/confirm THIS user's hosted OAuth for one connected app.
+	 *
 	 * Proxies DEF POST /api/staff-ai/user/integrations/{server_id}/authorize. DEF
 	 * host-checks the returned redirect_url against the aggregator's consent domain;
 	 * the panel opens it to complete consent. status='authorized' → already connected.

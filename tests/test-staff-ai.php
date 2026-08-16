@@ -1155,6 +1155,27 @@ $req->set_param( 'server_id', '' );
 $resp = DEF_Core_Staff_AI::rest_user_integration_disconnect( $req );
 assert_true( is_wp_error( $resp ), 'empty server_id is refused' );
 
+echo "
+[TS-15] has_grant rides through so the Disconnect control cannot go missing
+";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'configured' => true,
+	'apps'       => array(
+		// The a3rev Gmail case: NOT authorized (the tool rows point at a newer server that
+		// was never authorised) while the original grant is still live. Gating Disconnect on
+		// 'authorized' hides it from exactly this row - the one grant C2 exists to end.
+		array( 'server_id' => 'srv-1', 'category' => 'gmail', 'no_auth' => false, 'authorized' => false, 'has_grant' => true ),
+	),
+) );
+$req  = new WP_REST_Request();
+$resp = DEF_Core_Staff_AI::rest_user_integrations( $req );
+unset( $GLOBALS['_def_test_get_body'] );
+$_app = $resp->get_data()['apps'][0] ?? array();
+assert_true(
+	true === ( $_app['has_grant'] ?? null ) && false === ( $_app['authorized'] ?? null ),
+	'has_grant survives the allowlist independently of authorized - dropping it from the allowlist strips every Disconnect button'
+);
+
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

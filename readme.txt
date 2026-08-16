@@ -121,7 +121,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 == Changelog ==
 
 = 5.9.2 - 2026-08-16 =
-* New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection. Disconnecting ends your own access only - your team's connection to the app stays, and you can connect again later.
+* New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection. Disconnect appears on any app you have a live connection to - including one that shows Connect because the connection outlived the setup behind it. It ends your own access only: your team's connection to the app stays, and you can connect again later.
 
 = 5.9.1 - 2026-08-16 =
 * New: Scheduled now shows your tasks as a list. Each task has its own card with what it does, when it runs, how the last run went, and a Run now button - and you can remove a task you no longer want. Removing a task leaves your mailbox connection alone.

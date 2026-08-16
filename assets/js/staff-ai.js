@@ -2529,10 +2529,7 @@ function t(key, fallback) {
 					? t('integrationsReady', 'Ready')
 					: t('integrationsConnected', 'Connected');
 				action.appendChild(badge);
-				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream)
-				// — and, since C2, disconnected. Reconnect on its own was the whole problem:
-				// it minted ANOTHER grant, and a person who left, or a business moving from
-				// Gmail to M365, had no way to end the one they had.
+				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream).
 				if (app.authorized && !app.no_auth) {
 					const re = document.createElement('button');
 					re.type = 'button';
@@ -2540,15 +2537,6 @@ function t(key, fallback) {
 					re.textContent = t('integrationsReconnect', 'Reconnect');
 					re.addEventListener('click', function () { connect(app.server_id, action); });
 					action.appendChild(re);
-
-					const dis = document.createElement('button');
-					dis.type = 'button';
-					dis.className = 'integration-btn integration-btn-link integration-btn-danger';
-					dis.textContent = t('integrationsDisconnect', 'Disconnect');
-					dis.addEventListener('click', function () {
-						disconnect(app.server_id, prettyName(app.category, app.server_id), action);
-					});
-					action.appendChild(dis);
 				}
 			} else {
 				const connectBtn = document.createElement('button');
@@ -2557,6 +2545,25 @@ function t(key, fallback) {
 				connectBtn.textContent = t('integrationsConnect', 'Connect');
 				connectBtn.addEventListener('click', function () { connect(app.server_id, action); });
 				action.appendChild(connectBtn);
+			}
+
+			// Gated on has_grant, NOT on authorized — deliberately outside the branch above.
+			// The two answer different questions: authorized is per auth config ("will this
+			// server's tools work"), has_grant is per toolkit ("is there a grant to end"),
+			// and the revoke acts on the second. Where they disagree the row reads "Connect"
+			// while a live grant sits behind it — a3rev's Gmail right now — and gating the
+			// button on authorized would hide it from the one row that needs it most.
+			// Reconnect on its own was the whole problem: it minted ANOTHER grant, and a
+			// person who left, or a business moving from Gmail to M365, had no way out.
+			if (app.has_grant && !app.no_auth) {
+				const dis = document.createElement('button');
+				dis.type = 'button';
+				dis.className = 'integration-btn integration-btn-link integration-btn-danger';
+				dis.textContent = t('integrationsDisconnect', 'Disconnect');
+				dis.addEventListener('click', function () {
+					disconnect(app.server_id, prettyName(app.category, app.server_id), action);
+				});
+				action.appendChild(dis);
 			}
 
 			row.appendChild(action);
@@ -2578,6 +2585,11 @@ function t(key, fallback) {
 			try {
 				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/disconnect', { method: 'POST' });
 				posting = false;
+				// Reload FIRST, then speak. loadList() runs synchronously to its first await
+				// and sets its own "Loading…" status, so setting the outcome before it is a
+				// message the user never sees — the honesty chain survives DEF → DEFHO →
+				// def-core and then gets overwritten one line later.
+				await loadList();
 				// `failed` is a grant the provider would not end. Saying "disconnected" over
 				// that would be the same overclaim the old copy made in the other direction.
 				if (res && res.failed) {
@@ -2585,7 +2597,6 @@ function t(key, fallback) {
 				} else {
 					setStatus(t('integrationsDisconnected', 'Disconnected. Ending access with the provider can take a moment.'), 'muted');
 				}
-				loadList();
 			} catch (e) {
 				posting = false;
 				buttons.forEach(function (b) { b.disabled = false; });
