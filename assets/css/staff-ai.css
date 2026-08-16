@@ -2235,6 +2235,17 @@ html {
 	color: var(--text-heading);
 }
 
+/* Disconnect (C2). Muted until hovered — it sits beside Reconnect on a row the
+   user is usually visiting for another reason, so it should be findable without
+   competing with the action they came for. */
+.integration-btn-danger:hover {
+	color: #c0392b;
+}
+
+.dark-theme .integration-btn-danger:hover {
+	color: #ff6b5a;
+}
+
 /* =============================================
    My Documents modal (document library — slice 4)
    ============================================= */

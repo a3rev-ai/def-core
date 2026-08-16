@@ -265,6 +265,9 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
 	'a3-ai/v1/staff-ai/triage-schedule',
 	'a3-ai/v1/staff-ai/triage-schedule/run-now',
+	// C2 — the user's own disconnect. Destructive and per-user, so it is pinned even
+	// though its authorize sibling predates this convention.
+	'a3-ai/v1/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/disconnect',
 );
 
 foreach ( $expected_routes as $route ) {
@@ -1122,6 +1125,35 @@ assert_true(
 	array_key_exists( 'last_run', $_data ) && null === $_data['last_run'],
 	'last_run is present and null - the card shows no status rather than inventing one'
 );
+
+echo "\n[TS-12] rest_user_integration_disconnect ends the caller's own access\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'requested' => 1, 'failed' => 0 ) );
+$req = new WP_REST_Request();
+$req->set_param( 'server_id', 'srv-1' );
+$resp = DEF_Core_Staff_AI::rest_user_integration_disconnect( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'disconnect succeeds' );
+assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is POST' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/user/integrations/srv-1/disconnect',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the server_id is the ONLY thing scoped in the URL - the user comes from the forwarded identity'
+);
+assert_equals( 1, $resp->get_data()['requested'] ?? -1, 'requested count passed through' );
+
+echo "\n[TS-13] a grant the provider would not end is REPORTED, never smoothed over\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'requested' => 0, 'failed' => 1 ) );
+$req = new WP_REST_Request();
+$req->set_param( 'server_id', 'srv-1' );
+$resp = DEF_Core_Staff_AI::rest_user_integration_disconnect( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_equals( 1, $resp->get_data()['failed'] ?? -1, 'the surviving grant is surfaced so the UI cannot claim a clean disconnect' );
+
+echo "\n[TS-14] a missing server_id refuses before reaching the backend\n";
+$req = new WP_REST_Request();
+$req->set_param( 'server_id', '' );
+$resp = DEF_Core_Staff_AI::rest_user_integration_disconnect( $req );
+assert_true( is_wp_error( $resp ), 'empty server_id is refused' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.9.1
+Stable tag: 5.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 5.9.2 - 2026-08-16 =
+* New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection. Disconnecting ends your own access only - your team's connection to the app stays, and you can connect again later.
 
 = 5.9.1 - 2026-08-16 =
 * New: Scheduled now shows your tasks as a list. Each task has its own card with what it does, when it runs, how the last run went, and a Run now button - and you can remove a task you no longer want. Removing a task leaves your mailbox connection alone.

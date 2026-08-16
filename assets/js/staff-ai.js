@@ -2529,7 +2529,10 @@ function t(key, fallback) {
 					? t('integrationsReady', 'Ready')
 					: t('integrationsConnected', 'Connected');
 				action.appendChild(badge);
-				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream).
+				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream)
+				// — and, since C2, disconnected. Reconnect on its own was the whole problem:
+				// it minted ANOTHER grant, and a person who left, or a business moving from
+				// Gmail to M365, had no way to end the one they had.
 				if (app.authorized && !app.no_auth) {
 					const re = document.createElement('button');
 					re.type = 'button';
@@ -2537,6 +2540,15 @@ function t(key, fallback) {
 					re.textContent = t('integrationsReconnect', 'Reconnect');
 					re.addEventListener('click', function () { connect(app.server_id, action); });
 					action.appendChild(re);
+
+					const dis = document.createElement('button');
+					dis.type = 'button';
+					dis.className = 'integration-btn integration-btn-link integration-btn-danger';
+					dis.textContent = t('integrationsDisconnect', 'Disconnect');
+					dis.addEventListener('click', function () {
+						disconnect(app.server_id, prettyName(app.category, app.server_id), action);
+					});
+					action.appendChild(dis);
 				}
 			} else {
 				const connectBtn = document.createElement('button');
@@ -2549,6 +2561,36 @@ function t(key, fallback) {
 
 			row.appendChild(action);
 			return row;
+		}
+
+		async function disconnect(serverId, appName, action) {
+			// Names what it does and does NOT do. "Disconnect" next to a shared app reads
+			// like it might cut the whole team off; it ends this person's access only.
+			if (!window.confirm(
+				t('integrationsDisconnectConfirm', 'Disconnect %s? This ends your own access. Your team’s connection to %s stays, and you can connect again later.')
+					.split('%s').join(appName)
+			)) return;
+
+			const buttons = action.querySelectorAll('button');
+			buttons.forEach(function (b) { b.disabled = true; });
+			setStatus(t('integrationsDisconnecting', 'Disconnecting…'), 'muted');
+			posting = true;
+			try {
+				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/disconnect', { method: 'POST' });
+				posting = false;
+				// `failed` is a grant the provider would not end. Saying "disconnected" over
+				// that would be the same overclaim the old copy made in the other direction.
+				if (res && res.failed) {
+					setStatus(t('integrationsDisconnectPartial', 'Some of your access could not be ended. Try again, or ask an administrator.'), 'error');
+				} else {
+					setStatus(t('integrationsDisconnected', 'Disconnected. Ending access with the provider can take a moment.'), 'muted');
+				}
+				loadList();
+			} catch (e) {
+				posting = false;
+				buttons.forEach(function (b) { b.disabled = false; });
+				setStatus((e && e.message) || t('integrationsDisconnectFailed', 'Could not disconnect that app.'), 'error');
+			}
 		}
 
 		async function connect(serverId, action) {
