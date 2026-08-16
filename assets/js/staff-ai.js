@@ -2529,15 +2529,19 @@ function t(key, fallback) {
 					? t('integrationsReady', 'Ready')
 					: t('integrationsConnected', 'Connected');
 				action.appendChild(badge);
-				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream).
-				if (app.authorized && !app.no_auth) {
-					const re = document.createElement('button');
-					re.type = 'button';
-					re.className = 'integration-btn integration-btn-link';
-					re.textContent = t('integrationsReconnect', 'Reconnect');
-					re.addEventListener('click', function () { connect(app.server_id, action); });
-					action.appendChild(re);
-				}
+				// NO Reconnect here, deliberately. It rendered only when `authorized` was
+				// true — i.e. when we had just confirmed a live grant — and clicking it
+				// posted an authorize that came straight back `status: 'authorized'` and
+				// redrew the identical row. Visible exactly when it did nothing.
+				//
+				// The case it claimed to serve (the grant died at the provider) arrives as
+				// `authorized: false`, so that row offers **Connect**. And in the one race
+				// where Reconnect did act, it minted a SECOND grant beside the first —
+				// which is where this tenant's outlook×3, slack×3 and gmail×2 came from.
+				//
+				// With Disconnect shipping, the honest flow is Disconnect → Connect: one
+				// grant at a time, and switching which account is linked actually replaces
+				// it instead of stacking another.
 			} else {
 				const connectBtn = document.createElement('button');
 				connectBtn.type = 'button';
