@@ -265,6 +265,22 @@ function t(key, fallback) {
 	menuToggle.addEventListener('click', toggleSidebar);
 	sidebarOverlay.addEventListener('click', toggleSidebar);
 
+	// Picking a section closes the drawer on mobile, so that dismissing the panel
+	// returns you to the chat rather than to a drawer you did not leave open. NOT
+	// because the panel would be obscured — `.modal-overlay` is z-index 200 and
+	// the mobile drawer 100, so it already renders above it.
+	// Delegated and bound ONCE here rather than inside each section's own module:
+	// those four are independent and would each need their own copy, and
+	// `sidebar` is in scope here and not there.
+	const sidebarNav = document.querySelector('.sidebar-nav');
+	if (sidebarNav) {
+		sidebarNav.addEventListener('click', function (e) {
+			if (e.target.closest('.sidebar-nav-item') && sidebar.classList.contains('open')) {
+				toggleSidebar();
+			}
+		});
+	}
+
 	// Theme toggle
 	const themeToggle = document.getElementById('themeToggle');
 	function toggleTheme() {
@@ -2436,8 +2452,7 @@ function t(key, fallback) {
 		const modal = document.getElementById('integrationsModal');
 		if (!modal) return;
 
-		const openBtn = document.getElementById('integrationsBtn');
-		const overflowBtn = document.getElementById('overflowIntegrations');
+		const openBtn = document.getElementById('navConnections');
 		const modalClose = document.getElementById('integrationsModalClose');
 		const closeBtn = document.getElementById('integrationsClose');
 		const refreshBtn = document.getElementById('integrationsRefresh');
@@ -2574,12 +2589,6 @@ function t(key, fallback) {
 		}
 
 		if (openBtn) openBtn.addEventListener('click', open);
-		if (overflowBtn) {
-			overflowBtn.addEventListener('click', function () {
-				if (overflowMenu) overflowMenu.classList.remove('open');
-				open();
-			});
-		}
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
@@ -2601,8 +2610,7 @@ function t(key, fallback) {
 		const modal = document.getElementById('documentsModal');
 		if (!modal) return;
 
-		const openBtn = document.getElementById('documentsBtn');
-		const overflowBtn = document.getElementById('overflowDocuments');
+		const openBtn = document.getElementById('navDocuments');
 		const modalClose = document.getElementById('documentsModalClose');
 		const closeBtn = document.getElementById('documentsClose');
 		const refreshBtn = document.getElementById('documentsRefresh');
@@ -2734,12 +2742,6 @@ function t(key, fallback) {
 		}
 
 		if (openBtn) openBtn.addEventListener('click', open);
-		if (overflowBtn) {
-			overflowBtn.addEventListener('click', function () {
-				if (overflowMenu) overflowMenu.classList.remove('open');
-				open();
-			});
-		}
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
@@ -2769,8 +2771,7 @@ function t(key, fallback) {
 		const modal = document.getElementById('memoriesModal');
 		if (!modal) return;
 
-		const openBtn = document.getElementById('memoriesBtn');
-		const overflowBtn = document.getElementById('overflowMemories');
+		const openBtn = document.getElementById('navMemories');
 		const modalClose = document.getElementById('memoriesModalClose');
 		const closeBtn = document.getElementById('memoriesClose');
 		const refreshBtn = document.getElementById('memoriesRefresh');
@@ -2876,12 +2877,6 @@ function t(key, fallback) {
 		}
 
 		if (openBtn) openBtn.addEventListener('click', open);
-		if (overflowBtn) {
-			overflowBtn.addEventListener('click', function () {
-				if (overflowMenu) overflowMenu.classList.remove('open');
-				open();
-			});
-		}
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
@@ -2895,8 +2890,7 @@ function t(key, fallback) {
 	(function initTriageSchedule() {
 		var modal = document.getElementById('scheduleModal');
 		if (!modal) return;
-		var openBtn = document.getElementById('scheduleBtn');
-		var overflowBtn = document.getElementById('overflowSchedule');
+		var openBtn = document.getElementById('navScheduled');
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
 		var saveBtn = document.getElementById('scheduleSave');
@@ -3018,12 +3012,6 @@ function t(key, fallback) {
 		function close() { modal.classList.remove('visible'); }
 
 		if (openBtn) openBtn.addEventListener('click', open);
-		if (overflowBtn) {
-			overflowBtn.addEventListener('click', function () {
-				if (overflowMenu) overflowMenu.classList.remove('open');
-				open();
-			});
-		}
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (saveBtn) saveBtn.addEventListener('click', save);

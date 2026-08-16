@@ -64,7 +64,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<?php echo esc_html__( 'New chat', 'digital-employees' ); ?>
 				</button>
 			</div>
-			<nav class="conversation-list" id="conversationList">
+			<nav class="sidebar-nav" aria-label="<?php echo esc_attr__( 'Staff AI sections', 'digital-employees' ); ?>">
+				<button type="button" class="sidebar-nav-item" id="navDocuments" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+						<polyline points="14 2 14 8 20 8"></polyline>
+					</svg>
+					<?php echo esc_html__( 'Documents', 'digital-employees' ); ?>
+				</button>
+				<button type="button" class="sidebar-nav-item" id="navScheduled" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<circle cx="12" cy="12" r="9"></circle>
+						<polyline points="12 7 12 12 15 14"></polyline>
+					</svg>
+					<?php echo esc_html__( 'Scheduled', 'digital-employees' ); ?>
+				</button>
+				<button type="button" class="sidebar-nav-item" id="navMemories" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+					</svg>
+					<?php echo esc_html__( 'Memories', 'digital-employees' ); ?>
+				</button>
+				<button type="button" class="sidebar-nav-item" id="navConnections" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+						<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+					</svg>
+					<?php echo esc_html__( 'Connections', 'digital-employees' ); ?>
+				</button>
+			</nav>
+			<nav class="conversation-list" id="conversationList" aria-label="<?php echo esc_attr__( 'Conversations', 'digital-employees' ); ?>">
 				<div class="conversation-list-placeholder" id="conversationPlaceholder">
 					<?php echo esc_html__( 'No conversations yet', 'digital-employees' ); ?>
 				</div>
@@ -96,31 +125,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<line x1="12" y1="15" x2="12" y2="3"></line>
 						</svg>
 						<?php echo esc_html__( 'Install', 'digital-employees' ); ?>
-					</button>
-					<button type="button" class="header-btn header-btn-icon" id="integrationsBtn" title="<?php echo esc_attr__( 'Connected accounts', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Connected accounts', 'digital-employees' ); ?>">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-							<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-						</svg>
-					</button>
-					<button type="button" class="header-btn header-btn-icon" id="documentsBtn" title="<?php echo esc_attr__( 'My documents', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'My documents', 'digital-employees' ); ?>">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-							<polyline points="14 2 14 8 20 8"></polyline>
-							<line x1="16" y1="13" x2="8" y2="13"></line>
-							<line x1="16" y1="17" x2="8" y2="17"></line>
-						</svg>
-					</button>
-					<button type="button" class="header-btn header-btn-icon" id="memoriesBtn" title="<?php echo esc_attr__( 'What Staff AI remembers', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'What Staff AI remembers', 'digital-employees' ); ?>">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-						</svg>
-					</button>
-					<button type="button" class="header-btn header-btn-icon" id="scheduleBtn" title="<?php echo esc_attr__( 'Email triage schedule', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Email triage schedule', 'digital-employees' ); ?>">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<circle cx="12" cy="12" r="10"></circle>
-							<polyline points="12 6 12 12 16 14"></polyline>
-						</svg>
 					</button>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="header-btn header-btn-icon" target="_blank" rel="noopener" title="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>" aria-label="<?php echo esc_attr__( 'Go to website', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -171,35 +175,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<line x1="9" y1="14" x2="15" y2="14"></line>
 							</svg>
 							<?php echo esc_html__( 'Create', 'digital-employees' ); ?>
-						</button>
-						<button type="button" id="overflowIntegrations">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-								<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-							</svg>
-							<?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?>
-						</button>
-						<button type="button" id="overflowDocuments">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-								<polyline points="14 2 14 8 20 8"></polyline>
-								<line x1="16" y1="13" x2="8" y2="13"></line>
-								<line x1="16" y1="17" x2="8" y2="17"></line>
-							</svg>
-							<?php echo esc_html__( 'My documents', 'digital-employees' ); ?>
-						</button>
-						<button type="button" id="overflowMemories">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-							</svg>
-							<?php echo esc_html__( 'What Staff AI remembers', 'digital-employees' ); ?>
-						</button>
-						<button type="button" id="overflowSchedule">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<circle cx="12" cy="12" r="10"></circle>
-								<polyline points="12 6 12 12 16 14"></polyline>
-							</svg>
-							<?php echo esc_html__( 'Email triage schedule', 'digital-employees' ); ?>
 						</button>
 						<button type="button" id="overflowInstall" style="display:none;">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
