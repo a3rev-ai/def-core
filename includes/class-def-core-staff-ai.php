@@ -1510,10 +1510,12 @@ final class DEF_Core_Staff_AI
 				'category'   => ( isset( $app['category'] ) && is_string( $app['category'] ) ) ? $app['category'] : '',
 				'no_auth'    => ! empty( $app['no_auth'] ),
 				'authorized' => ! empty( $app['authorized'] ),
-				// Whether there is a grant to END - per-toolkit, which is the scope the
-				// revoke acts on. Distinct from 'authorized' (per auth config), and the
-				// Disconnect control is gated on this one so it cannot go missing from a
-				// row whose grant outlived the server its tools point at.
+				// Whether there is EVIDENCE of a grant to end - the union of two signals
+				// (per-toolkit, and 'authorized' per auth config), because each misses rows
+				// the other catches. Evidence, not a guarantee: the Disconnect control is
+				// gated on it so it cannot go missing from a row whose grant outlived the
+				// server its tools point at, and the handler reports honestly when the
+				// revoke then finds nothing.
 				'has_grant'  => ! empty( $app['has_grant'] ),
 			);
 		}

@@ -2551,12 +2551,13 @@ function t(key, fallback) {
 				action.appendChild(connectBtn);
 			}
 
-			// Gated on has_grant, NOT on authorized — deliberately outside the branch above.
-			// The two answer different questions: authorized is per auth config ("will this
-			// server's tools work"), has_grant is per toolkit ("is there a grant to end"),
-			// and the revoke acts on the second. Where they disagree the row reads "Connect"
-			// while a live grant sits behind it — a3rev's Gmail right now — and gating the
-			// button on authorized would hide it from the one row that needs it most.
+			// Gated on has_grant — deliberately outside the branch above. has_grant is
+			// EVIDENCE of a live grant: the union of a per-toolkit signal and the
+			// per-auth-config `authorized`, because each misses rows the other catches. A
+			// grant that outlived the server its tools point at reads authorized=false with
+			// the toolkit granted (a3rev's Gmail); a stored name that does not match the
+			// provider's slug reads the reverse. Evidence can be wrong in the second case,
+			// which is why the handler reports honestly when the revoke finds nothing.
 			// Reconnect on its own was the whole problem: it minted ANOTHER grant, and a
 			// person who left, or a business moving from Gmail to M365, had no way out.
 			if (app.has_grant && !app.no_auth) {
@@ -2603,7 +2604,7 @@ function t(key, fallback) {
 					// this whole change exists to remove: the control is offered on EVIDENCE
 					// of a grant, and the evidence can be wrong (a stored app name that does
 					// not match what the provider calls it). Report what actually happened.
-					setStatus(t('integrationsNothingToEnd', 'No live connection to this app was found to end. If you still have access, reconnect and try again.'), 'muted');
+					setStatus(t('integrationsNothingToEnd', 'No live connection to this app was found under the name we have for it. If you still have access, remove it in your account settings for that app, or ask an administrator.'), 'muted');
 				} else {
 					setStatus(t('integrationsDisconnected', 'Disconnected. Ending access with the provider can take a moment.'), 'muted');
 				}
