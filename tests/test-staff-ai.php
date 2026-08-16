@@ -1055,7 +1055,17 @@ assert_equals(
 	'an EMPTY body - no field exists that could name another user mailbox'
 );
 
-echo "\n[TS-6] rest_run_now_triage_schedule surfaces a DEF failure, never a silent no-op\n";
+echo "\n[TS-6] rest_run_now_triage_schedule refuses a switched-off schedule, actionably\n";
+$GLOBALS['_def_test_request_code'] = 409;
+$resp = DEF_Core_Staff_AI::rest_run_now_triage_schedule();
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $resp ), 'a switched-off schedule is refused' );
+assert_true(
+	false !== strpos( is_wp_error( $resp ) ? $resp->get_error_message() : '', 'Turn on' ),
+	'the user is told to turn the schedule on, not to "try again in a moment"'
+);
+
+echo "\n[TS-7] rest_run_now_triage_schedule surfaces a DEF failure, never a silent no-op\n";
 $GLOBALS['_def_test_request_code'] = 503;
 $resp = DEF_Core_Staff_AI::rest_run_now_triage_schedule();
 unset( $GLOBALS['_def_test_request_code'] );
