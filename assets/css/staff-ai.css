@@ -218,6 +218,102 @@ body {
 	text-align: center;
 }
 
+/* Scheduled task card — the list §6.1 asks for: name, description, cadence
+   badge, status, and Run now. */
+.task-card {
+	border: 1px solid var(--border-light);
+	border-radius: 8px;
+	padding: 14px 16px;
+	margin-bottom: 12px;
+	background: var(--bg-main);
+}
+
+.task-card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.task-card-name {
+	font-weight: 600;
+	color: var(--text-heading);
+	font-size: 15px;
+}
+
+.task-card-actions {
+	display: flex;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.task-card-icon {
+	background: transparent;
+	border: none;
+	color: var(--text-secondary);
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+	padding: 4px 6px;
+	border-radius: 4px;
+}
+
+.task-card-icon:hover {
+	background: var(--hover-bg);
+	color: var(--text-heading);
+}
+
+.task-card-desc {
+	margin: 6px 0 10px;
+	color: var(--text-secondary);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.task-card-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.task-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	background: rgba(34, 160, 90, 0.12);
+	color: #1c7a45;
+}
+
+.task-badge-off {
+	background: var(--hover-bg);
+	color: var(--text-secondary);
+}
+
+.task-last-run {
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+.task-card-run {
+	width: 100%;
+}
+
+.schedule-empty {
+	text-align: center;
+	padding: 20px 0 8px;
+	color: var(--text-secondary);
+	font-size: 14px;
+}
+
+.dark-theme .task-badge {
+	background: rgba(52, 199, 123, 0.16);
+	color: #59d18f;
+}
+
 /* Sidebar section nav — Documents / Scheduled / Memories / Connections.
    These were header icons; as text items they stop being a guessing game. */
 .sidebar-nav {

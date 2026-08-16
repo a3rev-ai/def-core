@@ -486,10 +486,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<div class="modal-overlay" id="scheduleModal">
 			<div class="modal" style="max-width: 480px;">
 				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'Email triage schedule', 'digital-employees' ); ?></span>
+					<span class="modal-title" id="scheduleTitle"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></span>
 					<button type="button" class="modal-close" id="scheduleModalClose">&times;</button>
 				</div>
 				<div class="modal-body">
+					<div id="scheduleListView">
+						<p class="schedule-intro"><?php echo esc_html__( 'Tasks Staff AI runs for you on a schedule.', 'digital-employees' ); ?></p>
+						<div id="scheduleTaskList"></div>
+						<div class="schedule-empty" id="scheduleEmpty" style="display:none;">
+							<p><?php echo esc_html__( 'You have no scheduled tasks yet.', 'digital-employees' ); ?></p>
+							<button type="button" class="modal-btn modal-btn-primary" id="scheduleCreate"><?php echo esc_html__( 'Set up Email Triage', 'digital-employees' ); ?></button>
+						</div>
+						<div class="schedule-status" id="scheduleListStatus"></div>
+					</div>
+					<div id="scheduleFormView" style="display:none;">
 					<p class="schedule-intro"><?php echo esc_html__( 'Once a day, Staff AI can read your mailbox, stage reply drafts in your Drafts folder, and send you a digest of what needs your attention. Only you can turn this on, and only for your own mailbox.', 'digital-employees' ); ?></p>
 					<div class="form-group schedule-toggle-row">
 						<label class="share-toggle-label"><input type="checkbox" id="scheduleEnabled" class="share-transcript-toggle"> <?php echo esc_html__( 'Send me a daily inbox digest', 'digital-employees' ); ?></label>
@@ -509,11 +519,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
 					</div>
 					<div class="schedule-status" id="scheduleStatus"></div>
+					</div>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleRunNow"><?php echo esc_html__( 'Run now', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-primary" id="scheduleSave"><?php echo esc_html__( 'Save schedule', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleBack" style="display:none;"><?php echo esc_html__( 'Back', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-primary" id="scheduleSave" style="display:none;"><?php echo esc_html__( 'Save schedule', 'digital-employees' ); ?></button>
 				</div>
 			</div>
 		</div>
@@ -613,7 +624,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduleNeedDestination: <?php echo wp_json_encode( __( 'Pick at least one destination for your digest.', 'digital-employees' ) ); ?>,
 			scheduleRunning: <?php echo wp_json_encode( __( 'Asking for a run…', 'digital-employees' ) ); ?>,
 			scheduleRunQueued: <?php echo wp_json_encode( __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ) ); ?>,
-			scheduleRunFailed: <?php echo wp_json_encode( __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>
+			scheduleRunFailed: <?php echo wp_json_encode( __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
+			scheduleTasksTitle: <?php echo wp_json_encode( __( 'Scheduled tasks', 'digital-employees' ) ); ?>,
+			scheduleEditTitle: <?php echo wp_json_encode( __( 'Email triage schedule', 'digital-employees' ) ); ?>,
+			taskTriageName: <?php echo wp_json_encode( __( 'Email Triage', 'digital-employees' ) ); ?>,
+			taskTriageDesc: <?php echo wp_json_encode( __( 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.', 'digital-employees' ) ); ?>,
+			/* translators: %s is a time of day, e.g. 7:00 AM */
+			taskEveryDay: <?php echo wp_json_encode( __( 'Every day at ~%s', 'digital-employees' ) ); ?>,
+			taskPaused: <?php echo wp_json_encode( __( 'Not scheduled', 'digital-employees' ) ); ?>,
+			/* translators: %s is a run outcome, e.g. Succeeded */
+			taskLastRun: <?php echo wp_json_encode( __( 'Last run: %s', 'digital-employees' ) ); ?>,
+			runStatusRunning: <?php echo wp_json_encode( __( 'Running', 'digital-employees' ) ); ?>,
+			runStatusSucceeded: <?php echo wp_json_encode( __( 'Succeeded', 'digital-employees' ) ); ?>,
+			runStatusNothing: <?php echo wp_json_encode( __( 'Nothing to do', 'digital-employees' ) ); ?>,
+			runStatusFailed: <?php echo wp_json_encode( __( 'Failed', 'digital-employees' ) ); ?>,
+			runStatusSkipped: <?php echo wp_json_encode( __( 'Skipped', 'digital-employees' ) ); ?>,
+			runStatusExpired: <?php echo wp_json_encode( __( 'Did not finish', 'digital-employees' ) ); ?>,
+			taskRunNow: <?php echo wp_json_encode( __( 'Run now', 'digital-employees' ) ); ?>,
+			taskEdit: <?php echo wp_json_encode( __( 'Edit', 'digital-employees' ) ); ?>,
+			taskDelete: <?php echo wp_json_encode( __( 'Remove', 'digital-employees' ) ); ?>,
+			taskDeleteConfirm: <?php echo wp_json_encode( __( 'Remove Email Triage? Your mailbox stays connected.', 'digital-employees' ) ); ?>,
+			taskDeleting: <?php echo wp_json_encode( __( 'Removing…', 'digital-employees' ) ); ?>,
+			taskDeleted: <?php echo wp_json_encode( __( 'Email Triage removed. Nothing is scheduled for you now.', 'digital-employees' ) ); ?>,
+			taskDeleteFailed: <?php echo wp_json_encode( __( 'Could not remove your Email Triage setup. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>
