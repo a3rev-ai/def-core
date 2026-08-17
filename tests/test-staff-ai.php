@@ -1148,6 +1148,8 @@ $GLOBALS['_def_test_get_body'] = json_encode( array(
 		'name'              => 'Daily brief',
 		'instruction'       => 'Write my checklist.',
 		'enabled'           => true,
+		'cadence'           => 'weekly',
+		'send_weekday'      => 2,
 		'send_hour_local'   => 7,
 		'send_minute_local' => 30,
 		'timezone'          => 'Australia/Brisbane',
@@ -1165,10 +1167,12 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'name', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$keys,
-	'exactly the nine task fields - owner_email and any future extras stay out'
+	'exactly the eleven task fields - owner_email and any future extras stay out'
 );
+assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
+assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
 assert_equals( array( 'email' ), $task['destinations'], 'unknown destination types are dropped' );
 assert_true(
 	false === strpos( json_encode( $resp->get_data() ), 'must-not-pass' ),
@@ -1193,6 +1197,9 @@ $_ft_bad = array(
 	'instruction too big' => array_merge( $_ft_valid, array( 'instruction' => str_repeat( 'x', 10001 ) ) ),
 	'unknown dest'        => array_merge( $_ft_valid, array( 'destinations' => array( 'webhook' ) ) ),
 	'enabled not bool'    => array_merge( $_ft_valid, array( 'enabled' => 'yes' ) ),
+	'unknown cadence'     => array_merge( $_ft_valid, array( 'cadence' => 'fortnightly' ) ),
+	'weekday too big'     => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => 7 ) ),
+	'weekday not int'     => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => 'monday' ) ),
 );
 foreach ( $_ft_bad as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1227,10 +1234,15 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'destinations', 'enabled', 'instruction', 'name', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'instruction', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE whitelisted object and nothing else - smuggled fields never forwarded'
 );
+// This body carried NO cadence fields - the cached pre-6.1.0 page. The
+// forward must default them the way DEF does, so old pages keep saving
+// daily tasks instead of being refused.
+assert_equals( 'daily', $sent['cadence'] ?? '', 'absent cadence forwards as daily (cached-page compatibility)' );
+assert_equals( 0, $sent['send_weekday'] ?? -1, 'absent send_weekday forwards as 0' );
 
 echo "\n[FT-4] rest_run_now_task maps DEF's two actionable refusals\n";
 $GLOBALS['_def_test_request_code'] = 409;
@@ -1286,6 +1298,30 @@ $req->set_param( 'name', str_repeat( "\u{6F22}", 50 ) );
 $resp = DEF_Core_Staff_AI::rest_create_task( $req );
 unset( $GLOBALS['_def_test_request_body'] );
 assert_true( ! is_wp_error( $resp ), 'a 50-character CJK name is accepted (150 bytes is irrelevant)' );
+
+echo "\n[FT-8] a weekly task's cadence and day ride the forward intact (6.1.0)\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' ) ) );
+$req = new WP_REST_Request();
+foreach ( array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => 4 ) ) as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a weekly create succeeds' );
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+assert_equals( 'weekly', $sent['cadence'] ?? '', 'cadence forwards as chosen' );
+assert_equals( 4, $sent['send_weekday'] ?? -1, 'the chosen day forwards untouched' );
+
+echo "\n[FT-8b] a cadence DEF never sent defaults to daily at the allowlist\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success' => true,
+	'tasks'   => array( array( 'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'name' => 'X', 'instruction' => 'Y', 'enabled' => true, 'cadence' => 'fortnightly', 'send_weekday' => 99 ) ),
+) );
+$resp = DEF_Core_Staff_AI::rest_list_tasks();
+unset( $GLOBALS['_def_test_get_body'] );
+$task = $resp->get_data()['tasks'][0] ?? array();
+assert_equals( 'daily', $task['cadence'] ?? '', 'an unknown cadence renders as daily, never raw' );
+assert_equals( 0, $task['send_weekday'] ?? -1, 'an out-of-range weekday renders as 0' );
 
 echo "\n[FT-5] rest_delete_task forwards DELETE to the task path\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );

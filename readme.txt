@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.0.0
+Stable tag: 6.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.1.0 - 2026-08-18 =
+* Feature - Frequency for custom tasks: choose Manual, Hourly, Daily, Weekdays or Weekly when you create or edit a task. Weekly asks for the day; Manual never runs on a schedule - it runs only when you press Run now
+* Tweak - Each task card now says its real rhythm - "Every hour at ~:30", "Weekdays at ~7:00 AM", "Every Friday at ~7:00 AM", or "Runs when you press Run now"
 
 = 6.0.0 - 2026-08-17 =
 * Feature - Scheduled tasks: a full-page home in Staff AI for everything it runs on a schedule, with task cards and a New task button

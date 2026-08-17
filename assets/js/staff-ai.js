@@ -2979,6 +2979,12 @@ function t(key, fallback) {
 		var nameEl = document.getElementById('taskName');
 		var instructionEl = document.getElementById('taskInstruction');
 		var taskEnabledEl = document.getElementById('taskEnabled');
+		var taskCadenceEl = document.getElementById('taskCadence');
+		var taskWeekdayEl = document.getElementById('taskWeekday');
+		var taskWeekdayRow = document.getElementById('taskWeekdayRow');
+		var taskCadenceHint = document.getElementById('taskCadenceHint');
+		var taskTimeRow = document.getElementById('taskTimeRow');
+		var taskTzRow = document.getElementById('taskTzRow');
 		var taskTimeEl = document.getElementById('taskTime');
 		var taskTzEl = document.getElementById('taskTimezone');
 		var taskStatusEl = document.getElementById('taskStatus');
@@ -3082,6 +3088,27 @@ function t(key, fallback) {
 			return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 		}
 
+		function dayName(weekday) {
+			// Monday=0..Sunday=6, DEF's convention. 2024-01-01 is a Monday, so
+			// the reader's locale names the day without an i18n table here.
+			return new Date(Date.UTC(2024, 0, 1 + (weekday || 0))).toLocaleDateString(
+				[], { weekday: 'long', timeZone: 'UTC' });
+		}
+
+		function scheduleBadgeText(s) {
+			// v6.1.0: the badge follows the cadence. Absent (the triage schedule,
+			// or a pre-6.1.0 task row) reads as daily - exactly what those are.
+			switch (s.cadence) {
+				case 'manual': return t('taskManualOnly', 'Runs when you press Run now');
+				case 'hourly': return t('taskEveryHour', 'Every hour at ~:%s')
+					.replace('%s', pad(s.send_minute_local || 0));
+				case 'weekdays': return t('taskWeekdaysAt', 'Weekdays at ~%s').replace('%s', cadenceTime(s));
+				case 'weekly': return t('taskWeeklyAt', 'Every %1$s at ~%2$s')
+					.replace('%1$s', dayName(s.send_weekday)).replace('%2$s', cadenceTime(s));
+				default: return t('taskEveryDay', 'Every day at ~%s').replace('%s', cadenceTime(s));
+			}
+		}
+
 		function runStatusText(status) {
 			// DEF's run status is a machine enum. Rendering it raw put strings
 			// like "nothing_to_do" in front of the user; an unknown value still
@@ -3134,7 +3161,7 @@ function t(key, fallback) {
 			var meta = el('div', 'task-card-meta');
 			meta.appendChild(el('span', 'task-badge' + (schedule.enabled ? '' : ' task-badge-off'),
 				schedule.enabled
-					? t('taskEveryDay', 'Every day at ~%s').replace('%s', cadenceTime(schedule))
+					? scheduleBadgeText(schedule)
 					: t('taskPaused', 'Not scheduled')));
 			if (lastRun && lastRun.status) {
 				var when = whenText(lastRun.at);
@@ -3268,10 +3295,33 @@ function t(key, fallback) {
 			triageView.style.display = 'none';
 		}
 
+		function applyCadenceRows() {
+			// The form follows the frequency: Weekly needs its day; Manual has no
+			// send time to show (it never fires on one). Values are kept, only
+			// hidden - the payload stays the complete object (full-replace).
+			var cadence = taskCadenceEl ? taskCadenceEl.value : 'daily';
+			if (taskWeekdayRow) taskWeekdayRow.style.display = cadence === 'weekly' ? '' : 'none';
+			if (taskTimeRow) taskTimeRow.style.display = cadence === 'manual' ? 'none' : '';
+			if (taskTzRow) taskTzRow.style.display = cadence === 'manual' ? 'none' : '';
+			if (taskCadenceHint) {
+				var hints = {
+					manual: t('taskHintManual', 'This task never runs on a schedule. Use its Run now button whenever you want it.'),
+					hourly: t('taskHintHourly', "Runs every hour, at the send time's minutes past the hour."),
+					weekdays: t('taskHintWeekdays', 'Runs Monday to Friday at the send time.'),
+					weekly: t('taskHintWeekly', 'Runs once a week, on the day you choose.')
+				};
+				taskCadenceHint.textContent = hints[cadence] || '';
+				taskCadenceHint.style.display = hints[cadence] ? '' : 'none';
+			}
+		}
+
 		function fillTaskForm(task) {
 			nameEl.value = task ? (task.name || '') : '';
 			instructionEl.value = task ? (task.instruction || '') : '';
 			taskEnabledEl.checked = task ? !!task.enabled : true;
+			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
+			if (taskWeekdayEl) taskWeekdayEl.value = String((task && task.send_weekday) || 0);
+			applyCadenceRows();
 			taskTimeEl.value = task
 				? pad(task.send_hour_local || 0) + ':' + pad(task.send_minute_local || 0)
 				: '07:00';
@@ -3334,6 +3384,7 @@ function t(key, fallback) {
 				typeEl.value = 'freetext';   // the selector resets for next time
 			}
 		});
+		if (taskCadenceEl) taskCadenceEl.addEventListener('change', applyCadenceRows);
 		if (backBtn) backBtn.addEventListener('click', function () { openTaskForm(null); });
 
 		async function saveTask() {
@@ -3350,6 +3401,8 @@ function t(key, fallback) {
 				name: name,
 				instruction: instruction,
 				enabled: !!taskEnabledEl.checked,
+				cadence: (taskCadenceEl && taskCadenceEl.value) || 'daily',
+				send_weekday: taskWeekdayEl ? (parseInt(taskWeekdayEl.value, 10) || 0) : 0,
 				send_hour_local: parseInt(parts[0], 10) || 0,
 				send_minute_local: parseInt(parts[1], 10) || 0,
 				timezone: taskTzEl.value || 'UTC',
@@ -3368,7 +3421,9 @@ function t(key, fallback) {
 				// AFTER the reload, or loadAll's own "Loading…" clobbers it in the
 				// same tick and the user never sees the confirmation (round-2).
 				await loadAll();
-				setStatus(paneStatus, t('taskSaved', 'Saved. Your task follows its schedule from the next send time.'), 'ok');
+				setStatus(paneStatus, payload.cadence === 'manual'
+					? t('taskSavedManual', 'Saved. Run it any time with its Run now button.')
+					: t('taskSaved', 'Saved. Your task follows its schedule from the next send time.'), 'ok');
 			} catch (e) {
 				setStatus(taskStatusEl, (e && e.message) || t('taskSaveFailed', 'Could not save your task.'), 'error');
 			} finally {
