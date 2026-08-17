@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.1.0
+Stable tag: 6.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.1.1 - 2026-08-18 =
+* Fix - A task form taller than the window (the new Frequency rows on a smaller screen or the desktop app) left its Save and Close buttons cut off with no way to scroll to them. Modals now scroll when they are taller than the window
 
 = 6.1.0 - 2026-08-18 =
 * Feature - Frequency for custom tasks: choose Manual, Hourly, Daily, Weekdays or Weekly when you create or edit a task. Weekly asks for the day; Manual never runs on a schedule - it runs only when you press Run now

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.1.1 - 2026/08/18 =
+* Fix - A task form taller than the window (the new Frequency rows on a smaller screen or the desktop app) left its Save and Close buttons cut off with no way to scroll to them. Modals now scroll when they are taller than the window
+
 = 6.1.0 - 2026/08/18 =
 * Feature - Frequency for custom tasks: choose Manual, Hourly, Daily, Weekdays or Weekly when you create or edit a task. Weekly asks for the day; Manual never runs on a schedule - it runs only when you press Run now
 * Tweak - Each task card now says its real rhythm - "Every hour at ~:30", "Weekdays at ~7:00 AM", "Every Friday at ~7:00 AM", or "Runs when you press Run now"

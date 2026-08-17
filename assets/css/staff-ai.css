@@ -1306,6 +1306,14 @@ body {
 	max-width: 400px;
 	padding: 24px;
 	box-shadow: var(--modal-shadow);
+	/* A modal taller than the window must scroll, not pin (6.1.1): the
+	   overlay centres it, so overflow cuts BOTH the header's close button
+	   and the footer's Save off-screen with no way to reach either. The
+	   whole modal scrolls rather than just .modal-body - the other modals
+	   share these classes and their layout must not change. */
+	max-height: calc(100vh - 32px);
+	max-height: calc(100dvh - 32px);
+	overflow-y: auto;
 }
 
 .modal-header {
