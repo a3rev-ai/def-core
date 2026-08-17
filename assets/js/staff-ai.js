@@ -314,6 +314,21 @@ function t(key, fallback) {
 						modelSelect.appendChild(opt);
 						ids.push(m.id);
 					});
+					// P3-C (D-S9): the task creator's model dropdown is THIS list —
+					// the tenant's own, one fetch, both dropdowns. No models = the
+					// row stays hidden and the employee default applies, exactly
+					// like the chat switcher.
+					var taskModelSel = document.getElementById('taskModel');
+					if (taskModelSel) {
+						models.forEach(function (m) {
+							var o = document.createElement('option');
+							o.value = m.id;
+							o.textContent = m.label + (m.description ? ' — ' + m.description : '');
+							taskModelSel.appendChild(o);
+						});
+						var taskModelRow = document.getElementById('taskModelRow');
+						if (taskModelRow) taskModelRow.style.display = '';
+					}
 					// Restore the sticky pick if still offered, else default to the
 					// first (most capable) — which is the employee default too.
 					modelSelect.value = (ids.indexOf(selectedModel) !== -1) ? selectedModel : ids[0];
@@ -2980,6 +2995,7 @@ function t(key, fallback) {
 		var instructionEl = document.getElementById('taskInstruction');
 		var taskEnabledEl = document.getElementById('taskEnabled');
 		var taskCadenceEl = document.getElementById('taskCadence');
+		var taskModelEl = document.getElementById('taskModel');
 		var taskWeekdayEl = document.getElementById('taskWeekday');
 		var taskWeekdayRow = document.getElementById('taskWeekdayRow');
 		var taskCadenceHint = document.getElementById('taskCadenceHint');
@@ -3327,6 +3343,22 @@ function t(key, fallback) {
 			instructionEl.value = task ? (task.instruction || '') : '';
 			taskEnabledEl.checked = task ? !!task.enabled : true;
 			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
+			if (taskModelEl) {
+				var wantModel = (task && task.model) || '';
+				// The task's stored model may not be among the offered options
+				// (list still loading, or no longer offered). Keep it VISIBLE as
+				// its raw id rather than silently rewriting the task to Default
+				// on the next unrelated save (the P3-B ignored-selector lesson);
+				// the run itself already falls back safely DEF-side.
+				if (wantModel && !Array.prototype.some.call(taskModelEl.options,
+						function (o) { return o.value === wantModel; })) {
+					var keep = document.createElement('option');
+					keep.value = wantModel;
+					keep.textContent = wantModel;
+					taskModelEl.appendChild(keep);
+				}
+				taskModelEl.value = wantModel;
+			}
 			if (taskWeekdayEl) taskWeekdayEl.value = String((task && task.send_weekday) || 0);
 			applyCadenceRows();
 			taskTimeEl.value = task
@@ -3409,6 +3441,7 @@ function t(key, fallback) {
 				instruction: instruction,
 				enabled: !!taskEnabledEl.checked,
 				cadence: (taskCadenceEl && taskCadenceEl.value) || 'daily',
+				model: (taskModelEl && taskModelEl.value) || '',
 				send_weekday: taskWeekdayEl ? (parseInt(taskWeekdayEl.value, 10) || 0) : 0,
 				send_hour_local: parseInt(parts[0], 10) || 0,
 				send_minute_local: parseInt(parts[1], 10) || 0,

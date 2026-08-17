@@ -105,6 +105,11 @@ const BASELINE = array(
 	// Second occurrence (Phase 3, v6.0.0): the task creator's identical
 	// door-check on the identical column type.
 	'includes/class-def-core-staff-ai.php::if ( ! is_string( $timezone ) || \'\' === $timezone || strlen( $timezone ) > 64 ) {' => 2,
+	// Door-check for DEF's String(64) model column (P3-C, v6.2.0), mirrored
+	// from the DEF task route it proxies: REFUSES visibly (400, field named),
+	// never truncates; every registered model id fits, and DEF stays the
+	// authority on which ids exist — this bounds the shape only.
+	'includes/class-def-core-staff-ai.php::if ( ! is_string( $model ) || strlen( $model ) > 64 ) {' => 1,
 	'includes/class-def-core-admin-api.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::if ( count( $results ) >= 10 ) {' => 1,

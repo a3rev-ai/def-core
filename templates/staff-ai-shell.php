@@ -544,6 +544,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 							</select>
 							<p class="form-hint" id="taskCadenceHint" style="display:none;"></p>
 						</div>
+						<!-- P3-C (D-S9): hidden until the tenant's own model list arrives
+						     from /staff-ai/status - the chat switcher's source. No models
+						     offered (e.g. provider not configured) = no row, default applies. -->
+						<div class="form-group" id="taskModelRow" style="display:none;">
+							<label class="form-label" for="taskModel"><?php echo esc_html__( 'Model', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskModel">
+								<option value="" selected><?php echo esc_html__( 'Default model', 'digital-employees' ); ?></option>
+							</select>
+							<p class="form-hint"><?php echo esc_html__( 'The model this task runs on. Default model follows your Staff AI setting.', 'digital-employees' ); ?></p>
+						</div>
 						<div class="form-group" id="taskWeekdayRow" style="display:none;">
 							<label class="form-label" for="taskWeekday"><?php echo esc_html__( 'Day of the week', 'digital-employees' ); ?></label>
 							<select class="form-input" id="taskWeekday">

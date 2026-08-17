@@ -1154,6 +1154,7 @@ $GLOBALS['_def_test_get_body'] = json_encode( array(
 		'send_minute_local' => 30,
 		'timezone'          => 'Australia/Brisbane',
 		'destinations'      => array( 'email', 'carrier-pigeon' ),
+		'model'             => 'claude-haiku-4-5-20251001',
 		'last_run'          => array( 'status' => 'succeeded', 'at' => '2026-08-17T07:00:00+00:00' ),
 		// The delivery address is captured DEF-side from the verified identity
 		// and consumed by the scheduler's email leg - the UI never needs it,
@@ -1167,12 +1168,13 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$keys,
-	'exactly the eleven task fields - owner_email and any future extras stay out'
+	'exactly the twelve task fields - owner_email and any future extras stay out'
 );
 assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
 assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
+assert_equals( 'claude-haiku-4-5-20251001', $task['model'], 'model rides the allowlist (P3-C)' );
 assert_equals( array( 'email' ), $task['destinations'], 'unknown destination types are dropped' );
 assert_true(
 	false === strpos( json_encode( $resp->get_data() ), 'must-not-pass' ),
@@ -1206,6 +1208,10 @@ $_ft_bad = array(
 	// then refuse it with a proxied 422 - the exact class of error this
 	// validator exists to turn into one plain sentence (round-1 code leg).
 	'weekday numeric str' => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => '3' ) ),
+	// P3-C: the BFF bounds the SHAPE only - DEF is the authority on which
+	// model ids exist, so a well-formed unknown id passes through to DEF.
+	'model too long'      => array_merge( $_ft_valid, array( 'model' => str_repeat( 'x', 65 ) ) ),
+	'model not string'    => array_merge( $_ft_valid, array( 'model' => 123 ) ),
 );
 foreach ( $_ft_bad as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1240,7 +1246,7 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'instruction', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'instruction', 'model', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE whitelisted object and nothing else - smuggled fields never forwarded'
 );
@@ -1249,6 +1255,9 @@ assert_equals(
 // daily tasks instead of being refused.
 assert_equals( 'daily', $sent['cadence'] ?? '', 'absent cadence forwards as daily (cached-page compatibility)' );
 assert_equals( 0, $sent['send_weekday'] ?? -1, 'absent send_weekday forwards as 0' );
+// Same for the pre-6.2.0 page: no model posted forwards as '' = employee
+// default, which is exactly what those pages' tasks were running.
+assert_equals( '', $sent['model'] ?? 'MISSING', 'absent model forwards as empty (cached-page compatibility)' );
 
 echo "\n[FT-4] rest_run_now_task maps DEF's two actionable refusals\n";
 $GLOBALS['_def_test_request_code'] = 409;

@@ -2118,6 +2118,11 @@ final class DEF_Core_Staff_AI
 		$weekday = ( isset( $row['send_weekday'] ) && is_int( $row['send_weekday'] )
 			&& $row['send_weekday'] >= 0 && $row['send_weekday'] <= 6 )
 			? $row['send_weekday'] : 0;
+		// P3-C: '' = the employee default (DEF stores NULL). The form's select
+		// uses '' for its Default option, so null flattens to it here. No
+		// length bound: DEF's column and door already bound the id (the
+		// timezone field's shape - trust the backend's own response).
+		$model = ( isset( $row['model'] ) && is_string( $row['model'] ) ) ? $row['model'] : '';
 		return array(
 			'id'                => isset( $row['id'] ) && is_string( $row['id'] ) ? $row['id'] : '',
 			'name'              => isset( $row['name'] ) && is_string( $row['name'] ) ? $row['name'] : '',
@@ -2129,6 +2134,7 @@ final class DEF_Core_Staff_AI
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
 			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
+			'model'             => $model,
 			'last_run'          => self::allowlist_last_run( $row['last_run'] ?? null ),
 		);
 	}
@@ -2153,6 +2159,7 @@ final class DEF_Core_Staff_AI
 		$minute       = $request->get_param( 'send_minute_local' );
 		$timezone     = $request->get_param( 'timezone' );
 		$destinations = $request->get_param( 'destinations' );
+		$model        = $request->get_param( 'model' );
 
 		$problems = array();
 		// Absent defaults mirror DEF exactly (routes.py: body.get with a
@@ -2163,6 +2170,15 @@ final class DEF_Core_Staff_AI
 		}
 		if ( null === $weekday ) {
 			$weekday = 0;
+		}
+		// P3-C: absent mirrors DEF ('' = employee default) - a cached pre-6.2.0
+		// page posts no model and must keep saving default-model tasks. DEF is
+		// the authority on which ids exist; this door only bounds the shape.
+		if ( null === $model ) {
+			$model = '';
+		}
+		if ( ! is_string( $model ) || strlen( $model ) > 64 ) {
+			$problems[] = __( 'The model must be a model id of at most 64 characters.', 'digital-employees' );
 		}
 		if ( ! is_string( $cadence )
 			|| ! in_array( $cadence, array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly' ), true ) ) {
@@ -2225,6 +2241,7 @@ final class DEF_Core_Staff_AI
 			'send_minute_local' => $minute,
 			'timezone'          => $timezone,
 			'destinations'      => array_values( array_unique( $clean_destinations ) ),
+			'model'             => $model,
 		);
 	}
 
