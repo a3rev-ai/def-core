@@ -531,13 +531,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<p class="form-hint"><?php echo esc_html__( 'The task runs with no tools: it can write, plan, summarise and remind, but it cannot read your email or calendar, browse the web, or send anything on your behalf.', 'digital-employees' ); ?></p>
 						</div>
 						<div class="form-group schedule-toggle-row">
-							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></label>
+							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <span id="taskEnabledLabel"><?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></span></label>
 						</div>
 						<div class="form-group">
+							<label class="form-label" for="taskCadence"><?php echo esc_html__( 'Frequency', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskCadence">
+								<option value="manual"><?php echo esc_html__( 'Manual - only when I press Run now', 'digital-employees' ); ?></option>
+								<option value="hourly"><?php echo esc_html__( 'Hourly', 'digital-employees' ); ?></option>
+								<option value="daily" selected><?php echo esc_html__( 'Daily', 'digital-employees' ); ?></option>
+								<option value="weekdays"><?php echo esc_html__( 'Weekdays - Monday to Friday', 'digital-employees' ); ?></option>
+								<option value="weekly"><?php echo esc_html__( 'Weekly', 'digital-employees' ); ?></option>
+							</select>
+							<p class="form-hint" id="taskCadenceHint" style="display:none;"></p>
+						</div>
+						<div class="form-group" id="taskWeekdayRow" style="display:none;">
+							<label class="form-label" for="taskWeekday"><?php echo esc_html__( 'Day of the week', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskWeekday">
+								<option value="0" selected><?php echo esc_html__( 'Monday', 'digital-employees' ); ?></option>
+								<option value="1"><?php echo esc_html__( 'Tuesday', 'digital-employees' ); ?></option>
+								<option value="2"><?php echo esc_html__( 'Wednesday', 'digital-employees' ); ?></option>
+								<option value="3"><?php echo esc_html__( 'Thursday', 'digital-employees' ); ?></option>
+								<option value="4"><?php echo esc_html__( 'Friday', 'digital-employees' ); ?></option>
+								<option value="5"><?php echo esc_html__( 'Saturday', 'digital-employees' ); ?></option>
+								<option value="6"><?php echo esc_html__( 'Sunday', 'digital-employees' ); ?></option>
+							</select>
+						</div>
+						<div class="form-group" id="taskTimeRow">
 							<label class="form-label" for="taskTime"><?php echo esc_html__( 'Send time', 'digital-employees' ); ?></label>
 							<input type="time" class="form-input" id="taskTime" value="07:00">
 						</div>
-						<div class="form-group">
+						<div class="form-group" id="taskTzRow">
 							<label class="form-label" for="taskTimezone"><?php echo esc_html__( 'Timezone', 'digital-employees' ); ?></label>
 							<select class="form-input" id="taskTimezone"></select>
 						</div>
@@ -680,6 +703,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskTriageDesc: <?php echo wp_json_encode( __( 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.', 'digital-employees' ) ); ?>,
 			/* translators: %s is a time of day, e.g. 7:00 AM */
 			taskEveryDay: <?php echo wp_json_encode( __( 'Every day at ~%s', 'digital-employees' ) ); ?>,
+			/* translators: %s is minutes past the hour, e.g. 30 */
+			taskEveryHour: <?php echo wp_json_encode( __( 'Every hour at ~:%s', 'digital-employees' ) ); ?>,
+			/* translators: %s is a time of day, e.g. 7:00 AM */
+			taskWeekdaysAt: <?php echo wp_json_encode( __( 'Weekdays at ~%s', 'digital-employees' ) ); ?>,
+			/* translators: %1$s is a weekday name, %2$s is a time of day */
+			taskWeeklyAt: <?php echo wp_json_encode( __( 'Every %1$s at ~%2$s', 'digital-employees' ) ); ?>,
+			taskManualOnly: <?php echo wp_json_encode( __( 'Runs when you press Run now', 'digital-employees' ) ); ?>,
+			taskHintManual: <?php echo wp_json_encode( __( 'This task never runs on a schedule. Use its Run now button whenever you want it.', 'digital-employees' ) ); ?>,
+			taskEnabledLabel: <?php echo wp_json_encode( __( 'Run this task on its schedule', 'digital-employees' ) ); ?>,
+			taskEnabledManualLabel: <?php echo wp_json_encode( __( 'Task is active - Run now only works while this is on', 'digital-employees' ) ); ?>,
+			taskHintHourly: <?php echo wp_json_encode( __( 'Runs every hour, at the send time\'s minutes past the hour.', 'digital-employees' ) ); ?>,
+			taskHintWeekdays: <?php echo wp_json_encode( __( 'Runs Monday to Friday at the send time.', 'digital-employees' ) ); ?>,
+			taskHintWeekly: <?php echo wp_json_encode( __( 'Runs once a week, on the day you choose.', 'digital-employees' ) ); ?>,
 			taskPaused: <?php echo wp_json_encode( __( 'Not scheduled', 'digital-employees' ) ); ?>,
 			/* translators: %s is a run outcome, e.g. Succeeded */
 			taskLastRun: <?php echo wp_json_encode( __( 'Last run: %s', 'digital-employees' ) ); ?>,
@@ -702,6 +738,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskNeedName: <?php echo wp_json_encode( __( 'Give the task a name.', 'digital-employees' ) ); ?>,
 			taskNeedInstruction: <?php echo wp_json_encode( __( 'Tell Staff AI what the task should do.', 'digital-employees' ) ); ?>,
 			taskSaved: <?php echo wp_json_encode( __( 'Saved. Your task follows its schedule from the next send time.', 'digital-employees' ) ); ?>,
+			taskSavedManual: <?php echo wp_json_encode( __( 'Saved. Run it any time with its Run now button.', 'digital-employees' ) ); ?>,
 			taskSaveFailed: <?php echo wp_json_encode( __( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the task's name. */ ?>
 			taskConfirmDeleteNamed: <?php echo wp_json_encode( __( 'Remove "%s"? Its schedule stops now; past run history is kept.', 'digital-employees' ) ); ?>,

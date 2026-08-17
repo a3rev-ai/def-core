@@ -2112,11 +2112,19 @@ final class DEF_Core_Staff_AI
 				}
 			}
 		}
+		$cadence = ( isset( $row['cadence'] ) && is_string( $row['cadence'] )
+			&& in_array( $row['cadence'], array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly' ), true ) )
+			? $row['cadence'] : 'daily';
+		$weekday = ( isset( $row['send_weekday'] ) && is_int( $row['send_weekday'] )
+			&& $row['send_weekday'] >= 0 && $row['send_weekday'] <= 6 )
+			? $row['send_weekday'] : 0;
 		return array(
 			'id'                => isset( $row['id'] ) && is_string( $row['id'] ) ? $row['id'] : '',
 			'name'              => isset( $row['name'] ) && is_string( $row['name'] ) ? $row['name'] : '',
 			'instruction'       => isset( $row['instruction'] ) && is_string( $row['instruction'] ) ? $row['instruction'] : '',
 			'enabled'           => ! empty( $row['enabled'] ),
+			'cadence'           => $cadence,
+			'send_weekday'      => $weekday,
 			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
@@ -2139,12 +2147,30 @@ final class DEF_Core_Staff_AI
 		$name         = $request->get_param( 'name' );
 		$instruction  = $request->get_param( 'instruction' );
 		$enabled      = $request->get_param( 'enabled' );
+		$cadence      = $request->get_param( 'cadence' );
+		$weekday      = $request->get_param( 'send_weekday' );
 		$hour         = $request->get_param( 'send_hour_local' );
 		$minute       = $request->get_param( 'send_minute_local' );
 		$timezone     = $request->get_param( 'timezone' );
 		$destinations = $request->get_param( 'destinations' );
 
 		$problems = array();
+		// Absent defaults mirror DEF exactly (routes.py: body.get with a
+		// default) - a cached pre-6.1.0 page posts no cadence and must keep
+		// saving daily tasks. Present-but-wrong still refuses.
+		if ( null === $cadence ) {
+			$cadence = 'daily';
+		}
+		if ( null === $weekday ) {
+			$weekday = 0;
+		}
+		if ( ! is_string( $cadence )
+			|| ! in_array( $cadence, array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly' ), true ) ) {
+			$problems[] = __( 'The frequency must be one of: manual, hourly, daily, weekdays, weekly.', 'digital-employees' );
+		}
+		if ( ! is_int( $weekday ) || $weekday < 0 || $weekday > 6 ) {
+			$problems[] = __( 'The weekday must be a whole number from 0 (Monday) to 6 (Sunday).', 'digital-employees' );
+		}
 		// mb_strlen, NOT strlen (round-2 code leg): DEF counts CHARACTERS and the
 		// copy says characters, so bytes here would refuse a 41-char CJK name the
 		// input and DEF both accept — the display-name byte-cut class removed in
@@ -2193,6 +2219,8 @@ final class DEF_Core_Staff_AI
 			'name'              => trim( $name ),
 			'instruction'       => trim( $instruction ),
 			'enabled'           => $enabled,
+			'cadence'           => $cadence,
+			'send_weekday'      => $weekday,
 			'send_hour_local'   => $hour,
 			'send_minute_local' => $minute,
 			'timezone'          => $timezone,
