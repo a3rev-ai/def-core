@@ -2948,24 +2948,48 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
-	// EMAIL TRIAGE SCHEDULE (S4b) - the user's own daily digest settings
+	// SCHEDULED TASKS (Phase 3) - the full-pane landing page + the creator.
+	// The list is a PAGE in the content area (D-S7), not a fifth modal; the
+	// modal is now the creator/editor only, with two typed forms: the free-text
+	// task (the DEFAULT type, D-S2) and the Email Triage schedule (S4b).
 	// =============================================
 
-	(function initTriageSchedule() {
+	(function initScheduled() {
+		var pane = document.getElementById('scheduledPane');
 		var modal = document.getElementById('scheduleModal');
-		if (!modal) return;
-		var openBtn = document.getElementById('navScheduled');
+		if (!pane || !modal) return;
+		var navBtn = document.getElementById('navScheduled');
+		var grid = document.getElementById('taskCardGrid');
+		var paneEmpty = document.getElementById('scheduledEmpty');
+		var paneStatus = document.getElementById('scheduledPaneStatus');
+		var newTaskBtn = document.getElementById('taskCreateBtn');
+		var messagesEl = document.getElementById('messagesContainer');
+		var composerEl = document.getElementById('composerContainer');
+
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
 		var backBtn = document.getElementById('scheduleBack');
 		var saveBtn = document.getElementById('scheduleSave');
-		var createBtn = document.getElementById('scheduleCreate');
 		var titleEl = document.getElementById('scheduleTitle');
-		var listView = document.getElementById('scheduleListView');
-		var formView = document.getElementById('scheduleFormView');
-		var taskList = document.getElementById('scheduleTaskList');
-		var emptyEl = document.getElementById('scheduleEmpty');
-		var listStatus = document.getElementById('scheduleListStatus');
+
+		// Free-text form (the creator's default view).
+		var taskView = document.getElementById('taskFormView');
+		var typeRow = document.getElementById('taskTypeRow');
+		var typeEl = document.getElementById('taskType');
+		var nameEl = document.getElementById('taskName');
+		var instructionEl = document.getElementById('taskInstruction');
+		var taskEnabledEl = document.getElementById('taskEnabled');
+		var taskTimeEl = document.getElementById('taskTime');
+		var taskTzEl = document.getElementById('taskTimezone');
+		var taskStatusEl = document.getElementById('taskStatus');
+		var taskDestEls = {
+			email: document.getElementById('taskDestEmail'),
+			slack: document.getElementById('taskDestSlack'),
+			teams: document.getElementById('taskDestTeams')
+		};
+
+		// Email Triage form (S4b, unchanged fields).
+		var triageView = document.getElementById('scheduleFormView');
 		var statusEl = document.getElementById('scheduleStatus');
 		var enabledEl = document.getElementById('scheduleEnabled');
 		var timeEl = document.getElementById('scheduleTime');
@@ -2975,8 +2999,18 @@ function t(key, fallback) {
 			slack: document.getElementById('scheduleDestSlack'),
 			teams: document.getElementById('scheduleDestTeams')
 		};
+
 		var loading = false;
-		var current = null;          // last schedule loaded, or null when none exists
+		var current = null;          // the triage schedule, or null when none/unknown
+		var tasks = [];              // the user's free-text tasks
+		var editingTaskId = null;    // task id under edit, null = creating
+		// Which chat apps the user has actually CONNECTED (has_grant per
+		// toolkit, the D-C2b predicate). The "Deliver to" list is DERIVED from
+		// this rather than enumerated (runsheet §14b): a checkbox for an app
+		// with no connection is a control that can only fail downstream, in a
+		// log nobody reads. null = not loaded yet (rows stay visible: refusing
+		// to hide on unknown beats hiding a working option).
+		var connectedApps = null;
 
 		function setStatus(el, msg, kind) {
 			el.textContent = msg || '';
@@ -2985,7 +3019,7 @@ function t(key, fallback) {
 
 		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
 
-		function fillTimezones(selected) {
+		function fillTimezones(selectEl, selected) {
 			var zones = [];
 			try { zones = Intl.supportedValuesOf('timeZone').slice(); } catch (e) { zones = []; }
 			var site = (window.StaffAIConfig && StaffAIConfig.siteTimezone) || '';
@@ -2994,24 +3028,48 @@ function t(key, fallback) {
 				// the backend can only refuse (Code panel F2).
 				if (z && (z === 'UTC' || z.indexOf('/') !== -1) && zones.indexOf(z) === -1) zones.unshift(z);
 			});
-			tzEl.textContent = '';
+			selectEl.textContent = '';
 			zones.forEach(function (z) {
 				var opt = document.createElement('option');
 				opt.value = z;
 				opt.textContent = z;
 				if (z === selected) opt.selected = true;
-				tzEl.appendChild(opt);
+				selectEl.appendChild(opt);
 			});
 		}
 
-		function fill(schedule) {
-			enabledEl.checked = !!schedule.enabled;
-			timeEl.value = pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
-			fillTimezones(schedule.timezone || 'UTC');
-			var dests = schedule.destinations || ['email'];
-			Object.keys(destEls).forEach(function (k) {
-				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
+		function applyConnectionRows(saved) {
+			// Show a chat row when the app is CONNECTED, or when the saved
+			// schedule already names it (honesty about stored state outranks
+			// tidiness — a saved-but-disconnected destination must stay visible
+			// so the user can untick it).
+			var dests = saved || [];
+			[['slack', 'taskDestSlackRow', 'scheduleDestSlackRow'],
+			 ['teams', 'taskDestTeamsRow', 'scheduleDestTeamsRow']].forEach(function (pair) {
+				var app = pair[0];
+				var show = connectedApps === null || connectedApps[app] || dests.indexOf(app) !== -1;
+				[pair[1], pair[2]].forEach(function (id) {
+					var row = document.getElementById(id);
+					if (row) row.style.display = show ? '' : 'none';
+				});
 			});
+		}
+
+		async function loadConnections() {
+			// Best-effort: a failed read leaves connectedApps null and every row
+			// visible — unknown must widen the form, never narrow it.
+			try {
+				var data = await apiRequest('/user/integrations');
+				var apps = (data && Array.isArray(data.apps)) ? data.apps : [];
+				connectedApps = { slack: false, teams: false };
+				apps.forEach(function (app) {
+					var slug = String(app.category || '');
+					if (app.has_grant && slug === 'slack') connectedApps.slack = true;
+					if (app.has_grant && slug.indexOf('teams') !== -1) connectedApps.teams = true;
+				});
+			} catch (e) {
+				connectedApps = null;
+			}
 		}
 
 		function cadenceTime(s) {
@@ -3024,10 +3082,8 @@ function t(key, fallback) {
 
 		function runStatusText(status) {
 			// DEF's run status is a machine enum. Rendering it raw put strings
-			// like "nothing_to_do" — and, on the 08-16 canary, "llm:error" — in
-			// front of the user in every locale. An unknown value still shows,
-			// truncated: an unrecognised status is information, not a reason to
-			// hide that the run had one.
+			// like "nothing_to_do" in front of the user; an unknown value still
+			// shows, truncated - information, not a reason to hide the run.
 			var known = {
 				running: t('runStatusRunning', 'Running'),
 				succeeded: t('runStatusSucceeded', 'Succeeded'),
@@ -3050,8 +3106,8 @@ function t(key, fallback) {
 		function el(tag, cls, text) {
 			var n = document.createElement(tag);
 			if (cls) n.className = cls;
-			// textContent, never innerHTML. The run status is backend-supplied and
-			// the rest is ours, but the rule holds for the whole card.
+			// textContent, never innerHTML — task names and instructions are
+			// user-authored and run statuses are backend-supplied.
 			if (text !== undefined) n.textContent = text;
 			return n;
 		}
@@ -3065,30 +3121,19 @@ function t(key, fallback) {
 			return b;
 		}
 
-		function renderCard(schedule) {
+		function baseCard(name, desc, schedule, lastRun) {
 			var card = el('div', 'task-card');
-
 			var head = el('div', 'task-card-head');
-			head.appendChild(el('span', 'task-card-name', t('taskTriageName', 'Email Triage')));
+			head.appendChild(el('span', 'task-card-name', name));
 			var actions = el('div', 'task-card-actions');
-			actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), showForm));
-			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { remove(del); });
-			actions.appendChild(del);
 			head.appendChild(actions);
 			card.appendChild(head);
-
-			card.appendChild(el('p', 'task-card-desc', t('taskTriageDesc',
-				'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.')));
-
+			card.appendChild(el('p', 'task-card-desc', desc));
 			var meta = el('div', 'task-card-meta');
-			// %s, not concatenation — the file's own pattern (documents, memories).
-			// A glued-on fragment cannot reorder for a language that needs the time
-			// first.
 			meta.appendChild(el('span', 'task-badge' + (schedule.enabled ? '' : ' task-badge-off'),
 				schedule.enabled
 					? t('taskEveryDay', 'Every day at ~%s').replace('%s', cadenceTime(schedule))
 					: t('taskPaused', 'Not scheduled')));
-			var lastRun = schedule.last_run;
 			if (lastRun && lastRun.status) {
 				var when = whenText(lastRun.at);
 				meta.appendChild(el('span', 'task-last-run',
@@ -3096,89 +3141,237 @@ function t(key, fallback) {
 					(when ? ' · ' + when : '')));
 			}
 			card.appendChild(meta);
+			return { card: card, actions: actions };
+		}
 
-			// Only when the schedule is on. Run now runs THE SCHEDULE, so DEF
-			// refuses a switched-off one with a 409 (D-S6) — offering a control
-			// that can only fail is worse than not offering it.
+		function renderTriageCard(schedule) {
+			var built = baseCard(
+				t('taskTriageName', 'Email Triage'),
+				t('taskTriageDesc', 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.'),
+				schedule, schedule.last_run
+			);
+			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(false); }));
+			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTriage(del); });
+			built.actions.appendChild(del);
+			// Only when the schedule is on: DEF refuses a switched-off one with
+			// a 409 (D-S6) - offering a control that can only fail is worse.
 			if (schedule.enabled) {
 				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
 				run.type = 'button';
-				run.addEventListener('click', function () { runNow(run); });
-				card.appendChild(run);
+				run.addEventListener('click', function () { runNowTriage(run); });
+				built.card.appendChild(run);
 			}
-
-			return card;
+			return built.card;
 		}
 
-		function renderList() {
-			taskList.textContent = '';
-			if (!current || !current.exists) {
-				emptyEl.style.display = '';
-				return;
+		function renderTaskCard(task) {
+			var desc = String(task.instruction || '');
+			if (desc.length > 140) desc = desc.slice(0, 140) + '…';
+			var built = baseCard(task.name || '', desc, task, task.last_run);
+			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTaskForm(task); }));
+			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTask(del, task); });
+			built.actions.appendChild(del);
+			if (task.enabled) {
+				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
+				run.type = 'button';
+				run.addEventListener('click', function () { runNowTask(run, task); });
+				built.card.appendChild(run);
 			}
-			emptyEl.style.display = 'none';
-			taskList.appendChild(renderCard(current));
+			return built.card;
 		}
 
-		function showList() {
-			if (titleEl) titleEl.textContent = t('scheduleTasksTitle', 'Scheduled tasks');
-			listView.style.display = '';
-			formView.style.display = 'none';
-			if (backBtn) backBtn.style.display = 'none';
-			if (saveBtn) saveBtn.style.display = 'none';
-			setStatus(statusEl, '');
+		function renderGrid() {
+			grid.textContent = '';
+			var any = false;
+			if (current && current.exists) {
+				grid.appendChild(renderTriageCard(current));
+				any = true;
+			}
+			tasks.forEach(function (task) {
+				grid.appendChild(renderTaskCard(task));
+				any = true;
+			});
+			paneEmpty.style.display = any ? 'none' : '';
 		}
 
-		function showForm() {
-			// Re-fill every time. Without this the form keeps whatever was last
-			// typed into it: Edit, change the time, Back without saving, Edit
-			// again and the abandoned value is still there waiting for a Save.
-			// Worse after Remove — `current` is null, and a form still holding the
-			// deleted task would recreate it on one click.
-			fill(current || {});
-			if (titleEl) titleEl.textContent = t('scheduleEditTitle', 'Email triage schedule');
-			listView.style.display = 'none';
-			formView.style.display = '';
-			if (backBtn) backBtn.style.display = '';
-			if (saveBtn) saveBtn.style.display = '';
-			setStatus(listStatus, '');
+		// --- the pane swap (D-S7): Scheduled is a page, chat navigation leaves it
+
+		var paneOpen = false;
+
+		function showPane() {
+			paneOpen = true;
+			if (messagesEl) messagesEl.style.display = 'none';
+			if (composerEl) composerEl.style.display = 'none';
+			pane.hidden = false;
+			loadAll();
 		}
 
-		async function load() {
+		function hidePane() {
+			if (!paneOpen) return;
+			paneOpen = false;
+			pane.hidden = true;
+			if (messagesEl) messagesEl.style.display = '';
+			if (composerEl) composerEl.style.display = '';
+		}
+
+		async function loadAll() {
 			if (loading) return;
 			loading = true;
-			setStatus(listStatus, t('scheduleLoading', 'Loading your schedule…'));
+			setStatus(paneStatus, t('scheduleLoading', 'Loading your schedule…'));
+			// Connections first: the forms derive their rows from it, and the
+			// grid render does not depend on it.
+			await loadConnections();
+			var failures = [];
 			try {
 				var data = await apiRequest('/triage-schedule');
 				var s = (data && data.schedule) || {};
-				// `exists` is STATED by DEF, not inferred. Guessing it from the
-				// values was wrong in both directions: a user who saved the
+				// `exists` is STATED by DEF, not inferred - a user who saved the
 				// defaults unchanged is byte-identical to one with no row.
 				s.last_run = (data && data.last_run) || null;
 				s.exists = !!s.exists;
 				current = s;
-				fill(s);
-				renderList();
-				setStatus(listStatus, '');
-				if (saveBtn) saveBtn.disabled = false;
 			} catch (e) {
 				current = null;
-				// Clear WITHOUT rendering the empty state. Leaving the previous
-				// card up kept Edit/Remove/Run now live against state we can no
-				// longer vouch for — but "you have no scheduled tasks" is equally
-				// wrong, because a failed read is UNKNOWN, not empty. That is the
-				// same substitution rest_get_triage_schedule's docblock forbids
-				// when it refuses to answer defaults on a 503.
-				taskList.textContent = '';
-				emptyEl.style.display = 'none';
-				setStatus(listStatus, (e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'), 'error');
-				if (saveBtn) saveBtn.disabled = true;
+				failures.push((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'));
+			}
+			try {
+				var taskData = await apiRequest('/tasks');
+				tasks = (taskData && Array.isArray(taskData.tasks)) ? taskData.tasks : [];
+			} catch (e2) {
+				tasks = [];
+				failures.push((e2 && e2.message) || t('tasksLoadFailed', 'Could not load your scheduled tasks.'));
+			}
+			if (failures.length) {
+				// A failed read is UNKNOWN, not empty: keep the empty-state off
+				// and say what happened instead (the load-failure honesty rule
+				// carried from the modal list this pane replaces).
+				grid.textContent = '';
+				paneEmpty.style.display = 'none';
+				if (current && current.exists) renderGrid();
+				setStatus(paneStatus, failures.join(' '), 'error');
+			} else {
+				renderGrid();
+				setStatus(paneStatus, '');
+			}
+			loading = false;
+		}
+
+		// --- the creator/editor modal
+
+		function openModal() { modal.classList.add('visible'); }
+		function closeModal() {
+			modal.classList.remove('visible');
+			taskView.style.display = 'none';
+			triageView.style.display = 'none';
+		}
+
+		function fillTaskForm(task) {
+			nameEl.value = task ? (task.name || '') : '';
+			instructionEl.value = task ? (task.instruction || '') : '';
+			taskEnabledEl.checked = task ? !!task.enabled : true;
+			taskTimeEl.value = task
+				? pad(task.send_hour_local || 0) + ':' + pad(task.send_minute_local || 0)
+				: '07:00';
+			fillTimezones(taskTzEl, (task && task.timezone)
+				|| (window.StaffAIConfig && StaffAIConfig.siteTimezone) || 'UTC');
+			var dests = task ? (task.destinations || ['email']) : ['email'];
+			Object.keys(taskDestEls).forEach(function (k) {
+				if (taskDestEls[k]) taskDestEls[k].checked = dests.indexOf(k) !== -1;
+			});
+			applyConnectionRows(dests);
+			setStatus(taskStatusEl, '');
+		}
+
+		function fillTriageForm(schedule) {
+			enabledEl.checked = !!schedule.enabled;
+			timeEl.value = pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
+			fillTimezones(tzEl, schedule.timezone || 'UTC');
+			var dests = schedule.destinations || ['email'];
+			Object.keys(destEls).forEach(function (k) {
+				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
+			});
+			applyConnectionRows(dests);
+			setStatus(statusEl, '');
+		}
+
+		function openTaskForm(task) {
+			// Re-fill every time (the abandoned-edit rule): the form must never
+			// keep what was last typed into it.
+			editingTaskId = task ? task.id : null;
+			fillTaskForm(task || null);
+			// The type selector belongs to CREATION - an existing task's type is
+			// a fact, not a choice.
+			typeRow.style.display = task ? 'none' : '';
+			if (typeEl) typeEl.value = 'freetext';
+			if (titleEl) titleEl.textContent = task
+				? t('taskFormTitleEdit', 'Edit scheduled task')
+				: t('taskFormTitleNew', 'New scheduled task');
+			taskView.style.display = '';
+			triageView.style.display = 'none';
+			if (backBtn) backBtn.style.display = 'none';
+			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
+			openModal();
+		}
+
+		function openTriageForm(fromCreator) {
+			fillTriageForm(current || {});
+			if (titleEl) titleEl.textContent = t('scheduleEditTitle', 'Email triage schedule');
+			taskView.style.display = 'none';
+			triageView.style.display = '';
+			// Back only exists on the creator path - it returns to the type
+			// choice; editing an existing schedule has nowhere to go back to.
+			if (backBtn) backBtn.style.display = fromCreator ? '' : 'none';
+			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
+			openModal();
+		}
+
+		if (typeEl) typeEl.addEventListener('change', function () {
+			if (typeEl.value === 'email_triage') {
+				openTriageForm(true);
+				typeEl.value = 'freetext';   // the selector resets for next time
+			}
+		});
+		if (backBtn) backBtn.addEventListener('click', function () { openTaskForm(null); });
+
+		async function saveTask() {
+			var name = (nameEl.value || '').trim();
+			var instruction = (instructionEl.value || '').trim();
+			if (!name) { setStatus(taskStatusEl, t('taskNeedName', 'Give the task a name.'), 'error'); return; }
+			if (!instruction) { setStatus(taskStatusEl, t('taskNeedInstruction', 'Tell Staff AI what the task should do.'), 'error'); return; }
+			var dests = Object.keys(taskDestEls).filter(function (k) { return taskDestEls[k] && taskDestEls[k].checked; });
+			if (!dests.length) { setStatus(taskStatusEl, t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error'); return; }
+			var parts = (taskTimeEl.value || '07:00').split(':');
+			// FULL-REPLACE contract, same as the triage form: always the complete
+			// object - a partial body has documented defaults DEF-side.
+			var payload = {
+				name: name,
+				instruction: instruction,
+				enabled: !!taskEnabledEl.checked,
+				send_hour_local: parseInt(parts[0], 10) || 0,
+				send_minute_local: parseInt(parts[1], 10) || 0,
+				timezone: taskTzEl.value || 'UTC',
+				destinations: dests
+			};
+			saveBtn.disabled = true;
+			setStatus(taskStatusEl, t('scheduleSaving', 'Saving…'));
+			try {
+				if (editingTaskId) {
+					await apiRequest('/tasks/' + encodeURIComponent(editingTaskId),
+						{ method: 'PUT', body: JSON.stringify(payload) });
+				} else {
+					await apiRequest('/tasks', { method: 'POST', body: JSON.stringify(payload) });
+				}
+				closeModal();
+				setStatus(paneStatus, t('taskSaved', 'Saved. Your task follows its schedule from the next send time.'), 'ok');
+				loadAll();
+			} catch (e) {
+				setStatus(taskStatusEl, (e && e.message) || t('taskSaveFailed', 'Could not save your task.'), 'error');
 			} finally {
-				loading = false;
+				saveBtn.disabled = false;
 			}
 		}
 
-		async function save() {
+		async function saveTriage() {
 			var parts = (timeEl.value || '07:00').split(':');
 			var dests = Object.keys(destEls).filter(function (k) { return destEls[k] && destEls[k].checked; });
 			if (!dests.length) {
@@ -3202,10 +3395,9 @@ function t(key, fallback) {
 				s.exists = true;
 				s.last_run = current ? current.last_run : null;
 				current = s;
-				fill(s);
-				renderList();
-				showList();
-				setStatus(listStatus, t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
+				closeModal();
+				renderGrid();
+				setStatus(paneStatus, t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
 			} catch (e) {
 				setStatus(statusEl, (e && e.message) || t('scheduleSaveFailed', 'Could not save your triage schedule.'), 'error');
 			} finally {
@@ -3213,49 +3405,86 @@ function t(key, fallback) {
 			}
 		}
 
-		async function runNow(btn) {
-			// Deliberately does NOT save first. Run now tests the schedule that is
-			// actually stored, so silently saving the form would test something the
-			// user never committed to.
+		function save() {
+			// One Save button, routed by the visible form.
+			if (taskView.style.display !== 'none') { saveTask(); return; }
+			saveTriage();
+		}
+
+		async function runNowTriage(btn) {
+			// Deliberately does NOT save first: Run now tests the schedule that
+			// is actually stored.
 			btn.disabled = true;
-			setStatus(listStatus, t('scheduleRunning', 'Asking for a run…'));
+			setStatus(paneStatus, t('scheduleRunning', 'Asking for a run…'));
 			try {
 				await apiRequest('/triage-schedule/run-now', { method: 'POST' });
-				setStatus(listStatus, t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
+				setStatus(paneStatus, t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
 			} catch (e) {
-				setStatus(listStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
+				setStatus(paneStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
 			} finally {
 				btn.disabled = false;
 			}
 		}
 
-		async function remove(btn) {
+		async function runNowTask(btn, task) {
+			btn.disabled = true;
+			setStatus(paneStatus, t('scheduleRunning', 'Asking for a run…'));
+			try {
+				await apiRequest('/tasks/' + encodeURIComponent(task.id) + '/run-now', { method: 'POST' });
+				setStatus(paneStatus, t('taskRunQueued', 'The task will run shortly. Its output arrives at the destinations you chose.'), 'ok');
+			} catch (e) {
+				setStatus(paneStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
+			} finally {
+				btn.disabled = false;
+			}
+		}
+
+		async function removeTriage(btn) {
 			// Retires the SETUP. The mailbox connection is untouched and stays
 			// usable by chat; disconnecting that grant is a separate control.
 			if (!window.confirm(t('taskDeleteConfirm', 'Remove Email Triage? Your mailbox stays connected.'))) return;
 			btn.disabled = true;
-			setStatus(listStatus, t('taskDeleting', 'Removing…'));
+			setStatus(paneStatus, t('taskDeleting', 'Removing…'));
 			try {
 				await apiRequest('/triage-schedule', { method: 'DELETE' });
 				current = null;
-				renderList();
-				setStatus(listStatus, t('taskDeleted', 'Email Triage removed. Nothing is scheduled for you now.'), 'ok');
+				renderGrid();
+				setStatus(paneStatus, t('taskDeleted', 'Email Triage removed. Nothing is scheduled for you now.'), 'ok');
 			} catch (e) {
 				btn.disabled = false;
-				setStatus(listStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
+				setStatus(paneStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
 			}
 		}
 
-		function open() { modal.classList.add('visible'); showList(); load(); }
-		function close() { modal.classList.remove('visible'); }
+		async function removeTask(btn, task) {
+			if (!window.confirm(t('taskConfirmDeleteNamed', 'Remove "%s"? Its schedule stops now; past run history is kept.')
+					.replace('%s', task.name || ''))) return;
+			btn.disabled = true;
+			setStatus(paneStatus, t('taskDeleting', 'Removing…'));
+			try {
+				await apiRequest('/tasks/' + encodeURIComponent(task.id), { method: 'DELETE' });
+				tasks = tasks.filter(function (item) { return item.id !== task.id; });
+				renderGrid();
+				setStatus(paneStatus, t('taskDeletedNamed', 'Task removed. Its schedule has stopped.'), 'ok');
+			} catch (e) {
+				btn.disabled = false;
+				setStatus(paneStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
+			}
+		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
-		if (backBtn) backBtn.addEventListener('click', function () { showList(); renderList(); });
-		if (createBtn) createBtn.addEventListener('click', showForm);
+		if (navBtn) navBtn.addEventListener('click', showPane);
+		if (newTaskBtn) newTaskBtn.addEventListener('click', function () { openTaskForm(null); });
+		if (modalClose) modalClose.addEventListener('click', closeModal);
+		if (closeBtn) closeBtn.addEventListener('click', closeModal);
 		if (saveBtn) saveBtn.addEventListener('click', save);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+		modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+		// Chat navigation leaves the page (capture phase, so the chat's own
+		// handlers still run untouched).
+		var newChat = document.getElementById('newChatBtn');
+		if (newChat) newChat.addEventListener('click', hidePane, true);
+		var convList = document.getElementById('conversationList');
+		if (convList) convList.addEventListener('click', hidePane, true);
 	})();
 
 	// =============================================
