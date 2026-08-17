@@ -215,6 +215,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</header>
 
+			<!-- Scheduled tasks — full-pane landing (Scheduled Tasks Phase 3, D-S7).
+			     A page in the content area, not a fifth modal: the task list is a
+			     destination, the way the Claude scheduler treats it. JS swaps it with
+			     the chat containers; chat navigation swaps back. -->
+			<section class="scheduled-pane" id="scheduledPane" hidden>
+				<div class="scheduled-pane-head">
+					<div>
+						<h1 class="scheduled-pane-title"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
+						<p class="scheduled-pane-sub"><?php echo esc_html__( 'Run tasks on a schedule or whenever you need them.', 'digital-employees' ); ?></p>
+					</div>
+					<button type="button" class="modal-btn modal-btn-primary" id="taskCreateBtn"><?php echo esc_html__( 'New task', 'digital-employees' ); ?></button>
+				</div>
+				<div class="task-card-grid" id="taskCardGrid"></div>
+				<div class="schedule-empty" id="scheduledEmpty" style="display:none;">
+					<p><?php echo esc_html__( 'Nothing scheduled yet. Create your first task.', 'digital-employees' ); ?></p>
+				</div>
+				<div class="schedule-status" id="scheduledPaneStatus"></div>
+			</section>
+
 			<div class="messages-container" id="messagesContainer">
 				<div class="messages-list" id="messagesList">
 					<div class="welcome-message" id="welcomeMessage">
@@ -490,14 +509,45 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<button type="button" class="modal-close" id="scheduleModalClose">&times;</button>
 				</div>
 				<div class="modal-body">
-					<div id="scheduleListView">
-						<p class="schedule-intro"><?php echo esc_html__( 'Tasks Staff AI runs for you on a schedule.', 'digital-employees' ); ?></p>
-						<div id="scheduleTaskList"></div>
-						<div class="schedule-empty" id="scheduleEmpty" style="display:none;">
-							<p><?php echo esc_html__( 'You have no scheduled tasks yet.', 'digital-employees' ); ?></p>
-							<button type="button" class="modal-btn modal-btn-primary" id="scheduleCreate"><?php echo esc_html__( 'Set up Email Triage', 'digital-employees' ); ?></button>
+					<!-- The task list lives on the #scheduledPane landing page now
+					     (Phase 3, D-S7); this modal is the CREATOR/EDITOR only. Two
+					     form views, one per task type; the type selector is the
+					     creator's first field and Free text is the DEFAULT (D-S2). -->
+					<div id="taskFormView" style="display:none;">
+						<div class="form-group" id="taskTypeRow">
+							<label class="form-label" for="taskType"><?php echo esc_html__( 'Task type', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskType">
+								<option value="freetext" selected><?php echo esc_html__( 'Custom task - tell Staff AI what to do', 'digital-employees' ); ?></option>
+								<option value="email_triage"><?php echo esc_html__( 'Email Triage - mailbox digest with reply drafts', 'digital-employees' ); ?></option>
+							</select>
 						</div>
-						<div class="schedule-status" id="scheduleListStatus"></div>
+						<div class="form-group">
+							<label class="form-label" for="taskName"><?php echo esc_html__( 'Name', 'digital-employees' ); ?></label>
+							<input type="text" class="form-input" id="taskName" maxlength="120" placeholder="<?php echo esc_attr__( 'Daily brief', 'digital-employees' ); ?>">
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="taskInstruction"><?php echo esc_html__( 'What should Staff AI do?', 'digital-employees' ); ?></label>
+							<textarea class="form-input task-instruction" id="taskInstruction" rows="5" placeholder="<?php echo esc_attr__( 'Write my Monday planning checklist: the three questions I should answer before the week starts, and a blank plan I can fill in.', 'digital-employees' ); ?>"></textarea>
+							<p class="form-hint"><?php echo esc_html__( 'The task runs with no tools: it can write, plan, summarise and remind, but it cannot read your email or calendar, browse the web, or send anything on your behalf.', 'digital-employees' ); ?></p>
+						</div>
+						<div class="form-group schedule-toggle-row">
+							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></label>
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="taskTime"><?php echo esc_html__( 'Send time', 'digital-employees' ); ?></label>
+							<input type="time" class="form-input" id="taskTime" value="07:00">
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="taskTimezone"><?php echo esc_html__( 'Timezone', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskTimezone"></select>
+						</div>
+						<div class="form-group">
+							<span class="form-label"><?php echo esc_html__( 'Deliver to', 'digital-employees' ); ?></span>
+							<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="taskDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
+							<label class="share-toggle-label schedule-dest-row" id="taskDestSlackRow"><input type="checkbox" id="taskDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
+							<label class="share-toggle-label schedule-dest-row" id="taskDestTeamsRow"><input type="checkbox" id="taskDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
+						</div>
+						<div class="schedule-status" id="taskStatus"></div>
 					</div>
 					<div id="scheduleFormView" style="display:none;">
 					<p class="schedule-intro"><?php echo esc_html__( 'Once a day, Staff AI can read your mailbox, stage reply drafts in your Drafts folder, and send you a digest of what needs your attention. Only you can turn this on, and only for your own mailbox.', 'digital-employees' ); ?></p>
@@ -515,8 +565,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="form-group">
 						<span class="form-label"><?php echo esc_html__( 'Deliver to', 'digital-employees' ); ?></span>
 						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
-						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
-						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
+						<label class="share-toggle-label schedule-dest-row" id="scheduleDestSlackRow"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
+						<label class="share-toggle-label schedule-dest-row" id="scheduleDestTeamsRow"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
 					</div>
 					<div class="schedule-status" id="scheduleStatus"></div>
 					</div>
@@ -625,7 +675,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduleRunning: <?php echo wp_json_encode( __( 'Asking for a run…', 'digital-employees' ) ); ?>,
 			scheduleRunQueued: <?php echo wp_json_encode( __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ) ); ?>,
 			scheduleRunFailed: <?php echo wp_json_encode( __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
-			scheduleTasksTitle: <?php echo wp_json_encode( __( 'Scheduled tasks', 'digital-employees' ) ); ?>,
 			scheduleEditTitle: <?php echo wp_json_encode( __( 'Email triage schedule', 'digital-employees' ) ); ?>,
 			taskTriageName: <?php echo wp_json_encode( __( 'Email Triage', 'digital-employees' ) ); ?>,
 			taskTriageDesc: <?php echo wp_json_encode( __( 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.', 'digital-employees' ) ); ?>,
@@ -646,7 +695,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskDeleteConfirm: <?php echo wp_json_encode( __( 'Remove Email Triage? Your mailbox stays connected.', 'digital-employees' ) ); ?>,
 			taskDeleting: <?php echo wp_json_encode( __( 'Removing…', 'digital-employees' ) ); ?>,
 			taskDeleted: <?php echo wp_json_encode( __( 'Email Triage removed. Nothing is scheduled for you now.', 'digital-employees' ) ); ?>,
-			taskDeleteFailed: <?php echo wp_json_encode( __( 'Could not remove your Email Triage setup. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>
+			taskDeleteFailed: <?php echo wp_json_encode( __( 'Could not remove your Email Triage setup. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			taskFormTitleNew: <?php echo wp_json_encode( __( 'New scheduled task', 'digital-employees' ) ); ?>,
+			taskFormTitleEdit: <?php echo wp_json_encode( __( 'Edit scheduled task', 'digital-employees' ) ); ?>,
+			tasksLoadFailed: <?php echo wp_json_encode( __( 'Could not load your scheduled tasks. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			taskNeedName: <?php echo wp_json_encode( __( 'Give the task a name.', 'digital-employees' ) ); ?>,
+			taskNeedInstruction: <?php echo wp_json_encode( __( 'Tell Staff AI what the task should do.', 'digital-employees' ) ); ?>,
+			taskSaved: <?php echo wp_json_encode( __( 'Saved. Your task follows its schedule from the next send time.', 'digital-employees' ) ); ?>,
+			taskSaveFailed: <?php echo wp_json_encode( __( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the task's name. */ ?>
+			taskConfirmDeleteNamed: <?php echo wp_json_encode( __( 'Remove "%s"? Its schedule stops now; past run history is kept.', 'digital-employees' ) ); ?>,
+			taskDeletedNamed: <?php echo wp_json_encode( __( 'Task removed. Its schedule has stopped.', 'digital-employees' ) ); ?>,
+			taskRunQueued: <?php echo wp_json_encode( __( 'The task will run shortly. Its output arrives at the destinations you chose.', 'digital-employees' ) ); ?>,
+			taskRunFailed: <?php echo wp_json_encode( __( 'Could not start the task. Its schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
+			taskRemoveFailed: <?php echo wp_json_encode( __( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

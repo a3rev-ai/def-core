@@ -265,6 +265,11 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
 	'a3-ai/v1/staff-ai/triage-schedule',
 	'a3-ai/v1/staff-ai/triage-schedule/run-now',
+	// Free-text scheduled tasks (Phase 3) — per-user like the triage routes,
+	// but a user holds MANY, so the item routes carry a task id.
+	'a3-ai/v1/staff-ai/tasks',
+	'a3-ai/v1/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})',
+	'a3-ai/v1/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})/run-now',
 	// C2 — the user's own disconnect. Destructive and per-user, so it is pinned even
 	// though its authorize sibling predates this convention.
 	'a3-ai/v1/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/disconnect',
@@ -318,6 +323,14 @@ assert_true(
 	is_array( $_run_now[0]['permission_callback'] ?? null ),
 	'triage run-now carries a permission callback'
 );
+$_tasks_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/tasks'];
+assert_equals( 'GET', $_tasks_handlers[0]['methods'] ?? '', 'tasks handler 0 = GET' );
+assert_equals( 'POST', $_tasks_handlers[1]['methods'] ?? '', 'tasks handler 1 = POST' );
+$_task_item = $_wp_test_rest_routes['a3-ai/v1/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})'];
+assert_equals( 'PUT', $_task_item[0]['methods'] ?? '', 'task item handler 0 = PUT' );
+assert_equals( 'DELETE', $_task_item[1]['methods'] ?? '', 'task item handler 1 = DELETE' );
+$_task_run_now = $_wp_test_rest_routes['a3-ai/v1/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})/run-now'];
+assert_equals( 'POST', $_task_run_now[0]['methods'] ?? '', 'task run-now = POST' );
 
 // ── 4. Permission check: unauthenticated → 401 ─────────────────────────
 echo "\n[4] Permission check — unauthenticated\n";
@@ -1125,6 +1138,169 @@ assert_true(
 	array_key_exists( 'last_run', $_data ) && null === $_data['last_run'],
 	'last_run is present and null - the card shows no status rather than inventing one'
 );
+
+// ── Free-text tasks (Phase 3): allowlist exactness, refusals, forwarding ──
+echo "\n[FT-1] rest_list_tasks allowlists each task - owner_email NEVER passes\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success' => true,
+	'tasks'   => array( array(
+		'id'                => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+		'name'              => 'Daily brief',
+		'instruction'       => 'Write my checklist.',
+		'enabled'           => true,
+		'send_hour_local'   => 7,
+		'send_minute_local' => 30,
+		'timezone'          => 'Australia/Brisbane',
+		'destinations'      => array( 'email', 'carrier-pigeon' ),
+		'last_run'          => array( 'status' => 'succeeded', 'at' => '2026-08-17T07:00:00+00:00' ),
+		// The delivery address is captured DEF-side from the verified identity
+		// and consumed by the scheduler's email leg - the UI never needs it,
+		// so the allowlist is where it must stop if DEF ever exposes it.
+		'owner_email'       => 'must-not-pass@example.com',
+	) ),
+) );
+$resp = DEF_Core_Staff_AI::rest_list_tasks();
+unset( $GLOBALS['_def_test_get_body'] );
+$task = $resp->get_data()['tasks'][0] ?? array();
+$keys = array_keys( $task );
+sort( $keys );
+assert_equals(
+	array( 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'name', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	$keys,
+	'exactly the nine task fields - owner_email and any future extras stay out'
+);
+assert_equals( array( 'email' ), $task['destinations'], 'unknown destination types are dropped' );
+assert_true(
+	false === strpos( json_encode( $resp->get_data() ), 'must-not-pass' ),
+	'owner_email never reaches the UI'
+);
+
+echo "\n[FT-2] rest_create_task refuses bad shapes before the backend\n";
+$GLOBALS['_def_test_last_request'] = array();
+$_ft_valid = array(
+	'name'              => 'Daily brief',
+	'instruction'       => 'Write my checklist.',
+	'enabled'           => true,
+	'send_hour_local'   => 7,
+	'send_minute_local' => 0,
+	'timezone'          => 'UTC',
+	'destinations'      => array( 'email' ),
+);
+$_ft_bad = array(
+	'missing name'        => array_diff_key( $_ft_valid, array( 'name' => 1 ) ),
+	'blank instruction'   => array_merge( $_ft_valid, array( 'instruction' => '   ' ) ),
+	'name too long'       => array_merge( $_ft_valid, array( 'name' => str_repeat( 'x', 121 ) ) ),
+	'instruction too big' => array_merge( $_ft_valid, array( 'instruction' => str_repeat( 'x', 10001 ) ) ),
+	'unknown dest'        => array_merge( $_ft_valid, array( 'destinations' => array( 'webhook' ) ) ),
+	'enabled not bool'    => array_merge( $_ft_valid, array( 'enabled' => 'yes' ) ),
+);
+foreach ( $_ft_bad as $label => $body ) {
+	$req = new WP_REST_Request();
+	foreach ( $body as $k => $v ) {
+		$req->set_param( $k, $v );
+	}
+	$result = DEF_Core_Staff_AI::rest_create_task( $req );
+	assert_equals( 'def_task_invalid', is_wp_error( $result ) ? $result->get_error_code() : '', "create refused: $label" );
+}
+assert_equals( array(), $GLOBALS['_def_test_last_request'], 'no refused body ever reached the backend' );
+
+echo "\n[FT-3] rest_create_task forwards the complete whitelisted object only\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' ) ) );
+$req = new WP_REST_Request();
+foreach ( $_ft_valid as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+// Smuggled addressing fields: the body must never be able to point a task -
+// or its delivery - at another user. The whitelist simply never reads them.
+$req->set_param( 'owner_email', 'attacker@evil.example' );
+$req->set_param( 'actor_sub', 'user-999' );
+$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a valid create succeeds' );
+assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is POST' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/tasks',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the DEF path carries nothing user-scoped'
+);
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+$sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
+sort( $sent_keys );
+assert_equals(
+	array( 'destinations', 'enabled', 'instruction', 'name', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	$sent_keys,
+	'the COMPLETE whitelisted object and nothing else - smuggled fields never forwarded'
+);
+
+echo "\n[FT-4] rest_run_now_task maps DEF's two actionable refusals\n";
+$GLOBALS['_def_test_request_code'] = 409;
+$req = new WP_REST_Request();
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$result = DEF_Core_Staff_AI::rest_run_now_task( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'a 409 surfaces as an error' );
+assert_true(
+	false !== strpos( is_wp_error( $result ) ? $result->get_error_message() : '', 'Turn this task on' ),
+	'the disabled-task refusal is actionable'
+);
+
+echo "\n[FT-4b] rest_run_now_task surfaces a vanished task actionably\n";
+$GLOBALS['_def_test_request_code'] = 404;
+$req = new WP_REST_Request();
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$result = DEF_Core_Staff_AI::rest_run_now_task( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'a 404 surfaces as an error' );
+assert_true(
+	false !== strpos( is_wp_error( $result ) ? $result->get_error_message() : '', 'no longer exists' ),
+	'the vanished-task refusal names what happened'
+);
+
+echo "\n[FT-6] rest_update_task forwards PUT to the encoded task path\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' ) ) );
+$req = new WP_REST_Request();
+foreach ( $_ft_valid as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$resp = DEF_Core_Staff_AI::rest_update_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a valid update succeeds' );
+assert_equals( 'PUT', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is PUT' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/tasks/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the task id rides the encoded item path'
+);
+
+echo "\n[FT-7] a multibyte name is measured in CHARACTERS, never bytes\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' ) ) );
+$req = new WP_REST_Request();
+foreach ( $_ft_valid as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+// 50 CJK characters = 150 UTF-8 bytes: over 120 as bytes, well under as
+// characters. strlen here would refuse a name DEF accepts - the 5.7.5
+// display-name byte-cut class, pinned so it cannot ship a third time.
+$req->set_param( 'name', str_repeat( "\u{6F22}", 50 ) );
+$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a 50-character CJK name is accepted (150 bytes is irrelevant)' );
+
+echo "\n[FT-5] rest_delete_task forwards DELETE to the task path\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );
+$req = new WP_REST_Request();
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$resp = DEF_Core_Staff_AI::rest_delete_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'delete succeeds' );
+assert_equals( 'DELETE', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is DELETE' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/tasks/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the task id rides the path, nothing else user-scoped'
+);
+assert_true( true === ( $resp->get_data()['deleted'] ?? null ), 'the deleted flag is passed through' );
 
 echo "\n[TS-12] rest_user_integration_disconnect ends the caller's own access\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'requested' => 1, 'failed' => 0 ) );

@@ -579,6 +579,55 @@ final class DEF_Core_Staff_AI
 				),
 			)
 		);
+
+		// Free-text scheduled tasks (Phase 3, D-S2) - the creator's DEFAULT type.
+		// The same per-user shape as the triage-schedule routes: DEF keys every
+		// task to the forwarded X-DEF-User identity, nothing user-scoped rides
+		// in any URL or body, and a user holds MANY tasks, so the collection
+		// routes carry a task id where triage carries none.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/tasks',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_list_tasks'),
+				),
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_create_task'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})',
+			array(
+				array(
+					'methods'             => 'PUT',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_update_task'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_task'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/tasks/(?P<task_id>[A-Za-z0-9-]{1,64})/run-now',
+			array(
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_run_now_task'),
+				),
+			)
+		);
 	}
 
 	/**
@@ -2038,6 +2087,285 @@ final class DEF_Core_Staff_AI
 			array(
 				'success' => true,
 				'message' => __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Allowlist one free-text task to the fields the card and form render.
+	 *
+	 * The triage-schedule allowlist's contract: anything a future backend adds
+	 * stays out of the UI until someone decides it belongs. Note owner_email is
+	 * deliberately NOT here - the page shows whose session this is already.
+	 *
+	 * @param array $row Raw task from DEF.
+	 * @return array Allowlisted task.
+	 */
+	private static function allowlist_task( array $row ): array
+	{
+		$destinations = array();
+		if ( isset( $row['destinations'] ) && is_array( $row['destinations'] ) ) {
+			foreach ( $row['destinations'] as $dest ) {
+				if ( in_array( $dest, array( 'email', 'slack', 'teams' ), true ) ) {
+					$destinations[] = $dest;
+				}
+			}
+		}
+		return array(
+			'id'                => isset( $row['id'] ) && is_string( $row['id'] ) ? $row['id'] : '',
+			'name'              => isset( $row['name'] ) && is_string( $row['name'] ) ? $row['name'] : '',
+			'instruction'       => isset( $row['instruction'] ) && is_string( $row['instruction'] ) ? $row['instruction'] : '',
+			'enabled'           => ! empty( $row['enabled'] ),
+			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
+			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
+			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
+			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
+			'last_run'          => self::allowlist_last_run( $row['last_run'] ?? null ),
+		);
+	}
+
+	/**
+	 * Validate one task body the way DEF will - refuse visibly, coerce nothing.
+	 *
+	 * DEF is the authority behind this proxy; this exists so a user gets one
+	 * plain sentence instead of a proxied 422, the triage PUT's contract.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return array|\WP_Error The clean payload, or the refusal.
+	 */
+	private static function validate_task_body( \WP_REST_Request $request )
+	{
+		$name         = $request->get_param( 'name' );
+		$instruction  = $request->get_param( 'instruction' );
+		$enabled      = $request->get_param( 'enabled' );
+		$hour         = $request->get_param( 'send_hour_local' );
+		$minute       = $request->get_param( 'send_minute_local' );
+		$timezone     = $request->get_param( 'timezone' );
+		$destinations = $request->get_param( 'destinations' );
+
+		$problems = array();
+		// mb_strlen, NOT strlen (round-2 code leg): DEF counts CHARACTERS and the
+		// copy says characters, so bytes here would refuse a 41-char CJK name the
+		// input and DEF both accept — the display-name byte-cut class removed in
+		// 5.7.5. Refuses visibly either way; never truncates.
+		if ( ! is_string( $name ) || '' === trim( $name ) || mb_strlen( trim( $name ) ) > 120 ) {
+			$problems[] = __( 'The task needs a name of at most 120 characters.', 'digital-employees' );
+		}
+		if ( ! is_string( $instruction ) || '' === trim( $instruction ) || mb_strlen( trim( $instruction ) ) > 10000 ) {
+			$problems[] = __( 'The task needs instructions of at most 10,000 characters.', 'digital-employees' );
+		}
+		if ( ! is_bool( $enabled ) ) {
+			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
+		}
+		if ( ! is_int( $hour ) || $hour < 0 || $hour > 23 ) {
+			$problems[] = __( 'The send hour must be a whole number from 0 to 23.', 'digital-employees' );
+		}
+		if ( ! is_int( $minute ) || $minute < 0 || $minute > 59 ) {
+			$problems[] = __( 'The send minute must be a whole number from 0 to 59.', 'digital-employees' );
+		}
+		if ( ! is_string( $timezone ) || '' === $timezone || strlen( $timezone ) > 64 ) {
+			$problems[] = __( 'The timezone must be a timezone name of at most 64 characters.', 'digital-employees' );
+		}
+		$clean_destinations = array();
+		if ( is_array( $destinations ) && ! empty( $destinations ) ) {
+			foreach ( $destinations as $dest ) {
+				if ( ! in_array( $dest, array( 'email', 'slack', 'teams' ), true ) ) {
+					$clean_destinations = null;
+					break;
+				}
+				$clean_destinations[] = $dest;
+			}
+		} else {
+			$clean_destinations = null;
+		}
+		if ( null === $clean_destinations ) {
+			$problems[] = __( 'Destinations must be one or more of: email, slack, teams.', 'digital-employees' );
+		}
+		if ( ! empty( $problems ) ) {
+			return new \WP_Error(
+				'def_task_invalid',
+				implode( ' ', $problems ),
+				array( 'status' => 400 )
+			);
+		}
+		return array(
+			'name'              => trim( $name ),
+			'instruction'       => trim( $instruction ),
+			'enabled'           => $enabled,
+			'send_hour_local'   => $hour,
+			'send_minute_local' => $minute,
+			'timezone'          => $timezone,
+			'destinations'      => array_values( array_unique( $clean_destinations ) ),
+		);
+	}
+
+	/**
+	 * REST handler: the current user's free-text scheduled tasks.
+	 *
+	 * Proxies DEF GET /api/staff-ai/tasks. The list is per user by construction
+	 * (DEF keys on the forwarded identity); an empty list is a real answer.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, tasks}).
+	 */
+	public static function rest_list_tasks()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/tasks' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load your scheduled tasks. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$tasks = array();
+		if ( isset( $result['tasks'] ) && is_array( $result['tasks'] ) ) {
+			foreach ( $result['tasks'] as $row ) {
+				if ( is_array( $row ) ) {
+					$tasks[] = self::allowlist_task( $row );
+				}
+			}
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'tasks'   => $tasks,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: create one free-text task for the current user.
+	 *
+	 * Proxies DEF POST /api/staff-ai/tasks. Ownership - and the delivery
+	 * address - come from the forwarded identity, never the body: a user id or
+	 * email smuggled in the body is ignored DEF-side (pinned there).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, task}).
+	 */
+	public static function rest_create_task( \WP_REST_Request $request )
+	{
+		$payload = self::validate_task_body( $request );
+		if ( is_wp_error( $payload ) ) {
+			return $payload;
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/tasks', $payload );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'task'    => self::allowlist_task( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: full-replace update of one of the current user's tasks.
+	 *
+	 * Proxies DEF PUT /api/staff-ai/tasks/{id}. A task belonging to a colleague
+	 * answers 404 from DEF exactly like a missing one - never confirmed.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, task}).
+	 */
+	public static function rest_update_task( \WP_REST_Request $request )
+	{
+		$payload = self::validate_task_body( $request );
+		if ( is_wp_error( $payload ) ) {
+			return $payload;
+		}
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/tasks/' . rawurlencode( (string) $request->get_param( 'task_id' ) ),
+			$payload
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'task'    => self::allowlist_task( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: retire one of the current user's tasks.
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/tasks/{id}. Idempotent DEF-side; run
+	 * history survives the setup (DEF's delete-vs-cancel contract).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, deleted}).
+	 */
+	public static function rest_delete_task( \WP_REST_Request $request )
+	{
+		$result = self::backend_request(
+			'DELETE',
+			'/api/staff-ai/tasks/' . rawurlencode( (string) $request->get_param( 'task_id' ) )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'deleted' => ! empty( $result['deleted'] ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: ask for an off-schedule run of one of the current user's tasks.
+	 *
+	 * Proxies DEF POST /api/staff-ai/tasks/{id}/run-now - the triage Run Now
+	 * contract exactly: DEF stamps the request, the platform scheduler picks it
+	 * up on its next pass, and the run travels the same path a scheduled one
+	 * does. The two refusals a user can fix get their own copy.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, message}).
+	 */
+	public static function rest_run_now_task( \WP_REST_Request $request )
+	{
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/tasks/' . rawurlencode( (string) $request->get_param( 'task_id' ) ) . '/run-now',
+			array()
+		);
+		if ( is_wp_error( $result ) ) {
+			$code = $result->get_error_code();
+			if ( 'staff_ai_http_409' === $code ) {
+				$fallback = __( 'Turn this task on before running it.', 'digital-employees' );
+			} elseif ( 'staff_ai_not_found' === $code ) {
+				$fallback = __( 'This task no longer exists - it may have been removed in another tab.', 'digital-employees' );
+			} else {
+				$fallback = __( 'Could not start the task. Its schedule is unchanged - try again in a moment.', 'digital-employees' );
+			}
+			return self::plain_backend_error( $result, $fallback );
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'The task will run shortly. Its output arrives at the destinations you chose.', 'digital-employees' ),
 			),
 			200
 		);

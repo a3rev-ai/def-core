@@ -1,5 +1,11 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.0.0 - 2026/08/17 =
+* Feature - Scheduled tasks: a full-page home in Staff AI for everything it runs on a schedule, with task cards and a New task button
+* Feature - Custom tasks: tell Staff AI what to do in your own words and get the result delivered on your schedule - to your email, or to Slack/Teams through your own connection
+* Tweak - The Email Triage schedule moved onto the Scheduled tasks page as its own card
+* Tweak - Slack and Teams delivery options only appear when you have actually connected those apps
+
 = 5.10.0 - 2026/08/17 =
 * New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection on top of the one you had. Disconnect appears on any app you have a live connection to - including one that shows Connect because the connection outlived the setup behind it. It ends your own access only: your team's connection to the app stays, and you can connect again later.
 * Improvement: the Reconnect link is gone. It only ever appeared when you were already connected, where it did nothing - and on the rare occasion it did act, it added a second connection instead of replacing the first. To relink an app, or to switch which account it uses, disconnect it and connect again.

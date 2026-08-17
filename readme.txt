@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 5.10.0
+Stable tag: 6.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,12 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.0.0 - 2026-08-17 =
+* Feature - Scheduled tasks: a full-page home in Staff AI for everything it runs on a schedule, with task cards and a New task button
+* Feature - Custom tasks: tell Staff AI what to do in your own words and get the result delivered on your schedule - to your email, or to Slack/Teams through your own connection
+* Tweak - The Email Triage schedule moved onto the Scheduled tasks page as its own card
+* Tweak - Slack and Teams delivery options only appear when you have actually connected those apps
 
 = 5.10.0 - 2026-08-17 =
 * New: you can now disconnect an app you have connected in Staff AI. Until now there was only Connect and Reconnect, and reconnecting just added another connection on top of the one you had. Disconnect appears on any app you have a live connection to - including one that shows Connect because the connection outlived the setup behind it. It ends your own access only: your team's connection to the app stays, and you can connect again later.
