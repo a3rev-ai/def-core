@@ -1199,7 +1199,13 @@ $_ft_bad = array(
 	'enabled not bool'    => array_merge( $_ft_valid, array( 'enabled' => 'yes' ) ),
 	'unknown cadence'     => array_merge( $_ft_valid, array( 'cadence' => 'fortnightly' ) ),
 	'weekday too big'     => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => 7 ) ),
+	'weekday negative'    => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => -1 ) ),
 	'weekday not int'     => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => 'monday' ) ),
+	// A NUMERIC string is the case the is_int half alone protects: PHP 8's
+	// comparison rules let '3' sail through the range checks, and DEF would
+	// then refuse it with a proxied 422 - the exact class of error this
+	// validator exists to turn into one plain sentence (round-1 code leg).
+	'weekday numeric str' => array_merge( $_ft_valid, array( 'cadence' => 'weekly', 'send_weekday' => '3' ) ),
 );
 foreach ( $_ft_bad as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1315,13 +1321,20 @@ assert_equals( 4, $sent['send_weekday'] ?? -1, 'the chosen day forwards untouche
 echo "\n[FT-8b] a cadence DEF never sent defaults to daily at the allowlist\n";
 $GLOBALS['_def_test_get_body'] = json_encode( array(
 	'success' => true,
-	'tasks'   => array( array( 'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'name' => 'X', 'instruction' => 'Y', 'enabled' => true, 'cadence' => 'fortnightly', 'send_weekday' => 99 ) ),
+	'tasks'   => array(
+		array( 'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'name' => 'X', 'instruction' => 'Y', 'enabled' => true, 'cadence' => 'fortnightly', 'send_weekday' => 99 ),
+		array( 'id' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'name' => 'X', 'instruction' => 'Y', 'enabled' => true, 'cadence' => 'weekly', 'send_weekday' => -1 ),
+	),
 ) );
 $resp = DEF_Core_Staff_AI::rest_list_tasks();
 unset( $GLOBALS['_def_test_get_body'] );
 $task = $resp->get_data()['tasks'][0] ?? array();
 assert_equals( 'daily', $task['cadence'] ?? '', 'an unknown cadence renders as daily, never raw' );
 assert_equals( 0, $task['send_weekday'] ?? -1, 'an out-of-range weekday renders as 0' );
+// -1 would otherwise reach dayName() and silently render "Sunday" (the
+// Date.UTC day before Monday-0's anchor) - the wrong-day class, clamped.
+$task2 = $resp->get_data()['tasks'][1] ?? array();
+assert_equals( 0, $task2['send_weekday'] ?? -1, 'a negative weekday clamps to 0, never reaches the badge' );
 
 echo "\n[FT-5] rest_delete_task forwards DELETE to the task path\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );

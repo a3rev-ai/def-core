@@ -3303,6 +3303,13 @@ function t(key, fallback) {
 			if (taskWeekdayRow) taskWeekdayRow.style.display = cadence === 'weekly' ? '' : 'none';
 			if (taskTimeRow) taskTimeRow.style.display = cadence === 'manual' ? 'none' : '';
 			if (taskTzRow) taskTzRow.style.display = cadence === 'manual' ? 'none' : '';
+			// The toggle stays VISIBLE for Manual (hiding it would trap an
+			// already-disabled task), but "on its schedule" would be a false
+			// label - and unticking it silently removes Run now (D-S6).
+			var enabledLabel = document.getElementById('taskEnabledLabel');
+			if (enabledLabel) enabledLabel.textContent = cadence === 'manual'
+				? t('taskEnabledManualLabel', 'Task is active - Run now only works while this is on')
+				: t('taskEnabledLabel', 'Run this task on its schedule');
 			if (taskCadenceHint) {
 				var hints = {
 					manual: t('taskHintManual', 'This task never runs on a schedule. Use its Run now button whenever you want it.'),

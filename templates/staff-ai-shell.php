@@ -531,7 +531,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<p class="form-hint"><?php echo esc_html__( 'The task runs with no tools: it can write, plan, summarise and remind, but it cannot read your email or calendar, browse the web, or send anything on your behalf.', 'digital-employees' ); ?></p>
 						</div>
 						<div class="form-group schedule-toggle-row">
-							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></label>
+							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <span id="taskEnabledLabel"><?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></span></label>
 						</div>
 						<div class="form-group">
 							<label class="form-label" for="taskCadence"><?php echo esc_html__( 'Frequency', 'digital-employees' ); ?></label>
@@ -711,6 +711,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskWeeklyAt: <?php echo wp_json_encode( __( 'Every %1$s at ~%2$s', 'digital-employees' ) ); ?>,
 			taskManualOnly: <?php echo wp_json_encode( __( 'Runs when you press Run now', 'digital-employees' ) ); ?>,
 			taskHintManual: <?php echo wp_json_encode( __( 'This task never runs on a schedule. Use its Run now button whenever you want it.', 'digital-employees' ) ); ?>,
+			taskEnabledLabel: <?php echo wp_json_encode( __( 'Run this task on its schedule', 'digital-employees' ) ); ?>,
+			taskEnabledManualLabel: <?php echo wp_json_encode( __( 'Task is active - Run now only works while this is on', 'digital-employees' ) ); ?>,
 			taskHintHourly: <?php echo wp_json_encode( __( 'Runs every hour, at the send time\'s minutes past the hour.', 'digital-employees' ) ); ?>,
 			taskHintWeekdays: <?php echo wp_json_encode( __( 'Runs Monday to Friday at the send time.', 'digital-employees' ) ); ?>,
 			taskHintWeekly: <?php echo wp_json_encode( __( 'Runs once a week, on the day you choose.', 'digital-employees' ) ); ?>,
