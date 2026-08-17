@@ -321,9 +321,24 @@ function t(key, fallback) {
 					var taskModelSel = document.getElementById('taskModel');
 					if (taskModelSel) {
 						models.forEach(function (m) {
+							var label = m.label + (m.description ? ' — ' + m.description : '');
+							// The editor may have added this id as a raw-id
+							// keep-option before this fetch resolved: upgrade it
+							// in place (label + no longer a keep-option) - a
+							// second append would show the same model twice for
+							// the rest of the session (panel round 1).
+							var existing = null;
+							Array.prototype.forEach.call(taskModelSel.options, function (o) {
+								if (o.value === m.id) existing = o;
+							});
+							if (existing) {
+								existing.textContent = label;
+								existing.removeAttribute('data-keep');
+								return;
+							}
 							var o = document.createElement('option');
 							o.value = m.id;
-							o.textContent = m.label + (m.description ? ' — ' + m.description : '');
+							o.textContent = label;
 							taskModelSel.appendChild(o);
 						});
 						var taskModelRow = document.getElementById('taskModelRow');
@@ -3345,6 +3360,11 @@ function t(key, fallback) {
 			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
 			if (taskModelEl) {
 				var wantModel = (task && task.model) || '';
+				// Keep-options belong to the task they were added FOR - drop any
+				// left from a previous edit so a stale id never leaks into the
+				// list for a different task or a new one (panel round 1).
+				Array.prototype.slice.call(taskModelEl.querySelectorAll('option[data-keep]'))
+					.forEach(function (o) { if (o.value !== wantModel) o.remove(); });
 				// The task's stored model may not be among the offered options
 				// (list still loading, or no longer offered). Keep it VISIBLE as
 				// its raw id rather than silently rewriting the task to Default
@@ -3355,6 +3375,7 @@ function t(key, fallback) {
 					var keep = document.createElement('option');
 					keep.value = wantModel;
 					keep.textContent = wantModel;
+					keep.setAttribute('data-keep', '1');
 					taskModelEl.appendChild(keep);
 				}
 				taskModelEl.value = wantModel;
