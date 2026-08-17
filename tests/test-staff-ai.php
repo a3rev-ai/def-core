@@ -1244,6 +1244,49 @@ assert_true(
 	'the disabled-task refusal is actionable'
 );
 
+echo "\n[FT-4b] rest_run_now_task surfaces a vanished task actionably\n";
+$GLOBALS['_def_test_request_code'] = 404;
+$req = new WP_REST_Request();
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$result = DEF_Core_Staff_AI::rest_run_now_task( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'a 404 surfaces as an error' );
+assert_true(
+	false !== strpos( is_wp_error( $result ) ? $result->get_error_message() : '', 'no longer exists' ),
+	'the vanished-task refusal names what happened'
+);
+
+echo "\n[FT-6] rest_update_task forwards PUT to the encoded task path\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' ) ) );
+$req = new WP_REST_Request();
+foreach ( $_ft_valid as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$req->set_param( 'task_id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' );
+$resp = DEF_Core_Staff_AI::rest_update_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a valid update succeeds' );
+assert_equals( 'PUT', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is PUT' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/tasks/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'the task id rides the encoded item path'
+);
+
+echo "\n[FT-7] a multibyte name is measured in CHARACTERS, never bytes\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => $_ft_valid + array( 'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' ) ) );
+$req = new WP_REST_Request();
+foreach ( $_ft_valid as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+// 50 CJK characters = 150 UTF-8 bytes: over 120 as bytes, well under as
+// characters. strlen here would refuse a name DEF accepts - the 5.7.5
+// display-name byte-cut class, pinned so it cannot ship a third time.
+$req->set_param( 'name', str_repeat( "\u{6F22}", 50 ) );
+$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a 50-character CJK name is accepted (150 bytes is irrelevant)' );
+
 echo "\n[FT-5] rest_delete_task forwards DELETE to the task path\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );
 $req = new WP_REST_Request();

@@ -3063,7 +3063,9 @@ function t(key, fallback) {
 				var apps = (data && Array.isArray(data.apps)) ? data.apps : [];
 				connectedApps = { slack: false, teams: false };
 				apps.forEach(function (app) {
-					var slug = String(app.category || '');
+					// Lowercased before comparing — DEF's own predicate does the same on this
+					// field (routes.py: (category or '').lower()), so casing is not trusted.
+					var slug = String(app.category || '').toLowerCase();
 					if (app.has_grant && slug === 'slack') connectedApps.slack = true;
 					if (app.has_grant && slug.indexOf('teams') !== -1) connectedApps.teams = true;
 				});
@@ -3242,12 +3244,13 @@ function t(key, fallback) {
 				failures.push((e2 && e2.message) || t('tasksLoadFailed', 'Could not load your scheduled tasks.'));
 			}
 			if (failures.length) {
-				// A failed read is UNKNOWN, not empty: keep the empty-state off
-				// and say what happened instead (the load-failure honesty rule
-				// carried from the modal list this pane replaces).
-				grid.textContent = '';
+				// A failed read is UNKNOWN, not empty — but render what IS known,
+				// in BOTH directions: a failed triage read must not hide N tasks
+				// that loaded fine, and vice versa (round-2 code leg). Only the
+				// empty-state claim is suppressed, because "nothing scheduled"
+				// cannot be asserted from a partial read.
+				renderGrid();
 				paneEmpty.style.display = 'none';
-				if (current && current.exists) renderGrid();
 				setStatus(paneStatus, failures.join(' '), 'error');
 			} else {
 				renderGrid();
@@ -3362,8 +3365,10 @@ function t(key, fallback) {
 					await apiRequest('/tasks', { method: 'POST', body: JSON.stringify(payload) });
 				}
 				closeModal();
+				// AFTER the reload, or loadAll's own "Loading…" clobbers it in the
+				// same tick and the user never sees the confirmation (round-2).
+				await loadAll();
 				setStatus(paneStatus, t('taskSaved', 'Saved. Your task follows its schedule from the next send time.'), 'ok');
-				loadAll();
 			} catch (e) {
 				setStatus(taskStatusEl, (e && e.message) || t('taskSaveFailed', 'Could not save your task.'), 'error');
 			} finally {
@@ -3433,7 +3438,7 @@ function t(key, fallback) {
 				await apiRequest('/tasks/' + encodeURIComponent(task.id) + '/run-now', { method: 'POST' });
 				setStatus(paneStatus, t('taskRunQueued', 'The task will run shortly. Its output arrives at the destinations you chose.'), 'ok');
 			} catch (e) {
-				setStatus(paneStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
+				setStatus(paneStatus, (e && e.message) || t('taskRunFailed', 'Could not start the task. Its schedule is unchanged - try again in a moment.'), 'error');
 			} finally {
 				btn.disabled = false;
 			}
@@ -3468,7 +3473,7 @@ function t(key, fallback) {
 				setStatus(paneStatus, t('taskDeletedNamed', 'Task removed. Its schedule has stopped.'), 'ok');
 			} catch (e) {
 				btn.disabled = false;
-				setStatus(paneStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
+				setStatus(paneStatus, (e && e.message) || t('taskRemoveFailed', 'Could not remove your task. Nothing has changed - try again in a moment.'), 'error');
 			}
 		}
 

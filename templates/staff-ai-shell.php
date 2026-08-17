@@ -675,7 +675,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduleRunning: <?php echo wp_json_encode( __( 'Asking for a run…', 'digital-employees' ) ); ?>,
 			scheduleRunQueued: <?php echo wp_json_encode( __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ) ); ?>,
 			scheduleRunFailed: <?php echo wp_json_encode( __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
-			scheduleTasksTitle: <?php echo wp_json_encode( __( 'Scheduled tasks', 'digital-employees' ) ); ?>,
 			scheduleEditTitle: <?php echo wp_json_encode( __( 'Email triage schedule', 'digital-employees' ) ); ?>,
 			taskTriageName: <?php echo wp_json_encode( __( 'Email Triage', 'digital-employees' ) ); ?>,
 			taskTriageDesc: <?php echo wp_json_encode( __( 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.', 'digital-employees' ) ); ?>,
@@ -708,7 +707,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskConfirmDeleteNamed: <?php echo wp_json_encode( __( 'Remove "%s"? Its schedule stops now; past run history is kept.', 'digital-employees' ) ); ?>,
 			taskDeletedNamed: <?php echo wp_json_encode( __( 'Task removed. Its schedule has stopped.', 'digital-employees' ) ); ?>,
 			taskRunQueued: <?php echo wp_json_encode( __( 'The task will run shortly. Its output arrives at the destinations you chose.', 'digital-employees' ) ); ?>,
-			taskRunFailedDisabled: <?php echo wp_json_encode( __( 'Turn this task on before running it.', 'digital-employees' ) ); ?>
+			taskRunFailed: <?php echo wp_json_encode( __( 'Could not start the task. Its schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
+			taskRemoveFailed: <?php echo wp_json_encode( __( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

@@ -2145,10 +2145,14 @@ final class DEF_Core_Staff_AI
 		$destinations = $request->get_param( 'destinations' );
 
 		$problems = array();
-		if ( ! is_string( $name ) || '' === trim( $name ) || strlen( trim( $name ) ) > 120 ) {
+		// mb_strlen, NOT strlen (round-2 code leg): DEF counts CHARACTERS and the
+		// copy says characters, so bytes here would refuse a 41-char CJK name the
+		// input and DEF both accept — the display-name byte-cut class removed in
+		// 5.7.5. Refuses visibly either way; never truncates.
+		if ( ! is_string( $name ) || '' === trim( $name ) || mb_strlen( trim( $name ) ) > 120 ) {
 			$problems[] = __( 'The task needs a name of at most 120 characters.', 'digital-employees' );
 		}
-		if ( ! is_string( $instruction ) || '' === trim( $instruction ) || strlen( trim( $instruction ) ) > 10000 ) {
+		if ( ! is_string( $instruction ) || '' === trim( $instruction ) || mb_strlen( trim( $instruction ) ) > 10000 ) {
 			$problems[] = __( 'The task needs instructions of at most 10,000 characters.', 'digital-employees' );
 		}
 		if ( ! is_bool( $enabled ) ) {
