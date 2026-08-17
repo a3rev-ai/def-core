@@ -2235,6 +2235,25 @@ html {
 	color: var(--text-heading);
 }
 
+/* Disconnect (C2). Understated — the user is usually on this row for another reason —
+   but visibly destructive at rest, not only on hover: on touch there is no hover, and a
+   control that ends access must never look like an ordinary link. Full weight on hover. */
+.integration-btn-danger {
+	color: #a5473a;
+}
+
+.integration-btn-danger:hover {
+	color: #c0392b;
+}
+
+.dark-theme .integration-btn-danger {
+	color: #d98a80;
+}
+
+.dark-theme .integration-btn-danger:hover {
+	color: #ff6b5a;
+}
+
 /* =============================================
    My Documents modal (document library — slice 4)
    ============================================= */

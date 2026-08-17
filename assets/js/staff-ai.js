@@ -2529,15 +2529,19 @@ function t(key, fallback) {
 					? t('integrationsReady', 'Ready')
 					: t('integrationsConnected', 'Connected');
 				action.appendChild(badge);
-				// An OAuth app that is connected can still be re-linked (e.g. revoked upstream).
-				if (app.authorized && !app.no_auth) {
-					const re = document.createElement('button');
-					re.type = 'button';
-					re.className = 'integration-btn integration-btn-link';
-					re.textContent = t('integrationsReconnect', 'Reconnect');
-					re.addEventListener('click', function () { connect(app.server_id, action); });
-					action.appendChild(re);
-				}
+				// NO Reconnect here, deliberately. It rendered only when `authorized` was
+				// true — i.e. when we had just confirmed a live grant — and clicking it
+				// posted an authorize that came straight back `status: 'authorized'` and
+				// redrew the identical row. Visible exactly when it did nothing.
+				//
+				// The case it claimed to serve (the grant died at the provider) arrives as
+				// `authorized: false`, so that row offers **Connect**. And in the one race
+				// where Reconnect did act, it minted a SECOND grant beside the first —
+				// which is where this tenant's outlook×3, slack×3 and gmail×2 came from.
+				//
+				// With Disconnect shipping, the honest flow is Disconnect → Connect: one
+				// grant at a time, and switching which account is linked actually replaces
+				// it instead of stacking another.
 			} else {
 				const connectBtn = document.createElement('button');
 				connectBtn.type = 'button';
@@ -2547,8 +2551,68 @@ function t(key, fallback) {
 				action.appendChild(connectBtn);
 			}
 
+			// Gated on has_grant — deliberately outside the branch above. has_grant is
+			// EVIDENCE of a live grant: the union of a per-toolkit signal and the
+			// per-auth-config `authorized`, because each misses rows the other catches. A
+			// grant that outlived the server its tools point at reads authorized=false with
+			// the toolkit granted (a3rev's Gmail); a stored name that does not match the
+			// provider's slug reads the reverse. Evidence can be wrong in the second case,
+			// which is why the handler reports honestly when the revoke finds nothing.
+			// Reconnect on its own was the whole problem: it minted ANOTHER grant, and a
+			// person who left, or a business moving from Gmail to M365, had no way out.
+			if (app.has_grant && !app.no_auth) {
+				const dis = document.createElement('button');
+				dis.type = 'button';
+				dis.className = 'integration-btn integration-btn-link integration-btn-danger';
+				dis.textContent = t('integrationsDisconnect', 'Disconnect');
+				dis.addEventListener('click', function () {
+					disconnect(app.server_id, prettyName(app.category, app.server_id), action);
+				});
+				action.appendChild(dis);
+			}
+
 			row.appendChild(action);
 			return row;
+		}
+
+		async function disconnect(serverId, appName, action) {
+			// Names what it does and does NOT do. "Disconnect" next to a shared app reads
+			// like it might cut the whole team off; it ends this person's access only.
+			if (!window.confirm(
+				t('integrationsDisconnectConfirm', 'Disconnect %s? This ends your own access. Your team’s connection to %s stays, and you can connect again later.')
+					.split('%s').join(appName)
+			)) return;
+
+			const buttons = action.querySelectorAll('button');
+			buttons.forEach(function (b) { b.disabled = true; });
+			setStatus(t('integrationsDisconnecting', 'Disconnecting…'), 'muted');
+			posting = true;
+			try {
+				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/disconnect', { method: 'POST' });
+				posting = false;
+				// Reload FIRST, then speak. loadList() runs synchronously to its first await
+				// and sets its own "Loading…" status, so setting the outcome before it is a
+				// message the user never sees — the honesty chain survives DEF → DEFHO →
+				// def-core and then gets overwritten one line later.
+				await loadList();
+				// `failed` is a grant the provider would not end. Saying "disconnected" over
+				// that would be the same overclaim the old copy made in the other direction.
+				if (res && res.failed) {
+					setStatus(t('integrationsDisconnectPartial', 'Some of your access could not be ended. Try again, or ask an administrator.'), 'error');
+				} else if (!res || !res.requested) {
+					// Nothing was found to end. Saying "Disconnected" here is the overclaim
+					// this whole change exists to remove: the control is offered on EVIDENCE
+					// of a grant, and the evidence can be wrong (a stored app name that does
+					// not match what the provider calls it). Report what actually happened.
+					setStatus(t('integrationsNothingToEnd', 'No live connection to this app was found under the name we have for it. If you still have access, remove it in your account settings for that app, or ask an administrator.'), 'muted');
+				} else {
+					setStatus(t('integrationsDisconnected', 'Disconnected. Ending access with the provider can take a moment.'), 'muted');
+				}
+			} catch (e) {
+				posting = false;
+				buttons.forEach(function (b) { b.disabled = false; });
+				setStatus((e && e.message) || t('integrationsDisconnectFailed', 'Could not disconnect that app.'), 'error');
+			}
 		}
 
 		async function connect(serverId, action) {

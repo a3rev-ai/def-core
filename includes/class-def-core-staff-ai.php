@@ -467,6 +467,20 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// C2 — the other half of connect. Until now the panel offered Connect ->
+		// Connected -> Reconnect and no way back, so reconnecting minted another
+		// grant and a departed staff member's consent stayed live forever. Ends
+		// the CALLER's own grant only; the tenant's connection is untouched.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/disconnect',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_user_integration_disconnect'),
+			)
+		);
+
 		// "My Documents" panel (document library slice 4). The library is per-user:
 		// DEF scopes every query to the identity in the X-DEF-User header that
 		// backend_request() already forwards — nothing user-scoped rides in the URL
@@ -1496,6 +1510,13 @@ final class DEF_Core_Staff_AI
 				'category'   => ( isset( $app['category'] ) && is_string( $app['category'] ) ) ? $app['category'] : '',
 				'no_auth'    => ! empty( $app['no_auth'] ),
 				'authorized' => ! empty( $app['authorized'] ),
+				// Whether there is EVIDENCE of a grant to end - the union of two signals
+				// (per-toolkit, and 'authorized' per auth config), because each misses rows
+				// the other catches. Evidence, not a guarantee: the Disconnect control is
+				// gated on it so it cannot go missing from a row whose grant outlived the
+				// server its tools point at, and the handler reports honestly when the
+				// revoke then finds nothing.
+				'has_grant'  => ! empty( $app['has_grant'] ),
 			);
 		}
 
@@ -1505,6 +1526,54 @@ final class DEF_Core_Staff_AI
 				// configured=false → the tenant hasn't set an aggregator key yet.
 				'configured' => ! empty( $result['configured'] ),
 				'apps'       => $apps,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: end the current user's own connection to one app.
+	 *
+	 * Proxies DEF POST /api/staff-ai/user/integrations/{server_id}/disconnect.
+	 *
+	 * Ends the CALLER's grant and nothing else. The tenant's connection to the app
+	 * stays - colleagues keep working - because the app is connected once for the
+	 * business and authorised once per person. Removing the app for everyone is a
+	 * tenant admin action in the portal, not this.
+	 *
+	 * Reports "requested", not "done": the provider revokes upstream on a background
+	 * job, so the truthful claim on return is that we asked.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, server_id, requested, failed}).
+	 */
+	public static function rest_user_integration_disconnect( \WP_REST_Request $request )
+	{
+		$server_id = sanitize_text_field( (string) $request->get_param( 'server_id' ) );
+		if ( '' === $server_id ) {
+			return new \WP_Error(
+				'invalid_server_id',
+				__( 'A server_id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/user/integrations/' . rawurlencode( $server_id ) . '/disconnect'
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not disconnect that app. Your connection is unchanged - try again in a moment.', 'digital-employees' )
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'   => true,
+				'server_id' => $server_id,
+				'requested' => isset( $result['requested'] ) ? (int) $result['requested'] : 0,
+				'failed'    => isset( $result['failed'] ) ? (int) $result['failed'] : 0,
 			),
 			200
 		);
