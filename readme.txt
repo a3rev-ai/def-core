@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.4.1
+Stable tag: 6.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,11 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.5.0 - 2026-08-18 =
+* New Feature - Partner attribution: /p/partner-link pages show the site co-branded for the referring partner, and enquiries from the site are credited to that partner
+* New Feature - A partner's link sets a first-touch attribution cookie (90 days, set by the server) so a returning visitor's enquiry still credits the referring partner
+* Tweak - Chat hand-off enquiries include an "Attributed" line so the recipient can see which partner referred the lead
 
 = 6.4.1 - 2026-08-18 =
 * Fix - A new Email Triage schedule now starts switched ON at 7:00 AM in your site's timezone, like every other new scheduled task. Before this, the blank form defaulted to off/midnight/UTC, so saving it quietly created a schedule that never ran. Editing an existing schedule still shows exactly what you saved

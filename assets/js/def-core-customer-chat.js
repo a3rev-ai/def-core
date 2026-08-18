@@ -2948,6 +2948,10 @@
 		var payload = {
 			subject: subject,
 			body: bodyText,
+			// Partner attribution (6.5.0): the conversion-page URL is the AD-6
+			// leg — a visitor converting on /p/<slug> carries the slug even
+			// with no cookie. Server-side only; never rendered back.
+			page_url: window.location.href,
 		};
 		if (replyTo) {
 			payload.reply_to = replyTo;

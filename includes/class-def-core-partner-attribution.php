@@ -1,0 +1,354 @@
+<?php
+/**
+ * Class DEF_Core_Partner_Attribution
+ *
+ * Partner attribution for the pitch site (S1–S3 of the partner-attribution-slug
+ * runsheet, DEF repo): the `/p/<slug>` co-brand route, the 90-day first-touch
+ * cookie, and the fail-open capture call into DEFHO's attribution bridge.
+ *
+ * - S1: `/p/<slug>` rewrites to the front page WITHOUT redirecting (AD-6: the slug
+ *   must stay in the URL at conversion). The slug is validated against DEFHO's
+ *   public validate-slug endpoint (transient-cached — S1 is REQUIRED to cache; all
+ *   legitimate traffic to that endpoint comes from this server's IP). A valid slug
+ *   server-sets the first-touch attribution cookie: HttpOnly, SameSite=Lax (AD-4),
+ *   expiry from the endpoint's `window_days` (AD-2 single source — never a local
+ *   constant), and NEVER overwritten once present (AD-1/AD-3). Unknown slugs serve
+ *   the bare page — no cookie, no banner, never a 404.
+ * - S2: a co-brand banner ("Widrow · Delivered by {partner}") on /p/ pageviews via
+ *   wp_body_open. Page CTAs carrying the slug are content-side (AD-15); the
+ *   Joe-prompt context is a DEF-side follow-up, deliberately not in this slice.
+ * - S3: at escalation capture the attribution legs are the HttpOnly cookie
+ *   (server-read — it rides the same-origin REST call) and the conversion page URL
+ *   (JS-sent; covers the convert-on-first-pageview case). AD-13: the session leg is
+ *   deliberately dropped; cross-device continuity is deal registration's job. The
+ *   capture POST to DEFHO authenticates with this site's service secret (AD-11)
+ *   and is FAIL-OPEN (AD-14): any error and the lead email still goes.
+ *
+ * @package def-core
+ * @since 6.5.0
+ */
+
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+final class DEF_Core_Partner_Attribution {
+
+	/**
+	 * Attribution cookie name (JSON: {"slug":..,"ts":..}).
+	 */
+	public const COOKIE_NAME = 'def_partner_attr';
+
+	/**
+	 * Query var carrying the /p/<slug> path segment.
+	 */
+	public const QUERY_VAR = 'def_partner_slug';
+
+	/**
+	 * Rewrite-rules schema version; bump to trigger a lazy flush.
+	 */
+	private const REWRITE_VERSION = '1';
+
+	/**
+	 * Transient prefix for validate-slug responses (10 min TTL).
+	 */
+	private const TRANSIENT_PREFIX = 'def_attr_slug_';
+
+	/**
+	 * Fallback attribution window if DEFHO's response omits window_days.
+	 * Mirrors AD-2's configured default; the response value always wins.
+	 */
+	private const FALLBACK_WINDOW_DAYS = 90;
+
+	/**
+	 * The validated partner for the current /p/ pageview (banner render).
+	 *
+	 * @var array|null {slug, display_name}
+	 */
+	private static $current_partner = null;
+
+	/**
+	 * Register hooks.
+	 */
+	public static function init(): void {
+		add_action( 'init', array( __CLASS__, 'register_rewrite' ) );
+		add_filter( 'query_vars', array( __CLASS__, 'register_query_var' ) );
+		add_action( 'pre_get_posts', array( __CLASS__, 'route_to_front_page' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'handle_partner_visit' ) );
+		add_action( 'wp_body_open', array( __CLASS__, 'render_cobrand_banner' ) );
+	}
+
+	/**
+	 * S1 — the /p/<slug> rewrite. Lazy-flushes once per REWRITE_VERSION so
+	 * activation order can't strand the rule.
+	 */
+	public static function register_rewrite(): void {
+		add_rewrite_rule( '^p/([A-Za-z0-9\-]{1,50})/?$', 'index.php?' . self::QUERY_VAR . '=$matches[1]', 'top' );
+		if ( get_option( 'def_core_attr_rewrite_version' ) !== self::REWRITE_VERSION ) {
+			flush_rewrite_rules( false );
+			update_option( 'def_core_attr_rewrite_version', self::REWRITE_VERSION );
+		}
+	}
+
+	/**
+	 * @param array $vars Query vars.
+	 * @return array
+	 */
+	public static function register_query_var( array $vars ): array {
+		$vars[] = self::QUERY_VAR;
+		return $vars;
+	}
+
+	/**
+	 * S1/AD-12 — serve the front page at /p/<slug> with the URL intact.
+	 *
+	 * @param \WP_Query $query Main query.
+	 */
+	public static function route_to_front_page( $query ): void {
+		if ( is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+		$slug = $query->get( self::QUERY_VAR );
+		if ( ! $slug ) {
+			return;
+		}
+		$front_id = (int) get_option( 'page_on_front' );
+		if ( $front_id > 0 ) {
+			$query->set( 'page_id', $front_id );
+			$query->is_home     = false;
+			$query->is_page     = true;
+			$query->is_singular = true;
+		}
+	}
+
+	/**
+	 * S1 — validate the slug, set the first-touch cookie, stage the banner.
+	 */
+	public static function handle_partner_visit(): void {
+		$raw = get_query_var( self::QUERY_VAR );
+		if ( ! $raw ) {
+			return;
+		}
+		$slug = self::sanitize_slug( (string) $raw );
+		if ( '' === $slug ) {
+			return; // Serve the bare page (never 404 a partner link).
+		}
+
+		$info = self::validate_slug( $slug );
+		if ( empty( $info['valid'] ) ) {
+			return; // Unknown/inactive slug: bare page, no cookie, no banner.
+		}
+
+		self::$current_partner = array(
+			'slug'         => $slug,
+			'display_name' => (string) ( $info['display_name'] ?? '' ),
+		);
+
+		// First-touch (AD-1/AD-3): an existing cookie is NEVER overwritten.
+		if ( isset( $_COOKIE[ self::COOKIE_NAME ] ) && '' !== $_COOKIE[ self::COOKIE_NAME ] ) {
+			return;
+		}
+		if ( headers_sent() ) {
+			return;
+		}
+		$window_days = (int) ( $info['window_days'] ?? 0 );
+		if ( $window_days < 1 ) {
+			$window_days = self::FALLBACK_WINDOW_DAYS;
+		}
+		setcookie(
+			self::COOKIE_NAME,
+			self::build_cookie_value( $slug, time() ),
+			array(
+				'expires'  => time() + ( $window_days * DAY_IN_SECONDS ),
+				'path'     => '/',
+				'secure'   => is_ssl(),
+				'httponly' => true, // AD-4 — never a JS cookie.
+				'samesite' => 'Lax',
+			)
+		);
+	}
+
+	/**
+	 * S2/AD-15 — the co-brand banner on validated /p/ pageviews.
+	 */
+	public static function render_cobrand_banner(): void {
+		if ( empty( self::$current_partner['display_name'] ) ) {
+			return;
+		}
+		printf(
+			'<div class="def-cobrand-banner" style="background:#0C302E;color:#F4F0E6;text-align:center;padding:8px 16px;font-size:14px;">%s <strong>%s</strong></div>',
+			esc_html__( 'Widrow · Delivered by', 'digital-employees' ),
+			esc_html( self::$current_partner['display_name'] )
+		);
+	}
+
+	/**
+	 * S3 — capture attribution for an escalation lead. FAIL-OPEN (AD-14):
+	 * returns null on any failure and the caller proceeds regardless.
+	 *
+	 * @param string $reply_to Visitor email (its domain feeds the registration rung).
+	 * @param string $page_url The conversion page URL as sent by the client.
+	 * @return array|null {source, partner_name} or null.
+	 */
+	public static function capture_for_escalation( string $reply_to, string $page_url ): ?array {
+		$secret = class_exists( 'DEF_Core_Encryption' )
+			? (string) DEF_Core_Encryption::get_secret( 'def_service_auth_secret' )
+			: '';
+		if ( '' === $secret ) {
+			return null; // Site not DEFHO-connected — nothing to attribute against.
+		}
+
+		$slug = '';
+		if ( isset( $_COOKIE[ self::COOKIE_NAME ] ) ) {
+			$slug = self::slug_from_cookie_value( (string) wp_unslash( $_COOKIE[ self::COOKIE_NAME ] ) );
+		}
+		if ( '' === $slug && '' !== $page_url ) {
+			$slug = self::extract_slug_from_page_url( $page_url ); // AD-6 leg.
+		}
+
+		$payload = array( 'lead_ref' => 'esc-' . gmdate( 'YmdHis' ) . '-' . strtolower( wp_generate_password( 8, false ) ) );
+		if ( '' !== $slug ) {
+			$payload['slug'] = $slug;
+		}
+		$domain = self::email_domain_from( $reply_to );
+		if ( '' !== $domain ) {
+			$payload['email_domain'] = $domain;
+		}
+		if ( '' !== $page_url ) {
+			$payload['page_url'] = substr( $page_url, 0, 500 );
+		}
+
+		$response = wp_remote_post(
+			DEF_Core_OAuth::get_defho_api_url() . '/api/bridge/attribution/capture',
+			array(
+				'timeout' => 3,
+				'headers' => array(
+					'Content-Type'         => 'application/json',
+					'X-DEF-Service-Secret' => $secret,
+				),
+				'body'    => wp_json_encode( $payload ),
+			)
+		);
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return null; // AD-14 — the lead email must still go.
+		}
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) || empty( $data['source'] ) ) {
+			return null;
+		}
+		return array(
+			'source'       => (string) $data['source'],
+			'partner_name' => isset( $data['partner_name'] ) ? (string) $data['partner_name'] : '',
+		);
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Pure helpers (covered by tests/test-partner-attribution.php)        */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Slugs are lowercase [a-z0-9-], 1–50 chars — DEFHO's Partner.slug shape.
+	 *
+	 * @param string $raw Raw path segment.
+	 * @return string Sanitized slug or ''.
+	 */
+	public static function sanitize_slug( string $raw ): string {
+		$slug = strtolower( trim( $raw ) );
+		return preg_match( '/^[a-z0-9\-]{1,50}$/', $slug ) ? $slug : '';
+	}
+
+	/**
+	 * @param string $slug Validated slug.
+	 * @param int    $ts   First-touch unix time.
+	 * @return string JSON cookie value.
+	 */
+	public static function build_cookie_value( string $slug, int $ts ): string {
+		return (string) wp_json_encode( array( 'slug' => $slug, 'ts' => $ts ) );
+	}
+
+	/**
+	 * @param string $value Cookie value.
+	 * @return string Slug or ''.
+	 */
+	public static function slug_from_cookie_value( string $value ): string {
+		$data = json_decode( $value, true );
+		if ( ! is_array( $data ) || empty( $data['slug'] ) ) {
+			return '';
+		}
+		return self::sanitize_slug( (string) $data['slug'] );
+	}
+
+	/**
+	 * The AD-6 leg: a conversion on the /p/ pageview itself carries the slug
+	 * in the URL even with no cookie.
+	 *
+	 * @param string $url Page URL.
+	 * @return string Slug or ''.
+	 */
+	public static function extract_slug_from_page_url( string $url ): string {
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		if ( ! preg_match( '#/p/([^/]+)/?$#', $path, $m ) ) {
+			return '';
+		}
+		return self::sanitize_slug( $m[1] );
+	}
+
+	/**
+	 * @param string $email Visitor email.
+	 * @return string Lowercased domain or ''.
+	 */
+	public static function email_domain_from( string $email ): string {
+		if ( ! is_email( $email ) ) {
+			return '';
+		}
+		$at = strrpos( $email, '@' );
+		return false === $at ? '' : strtolower( substr( $email, $at + 1 ) );
+	}
+
+	/**
+	 * The email-body line the escalation recipient sees.
+	 *
+	 * @param array $attribution {source, partner_name}.
+	 * @return string
+	 */
+	public static function build_attributed_line( array $attribution ): string {
+		$source = (string) ( $attribution['source'] ?? '' );
+		$name   = trim( (string) ( $attribution['partner_name'] ?? '' ) );
+		if ( 'house' === $source || '' === $name ) {
+			return 'Attributed: house lead';
+		}
+		return sprintf( 'Attributed: %s (via %s)', $name, 'registration' === $source ? 'registered deal' : 'partner link' );
+	}
+
+	/**
+	 * Validate a slug against DEFHO, transient-cached (10 min).
+	 *
+	 * @param string $slug Sanitized slug.
+	 * @return array {valid, display_name?, window_days?}
+	 */
+	private static function validate_slug( string $slug ): array {
+		$key    = self::TRANSIENT_PREFIX . md5( $slug );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		$response = wp_remote_get(
+			DEF_Core_OAuth::get_defho_api_url() . '/api/public/partners/validate-slug/' . rawurlencode( $slug ),
+			array( 'timeout' => 3 )
+		);
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			// Don't cache transport failures — the next pageview retries.
+			return array( 'valid' => false );
+		}
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		$info = array(
+			'valid'        => is_array( $data ) && ! empty( $data['valid'] ),
+			'display_name' => is_array( $data ) ? (string) ( $data['display_name'] ?? '' ) : '',
+			'window_days'  => is_array( $data ) ? (int) ( $data['window_days'] ?? 0 ) : 0,
+		);
+		set_transient( $key, $info, 10 * MINUTE_IN_SECONDS );
+		return $info;
+	}
+}
