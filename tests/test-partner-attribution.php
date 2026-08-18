@@ -57,6 +57,8 @@ assert_test( 'acme' === DEF_Core_Partner_Attribution::extract_slug_from_page_url
 assert_test( '' === DEF_Core_Partner_Attribution::extract_slug_from_page_url( 'https://widrow.ai/pricing' ), 'non-/p/ path -> empty' );
 assert_test( '' === DEF_Core_Partner_Attribution::extract_slug_from_page_url( 'https://widrow.ai/p/bad_slug' ), 'invalid slug chars -> empty' );
 assert_test( '' === DEF_Core_Partner_Attribution::extract_slug_from_page_url( '' ), 'empty URL -> empty' );
+assert_test( '' === DEF_Core_Partner_Attribution::extract_slug_from_page_url( 'https://widrow.ai/blog/p/acme' ), 'non-root /p/ path -> empty (anchored)' );
+assert_test( '' === DEF_Core_Partner_Attribution::extract_slug_from_page_url( 'https://widrow.ai/p/acme/deeper' ), 'deeper path -> empty' );
 
 echo "email_domain_from (registration rung feed)\n";
 assert_test( 'prospect.com' === DEF_Core_Partner_Attribution::email_domain_from( 'sue@prospect.com' ), 'plain email' );
@@ -80,6 +82,14 @@ assert_test(
 assert_test(
 	'Attributed: house lead' === DEF_Core_Partner_Attribution::build_attributed_line( array( 'source' => 'slug', 'partner_name' => '' ) ),
 	'nameless partner falls back to house line'
+);
+assert_test(
+	'Attributed: Acme Digital (via partner link)' === DEF_Core_Partner_Attribution::build_attributed_line( array( 'source' => 'slug', 'partner_name' => "Acme\nDigital" ) ),
+	'multi-line partner name collapses to one line (no email-body line injection)'
+);
+assert_test(
+	'Attributed: Acme Digital (via partner link)' === DEF_Core_Partner_Attribution::build_attributed_line( array( 'source' => 'weird-future-source', 'partner_name' => 'Acme Digital' ) ),
+	'unknown source falls back to the partner-link wording'
 );
 
 echo "\n{$passed} passed, {$failed} failed\n";

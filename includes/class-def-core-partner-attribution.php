@@ -76,6 +76,7 @@ final class DEF_Core_Partner_Attribution {
 		add_action( 'init', array( __CLASS__, 'register_rewrite' ) );
 		add_filter( 'query_vars', array( __CLASS__, 'register_query_var' ) );
 		add_action( 'pre_get_posts', array( __CLASS__, 'route_to_front_page' ) );
+		add_filter( 'redirect_canonical', array( __CLASS__, 'cancel_canonical_redirect' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'handle_partner_visit' ) );
 		add_action( 'wp_body_open', array( __CLASS__, 'render_cobrand_banner' ) );
 	}
@@ -124,6 +125,22 @@ final class DEF_Core_Partner_Attribution {
 	}
 
 	/**
+	 * AD-12 — core's redirect_canonical 301s the front page's query-var render
+	 * back to `/` on page-on-front sites (canonical.php's page_on_front branch),
+	 * which would strip the slug BEFORE handle_partner_visit runs and kill the
+	 * whole feature on the pitch site's actual config. Cancel it for /p/ views.
+	 *
+	 * @param string|false $redirect_url Proposed canonical redirect.
+	 * @return string|false
+	 */
+	public static function cancel_canonical_redirect( $redirect_url ) {
+		if ( get_query_var( self::QUERY_VAR ) ) {
+			return false;
+		}
+		return $redirect_url;
+	}
+
+	/**
 	 * S1 — validate the slug, set the first-touch cookie, stage the banner.
 	 */
 	public static function handle_partner_visit(): void {
@@ -146,8 +163,11 @@ final class DEF_Core_Partner_Attribution {
 			'display_name' => (string) ( $info['display_name'] ?? '' ),
 		);
 
-		// First-touch (AD-1/AD-3): an existing cookie is NEVER overwritten.
-		if ( isset( $_COOKIE[ self::COOKIE_NAME ] ) && '' !== $_COOKIE[ self::COOKIE_NAME ] ) {
+		// First-touch (AD-1/AD-3): an existing VALID cookie is never overwritten.
+		// A tampered/garbage cookie doesn't count — it must not block attribution
+		// until its expiry.
+		if ( isset( $_COOKIE[ self::COOKIE_NAME ] )
+			&& '' !== self::slug_from_cookie_value( (string) wp_unslash( $_COOKIE[ self::COOKIE_NAME ] ) ) ) {
 			return;
 		}
 		if ( headers_sent() ) {
@@ -232,7 +252,13 @@ final class DEF_Core_Partner_Attribution {
 			)
 		);
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			return null; // AD-14 — the lead email must still go.
+			// AD-14 — the lead email must still go, and the MISS is logged for
+			// reconcile against DEFHO's `[ATTRIBUTION] captured` lines.
+			error_log(
+				'[DEF Core] Partner attribution capture failed (fail-open): '
+				. ( is_wp_error( $response ) ? $response->get_error_code() : 'HTTP ' . wp_remote_retrieve_response_code( $response ) )
+			);
+			return null;
 		}
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $data ) || empty( $data['source'] ) ) {
@@ -289,7 +315,7 @@ final class DEF_Core_Partner_Attribution {
 	 */
 	public static function extract_slug_from_page_url( string $url ): string {
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-		if ( ! preg_match( '#/p/([^/]+)/?$#', $path, $m ) ) {
+		if ( ! preg_match( '#^/p/([^/]+)/?$#', $path, $m ) ) {
 			return '';
 		}
 		return self::sanitize_slug( $m[1] );
@@ -315,7 +341,9 @@ final class DEF_Core_Partner_Attribution {
 	 */
 	public static function build_attributed_line( array $attribution ): string {
 		$source = (string) ( $attribution['source'] ?? '' );
-		$name   = trim( (string) ( $attribution['partner_name'] ?? '' ) );
+		// Collapse all whitespace: a multi-line partner name must never inject
+		// extra plain-text lines into the escalation email.
+		$name = trim( preg_replace( '/\s+/', ' ', (string) ( $attribution['partner_name'] ?? '' ) ) );
 		if ( 'house' === $source || '' === $name ) {
 			return 'Attributed: house lead';
 		}
