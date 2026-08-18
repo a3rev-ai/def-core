@@ -3296,6 +3296,15 @@ function t(key, fallback) {
 			// Connections first: the forms derive their rows from it, and the
 			// grid render does not depend on it.
 			await loadConnections();
+			// Mail connections BEFORE the grid render (panel C1): the triage
+			// cards are NAMED by the mailbox they read, and the lazy form-open
+			// fetch alone left every card plain "Email Triage" on the primary
+			// render path. Best-effort: a failed read leaves cards plain and
+			// the form's own fetch retries.
+			try {
+				var mc = await apiRequest('/mail-connections');
+				mailConnections = (mc && Array.isArray(mc.connections)) ? mc.connections : [];
+			} catch (eMc) { /* cards render unlabeled; the form retries */ }
 			var failures = [];
 			try {
 				// Phase 4a: the plural surface - one row per setup, each with

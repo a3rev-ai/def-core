@@ -2239,7 +2239,10 @@ final class DEF_Core_Staff_AI
 	{
 		$out = self::allowlist_triage_schedule( $row );
 		unset( $out['exists'] );
-		$out['schedule_id'] = ( isset( $row['schedule_id'] ) && is_string( $row['schedule_id'] ) )
+		// Charset-pinned to the DELETE/PUT route pattern's alphabet, so the
+		// two ends can never disagree (the memories-allowlist precedent).
+		$out['schedule_id'] = ( isset( $row['schedule_id'] ) && is_string( $row['schedule_id'] )
+			&& preg_match( '/^[A-Za-z0-9-]{1,64}$/', $row['schedule_id'] ) )
 			? $row['schedule_id'] : '';
 		$out['last_run'] = self::allowlist_last_run( $row['last_run'] ?? null );
 		return $out;
@@ -2259,7 +2262,19 @@ final class DEF_Core_Staff_AI
 		if ( 'staff_ai_http_409' === $code ) {
 			$fallback = __( 'Another of your schedules already reads that mailbox.', 'digital-employees' );
 		} elseif ( 'staff_ai_http_422' === $code ) {
-			$fallback = __( 'A second schedule needs its own mailbox - pick one in the Mailbox selector.', 'digital-employees' );
+			// DEF's plural 422 is EITHER mailbox_required OR validation_failed
+			// (panel C2 - the second is reachable via browser/server tzdata
+			// skew on the timezone list), and only the first is about the
+			// mailbox - a fixed mailbox caption would mislead on the rest.
+			// DEF's own message names the actual field and is already
+			// user-destined; it rides inside backend_request's wrapped error
+			// string, so it is recovered from there (the error DATA carries
+			// only the status - observed, not assumed).
+			$fallback = __( 'Could not save your triage schedule. Your previous settings are unchanged - try again in a moment.', 'digital-employees' );
+			if ( preg_match( '/\(HTTP 422\): (.+)$/s', (string) $result->get_error_message(), $m )
+				&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
+				$fallback = trim( $m[1] );
+			}
 		} else {
 			$fallback = __( 'Could not save your triage schedule. Your previous settings are unchanged - try again in a moment.', 'digital-employees' );
 		}
@@ -2338,6 +2353,13 @@ final class DEF_Core_Staff_AI
 		$sid    = rawurlencode( (string) $request->get_param( 'schedule_id' ) );
 		$result = self::backend_request( 'PUT', '/api/staff-ai/triage-schedules/' . $sid, $payload );
 		if ( is_wp_error( $result ) ) {
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				// Deleted in another tab: retrying cannot help (panel nit).
+				return self::plain_backend_error(
+					$result,
+					__( 'This schedule no longer exists - refresh the page.', 'digital-employees' )
+				);
+			}
 			return self::triage_save_error( $result );
 		}
 		$row = ( isset( $result['schedule'] ) && is_array( $result['schedule'] ) ) ? $result['schedule'] : array();

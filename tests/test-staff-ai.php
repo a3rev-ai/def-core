@@ -1493,14 +1493,28 @@ assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb
 $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 assert_equals( 'ca_2', $sent['connected_account_id'] ?? '', 'the binding is forwarded' );
 
-// DEF's 422 (a second setup must name its mailbox) becomes one plain sentence.
+// DEF's 422 surfaces DEF's OWN message (panel C2): mailbox_required and
+// validation_failed are different refusals, and a fixed mailbox caption
+// would mislead on the second (reachable via browser/server tzdata skew).
 $GLOBALS['_def_test_request_code'] = 422;
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'detail' => array(
+	'error' => 'mailbox_required',
+	'message' => 'A second schedule must say which mailbox it reads - pick one.' ) ) );
 $result = DEF_Core_Staff_AI::rest_create_triage_schedule( $req );
-unset( $GLOBALS['_def_test_request_code'] );
 assert_true( is_wp_error( $result ), 'DEF 422 surfaces as an error' );
 assert_true(
-	false !== strpos( $result->get_error_message(), 'needs its own mailbox' ),
-	'the mailbox_required refusal is actionable'
+	false !== strpos( $result->get_error_message(), 'which mailbox it reads' ),
+	'the mailbox_required refusal keeps DEF\'s actionable message'
+);
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'detail' => array(
+	'error' => 'validation_failed', 'message' => 'unknown timezone: Foo/Bar' ) ) );
+$result = DEF_Core_Staff_AI::rest_create_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_code'], $GLOBALS['_def_test_request_body'] );
+assert_true(
+	is_wp_error( $result )
+	&& false !== strpos( $result->get_error_message(), 'unknown timezone' )
+	&& false === strpos( $result->get_error_message(), 'mailbox' ),
+	'a validation 422 keeps its OWN message - never the mailbox caption'
 );
 
 // DEF's 409 (one setup per mailbox) becomes its own sentence.
