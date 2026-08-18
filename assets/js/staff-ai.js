@@ -3025,12 +3025,15 @@ function t(key, fallback) {
 			teams: document.getElementById('taskDestTeams')
 		};
 
-		// Email Triage form (S4b, unchanged fields).
+		// Email Triage form (S4b; Phase 4a adds the mailbox picker).
 		var triageView = document.getElementById('scheduleFormView');
 		var statusEl = document.getElementById('scheduleStatus');
 		var enabledEl = document.getElementById('scheduleEnabled');
 		var timeEl = document.getElementById('scheduleTime');
 		var tzEl = document.getElementById('scheduleTimezone');
+		var mailboxRow = document.getElementById('scheduleMailboxRow');
+		var mailboxEl = document.getElementById('scheduleMailbox');
+		var mailConnections = null;  // null = not loaded / unreadable; [] = genuinely none
 		var destEls = {
 			email: document.getElementById('scheduleDestEmail'),
 			slack: document.getElementById('scheduleDestSlack'),
@@ -3395,6 +3398,39 @@ function t(key, fallback) {
 			setStatus(taskStatusEl, '');
 		}
 
+		function fillMailboxRow(schedule) {
+			// Phase 4a (§5). Rebuilt on every open (the abandoned-edit rule).
+			// No connections, or an unreadable list, hides the row — and the
+			// SAVE then carries the STORED binding through unchanged, so an
+			// unrelated edit can never silently unbind a mailbox.
+			if (!mailboxEl || !mailboxRow) return;
+			while (mailboxEl.firstChild) mailboxEl.removeChild(mailboxEl.firstChild);
+			var bound = (schedule && schedule.connected_account_id) || '';
+			(mailConnections || []).forEach(function (c) {
+				var o = document.createElement('option');
+				o.value = c.id;
+				o.textContent = c.address || (c.toolkit + ' — ' + c.id);
+				mailboxEl.appendChild(o);
+			});
+			if (bound && !Array.prototype.some.call(mailboxEl.options,
+					function (o) { return o.value === bound; })) {
+				// The stored binding is not among the offered connections (list
+				// still loading, or the grant ended): keep it VISIBLE as its raw
+				// id rather than silently rebinding on save (the P3-C lesson);
+				// the run itself refuses an invalid binding honestly DEF-side.
+				var keep = document.createElement('option');
+				keep.value = bound;
+				keep.textContent = bound;
+				mailboxEl.appendChild(keep);
+			}
+			if (mailboxEl.options.length) {
+				mailboxEl.value = bound || mailboxEl.options[0].value;
+				mailboxRow.style.display = '';
+			} else {
+				mailboxRow.style.display = 'none';
+			}
+		}
+
 		function fillTriageForm(schedule) {
 			enabledEl.checked = !!schedule.enabled;
 			timeEl.value = pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
@@ -3404,6 +3440,17 @@ function t(key, fallback) {
 				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
 			});
 			applyConnectionRows(dests);
+			fillMailboxRow(schedule);
+			if (mailConnections === null) {
+				// First open (or a failed earlier read): fetch the caller's own
+				// connections and re-render just the mailbox row when they land.
+				apiRequest('/mail-connections')
+					.then(function (data) {
+						mailConnections = (data && data.connections) || [];
+						fillMailboxRow(schedule);
+					})
+					.catch(function () { /* row stays hidden; the save preserves the binding */ });
+			}
 			setStatus(statusEl, '');
 		}
 
@@ -3501,12 +3548,19 @@ function t(key, fallback) {
 			}
 			// FULL-REPLACE contract: always the complete object - a partial body
 			// would silently reset the omitted fields DEF-side.
+			// The binding (Phase 4a): the picker's value when it rendered; the
+			// STORED binding when it did not (no connections listed, or the
+			// list was unreadable) - an unrelated edit never silently unbinds.
+			var boundAccount = (mailboxRow && mailboxRow.style.display !== 'none' && mailboxEl)
+				? mailboxEl.value
+				: ((current && current.connected_account_id) || '');
 			var payload = {
 				enabled: !!enabledEl.checked,
 				send_hour_local: parseInt(parts[0], 10) || 0,
 				send_minute_local: parseInt(parts[1], 10) || 0,
 				timezone: tzEl.value || 'UTC',
-				destinations: dests
+				destinations: dests,
+				connected_account_id: boundAccount
 			};
 			saveBtn.disabled = true;
 			setStatus(statusEl, t('scheduleSaving', 'Saving…'));

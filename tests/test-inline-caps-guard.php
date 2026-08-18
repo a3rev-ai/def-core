@@ -110,6 +110,11 @@ const BASELINE = array(
 	// never truncates; every registered model id fits, and DEF stays the
 	// authority on which ids exist — this bounds the shape only.
 	'includes/class-def-core-staff-ai.php::if ( ! is_string( $model ) || strlen( $model ) > 64 ) {' => 1,
+	// Door-check for DEF's String(64) triage-binding column (Phase 4a,
+	// v6.3.0), same class as the model/timezone entries: REFUSES visibly,
+	// never truncates; every aggregator account id fits, and OWNERSHIP is
+	// DEF's fail-closed run-time check — this bounds the shape only.
+	'includes/class-def-core-staff-ai.php::if ( ! is_string( $account ) || strlen( $account ) > 64 ) {' => 1,
 	'includes/class-def-core-admin-api.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::$error_msg = sanitize_text_field( substr( $response->get_error_message(), 0, 200 ) );' => 1,
 	'includes/class-def-core-admin.php::if ( count( $results ) >= 10 ) {' => 1,

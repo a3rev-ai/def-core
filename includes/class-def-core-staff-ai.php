@@ -565,6 +565,21 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// The mailbox picker's data (Phase 4a, §5): the caller's OWN active
+		// mail connections. GET with nothing user-scoped anywhere - DEF keys
+		// the listing to the forwarded identity, same as every sibling.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/mail-connections',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_mail_connections'),
+				),
+			)
+		);
+
 		// Run Now. POST with no body at all: the run belongs to whoever is
 		// logged in, and DEF resolves that from the forwarded identity - there
 		// is no field here that could name another user's mailbox.
@@ -1875,6 +1890,53 @@ final class DEF_Core_Staff_AI
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
 			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
+			// Phase 4a: '' = unbound (DEF stores NULL; the run searches until
+			// the next save binds). The picker's select uses '' for that state.
+			'connected_account_id' => ( isset( $row['connected_account_id'] ) && is_string( $row['connected_account_id'] ) )
+				? $row['connected_account_id'] : '',
+		);
+	}
+
+	/**
+	 * REST handler: the current user's own active mail connections (Phase 4a).
+	 *
+	 * Proxies DEF GET /api/staff-ai/mail-connections for the triage form's
+	 * mailbox picker. Allowlisted to {id, toolkit, address} - DEF already
+	 * scopes the list to the caller and never sends token material, and this
+	 * gate keeps any future extra out of the browser until someone decides it
+	 * belongs. setup_required (empty list) = the tenant has no aggregator key.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, connections, setup_required}).
+	 */
+	public static function rest_mail_connections()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/mail-connections' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not read your mail connections right now - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$connections = array();
+		if ( isset( $result['connections'] ) && is_array( $result['connections'] ) ) {
+			foreach ( $result['connections'] as $row ) {
+				if ( ! is_array( $row ) || empty( $row['id'] ) || ! is_string( $row['id'] ) ) {
+					continue;
+				}
+				$connections[] = array(
+					'id'      => $row['id'],
+					'toolkit' => ( isset( $row['toolkit'] ) && is_string( $row['toolkit'] ) ) ? $row['toolkit'] : '',
+					'address' => ( isset( $row['address'] ) && is_string( $row['address'] ) ) ? $row['address'] : '',
+				);
+			}
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'        => true,
+				'connections'    => $connections,
+				'setup_required' => ! empty( $result['setup_required'] ),
+			),
+			200
 		);
 	}
 
@@ -1951,10 +2013,21 @@ final class DEF_Core_Staff_AI
 		$minute       = $request->get_param( 'send_minute_local' );
 		$timezone     = $request->get_param( 'timezone' );
 		$destinations = $request->get_param( 'destinations' );
+		$account      = $request->get_param( 'connected_account_id' );
 
 		$problems = array();
 		if ( ! is_bool( $enabled ) ) {
 			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
+		}
+		// Phase 4a: absent mirrors DEF ('' = unbound) - a cached pre-6.3.0 page
+		// posts no binding and must keep saving; its save UNBINDS honestly
+		// (full-replace) rather than erroring. Shape-only: DEF's run verifies
+		// ownership fail-closed, and the picker only ever offers the caller's own.
+		if ( null === $account ) {
+			$account = '';
+		}
+		if ( ! is_string( $account ) || strlen( $account ) > 64 ) {
+			$problems[] = __( 'The mailbox must be a connection id of at most 64 characters.', 'digital-employees' );
 		}
 		if ( ! is_int( $hour ) || $hour < 0 || $hour > 23 ) {
 			$problems[] = __( 'The send hour must be a whole number from 0 to 23.', 'digital-employees' );
@@ -1992,11 +2065,12 @@ final class DEF_Core_Staff_AI
 			'PUT',
 			'/api/staff-ai/triage-schedule',
 			array(
-				'enabled'           => $enabled,
-				'send_hour_local'   => $hour,
-				'send_minute_local' => $minute,
-				'timezone'          => $timezone,
-				'destinations'      => array_values( array_unique( $clean_destinations ) ),
+				'enabled'              => $enabled,
+				'send_hour_local'      => $hour,
+				'send_minute_local'    => $minute,
+				'timezone'             => $timezone,
+				'destinations'         => array_values( array_unique( $clean_destinations ) ),
+				'connected_account_id' => $account,
 			)
 		);
 		if ( is_wp_error( $result ) ) {

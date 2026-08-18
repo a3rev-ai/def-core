@@ -587,6 +587,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="form-group schedule-toggle-row">
 						<label class="share-toggle-label"><input type="checkbox" id="scheduleEnabled" class="share-transcript-toggle"> <?php echo esc_html__( 'Send me a daily inbox digest', 'digital-employees' ); ?></label>
 					</div>
+					<!-- Phase 4a (§5): the mailbox this digest reads, bound at save.
+					     Hidden until the user's own connections load; no connections
+					     (or an unreadable list) leaves the stored binding untouched. -->
+					<div class="form-group" id="scheduleMailboxRow" style="display:none;">
+						<label class="form-label" for="scheduleMailbox"><?php echo esc_html__( 'Mailbox', 'digital-employees' ); ?></label>
+						<select class="form-input" id="scheduleMailbox"></select>
+						<p class="form-hint"><?php echo esc_html__( 'The mailbox this digest reads. Staff AI reads exactly this connection - connecting another account later never silently changes it.', 'digital-employees' ); ?></p>
+					</div>
 					<div class="form-group">
 						<label class="form-label" for="scheduleTime"><?php echo esc_html__( 'Send time', 'digital-employees' ); ?></label>
 						<input type="time" class="form-input" id="scheduleTime" value="07:00">
