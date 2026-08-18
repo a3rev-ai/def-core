@@ -565,6 +565,54 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Phase 4a multiplicity: the PLURAL triage surface - one setup per
+		// mailbox, N cards. The singleton routes above stay for the legacy
+		// oldest-setup view; this is what v6.4.0 renders from. Ids in URLs
+		// are the caller's own rows or 404, resolved DEF-side.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/triage-schedules',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_list_triage_schedules'),
+				),
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_create_triage_schedule'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/triage-schedules/(?P<schedule_id>[A-Za-z0-9-]{1,64})',
+			array(
+				array(
+					'methods'             => 'PUT',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_update_triage_schedule_by_id'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_triage_schedule_by_id'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/triage-schedules/(?P<schedule_id>[A-Za-z0-9-]{1,64})/run-now',
+			array(
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_run_now_triage_by_id'),
+				),
+			)
+		);
+
 		// The mailbox picker's data (Phase 4a, §5): the caller's OWN active
 		// mail connections. GET with nothing user-scoped anywhere - DEF keys
 		// the listing to the forwarded identity, same as every sibling.
@@ -1995,18 +2043,20 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * REST handler: save the current user's Email Triage schedule.
+	 * Validate one triage-schedule body the way DEF will - shared by the
+	 * legacy singleton PUT and the v6.4.0 plural create/update. FULL-REPLACE:
+	 * the complete object is validated and forwarded whole (an omitted field
+	 * would silently reset DEF-side). Refuses explicitly, never coerces.
 	 *
-	 * Proxies DEF PUT /api/staff-ai/triage-schedule, which is FULL-REPLACE: the
-	 * complete object is validated here and forwarded whole (an omitted field
-	 * would silently reset DEF-side - the card never sends a partial body).
-	 * Validation rejects explicitly, never silently drops or coerces - the same
-	 * refuse-visibly contract DEF enforces authoritatively behind this proxy.
+	 * Phase 4a binding: absent mirrors DEF ('' = unbound) - a cached older
+	 * page posts no binding and must keep saving. Shape-only: DEF's run
+	 * verifies ownership fail-closed, and the picker only offers the
+	 * caller's own accounts.
 	 *
 	 * @param \WP_REST_Request $request Request object.
-	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 * @return array|\WP_Error The clean payload, or the refusal.
 	 */
-	public static function rest_put_triage_schedule( \WP_REST_Request $request )
+	private static function validate_triage_body( \WP_REST_Request $request )
 	{
 		$enabled      = $request->get_param( 'enabled' );
 		$hour         = $request->get_param( 'send_hour_local' );
@@ -2019,10 +2069,6 @@ final class DEF_Core_Staff_AI
 		if ( ! is_bool( $enabled ) ) {
 			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
 		}
-		// Phase 4a: absent mirrors DEF ('' = unbound) - a cached pre-6.3.0 page
-		// posts no binding and must keep saving; its save UNBINDS honestly
-		// (full-replace) rather than erroring. Shape-only: DEF's run verifies
-		// ownership fail-closed, and the picker only ever offers the caller's own.
 		if ( null === $account ) {
 			$account = '';
 		}
@@ -2060,19 +2106,34 @@ final class DEF_Core_Staff_AI
 				array( 'status' => 400 )
 			);
 		}
-
-		$result = self::backend_request(
-			'PUT',
-			'/api/staff-ai/triage-schedule',
-			array(
-				'enabled'              => $enabled,
-				'send_hour_local'      => $hour,
-				'send_minute_local'    => $minute,
-				'timezone'             => $timezone,
-				'destinations'         => array_values( array_unique( $clean_destinations ) ),
-				'connected_account_id' => $account,
-			)
+		return array(
+			'enabled'              => $enabled,
+			'send_hour_local'      => $hour,
+			'send_minute_local'    => $minute,
+			'timezone'             => $timezone,
+			'destinations'         => array_values( array_unique( $clean_destinations ) ),
+			'connected_account_id' => $account,
 		);
+	}
+
+	/**
+	 * REST handler: save the current user's Email Triage schedule.
+	 *
+	 * Proxies DEF PUT /api/staff-ai/triage-schedule — the LEGACY singleton
+	 * surface (DEF answers for the caller's oldest setup as of Phase 4a); the
+	 * v6.4.0 UI uses the plural routes below.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 */
+	public static function rest_put_triage_schedule( \WP_REST_Request $request )
+	{
+		$payload = self::validate_triage_body( $request );
+		if ( is_wp_error( $payload ) ) {
+			return $payload;
+		}
+
+		$result = self::backend_request( 'PUT', '/api/staff-ai/triage-schedule', $payload );
 		if ( is_wp_error( $result ) ) {
 			return self::plain_backend_error(
 				$result,
@@ -2152,6 +2213,179 @@ final class DEF_Core_Staff_AI
 				$fallback = __( 'Turn on your Email Triage schedule before running it.', 'digital-employees' );
 			} elseif ( 'staff_ai_not_found' === $code ) {
 				$fallback = __( 'Save your Email Triage schedule before running it.', 'digital-employees' );
+			} else {
+				$fallback = __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' );
+			}
+			return self::plain_backend_error( $result, $fallback );
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Triage will run shortly. Your digest arrives the same way your daily one does.', 'digital-employees' ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * Allowlist one PLURAL triage row (Phase 4a, v6.4.0) - the singleton
+	 * allowlist's fields minus `exists` (meaningless on a list) plus the row's
+	 * identity and its own last run.
+	 *
+	 * @param array $row Raw schedule from DEF's plural list.
+	 * @return array Allowlisted row.
+	 */
+	private static function allowlist_triage_row( array $row ): array
+	{
+		$out = self::allowlist_triage_schedule( $row );
+		unset( $out['exists'] );
+		$out['schedule_id'] = ( isset( $row['schedule_id'] ) && is_string( $row['schedule_id'] ) )
+			? $row['schedule_id'] : '';
+		$out['last_run'] = self::allowlist_last_run( $row['last_run'] ?? null );
+		return $out;
+	}
+
+	/**
+	 * The plural save refusals a user can act on (Phase 4a), mapped to plain
+	 * sentences: DEF's 422 mailbox_required (a second setup must name its
+	 * mailbox) and 409 mailbox_already_scheduled (one setup per mailbox).
+	 *
+	 * @param \WP_Error $result The proxied error.
+	 * @return \WP_Error Plain-sentence error.
+	 */
+	private static function triage_save_error( \WP_Error $result ): \WP_Error
+	{
+		$code = $result->get_error_code();
+		if ( 'staff_ai_http_409' === $code ) {
+			$fallback = __( 'Another of your schedules already reads that mailbox.', 'digital-employees' );
+		} elseif ( 'staff_ai_http_422' === $code ) {
+			$fallback = __( 'A second schedule needs its own mailbox - pick one in the Mailbox selector.', 'digital-employees' );
+		} else {
+			$fallback = __( 'Could not save your triage schedule. Your previous settings are unchanged - try again in a moment.', 'digital-employees' );
+		}
+		return self::plain_backend_error( $result, $fallback );
+	}
+
+	/**
+	 * REST handler: the current user's Email Triage setups (Phase 4a).
+	 *
+	 * Proxies DEF GET /api/staff-ai/triage-schedules - one row per setup, each
+	 * with its own last run. Empty list is a real answer.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedules}).
+	 */
+	public static function rest_list_triage_schedules()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/triage-schedules' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load your triage schedules. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$schedules = array();
+		if ( isset( $result['schedules'] ) && is_array( $result['schedules'] ) ) {
+			foreach ( $result['schedules'] as $row ) {
+				if ( is_array( $row ) ) {
+					$schedules[] = self::allowlist_triage_row( $row );
+				}
+			}
+		}
+		return new \WP_REST_Response(
+			array( 'success' => true, 'schedules' => $schedules ),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: create one Email Triage setup (Phase 4a).
+	 *
+	 * DEF enforces the multiplicity rules (a second setup must name its
+	 * mailbox; one setup per mailbox) - this proxy maps them to sentences.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 */
+	public static function rest_create_triage_schedule( \WP_REST_Request $request )
+	{
+		$payload = self::validate_triage_body( $request );
+		if ( is_wp_error( $payload ) ) {
+			return $payload;
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/triage-schedules', $payload );
+		if ( is_wp_error( $result ) ) {
+			return self::triage_save_error( $result );
+		}
+		$row = ( isset( $result['schedule'] ) && is_array( $result['schedule'] ) ) ? $result['schedule'] : array();
+		return new \WP_REST_Response(
+			array( 'success' => true, 'schedule' => self::allowlist_triage_row( $row ) ),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: full-replace update of one Email Triage setup (Phase 4a).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, schedule}).
+	 */
+	public static function rest_update_triage_schedule_by_id( \WP_REST_Request $request )
+	{
+		$payload = self::validate_triage_body( $request );
+		if ( is_wp_error( $payload ) ) {
+			return $payload;
+		}
+		$sid    = rawurlencode( (string) $request->get_param( 'schedule_id' ) );
+		$result = self::backend_request( 'PUT', '/api/staff-ai/triage-schedules/' . $sid, $payload );
+		if ( is_wp_error( $result ) ) {
+			return self::triage_save_error( $result );
+		}
+		$row = ( isset( $result['schedule'] ) && is_array( $result['schedule'] ) ) ? $result['schedule'] : array();
+		return new \WP_REST_Response(
+			array( 'success' => true, 'schedule' => self::allowlist_triage_row( $row ) ),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: retire one Email Triage setup (Phase 4a). Idempotent.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, deleted}).
+	 */
+	public static function rest_delete_triage_schedule_by_id( \WP_REST_Request $request )
+	{
+		$sid    = rawurlencode( (string) $request->get_param( 'schedule_id' ) );
+		$result = self::backend_request( 'DELETE', '/api/staff-ai/triage-schedules/' . $sid );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not remove this Email Triage setup. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array( 'success' => true, 'deleted' => ! empty( $result['deleted'] ) ),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: Run Now for one Email Triage setup (Phase 4a). Same
+	 * stamp-never-run contract as the singleton route.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, message}).
+	 */
+	public static function rest_run_now_triage_by_id( \WP_REST_Request $request )
+	{
+		$sid    = rawurlencode( (string) $request->get_param( 'schedule_id' ) );
+		$result = self::backend_request( 'POST', '/api/staff-ai/triage-schedules/' . $sid . '/run-now', array() );
+		if ( is_wp_error( $result ) ) {
+			$code = $result->get_error_code();
+			if ( 'staff_ai_http_409' === $code ) {
+				$fallback = __( 'Turn on this schedule before running it.', 'digital-employees' );
+			} elseif ( 'staff_ai_not_found' === $code ) {
+				$fallback = __( 'This schedule no longer exists - refresh the page.', 'digital-employees' );
 			} else {
 				$fallback = __( 'Could not start a triage run. Your schedule is unchanged - try again in a moment.', 'digital-employees' );
 			}

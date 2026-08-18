@@ -1445,6 +1445,96 @@ assert_true(
 	'has_grant survives the allowlist independently of authorized - dropping it from the allowlist strips every Disconnect button'
 );
 
+// ── Phase 4a (v6.4.0): the plural triage surface ─────────────────────────
+echo "\n[TS-18] rest_list_triage_schedules allowlists each row\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'   => true,
+	'schedules' => array( array(
+		'schedule_id'          => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+		'enabled'              => true,
+		'send_hour_local'      => 7,
+		'send_minute_local'    => 0,
+		'timezone'             => 'Australia/Brisbane',
+		'destinations'         => array( 'email' ),
+		'connected_account_id' => 'ca_1',
+		'last_run'             => array( 'status' => 'succeeded', 'at' => '2026-08-18T07:00:00+00:00' ),
+		'future_extra'         => 'MUST-NOT-PASS',
+	) ),
+) );
+$resp = DEF_Core_Staff_AI::rest_list_triage_schedules();
+unset( $GLOBALS['_def_test_get_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+$row  = $data['schedules'][0] ?? array();
+$keys = array_keys( $row );
+sort( $keys );
+assert_equals(
+	array( 'connected_account_id', 'destinations', 'enabled', 'last_run', 'schedule_id', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	$keys,
+	'exactly the eight plural-row fields - extras stay out'
+);
+assert_equals( 'ca_1', $row['connected_account_id'], 'the binding rides the row' );
+assert_equals( 'succeeded', $row['last_run']['status'], 'each row carries its own last run' );
+assert_true( false === strpos( json_encode( $data ), 'MUST-NOT-PASS' ), 'no extra field reaches the browser' );
+
+echo "\n[TS-19] plural create forwards the full object and maps the two refusals\n";
+$GLOBALS['_def_test_last_request'] = array();
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'schedule' => array( 'schedule_id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' ) ) );
+$req = new WP_REST_Request();
+$req->set_param( 'enabled', true );
+$req->set_param( 'send_hour_local', 7 );
+$req->set_param( 'send_minute_local', 0 );
+$req->set_param( 'timezone', 'UTC' );
+$req->set_param( 'destinations', array( 'email' ) );
+$req->set_param( 'connected_account_id', 'ca_2' );
+$resp = DEF_Core_Staff_AI::rest_create_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a valid create succeeds' );
+assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'verb is POST' );
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+assert_equals( 'ca_2', $sent['connected_account_id'] ?? '', 'the binding is forwarded' );
+
+// DEF's 422 (a second setup must name its mailbox) becomes one plain sentence.
+$GLOBALS['_def_test_request_code'] = 422;
+$result = DEF_Core_Staff_AI::rest_create_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'DEF 422 surfaces as an error' );
+assert_true(
+	false !== strpos( $result->get_error_message(), 'needs its own mailbox' ),
+	'the mailbox_required refusal is actionable'
+);
+
+// DEF's 409 (one setup per mailbox) becomes its own sentence.
+$GLOBALS['_def_test_request_code'] = 409;
+$result = DEF_Core_Staff_AI::rest_create_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true(
+	is_wp_error( $result )
+	&& false !== strpos( $result->get_error_message(), 'already reads that mailbox' ),
+	'the duplicate-mailbox refusal is actionable'
+);
+
+echo "\n[TS-20] plural update/delete/run-now hit the id-scoped DEF paths\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'schedule' => array( 'schedule_id' => 'cccc' ) ) );
+$req->set_param( 'schedule_id', 'cccc-dddd' );
+DEF_Core_Staff_AI::rest_update_triage_schedule_by_id( $req );
+assert_true(
+	false !== strpos( $GLOBALS['_def_test_last_request']['url'] ?? '', '/api/staff-ai/triage-schedules/cccc-dddd' ),
+	'update targets the named setup'
+);
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'deleted' => true ) );
+DEF_Core_Staff_AI::rest_delete_triage_schedule_by_id( $req );
+assert_true(
+	false !== strpos( $GLOBALS['_def_test_last_request']['url'] ?? '', '/api/staff-ai/triage-schedules/cccc-dddd' ),
+	'delete targets the named setup'
+);
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'run_now' => array() ) );
+DEF_Core_Staff_AI::rest_run_now_triage_by_id( $req );
+assert_true(
+	false !== strpos( $GLOBALS['_def_test_last_request']['url'] ?? '', '/api/staff-ai/triage-schedules/cccc-dddd/run-now' ),
+	'run-now targets the named setup'
+);
+unset( $GLOBALS['_def_test_request_body'] );
+
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
