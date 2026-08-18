@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.4.1 - 2026/08/18 =
+* Fix - A new Email Triage schedule now starts switched ON at 7:00 AM in your site's timezone, like every other new scheduled task. Before this, the blank form defaulted to off/midnight/UTC, so saving it quietly created a schedule that never ran. Editing an existing schedule still shows exactly what you saved
+
 = 6.4.0 - 2026/08/18 =
 * Feature - Run Email Triage on more than one mailbox. Each mailbox gets its own card on the Scheduled page - its own send time, destinations, Run now and last-run status - and the card is named by the mailbox it reads. Add another from New task > Email Triage; a second schedule asks you to pick its mailbox, and two schedules can never read the same one
 

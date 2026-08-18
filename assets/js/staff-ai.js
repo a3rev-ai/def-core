@@ -3450,9 +3450,19 @@ function t(key, fallback) {
 		}
 
 		function fillTriageForm(schedule) {
-			enabledEl.checked = !!schedule.enabled;
-			timeEl.value = pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
-			fillTimezones(tzEl, schedule.timezone || 'UTC');
+			// CREATE defaults ON at 7:00 in the site's timezone (v6.4.1) — the
+			// task creator's recorded rule: pressing Save on a scheduler IS the
+			// owner scheduling it. The blank form's off/midnight/UTC defaults
+			// made every New task > Email Triage save land as a "Not scheduled"
+			// card with no hint (Steve's 6.4.0 canary). EDIT keeps the stored
+			// values exactly — a deliberately switched-off schedule stays off.
+			var isNew = !schedule || !schedule.schedule_id;
+			enabledEl.checked = isNew ? true : !!schedule.enabled;
+			timeEl.value = isNew
+				? '07:00'
+				: pad(schedule.send_hour_local || 0) + ':' + pad(schedule.send_minute_local || 0);
+			fillTimezones(tzEl, (schedule && schedule.timezone)
+				|| (window.StaffAIConfig && StaffAIConfig.siteTimezone) || 'UTC');
 			var dests = schedule.destinations || ['email'];
 			Object.keys(destEls).forEach(function (k) {
 				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
