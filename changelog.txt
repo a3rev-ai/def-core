@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.2.0 - 2026/08/18 =
+* Feature - Model selection for custom tasks: pick which of your available models a task runs on, or leave Default model to follow Staff AI. The list is your own - the same models as the chat model picker. If a chosen model later becomes unavailable, the task still runs on your default instead of failing
+
 = 6.1.1 - 2026/08/18 =
 * Fix - A task form taller than the window (the new Frequency rows on a smaller screen or the desktop app) left its Save and Close buttons cut off with no way to scroll to them. Modals now scroll when they are taller than the window
 

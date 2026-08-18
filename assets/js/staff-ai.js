@@ -314,6 +314,36 @@ function t(key, fallback) {
 						modelSelect.appendChild(opt);
 						ids.push(m.id);
 					});
+					// P3-C (D-S9): the task creator's model dropdown is THIS list —
+					// the tenant's own, one fetch, both dropdowns. No models = the
+					// row stays hidden and the employee default applies, exactly
+					// like the chat switcher.
+					var taskModelSel = document.getElementById('taskModel');
+					if (taskModelSel) {
+						models.forEach(function (m) {
+							var label = m.label + (m.description ? ' — ' + m.description : '');
+							// The editor may have added this id as a raw-id
+							// keep-option before this fetch resolved: upgrade it
+							// in place (label + no longer a keep-option) - a
+							// second append would show the same model twice for
+							// the rest of the session (panel round 1).
+							var existing = null;
+							Array.prototype.forEach.call(taskModelSel.options, function (o) {
+								if (o.value === m.id) existing = o;
+							});
+							if (existing) {
+								existing.textContent = label;
+								existing.removeAttribute('data-keep');
+								return;
+							}
+							var o = document.createElement('option');
+							o.value = m.id;
+							o.textContent = label;
+							taskModelSel.appendChild(o);
+						});
+						var taskModelRow = document.getElementById('taskModelRow');
+						if (taskModelRow) taskModelRow.style.display = '';
+					}
 					// Restore the sticky pick if still offered, else default to the
 					// first (most capable) — which is the employee default too.
 					modelSelect.value = (ids.indexOf(selectedModel) !== -1) ? selectedModel : ids[0];
@@ -2980,6 +3010,7 @@ function t(key, fallback) {
 		var instructionEl = document.getElementById('taskInstruction');
 		var taskEnabledEl = document.getElementById('taskEnabled');
 		var taskCadenceEl = document.getElementById('taskCadence');
+		var taskModelEl = document.getElementById('taskModel');
 		var taskWeekdayEl = document.getElementById('taskWeekday');
 		var taskWeekdayRow = document.getElementById('taskWeekdayRow');
 		var taskCadenceHint = document.getElementById('taskCadenceHint');
@@ -3327,6 +3358,28 @@ function t(key, fallback) {
 			instructionEl.value = task ? (task.instruction || '') : '';
 			taskEnabledEl.checked = task ? !!task.enabled : true;
 			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
+			if (taskModelEl) {
+				var wantModel = (task && task.model) || '';
+				// Keep-options belong to the task they were added FOR - drop any
+				// left from a previous edit so a stale id never leaks into the
+				// list for a different task or a new one (panel round 1).
+				Array.prototype.slice.call(taskModelEl.querySelectorAll('option[data-keep]'))
+					.forEach(function (o) { if (o.value !== wantModel) o.remove(); });
+				// The task's stored model may not be among the offered options
+				// (list still loading, or no longer offered). Keep it VISIBLE as
+				// its raw id rather than silently rewriting the task to Default
+				// on the next unrelated save (the P3-B ignored-selector lesson);
+				// the run itself already falls back safely DEF-side.
+				if (wantModel && !Array.prototype.some.call(taskModelEl.options,
+						function (o) { return o.value === wantModel; })) {
+					var keep = document.createElement('option');
+					keep.value = wantModel;
+					keep.textContent = wantModel;
+					keep.setAttribute('data-keep', '1');
+					taskModelEl.appendChild(keep);
+				}
+				taskModelEl.value = wantModel;
+			}
 			if (taskWeekdayEl) taskWeekdayEl.value = String((task && task.send_weekday) || 0);
 			applyCadenceRows();
 			taskTimeEl.value = task
@@ -3409,6 +3462,7 @@ function t(key, fallback) {
 				instruction: instruction,
 				enabled: !!taskEnabledEl.checked,
 				cadence: (taskCadenceEl && taskCadenceEl.value) || 'daily',
+				model: (taskModelEl && taskModelEl.value) || '',
 				send_weekday: taskWeekdayEl ? (parseInt(taskWeekdayEl.value, 10) || 0) : 0,
 				send_hour_local: parseInt(parts[0], 10) || 0,
 				send_minute_local: parseInt(parts[1], 10) || 0,
