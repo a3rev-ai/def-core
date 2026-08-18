@@ -981,9 +981,9 @@ $schedule = $data['schedule'] ?? array();
 $keys     = array_keys( $schedule );
 sort( $keys );
 assert_equals(
-	array( 'destinations', 'enabled', 'exists', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'connected_account_id', 'destinations', 'enabled', 'exists', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$keys,
-	'exactly the six schedule fields - no extras'
+	'exactly the seven schedule fields - no extras'
 );
 assert_equals( array( 'email', 'slack' ), $schedule['destinations'], 'unknown destination types are dropped' );
 assert_equals( 'Australia/Brisbane', $schedule['timezone'], 'timezone passes through' );
@@ -1006,6 +1006,9 @@ $bad_bodies = array(
 	'timezone too long' => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => str_repeat( 'x', 65 ), 'destinations' => array( 'email' ) ),
 	'unknown dest'      => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'webhook' ) ),
 	'empty dests'       => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array() ),
+	// Phase 4a: shape-only door - DEF's run owns ownership fail-closed.
+	'binding too long'  => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => str_repeat( 'x', 65 ) ),
+	'binding not str'   => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => 123 ),
 );
 foreach ( $bad_bodies as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1048,11 +1051,14 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'connected_account_id', 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE object is forwarded - DEF PUT is full-replace, a partial body would silently reset fields'
 );
 assert_equals( array( 'email', 'slack', 'teams' ), $sent['destinations'], 'destinations forwarded deduplicated' );
+// Phase 4a: this body carried NO binding - the cached pre-6.3.0 page. It
+// forwards '' (= unbound, full-replace) exactly as DEF documents, never an error.
+assert_equals( '', $sent['connected_account_id'] ?? 'MISSING', 'absent binding forwards as empty (cached-page compatibility)' );
 
 echo "\n[TS-5] rest_run_now_triage_schedule asks DEF, carrying nothing user-scoped\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'run_now' => array() ) );
@@ -1138,6 +1144,35 @@ assert_true(
 	array_key_exists( 'last_run', $_data ) && null === $_data['last_run'],
 	'last_run is present and null - the card shows no status rather than inventing one'
 );
+
+// ── Phase 4a: the mailbox picker's BFF route ─────────────────────────────
+echo "\n[TS-16] rest_mail_connections allowlists rows and carries setup_required\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'        => true,
+	'setup_required' => false,
+	'connections'    => array(
+		// DEF never sends token material; this allowlist is the second gate
+		// that keeps any future extra out of the browser regardless.
+		array( 'id' => 'ca_1', 'toolkit' => 'outlook', 'address' => 'steve@a3rev.com', 'future_extra' => 'MUST-NOT-PASS' ),
+		array( 'toolkit' => 'gmail' ), // no id - not a bindable row, dropped
+	),
+) );
+$resp = DEF_Core_Staff_AI::rest_mail_connections();
+unset( $GLOBALS['_def_test_get_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+assert_equals(
+	array( array( 'id' => 'ca_1', 'toolkit' => 'outlook', 'address' => 'steve@a3rev.com' ) ),
+	$data['connections'],
+	'rows allowlisted to id/toolkit/address - extras and id-less rows stay out'
+);
+assert_true( false === strpos( json_encode( $data ), 'MUST-NOT-PASS' ), 'no extra field reaches the browser' );
+assert_equals( false, $data['setup_required'], 'setup_required rides through' );
+
+echo "\n[TS-17] rest_mail_connections surfaces a DEF fault, never an empty picker\n";
+$GLOBALS['_def_test_get_code'] = 502;
+$result = DEF_Core_Staff_AI::rest_mail_connections();
+unset( $GLOBALS['_def_test_get_code'] );
+assert_true( is_wp_error( $result ), 'an aggregator fault is an error - an empty list would read as "no other mailbox"' );
 
 // ── Free-text tasks (Phase 3): allowlist exactness, refusals, forwarding ──
 echo "\n[FT-1] rest_list_tasks allowlists each task - owner_email NEVER passes\n";
