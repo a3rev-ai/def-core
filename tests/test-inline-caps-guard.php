@@ -99,6 +99,11 @@ function scan_inline_caps(): array {
 // ── The baseline — EXPLICITLY UNREVIEWED, measured 2026-08-10 ────────────────
 
 const BASELINE = array(
+	// Attribution capture (6.5.0): DEFHO's capture schema REFUSES page_url > 500
+	// (422), and the call is fail-open — an unbounded URL would lose the WHOLE
+	// attribution, not a suffix. The slug is extracted from the FULL url BEFORE
+	// this cut, so only stored evidence is bounded, never resolution input.
+	'includes/class-def-core-partner-attribution.php::$payload[\'page_url\'] = substr( $page_url, 0, 500 );' => 1,
 	// Door-check for DEF's String(64) timezone column, mirrored from the DEF
 	// route it proxies: REFUSES visibly (400, field named), never truncates;
 	// every real IANA zone name fits. Classified at introduction (S4b card).

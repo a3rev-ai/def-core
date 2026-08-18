@@ -107,6 +107,10 @@ function scan_named_caps(): array {
 // 'class' => system | ui_chrome | delete_required; 'why' => the one line.
 
 const CAPS_REGISTRY = array(
+	'includes/class-def-core-partner-attribution.php::FALLBACK_WINDOW_DAYS' => array(
+		'class' => 'system',
+		'why'   => 'AD-2 fallback if DEFHO\'s validate-slug response omits window_days; the response value always wins — prevents a zero-length cookie, never rations.',
+	),
 	'includes/class-def-core-admin-api.php::AUDIT_LOG_MAX' => array(
 		'class' => 'system',
 		'why'   => 'FIFO retention on the settings audit trail — an unbounded wp_options row wedges the DB.',
