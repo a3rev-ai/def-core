@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.3.0
+Stable tag: 6.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.4.0 - 2026-08-18 =
+* Feature - Run Email Triage on more than one mailbox. Each mailbox gets its own card on the Scheduled page - its own send time, destinations, Run now and last-run status - and the card is named by the mailbox it reads. Add another from New task > Email Triage; a second schedule asks you to pick its mailbox, and two schedules can never read the same one
 
 = 6.3.0 - 2026-08-18 =
 * Feature - Pick which mailbox your Email Triage digest reads. The schedule form now shows your connected mail accounts and binds the digest to the one you choose - connecting another account later never silently changes which mailbox is read. Existing schedules keep working and bind on their next save

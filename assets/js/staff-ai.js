@@ -3041,7 +3041,8 @@ function t(key, fallback) {
 		};
 
 		var loading = false;
-		var current = null;          // the triage schedule, or null when none/unknown
+		var triages = [];            // the triage setups (Phase 4a: one per mailbox)
+		var editingTriage = null;    // the setup under edit, null = creating
 		var tasks = [];              // the user's free-text tasks
 		var editingTaskId = null;    // task id under edit, null = creating
 		// Which chat apps the user has actually CONNECTED (has_grant per
@@ -3207,21 +3208,32 @@ function t(key, fallback) {
 			return { card: card, actions: actions };
 		}
 
+		function triageCardName(schedule) {
+			// Phase 4a: N cards need telling apart, and the honest label is the
+			// mailbox each one reads - resolved from the loaded connections
+			// (never stored). Unbound or unresolvable stays the plain name.
+			var name = t('taskTriageName', 'Email Triage');
+			var bound = schedule.connected_account_id || '';
+			if (!bound) return name;
+			var match = (mailConnections || []).filter(function (c) { return c.id === bound; })[0];
+			return (match && match.address) ? name + ' — ' + match.address : name;
+		}
+
 		function renderTriageCard(schedule) {
 			var built = baseCard(
-				t('taskTriageName', 'Email Triage'),
+				triageCardName(schedule),
 				t('taskTriageDesc', 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.'),
 				schedule, schedule.last_run
 			);
-			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(false); }));
-			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTriage(del); });
+			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(false, schedule); }));
+			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTriage(del, schedule); });
 			built.actions.appendChild(del);
 			// Only when the schedule is on: DEF refuses a switched-off one with
 			// a 409 (D-S6) - offering a control that can only fail is worse.
 			if (schedule.enabled) {
 				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
 				run.type = 'button';
-				run.addEventListener('click', function () { runNowTriage(run); });
+				run.addEventListener('click', function () { runNowTriage(run, schedule); });
 				built.card.appendChild(run);
 			}
 			return built.card;
@@ -3246,10 +3258,10 @@ function t(key, fallback) {
 		function renderGrid() {
 			grid.textContent = '';
 			var any = false;
-			if (current && current.exists) {
-				grid.appendChild(renderTriageCard(current));
+			triages.forEach(function (schedule) {
+				grid.appendChild(renderTriageCard(schedule));
 				any = true;
-			}
+			});
 			tasks.forEach(function (task) {
 				grid.appendChild(renderTaskCard(task));
 				any = true;
@@ -3284,18 +3296,24 @@ function t(key, fallback) {
 			// Connections first: the forms derive their rows from it, and the
 			// grid render does not depend on it.
 			await loadConnections();
+			// Mail connections BEFORE the grid render (panel C1): the triage
+			// cards are NAMED by the mailbox they read, and the lazy form-open
+			// fetch alone left every card plain "Email Triage" on the primary
+			// render path. Best-effort: a failed read leaves cards plain and
+			// the form's own fetch retries.
+			try {
+				var mc = await apiRequest('/mail-connections');
+				mailConnections = (mc && Array.isArray(mc.connections)) ? mc.connections : [];
+			} catch (eMc) { /* cards render unlabeled; the form retries */ }
 			var failures = [];
 			try {
-				var data = await apiRequest('/triage-schedule');
-				var s = (data && data.schedule) || {};
-				// `exists` is STATED by DEF, not inferred - a user who saved the
-				// defaults unchanged is byte-identical to one with no row.
-				s.last_run = (data && data.last_run) || null;
-				s.exists = !!s.exists;
-				current = s;
+				// Phase 4a: the plural surface - one row per setup, each with
+				// its own identity, binding and last run.
+				var data = await apiRequest('/triage-schedules');
+				triages = (data && Array.isArray(data.schedules)) ? data.schedules : [];
 			} catch (e) {
-				current = null;
-				failures.push((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedule.'));
+				triages = [];
+				failures.push((e && e.message) || t('scheduleLoadFailed', 'Could not load your triage schedules.'));
 			}
 			try {
 				var taskData = await apiRequest('/tasks');
@@ -3473,9 +3491,15 @@ function t(key, fallback) {
 			openModal();
 		}
 
-		function openTriageForm(fromCreator) {
-			fillTriageForm(current || {});
-			if (titleEl) titleEl.textContent = t('scheduleEditTitle', 'Email triage schedule');
+		function openTriageForm(fromCreator, schedule) {
+			// Phase 4a: the form edits ONE setup, or creates a new one from the
+			// type selector (schedule = null). Re-filled every time (the
+			// abandoned-edit rule).
+			editingTriage = schedule || null;
+			fillTriageForm(schedule || {});
+			if (titleEl) titleEl.textContent = schedule
+				? t('scheduleEditTitle', 'Email triage schedule')
+				: t('scheduleNewTitle', 'New Email Triage schedule');
 			taskView.style.display = 'none';
 			triageView.style.display = '';
 			// Back only exists on the creator path - it returns to the type
@@ -3487,7 +3511,7 @@ function t(key, fallback) {
 
 		if (typeEl) typeEl.addEventListener('change', function () {
 			if (typeEl.value === 'email_triage') {
-				openTriageForm(true);
+				openTriageForm(true, null);
 				typeEl.value = 'freetext';   // the selector resets for next time
 			}
 		});
@@ -3553,7 +3577,7 @@ function t(key, fallback) {
 			// list was unreadable) - an unrelated edit never silently unbinds.
 			var boundAccount = (mailboxRow && mailboxRow.style.display !== 'none' && mailboxEl)
 				? mailboxEl.value
-				: ((current && current.connected_account_id) || '');
+				: ((editingTriage && editingTriage.connected_account_id) || '');
 			var payload = {
 				enabled: !!enabledEl.checked,
 				send_hour_local: parseInt(parts[0], 10) || 0,
@@ -3565,13 +3589,16 @@ function t(key, fallback) {
 			saveBtn.disabled = true;
 			setStatus(statusEl, t('scheduleSaving', 'Saving…'));
 			try {
-				var data = await apiRequest('/triage-schedule', { method: 'PUT', body: JSON.stringify(payload) });
-				var s = (data && data.schedule) || payload;
-				s.exists = true;
-				s.last_run = current ? current.last_run : null;
-				current = s;
+				// Phase 4a: editing updates THAT setup; the creator path makes a
+				// new one (DEF enforces second-setup-must-bind + one-per-mailbox).
+				if (editingTriage && editingTriage.schedule_id) {
+					await apiRequest('/triage-schedules/' + encodeURIComponent(editingTriage.schedule_id),
+						{ method: 'PUT', body: JSON.stringify(payload) });
+				} else {
+					await apiRequest('/triage-schedules', { method: 'POST', body: JSON.stringify(payload) });
+				}
 				closeModal();
-				renderGrid();
+				await loadAll();
 				setStatus(paneStatus, t('scheduleSaved', 'Saved. Your digest follows this schedule from its next send time.'), 'ok');
 			} catch (e) {
 				setStatus(statusEl, (e && e.message) || t('scheduleSaveFailed', 'Could not save your triage schedule.'), 'error');
@@ -3586,13 +3613,14 @@ function t(key, fallback) {
 			saveTriage();
 		}
 
-		async function runNowTriage(btn) {
+		async function runNowTriage(btn, schedule) {
 			// Deliberately does NOT save first: Run now tests the schedule that
 			// is actually stored.
 			btn.disabled = true;
 			setStatus(paneStatus, t('scheduleRunning', 'Asking for a run…'));
 			try {
-				await apiRequest('/triage-schedule/run-now', { method: 'POST' });
+				await apiRequest('/triage-schedules/' + encodeURIComponent(schedule.schedule_id) + '/run-now',
+					{ method: 'POST' });
 				setStatus(paneStatus, t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
 			} catch (e) {
 				setStatus(paneStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
@@ -3614,17 +3642,18 @@ function t(key, fallback) {
 			}
 		}
 
-		async function removeTriage(btn) {
+		async function removeTriage(btn, schedule) {
 			// Retires the SETUP. The mailbox connection is untouched and stays
 			// usable by chat; disconnecting that grant is a separate control.
 			if (!window.confirm(t('taskDeleteConfirm', 'Remove Email Triage? Your mailbox stays connected.'))) return;
 			btn.disabled = true;
 			setStatus(paneStatus, t('taskDeleting', 'Removing…'));
 			try {
-				await apiRequest('/triage-schedule', { method: 'DELETE' });
-				current = null;
+				await apiRequest('/triage-schedules/' + encodeURIComponent(schedule.schedule_id),
+					{ method: 'DELETE' });
+				triages = triages.filter(function (item) { return item.schedule_id !== schedule.schedule_id; });
 				renderGrid();
-				setStatus(paneStatus, t('taskDeleted', 'Email Triage removed. Nothing is scheduled for you now.'), 'ok');
+				setStatus(paneStatus, t('taskDeleted', 'Email Triage removed. Its schedule has stopped.'), 'ok');
 			} catch (e) {
 				btn.disabled = false;
 				setStatus(paneStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
