@@ -481,6 +481,33 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Slice 4-B (v6.7.0): a SECOND account on a MAIL app. DEF refuses
+		// non-mail apps by name and mints the consent link even though an
+		// account is already connected - the provider's sign-in screen is
+		// where the user chooses WHICH account, by signing in as it.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/connect-another',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_user_connect_another'),
+			)
+		);
+
+		// Slice 4-B: per-ACCOUNT disconnect - ends exactly one of the caller's
+		// own connected accounts (DEF proves ownership fail-closed); the app's
+		// other accounts and every colleague's grants are untouched.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/user/integrations/(?P<server_id>[a-zA-Z0-9_-]+)/accounts/(?P<account_id>[a-zA-Z0-9_-]+)/disconnect',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_user_account_disconnect'),
+			)
+		);
+
 		// "My Documents" panel (document library slice 4). The library is per-user:
 		// DEF scopes every query to the identity in the X-DEF-User header that
 		// backend_request() already forwards — nothing user-scoped rides in the URL
@@ -1746,6 +1773,90 @@ final class DEF_Core_Staff_AI
 				'server_id'    => $server_id,
 				'status'       => ( isset( $result['status'] ) && is_string( $result['status'] ) ) ? $result['status'] : '',
 				'redirect_url' => ( isset( $result['redirect_url'] ) && is_string( $result['redirect_url'] ) ) ? $result['redirect_url'] : '',
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: start THIS user's hosted OAuth for a SECOND mail account.
+	 *
+	 * Proxies DEF POST /api/staff-ai/user/integrations/{server_id}/connect-another.
+	 * Unlike the authorize sibling there is no 'authorized' short-circuit - the
+	 * link mints even though an account is connected; the sign-in screen is where
+	 * the user picks which account. DEF refuses non-mail apps by name and
+	 * host-checks the link; the response is allowlisted like the sibling's.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, server_id, status, redirect_url}).
+	 */
+	public static function rest_user_connect_another( \WP_REST_Request $request )
+	{
+		$server_id = sanitize_text_field( (string) $request->get_param( 'server_id' ) );
+		if ( '' === $server_id ) {
+			return new \WP_Error(
+				'invalid_server_id',
+				__( 'A server_id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/user/integrations/' . rawurlencode( $server_id ) . '/connect-another'
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'server_id'    => $server_id,
+				'status'       => ( isset( $result['status'] ) && is_string( $result['status'] ) ) ? $result['status'] : '',
+				'redirect_url' => ( isset( $result['redirect_url'] ) && is_string( $result['redirect_url'] ) ) ? $result['redirect_url'] : '',
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: end ONE of the current user's connected accounts on an app.
+	 *
+	 * Proxies DEF POST .../integrations/{server_id}/accounts/{account_id}/disconnect.
+	 * The toolkit sibling ends every account of the app; this ends exactly one -
+	 * DEF proves the account is the caller's own, fail-closed, before revoking.
+	 * Reports "requested", not "done" (the provider revokes on a background job).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, server_id, requested, failed}).
+	 */
+	public static function rest_user_account_disconnect( \WP_REST_Request $request )
+	{
+		$server_id  = sanitize_text_field( (string) $request->get_param( 'server_id' ) );
+		$account_id = sanitize_text_field( (string) $request->get_param( 'account_id' ) );
+		if ( '' === $server_id || '' === $account_id ) {
+			return new \WP_Error(
+				'invalid_params',
+				__( 'A server_id and account_id are required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request(
+			'POST',
+			'/api/staff-ai/user/integrations/' . rawurlencode( $server_id )
+				. '/accounts/' . rawurlencode( $account_id ) . '/disconnect'
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not disconnect that account. It is unchanged - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'   => true,
+				'server_id' => $server_id,
+				'requested' => isset( $result['requested'] ) ? (int) $result['requested'] : 0,
+				'failed'    => isset( $result['failed'] ) ? (int) $result['failed'] : 0,
 			),
 			200
 		);

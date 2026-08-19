@@ -2564,11 +2564,12 @@ function t(key, fallback) {
 				// rebuilt row (the focus-handler race) - last writer wins.
 				var existing = row.querySelector('.integration-primary');
 				if (existing) existing.remove();
-				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit]));
+				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit],
+					row.dataset.serverId || ''));
 			});
 		}
 
-		function renderPrimaryPicker(toolkit, accounts) {
+		function renderPrimaryPicker(toolkit, accounts, serverId) {
 			// "Primary for chat" = the account Sue's chat mail tools act on
 			// without being told each time (Slice 4-A). One radio per account:
 			// with a single account that is one labelled radio, and the SAME
@@ -2592,6 +2593,18 @@ function t(key, fallback) {
 				lab.appendChild(radio);
 				lab.appendChild(document.createTextNode(' ' + (c.address || c.id)));
 				wrap.appendChild(lab);
+				// Slice 4-B: this account's own Disconnect - ends exactly this
+				// account; the app's other accounts and colleagues' grants stay.
+				if (serverId) {
+					var accDis = document.createElement('button');
+					accDis.type = 'button';
+					accDis.className = 'integration-btn integration-btn-link integration-btn-danger';
+					accDis.textContent = t('accountDisconnect', 'Disconnect');
+					accDis.addEventListener('click', function () {
+						disconnectAccount(serverId, c.id, c.address || c.id);
+					});
+					wrap.appendChild(accDis);
+				}
 			});
 			if (accounts.some(function (c) { return c.primary; })) {
 				var clear = document.createElement('button');
@@ -2601,7 +2614,76 @@ function t(key, fallback) {
 				clear.addEventListener('click', function () { clearPrimary(toolkit); });
 				wrap.appendChild(clear);
 			}
+			// Slice 4-B: connect a SECOND account on this mail app. The sign-in
+			// window that opens is where you choose which account - sign in as it.
+			if (serverId) {
+				var another = document.createElement('button');
+				another.type = 'button';
+				another.className = 'integration-btn integration-btn-link';
+				another.textContent = t('accountConnectAnother', 'Connect another account');
+				another.addEventListener('click', function () {
+					connectAnother(serverId, another);
+				});
+				wrap.appendChild(another);
+			}
 			return wrap;
+		}
+
+		async function connectAnother(serverId, btn) {
+			// Mirrors connect(): mint the consent link, render it as an explicit
+			// click (a real user gesture - popup blockers), finish in the new
+			// tab; the window-focus handler re-checks on return. The link mints
+			// even though an account is connected - that is the whole gesture.
+			btn.disabled = true;
+			setStatus(t('integrationsStarting', 'Starting the connection…'), 'muted');
+			posting = true;
+			try {
+				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/connect-another', { method: 'POST' });
+				posting = false;
+				const url = (typeof res.redirect_url === 'string') ? res.redirect_url : '';
+				if (/^https:\/\//i.test(url)) {
+					const link = document.createElement('a');
+					link.className = 'integration-btn integration-btn-primary';
+					link.href = url;
+					link.target = '_blank';
+					link.rel = 'noopener noreferrer';
+					link.textContent = t('integrationsFinish', 'Finish connecting →');
+					btn.replaceWith(link);
+					setStatus(t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.'), 'muted');
+				} else {
+					btn.disabled = false;
+					setStatus(t('integrationsNoLink', 'Could not start the connection. Please try again.'), 'error');
+				}
+			} catch (e) {
+				posting = false;
+				btn.disabled = false;
+				setStatus((e && e.message) || t('integrationsConnectFailed', 'Could not start the connection.'), 'error');
+			}
+		}
+
+		async function disconnectAccount(serverId, accountId, label) {
+			// Account-scoped confirm copy: this ends ONE account's access only.
+			if (!window.confirm(
+				t('accountDisconnectConfirm', 'Disconnect %s? This ends access to that account only — the app stays connected, and you can connect it again later.')
+					.split('%s').join(label)
+			)) return;
+			var outcome, kind;
+			setStatus(t('integrationsDisconnecting', 'Disconnecting…'), 'muted');
+			try {
+				const res = await apiRequest(
+					'/user/integrations/' + encodeURIComponent(serverId)
+						+ '/accounts/' + encodeURIComponent(accountId) + '/disconnect',
+					{ method: 'POST' });
+				outcome = res.failed
+					? t('accountDisconnectFailed', 'That account could not be disconnected — it is unchanged.')
+					: t('accountDisconnected', 'Account disconnected.');
+				kind = res.failed ? 'error' : 'muted';
+			} catch (e) {
+				outcome = (e && e.message) || t('accountDisconnectFailed', 'That account could not be disconnected — it is unchanged.');
+				kind = 'error';
+			}
+			await loadList();   // reload FIRST, then speak (the disconnect() rule)
+			setStatus(outcome, kind);
 		}
 
 		async function setPrimary(accountId) {
@@ -2647,6 +2729,8 @@ function t(key, fallback) {
 			row.className = 'integration-row';
 			// Slice 4-A: the primary picker finds its row by provider slug.
 			row.dataset.category = String(app.category || '').toLowerCase();
+			// Slice 4-B: the picker's per-account controls call by server id.
+			row.dataset.serverId = String(app.server_id || '');
 
 			const name = document.createElement('span');
 			name.className = 'integration-name';

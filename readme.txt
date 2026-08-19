@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.6.0
+Stable tag: 6.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.7.0 - 2026-08-19 =
+* Feature - Connect another mail account. On the Connections panel, mail apps now offer "Connect another account" - the sign-in window that opens is where you choose which account, by signing in as it. Each connected account shows on its own line with its own Disconnect, and "Primary for chat" picks which one your assistant uses in chat
 
 = 6.6.0 - 2026-08-19 =
 * Feature - Primary mailbox for chat. On the Connections panel, each connected mail provider now shows a "Primary for chat" choice - the account your Staff AI assistant uses for reading, searching and drafting mail in chat, without being told each time. With a single account connected nothing changes; the choice matters once a second account is connected. Clear it to go back to the default
