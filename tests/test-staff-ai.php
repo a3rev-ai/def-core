@@ -1632,6 +1632,7 @@ unset( $GLOBALS['_def_test_request_body'] );
 $data = is_object( $resp ) ? $resp->data : $resp;
 assert_equals( 1, $data['requested'], 'requested count rides through' );
 assert_equals( 0, $data['failed'], 'failed count rides through' );
+assert_true( ! array_key_exists( 'category', $data ), 'a DEF extra never transits the allowlist' );
 
 echo "\n[TS-4B-4] rest_user_account_disconnect refuses missing params; surfaces a DEF fault\n";
 $request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations/srv-1/accounts//disconnect' );

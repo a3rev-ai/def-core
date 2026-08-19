@@ -2669,16 +2669,22 @@ function t(key, fallback) {
 			)) return;
 			var outcome, kind;
 			setStatus(t('integrationsDisconnecting', 'Disconnecting…'), 'muted');
+			// posting guard (panel F2): closing the native confirm fires a window
+			// focus event, whose handler would race a loadList against this POST
+			// and blank the outcome with a pre-revoke list.
+			posting = true;
 			try {
 				const res = await apiRequest(
 					'/user/integrations/' + encodeURIComponent(serverId)
 						+ '/accounts/' + encodeURIComponent(accountId) + '/disconnect',
 					{ method: 'POST' });
+				posting = false;
 				outcome = res.failed
 					? t('accountDisconnectFailed', 'That account could not be disconnected — it is unchanged.')
 					: t('accountDisconnected', 'Account disconnected.');
 				kind = res.failed ? 'error' : 'muted';
 			} catch (e) {
+				posting = false;
 				outcome = (e && e.message) || t('accountDisconnectFailed', 'That account could not be disconnected — it is unchanged.');
 				kind = 'error';
 			}
