@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.5.0
+Stable tag: 6.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.6.0 - 2026-08-19 =
+* Feature - Primary mailbox for chat. On the Connections panel, each connected mail provider now shows a "Primary for chat" choice - the account your Staff AI assistant uses for reading, searching and drafting mail in chat, without being told each time. With a single account connected nothing changes; the choice matters once a second account is connected. Clear it to go back to the default
 
 = 6.5.0 - 2026-08-18 =
 * New Feature - Partner attribution: /p/partner-link pages show the site co-branded for the referring partner, and enquiries from the site are credited to that partner

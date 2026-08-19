@@ -2533,6 +2533,10 @@ function t(key, fallback) {
 				}
 				setStatus('', '');
 				apps.forEach(function (app) { listEl.appendChild(renderRow(app)); });
+				// Slice 4-A (v6.6.0): decorate the mail rows with the chat
+				// primary picker. Fire-and-forget - a failed read renders no
+				// picker and costs nothing else.
+				loadMailPrimaries();
 			} catch (e) {
 				setStatus((e && e.message) || t('integrationsLoadFailed', 'Could not load your connected accounts.'), 'error');
 			} finally {
@@ -2540,9 +2544,91 @@ function t(key, fallback) {
 			}
 		}
 
+		async function loadMailPrimaries() {
+			// The caller's own mail accounts, grouped per provider, attached
+			// under the matching app row. Best-effort by design: the triage
+			// form's own picker fetches independently and is unaffected.
+			var mc;
+			try { mc = await apiRequest('/mail-connections'); } catch (e) { return; }
+			var byToolkit = {};
+			((mc && mc.connections) || []).forEach(function (c) {
+				var k = String(c.toolkit || '').toLowerCase();
+				if (!k || !c.id) return;
+				(byToolkit[k] = byToolkit[k] || []).push(c);
+			});
+			Object.keys(byToolkit).forEach(function (toolkit) {
+				var row = listEl.querySelector('.integration-row[data-category="' + toolkit + '"]');
+				if (!row) return;
+				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit]));
+			});
+		}
+
+		function renderPrimaryPicker(toolkit, accounts) {
+			// "Primary for chat" = the account Sue's chat mail tools act on
+			// without being told each time (Slice 4-A). One radio per account:
+			// with a single account that is one labelled radio, and the SAME
+			// control scales unchanged when Connect-another-account (Slice B)
+			// multiplies the pool. Rendered from STORED truth (the `primary`
+			// flag), never from what was last clicked.
+			var wrap = document.createElement('div');
+			wrap.className = 'integration-primary';
+			var label = document.createElement('span');
+			label.className = 'integration-primary-label';
+			label.textContent = t('primaryMailboxLabel', 'Primary for chat:');
+			wrap.appendChild(label);
+			accounts.forEach(function (c) {
+				var lab = document.createElement('label');
+				lab.className = 'integration-primary-option';
+				var radio = document.createElement('input');
+				radio.type = 'radio';
+				radio.name = 'def-primary-' + toolkit;
+				radio.checked = !!c.primary;
+				radio.addEventListener('change', function () { setPrimary(c.id); });
+				lab.appendChild(radio);
+				lab.appendChild(document.createTextNode(' ' + (c.address || c.id)));
+				wrap.appendChild(lab);
+			});
+			if (accounts.some(function (c) { return c.primary; })) {
+				var clear = document.createElement('button');
+				clear.type = 'button';
+				clear.className = 'integration-btn integration-btn-link';
+				clear.textContent = t('primaryMailboxClear', 'Clear');
+				clear.addEventListener('click', function () { clearPrimary(toolkit); });
+				wrap.appendChild(clear);
+			}
+			return wrap;
+		}
+
+		async function setPrimary(accountId) {
+			setStatus(t('primaryMailboxSaving', 'Saving your primary mailbox…'), 'muted');
+			try {
+				await apiRequest('/primary-mailbox', {
+					method: 'PUT',
+					body: JSON.stringify({ connected_account_id: accountId })
+				});
+				setStatus(t('primaryMailboxSaved', 'Primary mailbox saved.'), 'ok');
+			} catch (e) {
+				setStatus((e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.'), 'error');
+			}
+			loadList();   // re-render from stored truth either way
+		}
+
+		async function clearPrimary(toolkit) {
+			setStatus(t('primaryMailboxClearing', 'Clearing…'), 'muted');
+			try {
+				await apiRequest('/primary-mailbox?toolkit=' + encodeURIComponent(toolkit), { method: 'DELETE' });
+				setStatus(t('primaryMailboxCleared', 'Primary cleared - chat uses the default account again.'), 'muted');
+			} catch (e) {
+				setStatus((e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.'), 'error');
+			}
+			loadList();
+		}
+
 		function renderRow(app) {
 			const row = document.createElement('div');
 			row.className = 'integration-row';
+			// Slice 4-A: the primary picker finds its row by provider slug.
+			row.dataset.category = String(app.category || '').toLowerCase();
 
 			const name = document.createElement('span');
 			name.className = 'integration-name';

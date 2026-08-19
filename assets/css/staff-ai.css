@@ -2177,9 +2177,29 @@ html {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	/* wrap so the Slice 4-A primary picker can take its own full-width line */
+	flex-wrap: wrap;
 	gap: 12px;
 	padding: 12px 2px;
 	border-bottom: 1px solid var(--border-light);
+}
+/* Slice 4-A (v6.6.0): the chat primary picker under a mail app's row. */
+.integration-primary {
+	flex-basis: 100%;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 2px 2px 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.integration-primary-option {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	color: var(--text-primary);
 }
 .integration-row:last-child {
 	border-bottom: none;

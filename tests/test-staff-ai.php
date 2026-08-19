@@ -1154,6 +1154,8 @@ $GLOBALS['_def_test_get_body'] = json_encode( array(
 		// DEF never sends token material; this allowlist is the second gate
 		// that keeps any future extra out of the browser regardless.
 		array( 'id' => 'ca_1', 'toolkit' => 'outlook', 'address' => 'steve@a3rev.com', 'future_extra' => 'MUST-NOT-PASS' ),
+		// Slice 4-A: `primary` passes as a coerced bool; a truthy non-bool is state, not a claim.
+		array( 'id' => 'ca_2', 'toolkit' => 'outlook', 'address' => 'ceo@defho.ai', 'primary' => 1 ),
 		array( 'toolkit' => 'gmail' ), // no id - not a bindable row, dropped
 	),
 ) );
@@ -1161,9 +1163,12 @@ $resp = DEF_Core_Staff_AI::rest_mail_connections();
 unset( $GLOBALS['_def_test_get_body'] );
 $data = is_object( $resp ) ? $resp->data : $resp;
 assert_equals(
-	array( array( 'id' => 'ca_1', 'toolkit' => 'outlook', 'address' => 'steve@a3rev.com' ) ),
+	array(
+		array( 'id' => 'ca_1', 'toolkit' => 'outlook', 'address' => 'steve@a3rev.com', 'primary' => false ),
+		array( 'id' => 'ca_2', 'toolkit' => 'outlook', 'address' => 'ceo@defho.ai', 'primary' => true ),
+	),
 	$data['connections'],
-	'rows allowlisted to id/toolkit/address - extras and id-less rows stay out'
+	'rows allowlisted to id/toolkit/address/primary - extras and id-less rows stay out'
 );
 assert_true( false === strpos( json_encode( $data ), 'MUST-NOT-PASS' ), 'no extra field reaches the browser' );
 assert_equals( false, $data['setup_required'], 'setup_required rides through' );
@@ -1173,6 +1178,50 @@ $GLOBALS['_def_test_get_code'] = 502;
 $result = DEF_Core_Staff_AI::rest_mail_connections();
 unset( $GLOBALS['_def_test_get_code'] );
 assert_true( is_wp_error( $result ), 'an aggregator fault is an error - an empty list would read as "no other mailbox"' );
+
+// ── Slice 4-A (v6.6.0): the chat primary-mailbox BFF routes ──────────────
+echo "\n[TS-4A-1] rest_set_primary_mailbox forwards the pick and allowlists DEF's answer\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'success' => true,
+	'primary' => array( 'toolkit' => 'outlook', 'connected_account_id' => 'ca_2',
+	                    'future_extra' => 'MUST-NOT-PASS' ),
+) );
+$request = new WP_REST_Request( 'PUT', '/staff-ai/primary-mailbox' );
+$request->set_param( 'connected_account_id', 'ca_2' );
+$resp = DEF_Core_Staff_AI::rest_set_primary_mailbox( $request );
+unset( $GLOBALS['_def_test_request_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+assert_equals(
+	array( 'toolkit' => 'outlook', 'connected_account_id' => 'ca_2' ),
+	$data['primary'],
+	'response allowlisted to toolkit/connected_account_id'
+);
+assert_true( false === strpos( json_encode( $data ), 'MUST-NOT-PASS' ), 'no extra field reaches the browser' );
+
+echo "\n[TS-4A-2] rest_set_primary_mailbox refuses an empty pick without calling DEF\n";
+$request = new WP_REST_Request( 'PUT', '/staff-ai/primary-mailbox' );
+$result = DEF_Core_Staff_AI::rest_set_primary_mailbox( $request );
+assert_true( is_wp_error( $result ), 'no connected_account_id refuses 422 by name' );
+
+echo "\n[TS-4A-3] rest_clear_primary_mailbox clears one provider, refuses none\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'cleared' => 'outlook' ) );
+$request = new WP_REST_Request( 'DELETE', '/staff-ai/primary-mailbox' );
+$request->set_param( 'toolkit', 'outlook' );
+$resp = DEF_Core_Staff_AI::rest_clear_primary_mailbox( $request );
+unset( $GLOBALS['_def_test_request_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+assert_equals( 'outlook', $data['cleared'], 'the cleared provider is named back' );
+$request = new WP_REST_Request( 'DELETE', '/staff-ai/primary-mailbox' );
+$result = DEF_Core_Staff_AI::rest_clear_primary_mailbox( $request );
+assert_true( is_wp_error( $result ), 'no toolkit refuses 422 by name' );
+
+echo "\n[TS-4A-4] a DEF fault on the primary PUT surfaces as an error, never a silent no-op\n";
+$GLOBALS['_def_test_request_code'] = 502;
+$request = new WP_REST_Request( 'PUT', '/staff-ai/primary-mailbox' );
+$request->set_param( 'connected_account_id', 'ca_2' );
+$result = DEF_Core_Staff_AI::rest_set_primary_mailbox( $request );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'a DEF fault is an error - the picker must not pretend it saved' );
 
 // ── Free-text tasks (Phase 3): allowlist exactness, refusals, forwarding ──
 echo "\n[FT-1] rest_list_tasks allowlists each task - owner_email NEVER passes\n";

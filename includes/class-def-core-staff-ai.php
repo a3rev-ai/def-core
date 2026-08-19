@@ -628,6 +628,28 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// The chat primary mailbox (Slice 4-A, v6.6.0): one per provider, the
+		// caller's own. The PUT body carries ONLY the picked connection id -
+		// DEF validates it against the caller's OWN connections and stores the
+		// toolkit THAT connection reports, so nothing user-scoped or claimable
+		// rides here. DELETE clears one provider's pick (back to unpinned).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/primary-mailbox',
+			array(
+				array(
+					'methods'             => 'PUT',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_set_primary_mailbox'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_clear_primary_mailbox'),
+				),
+			)
+		);
+
 		// Run Now. POST with no body at all: the run belongs to whoever is
 		// logged in, and DEF resolves that from the forwarded identity - there
 		// is no field here that could name another user's mailbox.
@@ -1975,6 +1997,9 @@ final class DEF_Core_Staff_AI
 					'id'      => $row['id'],
 					'toolkit' => ( isset( $row['toolkit'] ) && is_string( $row['toolkit'] ) ) ? $row['toolkit'] : '',
 					'address' => ( isset( $row['address'] ) && is_string( $row['address'] ) ) ? $row['address'] : '',
+					// Slice 4-A (v6.6.0): whether this account is the caller's
+					// chat primary. Coerced to bool - state, never a claim.
+					'primary' => ! empty( $row['primary'] ),
 				);
 			}
 		}
@@ -1986,6 +2011,82 @@ final class DEF_Core_Staff_AI
 			),
 			200
 		);
+	}
+
+	/**
+	 * REST handler: set the current user's chat primary mailbox (Slice 4-A).
+	 *
+	 * Proxies DEF PUT /api/staff-ai/primary-mailbox. The body carries only the
+	 * picked connection id - DEF refuses anything that is not among the
+	 * caller's OWN live connections and derives the toolkit from THAT
+	 * connection, never from a request claim. The response is allowlisted to
+	 * {toolkit, connected_account_id}.
+	 *
+	 * @param \WP_REST_Request $request Request with connected_account_id.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, primary}).
+	 */
+	public static function rest_set_primary_mailbox( \WP_REST_Request $request )
+	{
+		$account_id = $request->get_param( 'connected_account_id' );
+		if ( ! is_string( $account_id ) || '' === $account_id ) {
+			return new \WP_Error(
+				'def_primary_mailbox_invalid',
+				__( 'Pick one of your connected mail accounts.', 'digital-employees' ),
+				array( 'status' => 422 )
+			);
+		}
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/primary-mailbox',
+			array( 'connected_account_id' => $account_id )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not save your primary mailbox - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$primary = array( 'toolkit' => '', 'connected_account_id' => '' );
+		if ( isset( $result['primary'] ) && is_array( $result['primary'] ) ) {
+			foreach ( array( 'toolkit', 'connected_account_id' ) as $key ) {
+				if ( isset( $result['primary'][ $key ] ) && is_string( $result['primary'][ $key ] ) ) {
+					$primary[ $key ] = $result['primary'][ $key ];
+				}
+			}
+		}
+		return new \WP_REST_Response( array( 'success' => true, 'primary' => $primary ), 200 );
+	}
+
+	/**
+	 * REST handler: clear the current user's chat primary for one provider.
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/primary-mailbox?toolkit=... - back to
+	 * unpinned, DEF-side idempotent (a second click answers 200, never 404).
+	 *
+	 * @param \WP_REST_Request $request Request with toolkit.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, cleared}).
+	 */
+	public static function rest_clear_primary_mailbox( \WP_REST_Request $request )
+	{
+		$toolkit = $request->get_param( 'toolkit' );
+		if ( ! is_string( $toolkit ) || '' === $toolkit ) {
+			return new \WP_Error(
+				'def_primary_mailbox_invalid',
+				__( 'Name the provider to clear.', 'digital-employees' ),
+				array( 'status' => 422 )
+			);
+		}
+		$result = self::backend_request(
+			'DELETE',
+			'/api/staff-ai/primary-mailbox?toolkit=' . rawurlencode( $toolkit )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not clear your primary mailbox - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response( array( 'success' => true, 'cleared' => $toolkit ), 200 );
 	}
 
 	/**
