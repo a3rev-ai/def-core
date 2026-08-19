@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.6.0 - 2026/08/19 =
+* Feature - Primary mailbox for chat. On the Connections panel, each connected mail provider now shows a "Primary for chat" choice - the account your Staff AI assistant uses for reading, searching and drafting mail in chat, without being told each time. With a single account connected nothing changes; the choice matters once a second account is connected. Clear it to go back to the default
+
 = 6.5.0 - 2026/08/18 =
 * New Feature - Partner attribution: /p/partner-link pages show the site co-branded for the referring partner, and enquiries from the site are credited to that partner
 * New Feature - A partner's link sets a first-touch attribution cookie (90 days, set by the server) so a returning visitor's enquiry still credits the referring partner
