@@ -1599,5 +1599,54 @@ assert_true(
 unset( $GLOBALS['_def_test_request_body'] );
 
 // ── Summary ─────────────────────────────────────────────────────────────
+
+// ── Slice 4-B (v6.7.0): connect-another + per-account disconnect proxies ──
+echo "\n[TS-4B-1] rest_user_connect_another forwards and allowlists the link answer\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'success' => true, 'status' => 'awaiting_authorization',
+	'redirect_url' => 'https://connect.composio.dev/x', 'future_extra' => 'MUST-NOT-PASS',
+) );
+$request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations/srv-1/connect-another' );
+$request->set_param( 'server_id', 'srv-1' );
+$resp = DEF_Core_Staff_AI::rest_user_connect_another( $request );
+unset( $GLOBALS['_def_test_request_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+assert_equals( 'awaiting_authorization', $data['status'], 'status rides through' );
+assert_equals( 'https://connect.composio.dev/x', $data['redirect_url'], 'the link rides through' );
+assert_true( false === strpos( json_encode( $data ), 'MUST-NOT-PASS' ), 'no extra field reaches the browser' );
+
+echo "\n[TS-4B-2] rest_user_connect_another refuses a missing server_id without calling DEF\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations//connect-another' );
+$result = DEF_Core_Staff_AI::rest_user_connect_another( $request );
+assert_true( is_wp_error( $result ), 'no server_id refuses by name' );
+
+echo "\n[TS-4B-3] rest_user_account_disconnect forwards both ids and reports counts\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'success' => true, 'requested' => 1, 'failed' => 0, 'category' => 'outlook',
+) );
+$request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations/srv-1/accounts/ca_2/disconnect' );
+$request->set_param( 'server_id', 'srv-1' );
+$request->set_param( 'account_id', 'ca_2' );
+$resp = DEF_Core_Staff_AI::rest_user_account_disconnect( $request );
+unset( $GLOBALS['_def_test_request_body'] );
+$data = is_object( $resp ) ? $resp->data : $resp;
+assert_equals( 1, $data['requested'], 'requested count rides through' );
+assert_equals( 0, $data['failed'], 'failed count rides through' );
+assert_true( ! array_key_exists( 'category', $data ), 'a DEF extra never transits the allowlist' );
+
+echo "\n[TS-4B-4] rest_user_account_disconnect refuses missing params; surfaces a DEF fault\n";
+$request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations/srv-1/accounts//disconnect' );
+$request->set_param( 'server_id', 'srv-1' );
+$result = DEF_Core_Staff_AI::rest_user_account_disconnect( $request );
+assert_true( is_wp_error( $result ), 'no account_id refuses by name' );
+$GLOBALS['_def_test_request_code'] = 502;
+$request = new WP_REST_Request( 'POST', '/staff-ai/user/integrations/srv-1/accounts/ca_2/disconnect' );
+$request->set_param( 'server_id', 'srv-1' );
+$request->set_param( 'account_id', 'ca_2' );
+$result = DEF_Core_Staff_AI::rest_user_account_disconnect( $request );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_true( is_wp_error( $result ), 'a DEF fault is an error - the row must not pretend it disconnected' );
+
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
+
