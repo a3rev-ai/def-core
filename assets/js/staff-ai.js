@@ -2557,8 +2557,13 @@ function t(key, fallback) {
 				(byToolkit[k] = byToolkit[k] || []).push(c);
 			});
 			Object.keys(byToolkit).forEach(function (toolkit) {
-				var row = listEl.querySelector('.integration-row[data-category="' + toolkit + '"]');
+				var row = listEl.querySelector(
+					'.integration-row[data-category="' + CSS.escape(toolkit) + '"]');
 				if (!row) return;
+				// A stale in-flight fetch must not stack a second picker on a
+				// rebuilt row (the focus-handler race) - last writer wins.
+				var existing = row.querySelector('.integration-primary');
+				if (existing) existing.remove();
 				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit]));
 			});
 		}
@@ -2600,28 +2605,41 @@ function t(key, fallback) {
 		}
 
 		async function setPrimary(accountId) {
+			// Reload FIRST, then speak - the disconnect() rule 100 lines up:
+			// loadList() opens with its own "Loading…" status and blanks it on
+			// success, so an outcome set before it is a message the user never
+			// sees. On a refused save that would mean the radio snapping back
+			// with no explanation - the exact invisible failure to avoid.
+			var outcome, kind;
 			setStatus(t('primaryMailboxSaving', 'Saving your primary mailbox…'), 'muted');
 			try {
 				await apiRequest('/primary-mailbox', {
 					method: 'PUT',
 					body: JSON.stringify({ connected_account_id: accountId })
 				});
-				setStatus(t('primaryMailboxSaved', 'Primary mailbox saved.'), 'ok');
+				outcome = t('primaryMailboxSaved', 'Primary mailbox saved.');
+				kind = 'ok';
 			} catch (e) {
-				setStatus((e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.'), 'error');
+				outcome = (e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.');
+				kind = 'error';
 			}
-			loadList();   // re-render from stored truth either way
+			await loadList();   // re-render from stored truth either way
+			setStatus(outcome, kind);
 		}
 
 		async function clearPrimary(toolkit) {
+			var outcome, kind;
 			setStatus(t('primaryMailboxClearing', 'Clearing…'), 'muted');
 			try {
 				await apiRequest('/primary-mailbox?toolkit=' + encodeURIComponent(toolkit), { method: 'DELETE' });
-				setStatus(t('primaryMailboxCleared', 'Primary cleared - chat uses the default account again.'), 'muted');
+				outcome = t('primaryMailboxCleared', 'Primary cleared - chat uses the default account again.');
+				kind = 'muted';
 			} catch (e) {
-				setStatus((e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.'), 'error');
+				outcome = (e && e.message) || t('primaryMailboxFailed', 'Could not save your primary mailbox.');
+				kind = 'error';
 			}
-			loadList();
+			await loadList();
+			setStatus(outcome, kind);
 		}
 
 		function renderRow(app) {
