@@ -2075,6 +2075,12 @@ final class DEF_Core_Staff_AI
 			// the next save binds). The picker's select uses '' for that state.
 			'connected_account_id' => ( isset( $row['connected_account_id'] ) && is_string( $row['connected_account_id'] ) )
 				? $row['connected_account_id'] : '',
+			// 6-A: may a draft read this sender's own last 90 days? ABSENT MEANS ON.
+			// DEF defaults it true for a row saved before the control existed, and this
+			// mirror must agree — reading absence as false would render the toggle off
+			// and the next full-replace save would then actually turn it off.
+			'search_correspondent_mail' => ! isset( $row['search_correspondent_mail'] )
+				|| ! empty( $row['search_correspondent_mail'] ),
 		);
 	}
 
@@ -2276,8 +2282,19 @@ final class DEF_Core_Staff_AI
 		$timezone     = $request->get_param( 'timezone' );
 		$destinations = $request->get_param( 'destinations' );
 		$account      = $request->get_param( 'connected_account_id' );
+		$search_mail  = $request->get_param( 'search_correspondent_mail' );
 
 		$problems = array();
+		// ABSENT MEANS ON, mirroring DEF's server_default and the read mirror.
+		// A cached pre-6.5.0 page posts no field on an otherwise ordinary save;
+		// defaulting it off here would let a timezone edit quietly strip the
+		// correspondent brief off a schedule the owner never touched.
+		if ( null === $search_mail ) {
+			$search_mail = true;
+		}
+		if ( ! is_bool( $search_mail ) ) {
+			$problems[] = __( 'search_correspondent_mail must be true or false.', 'digital-employees' );
+		}
 		if ( ! is_bool( $enabled ) ) {
 			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
 		}
@@ -2325,6 +2342,7 @@ final class DEF_Core_Staff_AI
 			'timezone'             => $timezone,
 			'destinations'         => array_values( array_unique( $clean_destinations ) ),
 			'connected_account_id' => $account,
+			'search_correspondent_mail' => $search_mail,
 		);
 	}
 

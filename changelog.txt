@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 6.8.0 - 2026/08/21 =
+* Feature - Draft replies with the sender's history. Email Triage now writes each draft knowing that correspondent - their own emails to you from the last 90 days, and their record in your CRM if you have one connected. The Email Triage settings carry a "When drafting a reply" switch to turn the mail search off for faster, cheaper runs; it is on by default
+
 = 6.7.0 - 2026/08/19 =
 * Feature - Connect another mail account. On the Connections panel, mail apps now offer "Connect another account" - the sign-in window that opens is where you choose which account, by signing in as it. Each connected account shows on its own line with its own Disconnect, and "Primary for chat" picks which one your assistant uses in chat
 

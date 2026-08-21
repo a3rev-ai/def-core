@@ -3227,6 +3227,7 @@ function t(key, fallback) {
 		var tzEl = document.getElementById('scheduleTimezone');
 		var mailboxRow = document.getElementById('scheduleMailboxRow');
 		var mailboxEl = document.getElementById('scheduleMailbox');
+		var searchCorrespondentEl = document.getElementById('scheduleSearchCorrespondent');
 		var mailConnections = null;  // null = not loaded / unreadable; [] = genuinely none
 		var destEls = {
 			email: document.getElementById('scheduleDestEmail'),
@@ -3662,6 +3663,16 @@ function t(key, fallback) {
 				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
 			});
 			applyConnectionRows(dests);
+			// 6-A. ABSENT MEANS ON: a schedule stored before this control existed
+			// carries no field and DEF defaults it true, so reading absence as off
+			// would clear the box and the next full-replace save would then really
+			// switch the correspondent brief off - on a schedule whose owner only
+			// came in to change a send time.
+			if (searchCorrespondentEl) {
+				searchCorrespondentEl.checked = isNew
+					|| schedule.search_correspondent_mail === undefined
+					|| !!schedule.search_correspondent_mail;
+			}
 			fillMailboxRow(schedule);
 			if (mailConnections === null) {
 				// First open (or a failed earlier read): fetch the caller's own
@@ -3788,7 +3799,8 @@ function t(key, fallback) {
 				send_minute_local: parseInt(parts[1], 10) || 0,
 				timezone: tzEl.value || 'UTC',
 				destinations: dests,
-				connected_account_id: boundAccount
+				connected_account_id: boundAccount,
+				search_correspondent_mail: searchCorrespondentEl ? !!searchCorrespondentEl.checked : true
 			};
 			saveBtn.disabled = true;
 			setStatus(statusEl, t('scheduleSaving', 'Saving…'));
