@@ -990,6 +990,19 @@ assert_equals(
 // save preserves it. Reading absence as off here would silently disable the
 // correspondent brief on any schedule whose owner merely edited a send time.
 assert_true( true === $schedule['search_correspondent_mail'], 'an absent mail-search flag reads as ON' );
+// And the other direction, which absent-means-ON alone does not pin: a mirror
+// hardcoded to true passes every assertion above. Then a user who unticks the box
+// reopens the form to find it ticked, and their next send-time edit full-replaces
+// ON over the stored OFF - this PR's own governing failure, on the read side.
+$GLOBALS['_def_test_get_body'] = json_encode( array( 'success' => true, 'schedule' => array(
+	'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0,
+	'timezone' => 'UTC', 'destinations' => array( 'email' ),
+	'search_correspondent_mail' => false,
+) ) );
+$off = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+$off = ( is_object( $off ) ? $off->data : $off )['schedule'] ?? array();
+assert_true( false === $off['search_correspondent_mail'], 'a stored OFF reads as OFF' );
 assert_equals( array( 'email', 'slack' ), $schedule['destinations'], 'unknown destination types are dropped' );
 assert_equals( 'Australia/Brisbane', $schedule['timezone'], 'timezone passes through' );
 assert_equals( 30, $schedule['send_minute_local'], 'minute passes through' );
@@ -1014,6 +1027,8 @@ $bad_bodies = array(
 	// Phase 4a: shape-only door - DEF's run owns ownership fail-closed.
 	'binding too long'  => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => str_repeat( 'x', 65 ) ),
 	'binding not str'   => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => 123 ),
+	// 6-A: absent is defaulted ON, but present-and-not-boolean is refused - never coerced.
+	'search flag not bool' => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'search_correspondent_mail' => 'yes' ),
 );
 foreach ( $bad_bodies as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1086,16 +1101,6 @@ unset( $GLOBALS['_def_test_request_body'] );
 assert_true( ! is_wp_error( $resp ), 'switching the mail search off is a valid save' );
 $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 assert_true( false === ( $sent['search_correspondent_mail'] ?? null ), 'OFF reaches DEF as false, not dropped and not re-defaulted' );
-
-$req = new WP_REST_Request();
-$req->set_param( 'enabled', true );
-$req->set_param( 'send_hour_local', 7 );
-$req->set_param( 'send_minute_local', 0 );
-$req->set_param( 'timezone', 'UTC' );
-$req->set_param( 'destinations', array( 'email' ) );
-$req->set_param( 'search_correspondent_mail', 'yes' );
-$result = DEF_Core_Staff_AI::rest_put_triage_schedule( $req );
-assert_equals( 'def_triage_schedule_invalid', is_wp_error( $result ) ? $result->get_error_code() : '', 'a non-boolean is refused at the door, never coerced' );
 
 echo "\n[TS-5] rest_run_now_triage_schedule asks DEF, carrying nothing user-scoped\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'run_now' => array() ) );

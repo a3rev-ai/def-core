@@ -3665,8 +3665,8 @@ function t(key, fallback) {
 			applyConnectionRows(dests);
 			// 6-A: absent means ON, same rule the read mirror and the door follow.
 			if (searchCorrespondentEl) {
-				searchCorrespondentEl.checked = isNew
-					|| schedule.search_correspondent_mail === undefined
+				searchCorrespondentEl.checked =
+					schedule.search_correspondent_mail === undefined
 					|| !!schedule.search_correspondent_mail;
 			}
 			fillMailboxRow(schedule);

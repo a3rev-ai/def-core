@@ -2044,7 +2044,7 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
-	 * Allowlist one triage-schedule object to the five fields the card renders.
+	 * Allowlist one triage-schedule object to the fields the card renders.
 	 *
 	 * The same guard the Memories panel uses: if a future backend adds fields,
 	 * they stay out of the panel until someone decides they belong there.
@@ -2073,7 +2073,7 @@ final class DEF_Core_Staff_AI
 			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
 			// Phase 4a: '' = unbound (DEF stores NULL; the run searches until
 			// the next save binds). The picker's select uses '' for that state.
-			'connected_account_id' => ( isset( $row['connected_account_id'] ) && is_string( $row['connected_account_id'] ) )
+			'connected_account_id'      => ( isset( $row['connected_account_id'] ) && is_string( $row['connected_account_id'] ) )
 				? $row['connected_account_id'] : '',
 			// 6-A: absent means ON - see validate_triage_body() for why.
 			'search_correspondent_mail' => ! isset( $row['search_correspondent_mail'] )
@@ -2282,16 +2282,6 @@ final class DEF_Core_Staff_AI
 		$search_mail  = $request->get_param( 'search_correspondent_mail' );
 
 		$problems = array();
-		// ABSENT MEANS ON, mirroring DEF's server_default and the read mirror.
-		// A cached pre-6.5.0 page posts no field on an otherwise ordinary save;
-		// defaulting it off here would let a timezone edit quietly strip the
-		// correspondent brief off a schedule the owner never touched.
-		if ( null === $search_mail ) {
-			$search_mail = true;
-		}
-		if ( ! is_bool( $search_mail ) ) {
-			$problems[] = __( 'search_correspondent_mail must be true or false.', 'digital-employees' );
-		}
 		if ( ! is_bool( $enabled ) ) {
 			$problems[] = __( 'enabled must be true or false.', 'digital-employees' );
 		}
@@ -2300,6 +2290,18 @@ final class DEF_Core_Staff_AI
 		}
 		if ( ! is_string( $account ) || strlen( $account ) > 64 ) {
 			$problems[] = __( 'The mailbox must be a connection id of at most 64 characters.', 'digital-employees' );
+		}
+		// ABSENT MEANS ON, mirroring DEF's server_default and the read mirror.
+		// A cached pre-6.8.0 page posts no field on an otherwise ordinary save,
+		// and the save is FULL REPLACE - so defaulting it off here would let a
+		// timezone edit quietly strip the correspondent brief off a schedule the
+		// owner never touched. Refusing an absent field instead would just 400
+		// that same legitimate save. Present-but-not-boolean is still refused.
+		if ( null === $search_mail ) {
+			$search_mail = true;
+		}
+		if ( ! is_bool( $search_mail ) ) {
+			$problems[] = __( 'search_correspondent_mail must be true or false.', 'digital-employees' );
 		}
 		if ( ! is_int( $hour ) || $hour < 0 || $hour > 23 ) {
 			$problems[] = __( 'The send hour must be a whole number from 0 to 23.', 'digital-employees' );
@@ -2338,7 +2340,7 @@ final class DEF_Core_Staff_AI
 			'send_minute_local'    => $minute,
 			'timezone'             => $timezone,
 			'destinations'         => array_values( array_unique( $clean_destinations ) ),
-			'connected_account_id' => $account,
+			'connected_account_id'      => $account,
 			'search_correspondent_mail' => $search_mail,
 		);
 	}
