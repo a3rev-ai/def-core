@@ -609,6 +609,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestSlackRow"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestTeamsRow"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
 					</div>
+					<!-- 6-A (runsheet §14i item 5): the correspondent context brief. The
+					     CRM half has no switch - it is 2-4 record reads; this half searches
+					     90 days per drafted message, so it is the half that carries a
+					     cost/latency choice. DEFAULT ON: absent means on, everywhere. -->
+					<div class="form-group">
+						<span class="form-label"><?php echo esc_html__( 'When drafting a reply', 'digital-employees' ); ?></span>
+						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleSearchCorrespondent" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Read this sender\'s own emails from the last 90 days', 'digital-employees' ); ?></label>
+						<p class="form-hint"><?php echo esc_html__( 'Staff AI searches only the exact address that wrote to you, never the rest of your mailbox. Turn this off for faster, cheaper runs - drafts are then written from the message itself, plus that person\'s record in your CRM if one is connected.', 'digital-employees' ); ?></p>
+					</div>
 					<div class="schedule-status" id="scheduleStatus"></div>
 					</div>
 				</div>

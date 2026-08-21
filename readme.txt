@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.7.0
+Stable tag: 6.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.8.0 - 2026-08-21 =
+* Feature - Draft replies with the sender's history. Email Triage now writes each draft knowing that correspondent - their own emails to you from the last 90 days, and their record in your CRM if you have one connected. The Email Triage settings carry a "When drafting a reply" switch to turn the 90-day mail search off for faster, cheaper runs; it is on by default, and the CRM lookup is unaffected by it
 
 = 6.7.0 - 2026-08-19 =
 * Feature - Connect another mail account. On the Connections panel, mail apps now offer "Connect another account" - the sign-in window that opens is where you choose which account, by signing in as it. Each connected account shows on its own line with its own Disconnect, and "Primary for chat" picks which one your assistant uses in chat

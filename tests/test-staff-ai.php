@@ -981,10 +981,28 @@ $schedule = $data['schedule'] ?? array();
 $keys     = array_keys( $schedule );
 sort( $keys );
 assert_equals(
-	array( 'connected_account_id', 'destinations', 'enabled', 'exists', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'connected_account_id', 'destinations', 'enabled', 'exists', 'search_correspondent_mail', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$keys,
-	'exactly the seven schedule fields - no extras'
+	'exactly the eight schedule fields - no extras'
 );
+// 6-A: DEF omitted the field (a row written before the column existed). ABSENT
+// MEANS ON at every layer, so the box renders ticked and the next full-replace
+// save preserves it. Reading absence as off here would silently disable the
+// correspondent brief on any schedule whose owner merely edited a send time.
+assert_true( true === $schedule['search_correspondent_mail'], 'an absent mail-search flag reads as ON' );
+// And the other direction, which absent-means-ON alone does not pin: a mirror
+// hardcoded to true passes every assertion above. Then a user who unticks the box
+// reopens the form to find it ticked, and their next send-time edit full-replaces
+// ON over the stored OFF - this PR's own governing failure, on the read side.
+$GLOBALS['_def_test_get_body'] = json_encode( array( 'success' => true, 'schedule' => array(
+	'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0,
+	'timezone' => 'UTC', 'destinations' => array( 'email' ),
+	'search_correspondent_mail' => false,
+) ) );
+$off = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+$off = ( is_object( $off ) ? $off->data : $off )['schedule'] ?? array();
+assert_true( false === $off['search_correspondent_mail'], 'a stored OFF reads as OFF' );
 assert_equals( array( 'email', 'slack' ), $schedule['destinations'], 'unknown destination types are dropped' );
 assert_equals( 'Australia/Brisbane', $schedule['timezone'], 'timezone passes through' );
 assert_equals( 30, $schedule['send_minute_local'], 'minute passes through' );
@@ -1009,6 +1027,8 @@ $bad_bodies = array(
 	// Phase 4a: shape-only door - DEF's run owns ownership fail-closed.
 	'binding too long'  => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => str_repeat( 'x', 65 ) ),
 	'binding not str'   => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'connected_account_id' => 123 ),
+	// 6-A: absent is defaulted ON, but present-and-not-boolean is refused - never coerced.
+	'search flag not bool' => array( 'enabled' => true, 'send_hour_local' => 7, 'send_minute_local' => 0, 'timezone' => 'UTC', 'destinations' => array( 'email' ), 'search_correspondent_mail' => 'yes' ),
 );
 foreach ( $bad_bodies as $label => $body ) {
 	$req = new WP_REST_Request();
@@ -1051,14 +1071,36 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'connected_account_id', 'destinations', 'enabled', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'connected_account_id', 'destinations', 'enabled', 'search_correspondent_mail', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE object is forwarded - DEF PUT is full-replace, a partial body would silently reset fields'
 );
+// 6-A, the write half of the same rule: this body carried no flag (a cached
+// pre-6.8.0 page). Full-replace means whatever this door forwards IS the stored
+// value, so defaulting it false here would turn the feature off on save.
+assert_true( true === ( $sent['search_correspondent_mail'] ?? null ), 'an absent mail-search flag forwards as ON' );
 assert_equals( array( 'email', 'slack', 'teams' ), $sent['destinations'], 'destinations forwarded deduplicated' );
 // Phase 4a: this body carried NO binding - the cached pre-6.3.0 page. It
 // forwards '' (= unbound, full-replace) exactly as DEF documents, never an error.
 assert_equals( '', $sent['connected_account_id'] ?? 'MISSING', 'absent binding forwards as empty (cached-page compatibility)' );
+
+echo "\n[TS-4b] the mail-search flag survives OFF, and refuses a non-boolean\n";
+// The default is ON everywhere, which makes OFF the state a mistake would
+// silently lose: a truthy default, a dropped forward, or a mirror reading
+// absence as on would all still pass TS-4 and leave the switch inoperative.
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'schedule' => array() ) );
+$req = new WP_REST_Request();
+$req->set_param( 'enabled', true );
+$req->set_param( 'send_hour_local', 7 );
+$req->set_param( 'send_minute_local', 0 );
+$req->set_param( 'timezone', 'UTC' );
+$req->set_param( 'destinations', array( 'email' ) );
+$req->set_param( 'search_correspondent_mail', false );
+$resp = DEF_Core_Staff_AI::rest_put_triage_schedule( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'switching the mail search off is a valid save' );
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+assert_true( false === ( $sent['search_correspondent_mail'] ?? null ), 'OFF reaches DEF as false, not dropped and not re-defaulted' );
 
 echo "\n[TS-5] rest_run_now_triage_schedule asks DEF, carrying nothing user-scoped\n";
 $GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'run_now' => array() ) );
@@ -1517,9 +1559,9 @@ $row  = $data['schedules'][0] ?? array();
 $keys = array_keys( $row );
 sort( $keys );
 assert_equals(
-	array( 'connected_account_id', 'destinations', 'enabled', 'last_run', 'schedule_id', 'send_hour_local', 'send_minute_local', 'timezone' ),
+	array( 'connected_account_id', 'destinations', 'enabled', 'last_run', 'schedule_id', 'search_correspondent_mail', 'send_hour_local', 'send_minute_local', 'timezone' ),
 	$keys,
-	'exactly the eight plural-row fields - extras stay out'
+	'exactly the nine plural-row fields - extras stay out'
 );
 assert_equals( 'ca_1', $row['connected_account_id'], 'the binding rides the row' );
 assert_equals( 'succeeded', $row['last_run']['status'], 'each row carries its own last run' );
