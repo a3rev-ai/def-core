@@ -616,7 +616,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="form-group">
 						<span class="form-label"><?php echo esc_html__( 'When drafting a reply', 'digital-employees' ); ?></span>
 						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleSearchCorrespondent" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Read this sender\'s own emails from the last 90 days', 'digital-employees' ); ?></label>
-						<p class="form-hint"><?php echo esc_html__( 'Staff AI searches only the exact address that wrote to you, never the rest of your mailbox. Turn this off for faster, cheaper runs - drafts are then written from the one message alone.', 'digital-employees' ); ?></p>
+						<p class="form-hint"><?php echo esc_html__( 'Staff AI searches only the exact address that wrote to you, never the rest of your mailbox. Turn this off for faster, cheaper runs - drafts are then written from the message itself, plus that person\'s record in your CRM if one is connected.', 'digital-employees' ); ?></p>
 					</div>
 					<div class="schedule-status" id="scheduleStatus"></div>
 					</div>
