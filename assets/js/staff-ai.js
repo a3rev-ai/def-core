@@ -3663,11 +3663,7 @@ function t(key, fallback) {
 				if (destEls[k]) destEls[k].checked = dests.indexOf(k) !== -1;
 			});
 			applyConnectionRows(dests);
-			// 6-A. ABSENT MEANS ON: a schedule stored before this control existed
-			// carries no field and DEF defaults it true, so reading absence as off
-			// would clear the box and the next full-replace save would then really
-			// switch the correspondent brief off - on a schedule whose owner only
-			// came in to change a send time.
+			// 6-A: absent means ON, same rule the read mirror and the door follow.
 			if (searchCorrespondentEl) {
 				searchCorrespondentEl.checked = isNew
 					|| schedule.search_correspondent_mail === undefined

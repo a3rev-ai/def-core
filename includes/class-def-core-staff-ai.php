@@ -2075,10 +2075,7 @@ final class DEF_Core_Staff_AI
 			// the next save binds). The picker's select uses '' for that state.
 			'connected_account_id' => ( isset( $row['connected_account_id'] ) && is_string( $row['connected_account_id'] ) )
 				? $row['connected_account_id'] : '',
-			// 6-A: may a draft read this sender's own last 90 days? ABSENT MEANS ON.
-			// DEF defaults it true for a row saved before the control existed, and this
-			// mirror must agree — reading absence as false would render the toggle off
-			// and the next full-replace save would then actually turn it off.
+			// 6-A: absent means ON - see validate_triage_body() for why.
 			'search_correspondent_mail' => ! isset( $row['search_correspondent_mail'] )
 				|| ! empty( $row['search_correspondent_mail'] ),
 		);
