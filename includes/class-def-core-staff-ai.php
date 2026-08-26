@@ -2041,6 +2041,35 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * Project-route errors a user can FIX, named — the triage_save_error rule:
+	 * "try again in a moment" can never be true for a 409 or a 422, so each
+	 * gets its own sentence. DEF's 422 message names the actual field and is
+	 * user-destined; it is recovered from the wrapped error string.
+	 *
+	 * @param \WP_Error $result   Error from backend_request().
+	 * @param string    $fallback Copy for every other failure.
+	 * @return \WP_Error
+	 */
+	private static function project_save_error( \WP_Error $result, string $fallback ): \WP_Error
+	{
+		$code = $result->get_error_code();
+		if ( 'staff_ai_http_409' === $code ) {
+			$fallback = __( 'That name or slot is already taken - pick another.', 'digital-employees' );
+			if ( preg_match( '/\(HTTP 409\): (.+)$/s', (string) $result->get_error_message(), $m )
+				&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
+				$fallback = trim( $m[1] );
+			}
+		} elseif ( 'staff_ai_http_422' === $code ) {
+			$fallback = __( 'That could not be saved as entered.', 'digital-employees' );
+			if ( preg_match( '/\(HTTP 422\): (.+)$/s', (string) $result->get_error_message(), $m )
+				&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
+				$fallback = trim( $m[1] );
+			}
+		}
+		return self::plain_backend_error( $result, $fallback );
+	}
+
+	/**
 	 * One project row, allowlisted. Whatever DEF sends, only this shape reaches
 	 * the panel — the allowlist_task discipline.
 	 *
@@ -2114,7 +2143,7 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request( 'POST', '/api/staff-ai/projects', array( 'name' => $name ) );
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
+			return self::project_save_error(
 				$result,
 				__( 'Could not create the project. Nothing has changed - try again in a moment.', 'digital-employees' )
 			);
@@ -2144,7 +2173,12 @@ final class DEF_Core_Staff_AI
 			$payload['name'] = sanitize_text_field( $name );
 		}
 		$status = $request->get_param( 'status' );
-		if ( is_string( $status ) && in_array( $status, array( 'active', 'archived' ), true ) ) {
+		if ( is_string( $status ) && '' !== $status ) {
+			if ( ! in_array( $status, array( 'active', 'archived' ), true ) ) {
+				// Refuse, never silently drop beside a name — DEF would 422 this
+				// alone, and a partial apply that LOOKS complete misleads.
+				return new \WP_Error( 'invalid_status', __( 'Status must be active or archived.', 'digital-employees' ), array( 'status' => 422 ) );
+			}
 			$payload['status'] = $status;
 		}
 		if ( empty( $payload ) ) {
@@ -2156,7 +2190,7 @@ final class DEF_Core_Staff_AI
 			$payload
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
+			return self::project_save_error(
 				$result,
 				__( 'Could not save the project. Nothing has changed - try again in a moment.', 'digital-employees' )
 			);
@@ -2231,7 +2265,7 @@ final class DEF_Core_Staff_AI
 			$payload
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
+			return self::project_save_error(
 				$result,
 				__( 'Could not move the document. Nothing has changed - try again in a moment.', 'digital-employees' )
 			);

@@ -2496,17 +2496,11 @@ function t(key, fallback) {
 
 		function open() {
 			modal.classList.add('visible');
-			refreshProjectsCache().then(loadList);
+			loadList();
 		}
 		function close() {
 			modal.classList.remove('visible');
 		}
-
-		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
-		openDocumentsForProject = function (projectId) {
-			projectFilter = projectId || '';
-			open();
-		};
 
 		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
 		function prettyName(category, serverId) {
@@ -3395,17 +3389,11 @@ function t(key, fallback) {
 
 		function open() {
 			modal.classList.add('visible');
-			refreshProjectsCache().then(loadList);
+			loadList();
 		}
 		function close() {
 			modal.classList.remove('visible');
 		}
-
-		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
-		openDocumentsForProject = function (projectId) {
-			projectFilter = projectId || '';
-			open();
-		};
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';

@@ -469,7 +469,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
-		<!-- My Documents Modal (document library — slice 4) -->
 		<!-- Projects (P-A — the container; docs/projects-runsheet.md in the DEF repo).
 		     Governing-document folders Sue works from. This slice is CRUD + membership;
 		     opening a project in chat and Sue maintaining the documents ride the next
@@ -499,6 +498,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- My Documents Modal (document library — slice 4) -->
 		<div class="modal-overlay" id="documentsModal">
 			<div class="modal" style="max-width: 560px;">
 				<div class="modal-header">
