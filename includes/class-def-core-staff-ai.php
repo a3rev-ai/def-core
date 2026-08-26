@@ -525,7 +525,67 @@ final class DEF_Core_Staff_AI
 						'required'          => false,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
+					// Projects P-A (D-P10): the badge's filter. Same id shape the
+					// document routes enforce; DEF ignores a foreign/malformed id
+					// by answering an empty page, never an oracle.
+					'project_id' => array(
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
 				),
+			)
+		);
+
+		// Projects P-A (docs/projects-runsheet.md in the DEF repo): the user's own
+		// project containers. Per-user exactly like documents: DEF scopes every
+		// query to the X-DEF-User identity backend_request() forwards — nothing
+		// user-scoped rides in URL or body.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/projects',
+			array(
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_list_projects'),
+					'args'                => array(
+						'include_archived' => array(
+							'type'     => 'boolean',
+							'required' => false,
+						),
+					),
+				),
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_create_project'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/projects/(?P<project_id>[a-zA-Z0-9-]+)',
+			array(
+				array(
+					'methods'             => 'PUT',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_update_project'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_project'),
+				),
+			)
+		);
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/project',
+			array(
+				'methods'             => 'PUT',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_assign_document_project'),
 			)
 		);
 		register_rest_route(
@@ -1876,9 +1936,19 @@ final class DEF_Core_Staff_AI
 	public static function rest_list_documents( \WP_REST_Request $request )
 	{
 		$path = '/api/staff-ai/documents';
+		$args = array();
 		$q    = $request->get_param( 'q' );
 		if ( is_string( $q ) && '' !== trim( $q ) ) {
-			$path .= '?q=' . rawurlencode( trim( $q ) );
+			$args[] = 'q=' . rawurlencode( trim( $q ) );
+		}
+		// Projects P-A: forward the badge's filter under the same id alphabet the
+		// project routes accept; anything else is dropped here rather than sent.
+		$project_id = $request->get_param( 'project_id' );
+		if ( is_string( $project_id ) && preg_match( '/^[a-zA-Z0-9-]+$/', $project_id ) ) {
+			$args[] = 'project_id=' . rawurlencode( $project_id );
+		}
+		if ( $args ) {
+			$path .= '?' . implode( '&', $args );
 		}
 		$result = self::backend_request( 'GET', $path );
 		if ( is_wp_error( $result ) ) {
@@ -1914,6 +1984,14 @@ final class DEF_Core_Staff_AI
 				'size_bytes'   => isset( $doc['size_bytes'] ) ? (int) $doc['size_bytes'] : 0,
 				'created_at'   => ( isset( $doc['created_at'] ) && is_string( $doc['created_at'] ) ) ? $doc['created_at'] : '',
 				'download_url' => $download,
+				// Projects P-A (D-P10): membership + the badge's human name. Id
+				// charset-checked like document_id; name is plain text the JS
+				// renders via textContent only.
+				'project_id'   => ( isset( $doc['project_id'] ) && is_string( $doc['project_id'] )
+					&& preg_match( '/^[a-zA-Z0-9-]+$/', $doc['project_id'] ) ) ? $doc['project_id'] : null,
+				'project_name' => ( isset( $doc['project_name'] ) && is_string( $doc['project_name'] ) ) ? $doc['project_name'] : null,
+				'slot'         => ( isset( $doc['slot'] ) && is_string( $doc['slot'] )
+					&& in_array( $doc['slot'], array( 'instructions', 'runsheet', 'session_notes' ), true ) ) ? $doc['slot'] : null,
 			);
 		}
 
@@ -1960,6 +2038,212 @@ final class DEF_Core_Staff_AI
 		}
 
 		return new \WP_REST_Response( array( 'success' => true ), 200 );
+	}
+
+	/**
+	 * One project row, allowlisted. Whatever DEF sends, only this shape reaches
+	 * the panel — the allowlist_task discipline.
+	 *
+	 * @param array $row Raw project row from DEF.
+	 * @return array|null Allowlisted row, or null when the id fails the charset.
+	 */
+	private static function allowlist_project( $row )
+	{
+		if ( ! is_array( $row ) || empty( $row['project_id'] )
+			|| ! preg_match( '/^[a-zA-Z0-9-]+$/', (string) $row['project_id'] ) ) {
+			return null;
+		}
+		$status = ( isset( $row['status'] ) && 'archived' === $row['status'] ) ? 'archived' : 'active';
+		return array(
+			'project_id' => (string) $row['project_id'],
+			'name'       => ( isset( $row['name'] ) && is_string( $row['name'] ) ) ? $row['name'] : '',
+			'status'     => $status,
+			'created_at' => ( isset( $row['created_at'] ) && is_string( $row['created_at'] ) ) ? $row['created_at'] : '',
+			'updated_at' => ( isset( $row['updated_at'] ) && is_string( $row['updated_at'] ) ) ? $row['updated_at'] : '',
+		);
+	}
+
+	/**
+	 * REST handler: list the current user's projects (Projects P-A).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, projects}).
+	 */
+	public static function rest_list_projects( \WP_REST_Request $request )
+	{
+		$path = '/api/staff-ai/projects';
+		if ( $request->get_param( 'include_archived' ) ) {
+			$path .= '?include_archived=true';
+		}
+		$result = self::backend_request( 'GET', $path );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load your projects. Try again in a moment.', 'digital-employees' )
+			);
+		}
+		$rows     = ( isset( $result['projects'] ) && is_array( $result['projects'] ) ) ? $result['projects'] : array();
+		$projects = array();
+		foreach ( $rows as $row ) {
+			$clean = self::allowlist_project( $row );
+			if ( null !== $clean ) {
+				$projects[] = $clean;
+			}
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'  => true,
+				'projects' => $projects,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: create a project. Body carries {name} only.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, project}).
+	 */
+	public static function rest_create_project( \WP_REST_Request $request )
+	{
+		$name = $request->get_param( 'name' );
+		$name = is_string( $name ) ? sanitize_text_field( $name ) : '';
+		if ( '' === trim( $name ) ) {
+			return new \WP_Error( 'invalid_name', __( 'A project needs a name.', 'digital-employees' ), array( 'status' => 422 ) );
+		}
+		$result = self::backend_request( 'POST', '/api/staff-ai/projects', array( 'name' => $name ) );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not create the project. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['project'] ) && is_array( $result['project'] ) ) ? $result['project'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'project' => self::allowlist_project( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: rename / archive / unarchive a project. Body carries only
+	 * the fields being changed; DEF owns validation and the uniform 404.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, project}).
+	 */
+	public static function rest_update_project( \WP_REST_Request $request )
+	{
+		$payload = array();
+		$name    = $request->get_param( 'name' );
+		if ( is_string( $name ) ) {
+			$payload['name'] = sanitize_text_field( $name );
+		}
+		$status = $request->get_param( 'status' );
+		if ( is_string( $status ) && in_array( $status, array( 'active', 'archived' ), true ) ) {
+			$payload['status'] = $status;
+		}
+		if ( empty( $payload ) ) {
+			return new \WP_Error( 'nothing_to_update', __( 'Nothing to update.', 'digital-employees' ), array( 'status' => 422 ) );
+		}
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/projects/' . rawurlencode( (string) $request->get_param( 'project_id' ) ),
+			$payload
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not save the project. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		$row = ( isset( $result['project'] ) && is_array( $result['project'] ) ) ? $result['project'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'project' => self::allowlist_project( $row ),
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: delete a project. DEF releases the member documents (they
+	 * survive in the flat library — a project is a lens, not a cage) and
+	 * answers a foreign id with the same 404 as a missing one.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, released_documents}).
+	 */
+	public static function rest_delete_project( \WP_REST_Request $request )
+	{
+		$result = self::backend_request(
+			'DELETE',
+			'/api/staff-ai/projects/' . rawurlencode( (string) $request->get_param( 'project_id' ) )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not delete the project. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'            => true,
+				'released_documents' => isset( $result['released_documents'] ) ? (int) $result['released_documents'] : 0,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: move a document into / out of one of the caller's projects,
+	 * optionally into a governing slot. DEF owns ownership (two 404s, one
+	 * owner) and the one-document-per-slot 409.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, project_id, slot}).
+	 */
+	public static function rest_assign_document_project( \WP_REST_Request $request )
+	{
+		$payload    = array( 'project_id' => null, 'slot' => null );
+		$project_id = $request->get_param( 'project_id' );
+		if ( is_string( $project_id ) && '' !== $project_id ) {
+			if ( ! preg_match( '/^[a-zA-Z0-9-]+$/', $project_id ) ) {
+				return new \WP_Error( 'invalid_project', __( 'Project not found.', 'digital-employees' ), array( 'status' => 404 ) );
+			}
+			$payload['project_id'] = $project_id;
+		}
+		$slot = $request->get_param( 'slot' );
+		if ( is_string( $slot ) && '' !== $slot ) {
+			if ( ! in_array( $slot, array( 'instructions', 'runsheet', 'session_notes' ), true ) ) {
+				return new \WP_Error( 'invalid_slot', __( 'That slot is not recognised.', 'digital-employees' ), array( 'status' => 422 ) );
+			}
+			$payload['slot'] = $slot;
+		}
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/documents/' . rawurlencode( (string) $request->get_param( 'id' ) ) . '/project',
+			$payload
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not move the document. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'    => true,
+				'project_id' => ( isset( $result['project_id'] ) && is_string( $result['project_id'] ) ) ? $result['project_id'] : null,
+				'slot'       => ( isset( $result['slot'] ) && is_string( $result['slot'] ) ) ? $result['slot'] : null,
+			),
+			200
+		);
 	}
 
 	/**

@@ -1689,6 +1689,100 @@ $result = DEF_Core_Staff_AI::rest_user_account_disconnect( $request );
 unset( $GLOBALS['_def_test_request_code'] );
 assert_true( is_wp_error( $result ), 'a DEF fault is an error - the row must not pretend it disconnected' );
 
+
+// ── Projects P-A — BFF routes (docs/projects-runsheet.md in the DEF repo) ──
+echo "\nProjects P-A - BFF routes\n";
+
+// list_documents forwards a charset-valid project_id and DROPS an invalid one.
+$GLOBALS['_def_test_last_get_url'] = '';
+$req = new WP_REST_Request();
+$req->set_param( 'project_id', 'abc-123-DEF' );
+DEF_Core_Staff_AI::rest_list_documents( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents?project_id=abc-123-DEF',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'valid project_id filter forwarded to DEF'
+);
+$GLOBALS['_def_test_last_get_url'] = '';
+$req = new WP_REST_Request();
+$req->set_param( 'project_id', '../../etc' );
+DEF_Core_Staff_AI::rest_list_documents( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'invalid project_id filter dropped, never forwarded'
+);
+
+// rest_list_projects allowlists rows: bad-charset id dropped, status normalized.
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'  => true,
+	'projects' => array(
+		array( 'project_id' => 'p-1', 'name' => 'Alpha', 'status' => 'archived',
+			'created_at' => '2026-08-26T00:00:00', 'updated_at' => '2026-08-26T00:00:00',
+			'sneaky' => 'dropped' ),
+		array( 'project_id' => 'bad/../id', 'name' => 'Evil' ),
+		array( 'project_id' => 'p-2', 'name' => 'Beta', 'status' => 'weird' ),
+	),
+) );
+$req    = new WP_REST_Request();
+$result = DEF_Core_Staff_AI::rest_list_projects( $req );
+$data   = $result->get_data();
+assert_equals( 2, count( $data['projects'] ), 'bad-charset project row dropped' );
+assert_equals( 'archived', $data['projects'][0]['status'], 'archived status survives' );
+assert_equals( 'active', $data['projects'][1]['status'], 'unknown status normalizes to active' );
+assert_true( ! isset( $data['projects'][0]['sneaky'] ), 'unknown DEF fields never reach the panel' );
+$GLOBALS['_def_test_get_body'] = '{"success":true,"documents":[]}';
+
+// rest_create_project refuses an empty name before any backend call.
+$req = new WP_REST_Request();
+$req->set_param( 'name', '   ' );
+$result = DEF_Core_Staff_AI::rest_create_project( $req );
+assert_true( is_wp_error( $result ), 'blank project name refused' );
+assert_equals( 422, $result->get_error_data()['status'] ?? 0, 'blank name is 422' );
+
+// rest_update_project refuses an empty change set; unknown status never forwards.
+$req = new WP_REST_Request();
+$req->set_param( 'project_id', 'p-1' );
+$result = DEF_Core_Staff_AI::rest_update_project( $req );
+assert_true( is_wp_error( $result ), 'empty update refused' );
+$req = new WP_REST_Request();
+$req->set_param( 'project_id', 'p-1' );
+$req->set_param( 'status', 'paused' );
+$result = DEF_Core_Staff_AI::rest_update_project( $req );
+assert_true( is_wp_error( $result ), 'unknown status never forwarded' );
+
+// rest_assign_document_project: slot whitelist + project-id charset, refused locally.
+$req = new WP_REST_Request();
+$req->set_param( 'id', 'doc-1' );
+$req->set_param( 'project_id', 'p-1' );
+$req->set_param( 'slot', 'chapter' );
+$result = DEF_Core_Staff_AI::rest_assign_document_project( $req );
+assert_true( is_wp_error( $result ), 'unknown slot refused' );
+assert_equals( 422, $result->get_error_data()['status'] ?? 0, 'unknown slot is 422' );
+$req = new WP_REST_Request();
+$req->set_param( 'id', 'doc-1' );
+$req->set_param( 'project_id', 'p/../1' );
+$result = DEF_Core_Staff_AI::rest_assign_document_project( $req );
+assert_true( is_wp_error( $result ), 'bad-charset project id refused' );
+assert_equals( 404, $result->get_error_data()['status'] ?? 0, 'bad-charset project id is 404, no oracle' );
+
+// The happy assign forwards exactly {project_id, slot} as PUT to the document path.
+$GLOBALS['_def_test_last_request'] = array();
+$req = new WP_REST_Request();
+$req->set_param( 'id', 'doc-1' );
+$req->set_param( 'project_id', 'p-1' );
+$req->set_param( 'slot', 'runsheet' );
+DEF_Core_Staff_AI::rest_assign_document_project( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents/doc-1/project',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'assign PUTs the document project path'
+);
+assert_equals( 'PUT', $GLOBALS['_def_test_last_request']['method'] ?? '', 'assign verb is PUT' );
+$assign_body = json_decode( (string) ( $GLOBALS['_def_test_last_request']['body'] ?? '' ), true );
+assert_equals( 'p-1', $assign_body['project_id'] ?? '', 'project_id rides the body' );
+assert_equals( 'runsheet', $assign_body['slot'] ?? '', 'slot rides the body' );
+
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
 

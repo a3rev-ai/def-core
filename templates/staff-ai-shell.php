@@ -65,6 +65,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</button>
 			</div>
 			<nav class="sidebar-nav" aria-label="<?php echo esc_attr__( 'Staff AI sections', 'digital-employees' ); ?>">
+				<button type="button" class="sidebar-nav-item" id="navProjects" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+					</svg>
+					<?php echo esc_html__( 'Projects', 'digital-employees' ); ?>
+				</button>
 				<button type="button" class="sidebar-nav-item" id="navDocuments" aria-haspopup="dialog">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -464,6 +470,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</div>
 		</div>
 		<!-- My Documents Modal (document library — slice 4) -->
+		<!-- Projects (P-A — the container; docs/projects-runsheet.md in the DEF repo).
+		     Governing-document folders Sue works from. This slice is CRUD + membership;
+		     opening a project in chat and Sue maintaining the documents ride the next
+		     release (P-B). -->
+		<div class="modal-overlay" id="projectsModal">
+			<div class="modal" style="max-width: 560px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="projectsModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="documents-intro"><?php echo esc_html__( 'Folders of working documents for a piece of work — a runsheet, session notes, instructions. Only you can see these.', 'digital-employees' ); ?></p>
+					<div class="projects-create">
+						<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
+						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create', 'digital-employees' ); ?></button>
+					</div>
+					<label class="projects-archived-toggle">
+						<input type="checkbox" id="projectsShowArchived">
+						<?php echo esc_html__( 'Show archived', 'digital-employees' ); ?>
+					</label>
+					<div class="documents-status" id="projectsStatus"></div>
+					<div class="documents-list" id="projectsList"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="projectsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="projectsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 		<div class="modal-overlay" id="documentsModal">
 			<div class="modal" style="max-width: 560px;">
 				<div class="modal-header">
@@ -473,6 +508,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-body">
 					<p class="documents-intro"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
 					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search your documents by title', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search your documents by title…', 'digital-employees' ); ?>">
+					<select class="form-input documents-project-filter" id="documentsProjectFilter" aria-label="<?php echo esc_attr__( 'Filter by project', 'digital-employees' ); ?>">
+						<option value=""><?php echo esc_html__( 'All documents', 'digital-employees' ); ?></option>
+					</select>
 					<div class="documents-status" id="documentsStatus"></div>
 					<div class="documents-list" id="documentsList"></div>
 				</div>

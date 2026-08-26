@@ -2496,11 +2496,17 @@ function t(key, fallback) {
 
 		function open() {
 			modal.classList.add('visible');
-			loadList();
+			refreshProjectsCache().then(loadList);
 		}
 		function close() {
 			modal.classList.remove('visible');
 		}
+
+		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
+		openDocumentsForProject = function (projectId) {
+			projectFilter = projectId || '';
+			open();
+		};
 
 		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
 		function prettyName(category, serverId) {
@@ -2894,6 +2900,11 @@ function t(key, fallback) {
 	// MY DOCUMENTS PANEL (document library — slice 4)
 	// =============================================
 
+	// Projects P-A bridge: initProjects opens the Documents panel pre-filtered;
+	// initDocuments publishes the hook and the projects cache both panels read.
+	let openDocumentsForProject = null;
+	let projectsCache = [];
+
 	(function initDocuments() {
 		const modal = document.getElementById('documentsModal');
 		if (!modal) return;
@@ -2905,8 +2916,35 @@ function t(key, fallback) {
 		const statusEl = document.getElementById('documentsStatus');
 		const listEl = document.getElementById('documentsList');
 		const searchEl = document.getElementById('documentsSearch');
+		const projectFilterEl = document.getElementById('documentsProjectFilter');
+		let projectFilter = '';
 		let loading = false;
 		let searchTimer = null;
+
+		async function refreshProjectsCache() {
+			try {
+				const data = await apiRequest('/projects');
+				projectsCache = Array.isArray(data.projects) ? data.projects : [];
+			} catch (e) {
+				projectsCache = [];
+			}
+			if (projectFilterEl) {
+				const current = projectFilter;
+				projectFilterEl.innerHTML = '';
+				const all = document.createElement('option');
+				all.value = '';
+				all.textContent = t('documentsAllProjects', 'All documents');
+				projectFilterEl.appendChild(all);
+				projectsCache.forEach(function (p) {
+					const opt = document.createElement('option');
+					opt.value = p.project_id;
+					opt.textContent = p.name;
+					projectFilterEl.appendChild(opt);
+				});
+				projectFilterEl.value = current;
+				if (projectFilterEl.value !== current) { projectFilter = ''; }
+			}
+		}
 
 		function searchTerm() {
 			return searchEl ? searchEl.value.trim() : '';
@@ -2914,11 +2952,17 @@ function t(key, fallback) {
 
 		function open() {
 			modal.classList.add('visible');
-			loadList();
+			refreshProjectsCache().then(loadList);
 		}
 		function close() {
 			modal.classList.remove('visible');
 		}
+
+		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
+		openDocumentsForProject = function (projectId) {
+			projectFilter = projectId || '';
+			open();
+		};
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
@@ -2941,7 +2985,10 @@ function t(key, fallback) {
 				// apiBase can be the plain-permalink ?rest_route= form — pick the
 				// separator accordingly (same idiom as def-core-product-cards.js).
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-				const data = await apiRequest('/documents' + (term ? sep + 'q=' + encodeURIComponent(term) : ''));
+				const parts = [];
+				if (term) { parts.push('q=' + encodeURIComponent(term)); }
+				if (projectFilter) { parts.push('project_id=' + encodeURIComponent(projectFilter)); }
+				const data = await apiRequest('/documents' + (parts.length ? sep + parts.join('&') : ''));
 				const docs = Array.isArray(data.documents) ? data.documents : [];
 				if (docs.length === 0) {
 					setStatus(term
@@ -2982,10 +3029,34 @@ function t(key, fallback) {
 				formatTime(doc.created_at)
 			].filter(Boolean).join(' · ');
 			info.appendChild(meta);
+			// Projects P-A (D-P10): the badge answers "which project" at a glance
+			// and clicking it applies the filter. textContent only — the name is
+			// user text.
+			if (doc.project_id && doc.project_name) {
+				const chip = document.createElement('button');
+				chip.type = 'button';
+				chip.className = 'document-project-chip';
+				chip.textContent = (doc.slot ? doc.slot + ' · ' : '') + doc.project_name;
+				chip.addEventListener('click', function () {
+					projectFilter = doc.project_id;
+					if (projectFilterEl) { projectFilterEl.value = doc.project_id; }
+					loadList();
+				});
+				info.appendChild(chip);
+			}
 			row.appendChild(info);
 
 			const action = document.createElement('div');
 			action.className = 'document-action';
+
+			if (projectsCache.length) {
+				const move = document.createElement('button');
+				move.type = 'button';
+				move.className = 'document-btn';
+				move.textContent = t('documentsMoveProject', 'Project…');
+				move.addEventListener('click', function () { toggleAssignRow(row, doc); });
+				action.appendChild(move);
+			}
 
 			const href = safeHttpHref(doc.download_url);
 			if (href) {
@@ -3005,6 +3076,77 @@ function t(key, fallback) {
 
 			row.appendChild(action);
 			return row;
+		}
+
+		function toggleAssignRow(row, doc) {
+			const existing = row.nextElementSibling;
+			if (existing && existing.classList.contains('document-assign-row')) {
+				existing.remove();
+				return;
+			}
+			const panel = document.createElement('div');
+			panel.className = 'document-assign-row';
+
+			const projSel = document.createElement('select');
+			projSel.className = 'form-input';
+			const none = document.createElement('option');
+			none.value = '';
+			none.textContent = t('documentsNoProject', 'No project');
+			projSel.appendChild(none);
+			projectsCache.forEach(function (p) {
+				if (p.status !== 'active') { return; }
+				const opt = document.createElement('option');
+				opt.value = p.project_id;
+				opt.textContent = p.name;
+				projSel.appendChild(opt);
+			});
+			projSel.value = doc.project_id || '';
+			panel.appendChild(projSel);
+
+			const slotSel = document.createElement('select');
+			slotSel.className = 'form-input';
+			[['', t('documentsSlotNone', 'Ordinary document')],
+			 ['instructions', t('documentsSlotInstructions', 'Instructions')],
+			 ['runsheet', t('documentsSlotRunsheet', 'Runsheet')],
+			 ['session_notes', t('documentsSlotSessionNotes', 'Session notes')]
+			].forEach(function (pair) {
+				const opt = document.createElement('option');
+				opt.value = pair[0];
+				opt.textContent = pair[1];
+				slotSel.appendChild(opt);
+			});
+			slotSel.value = doc.slot || '';
+			slotSel.disabled = !projSel.value;
+			projSel.addEventListener('change', function () {
+				slotSel.disabled = !projSel.value;
+				if (!projSel.value) { slotSel.value = ''; }
+			});
+			panel.appendChild(slotSel);
+
+			const save = document.createElement('button');
+			save.type = 'button';
+			save.className = 'modal-btn modal-btn-primary';
+			save.textContent = t('save', 'Save');
+			save.addEventListener('click', async function () {
+				save.disabled = true;
+				try {
+					await apiRequest('/documents/' + encodeURIComponent(doc.document_id) + '/project', {
+						method: 'PUT',
+						body: JSON.stringify({
+							project_id: projSel.value || null,
+							slot: (projSel.value && slotSel.value) ? slotSel.value : null
+						})
+					});
+					panel.remove();
+					loadList();
+				} catch (e) {
+					save.disabled = false;
+					setStatus((e && e.message) || t('documentsMoveFailed', 'Could not move the document.'), 'error');
+				}
+			});
+			panel.appendChild(save);
+
+			row.insertAdjacentElement('afterend', panel);
 		}
 
 		async function removeDoc(doc, btn, row) {
@@ -3033,6 +3175,12 @@ function t(key, fallback) {
 		if (modalClose) modalClose.addEventListener('click', close);
 		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		if (projectFilterEl) {
+			projectFilterEl.addEventListener('change', function () {
+				projectFilter = projectFilterEl.value;
+				loadList();
+			});
+		}
 		if (searchEl) {
 			// Debounced as-you-type (the native clear control fires 'input'
 			// too); Enter searches immediately.
@@ -3054,6 +3202,174 @@ function t(key, fallback) {
 	// =============================================
 	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
 	// =============================================
+
+	(function initProjects() {
+		const modal = document.getElementById('projectsModal');
+		if (!modal) return;
+
+		const openBtn = document.getElementById('navProjects');
+		const modalClose = document.getElementById('projectsModalClose');
+		const closeBtn = document.getElementById('projectsClose');
+		const refreshBtn = document.getElementById('projectsRefresh');
+		const statusEl = document.getElementById('projectsStatus');
+		const listEl = document.getElementById('projectsList');
+		const nameEl = document.getElementById('projectsNewName');
+		const createBtn = document.getElementById('projectsCreateBtn');
+		const archivedEl = document.getElementById('projectsShowArchived');
+		let loading = false;
+
+		function open() {
+			modal.classList.add('visible');
+			loadList();
+		}
+		function close() {
+			modal.classList.remove('visible');
+		}
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'documents-status' + (message ? ' documents-status-' + (kind || 'muted') : '');
+		}
+
+		async function loadList() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('projectsLoading', 'Loading your projects…'), 'muted');
+			listEl.innerHTML = '';
+			try {
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const showArchived = archivedEl && archivedEl.checked;
+				const data = await apiRequest('/projects' + (showArchived ? sep + 'include_archived=true' : ''));
+				const projects = Array.isArray(data.projects) ? data.projects : [];
+				projectsCache = projects;
+				if (projects.length === 0) {
+					setStatus(t('projectsEmpty', 'No projects yet — create one above to give a piece of work its own home.'), 'muted');
+					return;
+				}
+				setStatus('', '');
+				projects.forEach(function (p) { listEl.appendChild(renderRow(p)); });
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsLoadFailed', 'Could not load your projects.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+
+		function renderRow(project) {
+			const row = document.createElement('div');
+			row.className = 'document-row';
+
+			const info = document.createElement('div');
+			info.className = 'document-info';
+			const name = document.createElement('span');
+			name.className = 'document-name';
+			name.textContent = project.name;
+			info.appendChild(name);
+			const meta = document.createElement('span');
+			meta.className = 'document-meta';
+			meta.textContent = (project.status === 'archived'
+				? t('projectsArchived', 'Archived')
+				: t('projectsActive', 'Active')) + ' · ' + formatTime(project.created_at);
+			info.appendChild(meta);
+			row.appendChild(info);
+
+			const action = document.createElement('div');
+			action.className = 'document-action';
+
+			const docsBtn = document.createElement('button');
+			docsBtn.type = 'button';
+			docsBtn.className = 'document-btn';
+			docsBtn.textContent = t('projectsDocuments', 'Documents');
+			docsBtn.addEventListener('click', function () {
+				close();
+				if (openDocumentsForProject) { openDocumentsForProject(project.project_id); }
+			});
+			action.appendChild(docsBtn);
+
+			const renameBtn = document.createElement('button');
+			renameBtn.type = 'button';
+			renameBtn.className = 'document-btn';
+			renameBtn.textContent = t('projectsRename', 'Rename');
+			renameBtn.addEventListener('click', async function () {
+				const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
+				if (next === null || !next.trim() || next.trim() === project.name) return;
+				try {
+					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+						method: 'PUT', body: JSON.stringify({ name: next.trim() })
+					});
+					loadList();
+				} catch (e) {
+					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+				}
+			});
+			action.appendChild(renameBtn);
+
+			const archBtn = document.createElement('button');
+			archBtn.type = 'button';
+			archBtn.className = 'document-btn';
+			const archived = project.status === 'archived';
+			archBtn.textContent = archived ? t('projectsUnarchive', 'Unarchive') : t('projectsArchive', 'Archive');
+			archBtn.addEventListener('click', async function () {
+				try {
+					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+						method: 'PUT', body: JSON.stringify({ status: archived ? 'active' : 'archived' })
+					});
+					loadList();
+				} catch (e) {
+					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+				}
+			});
+			action.appendChild(archBtn);
+
+			const delBtn = document.createElement('button');
+			delBtn.type = 'button';
+			delBtn.className = 'document-btn document-btn-delete';
+			delBtn.textContent = t('projectsDelete', 'Delete');
+			delBtn.addEventListener('click', async function () {
+				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
+					.replace('%s', function () { return project.name; });
+				if (!window.confirm(msg)) return;
+				delBtn.disabled = true;
+				try {
+					await apiRequest('/projects/' + encodeURIComponent(project.project_id), { method: 'DELETE' });
+					loadList();
+				} catch (e) {
+					delBtn.disabled = false;
+					setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
+				}
+			});
+			action.appendChild(delBtn);
+
+			row.appendChild(action);
+			return row;
+		}
+
+		async function createProject() {
+			const name = nameEl ? nameEl.value.trim() : '';
+			if (!name) return;
+			createBtn.disabled = true;
+			try {
+				await apiRequest('/projects', { method: 'POST', body: JSON.stringify({ name: name }) });
+				nameEl.value = '';
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsCreateFailed', 'Could not create the project.'), 'error');
+			} finally {
+				createBtn.disabled = false;
+			}
+		}
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		if (createBtn) createBtn.addEventListener('click', createProject);
+		if (nameEl) nameEl.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') { e.preventDefault(); createProject(); }
+		});
+		if (archivedEl) archivedEl.addEventListener('change', loadList);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+	})();
 
 	(function initMemories() {
 		const modal = document.getElementById('memoriesModal');
@@ -3079,11 +3395,17 @@ function t(key, fallback) {
 
 		function open() {
 			modal.classList.add('visible');
-			loadList();
+			refreshProjectsCache().then(loadList);
 		}
 		function close() {
 			modal.classList.remove('visible');
 		}
+
+		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
+		openDocumentsForProject = function (projectId) {
+			projectFilter = projectId || '';
+			open();
+		};
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
