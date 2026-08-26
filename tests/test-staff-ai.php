@@ -1783,6 +1783,35 @@ $assign_body = json_decode( (string) ( $GLOBALS['_def_test_last_request']['body'
 assert_equals( 'p-1', $assign_body['project_id'] ?? '', 'project_id rides the body' );
 assert_equals( 'runsheet', $assign_body['slot'] ?? '', 'slot rides the body' );
 
+// ── Projects P-B — the chat request carries the project binding ─────────
+echo "\nProjects P-B - chat project binding\n";
+
+// A UUID project_id rides the chat body to DEF (which owner-validates it).
+$GLOBALS['_def_test_last_request'] = array();
+$req = new WP_REST_Request( 'POST', '/staff-ai/chat' );
+$req->set_body_params( array(
+	'message'    => 'hello',
+	'project_id' => '8f14e45f-ceea-467a-9e2f-6b2c40f5e1a3',
+) );
+DEF_Core_Staff_AI::rest_send_message( $req );
+$chat_body = json_decode( (string) ( $GLOBALS['_def_test_last_request']['body'] ?? '' ), true );
+assert_equals(
+	'8f14e45f-ceea-467a-9e2f-6b2c40f5e1a3',
+	$chat_body['project_id'] ?? '',
+	'valid project_id rides the chat body'
+);
+
+// A non-UUID project_id is dropped before the wire — DEF never sees it.
+$GLOBALS['_def_test_last_request'] = array();
+$req = new WP_REST_Request( 'POST', '/staff-ai/chat' );
+$req->set_body_params( array(
+	'message'    => 'hello',
+	'project_id' => '../../etc/passwd',
+) );
+DEF_Core_Staff_AI::rest_send_message( $req );
+$chat_body = json_decode( (string) ( $GLOBALS['_def_test_last_request']['body'] ?? '' ), true );
+assert_true( ! isset( $chat_body['project_id'] ), 'non-UUID project_id never forwarded' );
+
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
 
