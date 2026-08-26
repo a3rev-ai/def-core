@@ -2589,3 +2589,54 @@ html {
 		flex-direction: column;
 	}
 }
+
+/* --- Projects P-A (the container) ------------------------------------- */
+.document-project-chip {
+	display: inline-block;
+	margin-top: 4px;
+	padding: 1px 8px;
+	border: 1px solid var(--border-color, #d9d9d9);
+	border-radius: 10px;
+	background: var(--surface-2, #f5f5f5);
+	font-size: 11px;
+	line-height: 18px;
+	color: inherit;
+	cursor: pointer;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.document-project-chip:hover {
+	border-color: var(--accent-color, #1677ff);
+}
+.projects-create {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+.projects-create .form-input {
+	flex: 1;
+}
+.projects-archived-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	margin-bottom: 8px;
+	cursor: pointer;
+}
+.documents-project-filter {
+	margin: 8px 0;
+}
+.document-assign-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 8px 0 12px;
+	border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+}
+.document-assign-row .form-input {
+	flex: 1;
+	min-width: 0;
+}
