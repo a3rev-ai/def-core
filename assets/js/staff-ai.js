@@ -577,7 +577,10 @@ function t(key, fallback) {
 		updateSendButton();
 		hideError();
 		hideInfo();
-		if (window.innerWidth <= 768) {
+		// Close the mobile drawer only if it is actually open — the Projects
+		// modal's "New chat" reaches here with the drawer already closed, and
+		// an unconditional toggle would slide it open OVER the fresh chat.
+		if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
 			toggleSidebar();
 		}
 	}
