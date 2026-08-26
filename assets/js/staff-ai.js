@@ -531,6 +531,7 @@ function t(key, fallback) {
 
 	// Load a specific conversation
 	async function loadConversation(id, shared) {
+		clearActiveProject();
 		currentConversationId = id;
 		isReadOnly = !!shared;
 
@@ -564,8 +565,8 @@ function t(key, fallback) {
 		shareBtn.disabled = !currentConversationId;
 	}
 
-	// New chat
-	newChatBtn.addEventListener('click', function() {
+	// New chat (shared with Projects P-B's "New chat in this project")
+	function resetToNewChat() {
 		currentConversationId = null;
 		isReadOnly = false;
 		messages = [];
@@ -579,6 +580,11 @@ function t(key, fallback) {
 		if (window.innerWidth <= 768) {
 			toggleSidebar();
 		}
+	}
+
+	newChatBtn.addEventListener('click', function() {
+		clearActiveProject();
+		resetToNewChat();
 	});
 
 	// Auto-resize textarea — grows uncapped, .composer-scroll wrapper scrolls.
@@ -1598,6 +1604,9 @@ function t(key, fallback) {
 			if (fileIds.length > 0) {
 				requestBody.file_ids = fileIds;
 			}
+			if (activeProjectId) {
+				requestBody.project_id = activeProjectId;
+			}
 
 			const result = await apiRequest('/chat', {
 				method: 'POST',
@@ -1655,6 +1664,9 @@ function t(key, fallback) {
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 				requestBody.continue_thread = true;
+			}
+			if (activeProjectId) {
+				requestBody.project_id = activeProjectId;
 			}
 			// Phase 10.1: Add suggestion feedback signal
 			if (pendingOutcome) {
@@ -2899,6 +2911,44 @@ function t(key, fallback) {
 	let openDocumentsForProject = null;
 	let projectsCache = [];
 
+	// Projects P-B: "New chat in this project". The chip shows which project a
+	// new chat will open in; the id rides the chat request and DEF seeds the
+	// thread's binding at mint (server-validated — the caller's own active
+	// project, never overwriting an existing binding). Cleared by a plain New
+	// chat or by switching threads; mid-thread changes are Sue's
+	// open/close_project tools, not this chip.
+	let activeProjectId = null;
+	let activeProjectName = null;
+
+	function renderProjectChip() {
+		var container = document.getElementById('composerContainer');
+		if (!container) return;
+		var chip = document.getElementById('composerProjectChip');
+		if (!activeProjectId) {
+			if (chip) chip.remove();
+			return;
+		}
+		if (!chip) {
+			chip = document.createElement('div');
+			chip.id = 'composerProjectChip';
+			chip.className = 'composer-project-chip';
+			container.insertBefore(chip, container.firstChild);
+		}
+		chip.textContent = t('projectChipLabel', 'Project: ') + activeProjectName;
+	}
+
+	function setActiveProject(project) {
+		activeProjectId = project.project_id;
+		activeProjectName = project.name;
+		renderProjectChip();
+	}
+
+	function clearActiveProject() {
+		activeProjectId = null;
+		activeProjectName = null;
+		renderProjectChip();
+	}
+
 	(function initDocuments() {
 		const modal = document.getElementById('documentsModal');
 		if (!modal) return;
@@ -3250,13 +3300,15 @@ function t(key, fallback) {
 		}
 
 		function renderRow(project) {
+			const wrap = document.createElement('div');
 			const row = document.createElement('div');
 			row.className = 'document-row';
+			wrap.appendChild(row);
 
 			const info = document.createElement('div');
 			info.className = 'document-info';
 			const name = document.createElement('span');
-			name.className = 'document-name';
+			name.className = 'document-name project-name-toggle';
 			name.textContent = project.name;
 			info.appendChild(name);
 			const meta = document.createElement('span');
@@ -3267,8 +3319,70 @@ function t(key, fallback) {
 			info.appendChild(meta);
 			row.appendChild(info);
 
+			// P-B: clicking the name toggles the governing-slot view — which of
+			// the three documents exist (Sue creates them from chat; a new
+			// project arrives with seeded runsheet + instructions).
+			const detail = document.createElement('div');
+			detail.className = 'project-slot-detail';
+			detail.style.display = 'none';
+			wrap.appendChild(detail);
+			let detailLoaded = false;
+			name.addEventListener('click', async function () {
+				if (detail.style.display !== 'none') { detail.style.display = 'none'; return; }
+				detail.style.display = '';
+				if (detailLoaded) return;
+				detail.textContent = t('projectsSlotsLoading', 'Loading…');
+				try {
+					const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+					const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
+					const docs = Array.isArray(data.documents) ? data.documents : [];
+					detailLoaded = true;
+					detail.textContent = '';
+					const slots = { runsheet: null, session_notes: null, instructions: null };
+					let others = 0;
+					docs.forEach(function (d) {
+						if (d.slot && Object.prototype.hasOwnProperty.call(slots, d.slot)) { slots[d.slot] = d; }
+						else { others++; }
+					});
+					[['runsheet', t('projectsSlotRunsheet', 'Runsheet')],
+					 ['session_notes', t('projectsSlotSessionNotes', 'Session notes')],
+					 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
+						const line = document.createElement('div');
+						line.className = 'project-slot-line';
+						const d = slots[pair[0]];
+						line.textContent = pair[1] + ': ' + (d
+							? (d.title || d.document_id) + (d.version ? ' (v' + d.version + ')' : '')
+							: t('projectsSlotMissing', 'not created yet'));
+						detail.appendChild(line);
+					});
+					if (others > 0) {
+						const more = document.createElement('div');
+						more.className = 'project-slot-line';
+						more.textContent = t('projectsOtherDocs', 'Other documents: ') + others;
+						detail.appendChild(more);
+					}
+				} catch (e) {
+					detail.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
+				}
+			});
+
 			const action = document.createElement('div');
 			action.className = 'document-action';
+
+			// P-B: a fresh chat that opens INSIDE this project — DEF seeds the
+			// thread's binding at mint and Sue loads the governing documents.
+			if (project.status !== 'archived') {
+				const chatBtn = document.createElement('button');
+				chatBtn.type = 'button';
+				chatBtn.className = 'document-btn';
+				chatBtn.textContent = t('projectsNewChat', 'New chat');
+				chatBtn.addEventListener('click', function () {
+					close();
+					setActiveProject(project);
+					resetToNewChat();
+				});
+				action.appendChild(chatBtn);
+			}
 
 			const docsBtn = document.createElement('button');
 			docsBtn.type = 'button';
@@ -3335,7 +3449,7 @@ function t(key, fallback) {
 			action.appendChild(delBtn);
 
 			row.appendChild(action);
-			return row;
+			return wrap;
 		}
 
 		async function createProject() {

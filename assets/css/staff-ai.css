@@ -2629,6 +2629,37 @@ html {
 .documents-project-filter {
 	margin: 8px 0;
 }
+/* Projects P-B: chat entry + governing-slot view */
+.composer-project-chip {
+	display: inline-block;
+	margin: 0 0 6px;
+	padding: 1px 10px;
+	border: 1px solid var(--accent-color, #1677ff);
+	border-radius: 10px;
+	background: var(--surface-2, #f5f5f5);
+	font-size: 11px;
+	line-height: 18px;
+	color: var(--accent-color, #1677ff);
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.project-name-toggle {
+	cursor: pointer;
+}
+.project-name-toggle:hover {
+	color: var(--accent-color, #1677ff);
+}
+.project-slot-detail {
+	padding: 4px 0 10px 12px;
+	border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+}
+.project-slot-line {
+	font-size: 12px;
+	line-height: 20px;
+	color: var(--text-secondary, #666);
+}
 .document-assign-row {
 	display: flex;
 	gap: 8px;

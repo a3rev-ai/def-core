@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.9.0
+Stable tag: 6.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.10.0 - 2026-08-26 =
+* Feature - Work in a project from chat. The Projects panel's "New chat" button opens a fresh conversation inside that project - your assistant reads the project's runsheet, session notes and instructions at the start of every reply, records decisions into the runsheet as you make them, and keeps the session notes' START HERE pointer current so the next conversation picks up where this one left off. Ask to "open" or "close" a project mid-chat by name. Every new project starts with a seeded runsheet and instructions, and clicking a project's name in the panel shows which of its three governing documents exist
 
 = 6.9.0 - 2026-08-26 =
 * Feature - Projects. A new Projects panel in the Staff AI sidebar groups your documents by the piece of work they belong to - create a project, move documents into it (including naming one as its runsheet, session notes or instructions), and filter My Documents by project with one click on a document's project tag. Deleting a project never deletes its documents - they stay in your library. Opening a project in chat, and your assistant keeping its runsheet and session notes up to date as you work, arrive in the next release

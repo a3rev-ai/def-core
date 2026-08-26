@@ -3943,6 +3943,16 @@ final class DEF_Core_Staff_AI
 			$chat_body['continue_thread']  = true;
 		}
 
+		// Projects P-B: "New chat in this project" seeds the thread's binding.
+		// Shape-validated here (UUID), OWNER-validated by DEF (the caller's own
+		// active project, never overwriting an existing binding). The streaming
+		// route is a raw passthrough, so DEF's validation is the real gate — this
+		// mirror keeps the fallback path's field-by-field discipline.
+		$project_id = isset($body['project_id']) ? sanitize_text_field($body['project_id']) : '';
+		if ($project_id && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $project_id)) {
+			$chat_body['project_id'] = $project_id;
+		}
+
 		// Staff AI uses dedicated endpoint - NOT the customer chatbot
 		// Reference: STAFF_AI_CHANNEL_OVERVIEW.md
 		// "Staff AI is NOT a customer chatbot and is NOT used for platform configuration"
