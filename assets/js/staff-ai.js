@@ -3708,12 +3708,11 @@ function t(key, fallback) {
 				allCaption = t('usageBudgetChecking', 'checking…');
 			} else if (data.budget_tokens === null || typeof data.budget_tokens === 'undefined') {
 				allCaption = formatTokens(total) + ' · ' + t('usageNoBudget', 'no budget — unlimited');
-			} else if (Number(data.budget_tokens) > 0) {
+			} else {
+				// No zero branch: DEFHO enforces budget > 0 at the schema AND with
+				// a database CHECK, so a zero budget cannot reach this page.
 				allFraction = total / Number(data.budget_tokens);
 				allCaption = t('usageOfBudget', '%s of your weekly budget').replace('%s', formatPercent(allFraction));
-			} else {
-				// A budget of zero has no meaningful fill; show the count.
-				allCaption = formatTokens(total) + ' · ' + t('usageNoBudget', 'no budget — unlimited');
 			}
 			barsEl.appendChild(renderBar(t('usageAllModels', 'All models'), allFraction, allCaption));
 
@@ -3736,7 +3735,13 @@ function t(key, fallback) {
 			// expensive model the user wants to watch. Labelled "% of your
 			// usage", never "used": this number FALLS as work moves to cheaper
 			// models, which is the feedback loop the page exists to create.
-			if (models.length && total > 0) {
+			// Only worth drawing when there is a mix to show. With a single model
+			// the share is trivially 100%, and during the observe phase — no
+			// budgets set, so bar 1 renders unfilled — that would be the user's
+			// ONLY filled bar, permanently full, which reads as an alarm about a
+			// limit that does not exist. It also just restates the single row
+			// below it.
+			if (models.length > 1 && total > 0) {
 				const top = models[0];
 				const share = top.tokens / total;
 				barsEl.appendChild(renderBar(

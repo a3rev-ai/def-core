@@ -138,6 +138,14 @@ const BASELINE = array(
 	'includes/class-def-core-staff-ai.php::$error_msg .= \' (HTTP \' . intval( $status_code ) . \': \' . esc_html( substr( $error_body, 0, 200 ) ) . \')\';' => 1,
 	'includes/class-def-core-staff-ai.php::if ( mb_strlen( $notes ) > 2000 ) {' => 1,
 	'includes/class-def-core-staff-ai.php::if (count($events) >= 100) {' => 1,
+	// Roster push (6.11.0): mirrors DEF's _ROSTER_NAME_MAX, which it enforces
+	// ALL-OR-NOTHING — one name over 200 chars 422s the WHOLE roster and DEF
+	// writes nothing, so absent this bound a single long profile nickname
+	// (wp_users.display_name is varchar(250)) permanently kills every push for
+	// the tenant. REPORTS the cut with the user id; the name is evidence, never
+	// an identifier — `sub` is what DEF keys on, and it is never touched.
+	'includes/class-def-core-staff-roster.php::if ( mb_strlen( $display_name ) > 200 ) {' => 1,
+	'includes/class-def-core-staff-roster.php::$display_name = mb_substr( $display_name, 0, 200 );' => 1,
 	'includes/class-def-core-tools.php::&& strlen( $cart_token ) <= 4096' => 1,
 );
 

@@ -1265,10 +1265,18 @@ final class DEF_Core_Admin {
 			}
 
 			foreach ( $capabilities as $cap ) {
-				$should_have = ! empty( $caps[ $cap ] );
-				if ( $should_have && ! $user->has_cap( $cap ) ) {
+				// Written unconditionally. add_cap/remove_cap are idempotent, so
+				// the has_cap() guards these lines used to carry bought nothing
+				// and cost correctness: map_def_capabilities() makes
+				// has_cap('def_staff_access') answer TRUE for every Management
+				// and DEF-Admin user, so the guard skipped the very writes that
+				// mattered. A Management→Staff downgrade removed Management but
+				// never stored Staff, locking the user out of Staff-AI entirely;
+				// ticking Staff on a DEF-Admin stored nothing while the grid
+				// rendered the tick as present.
+				if ( ! empty( $caps[ $cap ] ) ) {
 					$user->add_cap( $cap );
-				} elseif ( ! $should_have && $user->has_cap( $cap ) ) {
+				} else {
 					$user->remove_cap( $cap );
 				}
 			}

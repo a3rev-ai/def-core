@@ -115,6 +115,25 @@ class DEF_Core_Staff_Roster {
 			// and "" would render as a blank row in the dashboard.
 			$display_name = trim( (string) $user->display_name );
 			if ( '' !== $display_name ) {
+				// Truncated to DEF's 200-character bound, which it enforces
+				// ALL-OR-NOTHING: one over-long name 422s the WHOLE roster and
+				// DEF writes nothing. wp_users.display_name is varchar(250) and
+				// an ordinary profile nickname reaches past 200, so without this
+				// a single user with a long nickname would permanently kill
+				// every push for the tenant. Of DEF's four row constraints this
+				// is the only one def-core can violate.
+				//
+				// REPORTS rather than dropping silently (caps doctrine): the cut
+				// is named, with the user it happened to, so an admin seeing a
+				// clipped name in the dashboard can find and fix the source.
+				if ( mb_strlen( $display_name ) > 200 ) {
+					DEF_Core_Logger::warning(
+						DEF_Core_Logger::SOURCE_SYNC,
+						'Staff roster display name truncated to DEF\'s 200-character limit',
+						array( 'user_id' => (int) $id, 'length' => mb_strlen( $display_name ) )
+					);
+					$display_name = mb_substr( $display_name, 0, 200 );
+				}
 				$row['display_name'] = $display_name;
 			}
 			$users[] = $row;

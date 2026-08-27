@@ -402,6 +402,32 @@ require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 // mutation check caught it. Loaded here, at the top, so it holds for the whole
 // file rather than just the sections after it.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
+// rest_update_user_role() queues a Staff-AI roster push (D-U10), so the class
+// and the two WP-Cron functions it touches must exist here. Production loads
+// it via DEF_Core::load_dependencies(); this standalone suite has no bootstrap,
+// so it loads it directly. Stubs mirror tests/test-staff-roster.php.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-roster.php';
+
+global $_test_roster_cron;
+$_test_roster_cron = array();
+
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( string $hook ) {
+		global $_test_roster_cron;
+		return in_array( $hook, $_test_roster_cron, true ) ? time() + 30 : false;
+	}
+}
+
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( int $when, string $hook ) {
+		global $_test_roster_cron;
+		if ( ! empty( $GLOBALS['_test_roster_cron_fails'] ) ) {
+			return false; // What WordPress does when the event cannot be queued.
+		}
+		$_test_roster_cron[] = $hook;
+		return true;
+	}
+}
 
 // ── Test helpers ────────────────────────────────────────────────────────
 
@@ -990,6 +1016,42 @@ $request->set_body_params( array(
 $response = $sa->rest_update_user_role( $request );
 assert_equals( 200, $response->get_status(), 'remove role returns 200' );
 assert_false( $target->has_cap( 'def_staff_access' ), 'user no longer has def_staff_access' );
+
+// D-U10: this path writes the same caps the User Access grid does, so it owes
+// DEF the same roster push. Sam granting Staff access during onboarding is
+// when a tenant's roster first exists at all.
+$_test_roster_cron = array();
+$request->set_body_params( array(
+	'wp_user_id' => 20,
+	'capability' => 'def_staff_access',
+	'action'     => 'add',
+) );
+$response = $sa->rest_update_user_role( $request );
+assert_equals( 200, $response->get_status(), 'grant still returns 200' );
+assert_equals( 1, count( $_test_roster_cron ), 'a REST cap grant queues a roster push' );
+
+$_test_roster_cron = array();
+$request->set_body_params( array(
+	'wp_user_id' => 20,
+	'capability' => 'def_staff_access',
+	'action'     => 'remove',
+) );
+$sa->rest_update_user_role( $request );
+assert_equals( 1, count( $_test_roster_cron ), 'a REST cap revoke queues a roster push too' );
+
+// The push is queued, never sent inline, so nothing about it can fail the
+// caller's response — including the queue itself refusing.
+$_test_roster_cron                     = array();
+$GLOBALS['_test_roster_cron_fails']    = true;
+$request->set_body_params( array(
+	'wp_user_id' => 20,
+	'capability' => 'def_staff_access',
+	'action'     => 'add',
+) );
+$response = $sa->rest_update_user_role( $request );
+assert_equals( 200, $response->get_status(), 'a push that cannot even be queued does not break the response' );
+assert_true( $target->has_cap( 'def_staff_access' ), 'and the capability change still persisted' );
+$GLOBALS['_test_roster_cron_fails'] = false;
 
 // ── 25. User role: lockout prevention ───────────────────────────────────
 echo "\n[25] POST /setup/user-role — lockout prevention\n";

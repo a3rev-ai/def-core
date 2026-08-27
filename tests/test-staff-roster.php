@@ -537,5 +537,90 @@ assert_true(
 	'the capability change persisted regardless of the push'
 );
 
+// ── 8. The write side must not consult the lying has_cap() either ───────
+echo "\n[8] Grid writes survive the map_meta_cap lie\n";
+
+// Scenario A — Management → Staff downgrade. has_cap('def_staff_access') is
+// TRUE for a Management user, so a guarded add_cap() would skip storing Staff
+// while still removing Management, leaving the user with NO Staff-AI access
+// and no roster row at all.
+$_test_users = array();
+seed_user( 70, 'Demoted Dana', 'dana@example.com', array( 'def_management_access' ) );
+seed_user( 71, 'Keeper Kim', 'kim@example.com', array( 'def_admin_access' ) );
+
+$_POST = array(
+	'nonce' => 'x',
+	'roles' => array(
+		70 => array( 'def_staff_access' => '1' ),
+		71 => array( 'def_admin_access' => '1' ),
+	),
+);
+try {
+	DEF_Core_Admin::ajax_save_user_roles();
+} catch ( AjaxHalt $halt ) {
+	$ignored = $halt;
+}
+
+assert_true(
+	in_array( 'def_staff_access', $_test_users[70]['caps'], true ),
+	'downgrade STORES def_staff_access (the guard used to skip this write)'
+);
+assert_true(
+	! in_array( 'def_management_access', $_test_users[70]['caps'], true ),
+	'downgrade removes def_management_access'
+);
+$roster = DEF_Core_Staff_Roster::build_roster();
+assert_equals( 'staff', row_for( $roster, '70' )['access_level'] ?? '', 'the downgraded user stays rostered, as staff' );
+
+// Scenario B — DEF-Admin also ticked Staff. has_cap() already answers true via
+// the filter, so a guarded write stored nothing while the grid rendered the
+// tick as present — a tick that silently did not exist.
+$_test_users = array();
+seed_user( 80, 'Admin Andy', 'andy@example.com', array( 'def_admin_access' ) );
+
+$_POST = array(
+	'nonce' => 'x',
+	'roles' => array( 80 => array( 'def_admin_access' => '1', 'def_staff_access' => '1' ) ),
+);
+try {
+	DEF_Core_Admin::ajax_save_user_roles();
+} catch ( AjaxHalt $halt ) {
+	$ignored = $halt;
+}
+
+assert_true(
+	in_array( 'def_staff_access', $_test_users[80]['caps'], true ),
+	'a Staff tick on a DEF-Admin is actually STORED'
+);
+assert_true(
+	in_array( 'def_admin_access', $_test_users[80]['caps'], true ),
+	'and DEF-Admin is untouched'
+);
+$roster = DEF_Core_Staff_Roster::build_roster();
+assert_equals( 'staff', row_for( $roster, '80' )['access_level'] ?? '', 'the DEF-Admin now rosters as staff' );
+
+// ── 9. Long display names cannot kill the whole roster ──────────────────
+echo "\n[9] display_name is bounded to DEF's limit\n";
+
+$_test_users = array();
+seed_user( 90, str_repeat( 'a', 250 ), 'long@example.com', array( 'def_staff_access' ) );
+seed_user( 91, 'Short Sam', 'sam@example.com', array( 'def_management_access' ) );
+
+$_test_logs = array();
+$roster     = DEF_Core_Staff_Roster::build_roster();
+assert_equals(
+	200,
+	mb_strlen( row_for( $roster, '90' )['display_name'] ?? '' ),
+	'a 250-character display name is truncated to DEF\'s 200-character bound'
+);
+// DEF refuses the WHOLE roster on one bad row, so the real assertion is that
+// everyone else still ships.
+assert_equals( 2, count( $roster ), 'every user still rides — one long name cannot 422 the whole push' );
+assert_equals( 'Short Sam', row_for( $roster, '91' )['display_name'] ?? '', 'short names are untouched' );
+// The caps doctrine: a bound may REFUSE, DEFER or REPORT — never drop silently.
+assert_equals( 'warning', $_test_logs[0]['level'] ?? '', 'the truncation REPORTS rather than dropping silently' );
+assert_equals( 90, $_test_logs[0]['context']['user_id'] ?? 0, 'and names the user it happened to' );
+assert_equals( 1, count( $_test_logs ), 'a name within the bound logs nothing' );
+
 echo "\n--- Staff Roster Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

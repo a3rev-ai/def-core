@@ -1142,6 +1142,13 @@ final class DEF_Core_Admin_API {
 			$wp_user_id
 		);
 
+		// Same ticks, different door (D-U10). Sam granting Staff access during
+		// onboarding is exactly when a tenant's roster first comes into
+		// existence, and this was the last write path to these caps that did
+		// not tell DEF about it. Queued, never inline — the response cannot
+		// fail because a push did.
+		DEF_Core_Staff_Roster::schedule_push();
+
 		// Build current capabilities for this user.
 		$user_caps = array();
 		foreach ( self::def_capabilities() as $cap ) {
