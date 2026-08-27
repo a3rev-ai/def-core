@@ -3599,6 +3599,205 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
+	// USAGE (Usage & Budgets D-U7) - your own week: one bar toward the budget,
+	// one bar showing what is eating it, and the exact per-model numbers.
+	// =============================================
+	(function initUsage() {
+		const modal = document.getElementById('usageModal');
+		if (!modal) return;
+
+		const openBtn = document.getElementById('navUsage');
+		const modalClose = document.getElementById('usageModalClose');
+		const closeBtn = document.getElementById('usageClose');
+		const refreshBtn = document.getElementById('usageRefresh');
+		const resetsEl = document.getElementById('usageResets');
+		const statusEl = document.getElementById('usageStatus');
+		const barsEl = document.getElementById('usageBars');
+		const listEl = document.getElementById('usageList');
+		let loading = false;
+
+		function open() {
+			modal.classList.add('visible');
+			loadUsage();
+		}
+		function close() {
+			modal.classList.remove('visible');
+		}
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'usage-status' + (message ? ' usage-status-' + (kind || 'muted') : '');
+		}
+
+		function formatTokens(n) {
+			return Number(n || 0).toLocaleString();
+		}
+
+		function formatPercent(fraction) {
+			return Math.round((fraction || 0) * 100) + '%';
+		}
+
+		// The reset is ONE fixed global instant (Monday 00:00 UTC). It is always
+		// rendered in the reader's own locale and zone — never a hardcoded
+		// timezone, which would be wrong for everyone outside it.
+		function formatResetInstant(iso) {
+			if (!iso) return '';
+			const when = new Date(iso);
+			if (isNaN(when.getTime())) return '';
+			return when.toLocaleString([], {
+				weekday: 'long',
+				hour: 'numeric',
+				minute: '2-digit'
+			});
+		}
+
+		// One bar. `fraction` null renders the track with no fill — used for
+		// both "no budget" and "budget unknown", which are different SENTENCES
+		// but the same absence of a number to fill toward.
+		function renderBar(title, fraction, caption) {
+			const wrap = document.createElement('div');
+			wrap.className = 'usage-bar';
+
+			const head = document.createElement('div');
+			head.className = 'usage-bar-head';
+			const label = document.createElement('span');
+			label.className = 'usage-bar-title';
+			label.textContent = title;
+			head.appendChild(label);
+			const value = document.createElement('span');
+			value.className = 'usage-bar-caption';
+			value.textContent = caption;
+			head.appendChild(value);
+			wrap.appendChild(head);
+
+			const track = document.createElement('div');
+			track.className = 'usage-bar-track';
+			if (fraction !== null) {
+				const fill = document.createElement('div');
+				fill.className = 'usage-bar-fill';
+				// The bar is clamped so an over-budget week cannot paint past the
+				// track; the caption still reports the true percentage.
+				fill.style.width = Math.min(100, Math.max(0, fraction * 100)) + '%';
+				track.appendChild(fill);
+			}
+			wrap.appendChild(track);
+
+			return wrap;
+		}
+
+		function render(data) {
+			barsEl.innerHTML = '';
+			listEl.innerHTML = '';
+
+			resetsEl.textContent = data.resets_at
+				? t('usageResets', 'Resets %s').replace('%s', formatResetInstant(data.resets_at))
+				: '';
+
+			const week = data.current_week || {};
+			const total = Number(week.total || 0);
+			const perModel = (week.per_model && typeof week.per_model === 'object') ? week.per_model : {};
+
+			// Bar 1 — all models, against the weekly budget. Three distinct
+			// states, and the difference between the last two is the entire
+			// point of budget_known: "you have no budget" is an ANSWER,
+			// "we couldn't read it" is an OUTAGE, and calling an outage
+			// "unlimited" would be a lie about someone's spending room.
+			let allFraction = null;
+			let allCaption;
+			if (!data.budget_known) {
+				allCaption = t('usageBudgetChecking', 'checking…');
+			} else if (data.budget_tokens === null || typeof data.budget_tokens === 'undefined') {
+				allCaption = formatTokens(total) + ' · ' + t('usageNoBudget', 'no budget — unlimited');
+			} else if (Number(data.budget_tokens) > 0) {
+				allFraction = total / Number(data.budget_tokens);
+				allCaption = t('usageOfBudget', '%s of your weekly budget').replace('%s', formatPercent(allFraction));
+			} else {
+				// A budget of zero has no meaningful fill; show the count.
+				allCaption = formatTokens(total) + ' · ' + t('usageNoBudget', 'no budget — unlimited');
+			}
+			barsEl.appendChild(renderBar(t('usageAllModels', 'All models'), allFraction, allCaption));
+
+			if (total === 0) {
+				setStatus(t('usageEmpty', 'No usage yet this week.'), 'muted');
+				return;
+			}
+			setStatus('', '');
+
+			// Ordered by spend, biggest first — the per-model rows AND the
+			// choice of which model gets bar 2.
+			const models = Object.keys(perModel)
+				.map(function (id) { return { id: id, tokens: Number(perModel[id] || 0) }; })
+				.sort(function (a, b) { return b.tokens - a.tokens; });
+
+			// Bar 2 — SHARE OF CONSUMPTION, not fill-toward-a-limit. D-U7 defines
+			// this as the strongest model in the tenant's family; def-core cannot
+			// see that ladder (DEF resolves it per tenant), so the heaviest
+			// spender this week stands in for it — in practice that IS the
+			// expensive model the user wants to watch. Labelled "% of your
+			// usage", never "used": this number FALLS as work moves to cheaper
+			// models, which is the feedback loop the page exists to create.
+			if (models.length && total > 0) {
+				const top = models[0];
+				const share = top.tokens / total;
+				barsEl.appendChild(renderBar(
+					top.id,
+					share,
+					t('usageShareOfUsage', '%s of your usage').replace('%s', formatPercent(share))
+				));
+			}
+
+			models.forEach(function (model) {
+				listEl.appendChild(renderRow(model, total));
+			});
+		}
+
+		function renderRow(model, total) {
+			const row = document.createElement('div');
+			row.className = 'usage-row';
+
+			const name = document.createElement('span');
+			name.className = 'usage-model';
+			name.textContent = model.id;
+			row.appendChild(name);
+
+			const meta = document.createElement('span');
+			meta.className = 'usage-model-meta';
+			meta.textContent = [
+				t('usageTokens', '%s tokens').replace('%s', formatTokens(model.tokens)),
+				formatPercent(total > 0 ? model.tokens / total : 0)
+			].join(' · ');
+			row.appendChild(meta);
+
+			return row;
+		}
+
+		async function loadUsage() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('usageLoading', 'Loading your usage…'), 'muted');
+			barsEl.innerHTML = '';
+			listEl.innerHTML = '';
+			try {
+				render(await apiRequest('/usage'));
+			} catch (e) {
+				// An error, never a zeroed week — DEF answers 503 when the store
+				// is unreachable, and "you've used nothing" would be a lie.
+				resetsEl.textContent = '';
+				barsEl.innerHTML = '';
+				setStatus((e && e.message) || t('usageLoadFailed', 'Could not load your usage.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+
+		if (openBtn) openBtn.addEventListener('click', open);
+		if (modalClose) modalClose.addEventListener('click', close);
+		if (closeBtn) closeBtn.addEventListener('click', close);
+		if (refreshBtn) refreshBtn.addEventListener('click', loadUsage);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+	})();
+
+	// =============================================
 	// SCHEDULED TASKS (Phase 3) - the full-pane landing page + the creator.
 	// The list is a PAGE in the content area (D-S7), not a fifth modal; the
 	// modal is now the creator/editor only, with two typed forms: the free-text

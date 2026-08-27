@@ -1274,6 +1274,11 @@ final class DEF_Core_Admin {
 			}
 		}
 
+		// Staff/Management ticks changed — tell DEF who the Staff-AI users are
+		// now (D-U10). Queued, never sent inline: the save must not wait on an
+		// outbound call, nor fail because one did.
+		DEF_Core_Staff_Roster::schedule_push();
+
 		wp_send_json_success( array(
 			'message' => __( 'User roles updated.', 'digital-employees' ),
 		) );
@@ -1411,6 +1416,9 @@ final class DEF_Core_Admin {
 				$user->remove_cap( $cap );
 			}
 		}
+
+		// A revoked user must leave DEF's roster too (D-U10).
+		DEF_Core_Staff_Roster::schedule_push();
 
 		wp_send_json_success( array(
 			'message' => sprintf(

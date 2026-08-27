@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 6.10.0
+Stable tag: 6.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 6.11.0 - 2026-08-27 =
+* Feature - Usage. A new Usage panel in the Staff AI sidebar shows what your assistant has cost you this week - one bar for all models against your weekly budget (or an honest token count when no budget is set), a second bar showing which model is eating the most of it, and the exact token count for every model you used. Weekly limits reset Monday morning, shown in your own local time
+* Feature - Staff AI users on the User Access page are now sent to your Digital Employee Framework account automatically, so whoever sets budgets picks a person by name from a list instead of typing a WordPress user id - and people who have never used Staff AI still appear. Only the user id, display name and access level are sent; email addresses never leave your site
 
 = 6.10.0 - 2026-08-26 =
 * Feature - Work in a project from chat. The Projects panel's "New chat" button opens a fresh conversation inside that project - your assistant reads the project's runsheet, session notes and instructions at the start of every reply, records decisions into the runsheet as you make them, and keeps the session notes' START HERE pointer current so the next conversation picks up where this one left off. Ask to "open" or "close" a project mid-chat by name. Every new project starts with a seeded runsheet and instructions, and clicking a project's name in the panel shows which of its three governing documents exist

@@ -91,6 +91,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</svg>
 					<?php echo esc_html__( 'Memories', 'digital-employees' ); ?>
 				</button>
+				<button type="button" class="sidebar-nav-item" id="navUsage" aria-haspopup="dialog">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<line x1="18" y1="20" x2="18" y2="10"></line>
+						<line x1="12" y1="20" x2="12" y2="4"></line>
+						<line x1="6" y1="20" x2="6" y2="14"></line>
+					</svg>
+					<?php echo esc_html__( 'Usage', 'digital-employees' ); ?>
+				</button>
 				<button type="button" class="sidebar-nav-item" id="navConnections" aria-haspopup="dialog">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -539,6 +547,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- Usage Modal (your week's token use — Usage & Budgets D-U7) -->
+		<div class="modal-overlay" id="usageModal">
+			<div class="modal" style="max-width: 560px;">
+				<div class="modal-header">
+					<span class="modal-title"><?php echo esc_html__( 'Weekly limits', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="usageModalClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<p class="usage-resets" id="usageResets"></p>
+					<div class="usage-status" id="usageStatus"></div>
+					<div class="usage-bars" id="usageBars"></div>
+					<div class="usage-list" id="usageList"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="modal-btn modal-btn-secondary" id="usageRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="usageClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 		<!-- Email Triage schedule (S4b) - the user's own daily digest settings -->
 		<div class="modal-overlay" id="scheduleModal">
 			<div class="modal" style="max-width: 480px;">
@@ -754,6 +781,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 			memoryCategoryProjects: <?php echo wp_json_encode( __( 'Project', 'digital-employees' ) ); ?>,
 			memoryCategoryHabits: <?php echo wp_json_encode( __( 'How you work', 'digital-employees' ) ); ?>,
 			memoryCategoryContext: <?php echo wp_json_encode( __( 'Background', 'digital-employees' ) ); ?>,
+			usageLoading: <?php echo wp_json_encode( __( 'Loading your usage…', 'digital-employees' ) ); ?>,
+			usageLoadFailed: <?php echo wp_json_encode( __( 'Could not load your usage. Nothing has changed — try again in a moment.', 'digital-employees' ) ); ?>,
+			usageEmpty: <?php echo wp_json_encode( __( 'No usage yet this week.', 'digital-employees' ) ); ?>,
+			usageResets: <?php /* translators: %s: date and time the weekly limit resets, in the reader's local time. */ echo wp_json_encode( __( 'Resets %s', 'digital-employees' ) ); ?>,
+			usageAllModels: <?php echo wp_json_encode( __( 'All models', 'digital-employees' ) ); ?>,
+			usageNoBudget: <?php echo wp_json_encode( __( 'no budget — unlimited', 'digital-employees' ) ); ?>,
+			usageBudgetChecking: <?php echo wp_json_encode( __( 'checking…', 'digital-employees' ) ); ?>,
+			usageOfBudget: <?php /* translators: %s: percentage of the weekly budget used. */ echo wp_json_encode( __( '%s of your weekly budget', 'digital-employees' ) ); ?>,
+			usageShareOfUsage: <?php /* translators: %s: percentage of this week's tokens spent on one model. */ echo wp_json_encode( __( '%s of your usage', 'digital-employees' ) ); ?>,
+			usageTokens: <?php /* translators: %s: formatted token count. */ echo wp_json_encode( __( '%s tokens', 'digital-employees' ) ); ?>,
 			scheduleLoading: <?php echo wp_json_encode( __( 'Loading your schedule…', 'digital-employees' ) ); ?>,
 			scheduleLoadFailed: <?php echo wp_json_encode( __( 'Could not load your triage schedule. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
 			scheduleSaving: <?php echo wp_json_encode( __( 'Saving…', 'digital-employees' ) ); ?>,
