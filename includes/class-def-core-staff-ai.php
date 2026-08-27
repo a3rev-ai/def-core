@@ -623,6 +623,20 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// "Usage" panel (Usage & Budgets D-U7). Own-identity only, on the
+		// Memories footing above: DEF resolves whose week this is from the
+		// X-DEF-User header and offers no `sub` parameter, so there is nothing
+		// here that could ask for someone else's usage.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/usage',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_get_usage'),
+			)
+		);
+
 		// Email Triage schedule (S4b). Per-user like the Memories panel: DEF keys
 		// the schedule to the X-DEF-User identity backend_request() forwards -
 		// nothing user-scoped rides in the URL or body, and a user id smuggled in
@@ -2356,6 +2370,72 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'  => true,
 				'memories' => $memories,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: this user's own token usage for the current week
+	 * ("Usage" panel, Usage & Budgets D-U7).
+	 *
+	 * Proxies DEF GET /api/staff-ai/usage, allowlisted to the fields the panel
+	 * renders — the Memories guard, so a future backend field cannot silently
+	 * reach the browser.
+	 *
+	 * Two contract points DEF is strict about and this must not flatten:
+	 * `budget_tokens` null means UNLIMITED, never zero, so it stays null rather
+	 * than being cast to int; and `budget_known` false means DEF could not read
+	 * the budget at all (an outage, not an answer) — the panel shows a neutral
+	 * "checking" state for that, which is the whole reason the flag exists.
+	 *
+	 * A DEF 503 (database down) surfaces as an error, never as a zeroed week:
+	 * zeros would read as "you have used nothing", which is untrue.
+	 *
+	 * @return \WP_REST_Response|\WP_Error Response (the usage payload).
+	 */
+	public static function rest_get_usage()
+	{
+		$result = self::backend_request( 'GET', '/api/staff-ai/usage' );
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not load your usage. Nothing has changed — try again in a moment.', 'digital-employees' )
+			);
+		}
+
+		$current = ( isset( $result['current_week'] ) && is_array( $result['current_week'] ) )
+			? $result['current_week']
+			: array();
+
+		// Per-model spend keyed by model id. Non-numeric or negative values are
+		// dropped rather than coerced: a bad number would render a bar of the
+		// wrong length, which is worse than an absent row.
+		$per_model = array();
+		$raw_models = ( isset( $current['per_model'] ) && is_array( $current['per_model'] ) )
+			? $current['per_model']
+			: array();
+		foreach ( $raw_models as $model_id => $tokens ) {
+			if ( ! is_string( $model_id ) || '' === $model_id || ! is_numeric( $tokens ) || $tokens < 0 ) {
+				continue;
+			}
+			$per_model[ $model_id ] = (int) $tokens;
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'week'         => ( isset( $result['week'] ) && is_string( $result['week'] ) ) ? $result['week'] : '',
+				'resets_at'    => ( isset( $result['resets_at'] ) && is_string( $result['resets_at'] ) ) ? $result['resets_at'] : '',
+				'budget_known' => ! empty( $result['budget_known'] ),
+				// Null is the unlimited case — preserved, never zeroed.
+				'budget_tokens' => ( isset( $result['budget_tokens'] ) && is_numeric( $result['budget_tokens'] ) )
+					? (int) $result['budget_tokens']
+					: null,
+				'current_week' => array(
+					'total'     => ( isset( $current['total'] ) && is_numeric( $current['total'] ) ) ? (int) $current['total'] : 0,
+					'per_model' => $per_model,
+				),
 			),
 			200
 		);

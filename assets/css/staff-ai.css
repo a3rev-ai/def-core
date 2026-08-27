@@ -2413,6 +2413,100 @@ html {
 	line-height: 1.5;
 }
 
+/* Usage panel (Usage & Budgets D-U7) */
+.usage-resets {
+	font-size: 13px;
+	color: var(--text-secondary);
+	margin: 0 0 14px;
+}
+
+.usage-status {
+	font-size: 13px;
+	margin-bottom: 10px;
+	min-height: 18px;
+}
+.usage-status:empty {
+	margin-bottom: 0;
+}
+.usage-status-muted {
+	color: var(--text-tertiary);
+}
+.usage-status-error {
+	color: var(--banner-error-text);
+}
+
+.usage-bar + .usage-bar {
+	margin-top: 16px;
+}
+
+.usage-bar-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 6px;
+}
+
+.usage-bar-title {
+	font-size: 14px;
+	color: var(--text-heading);
+	/* Model ids are long and hyphenated — wrap rather than overflow the row. */
+	overflow-wrap: anywhere;
+}
+
+.usage-bar-caption {
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--text-tertiary);
+}
+
+.usage-bar-track {
+	height: 8px;
+	border-radius: 4px;
+	background: var(--active-bg);
+	overflow: hidden;
+}
+
+.usage-bar-fill {
+	height: 100%;
+	border-radius: 4px;
+	background: var(--accent-indigo);
+}
+
+.usage-list {
+	display: flex;
+	flex-direction: column;
+	/* Capped like the memories list: the modal is fixed + vertically centered,
+	   so without this the last rows scroll off-viewport. */
+	max-height: 40vh;
+	overflow-y: auto;
+	margin-top: 20px;
+}
+
+.usage-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 2px;
+	border-bottom: 1px solid var(--border-light);
+}
+.usage-row:last-child {
+	border-bottom: none;
+}
+
+.usage-model {
+	font-size: 13px;
+	color: var(--text-primary);
+	overflow-wrap: anywhere;
+}
+
+.usage-model-meta {
+	flex-shrink: 0;
+	font-size: 12px;
+	color: var(--text-tertiary);
+}
+
 .memories-status {
 	font-size: 13px;
 	margin-bottom: 10px;

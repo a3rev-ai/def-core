@@ -263,6 +263,9 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
 	'a3-ai/v1/staff-ai/memories',
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
+	// Own-week token usage (D-U7). Own-identity like memories, so it takes no
+	// parameters at all — pinned here so a `sub` argument can never be added.
+	'a3-ai/v1/staff-ai/usage',
 	'a3-ai/v1/staff-ai/triage-schedule',
 	'a3-ai/v1/staff-ai/triage-schedule/run-now',
 	// Free-text scheduled tasks (Phase 3) — per-user like the triage routes,
@@ -310,6 +313,7 @@ assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents']['meth
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'documents delete = DELETE' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
+assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/usage']['methods'], 'usage = GET' );
 $_sched_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/triage-schedule'];
 assert_equals( 'GET', $_sched_handlers[0]['methods'] ?? '', 'triage-schedule handler 0 = GET' );
 assert_equals( 'PUT', $_sched_handlers[1]['methods'] ?? '', 'triage-schedule handler 1 = PUT' );
@@ -1811,6 +1815,86 @@ $req->set_body_params( array(
 DEF_Core_Staff_AI::rest_send_message( $req );
 $chat_body = json_decode( (string) ( $GLOBALS['_def_test_last_request']['body'] ?? '' ), true );
 assert_true( ! isset( $chat_body['project_id'] ), 'non-UUID project_id never forwarded' );
+
+// ── Usage panel proxy (Usage & Budgets D-U7) ───────────────────────────
+echo "\n[Usage] own-week proxy passthrough\n";
+
+$GLOBALS['_def_test_get_code'] = 200;
+$GLOBALS['_def_test_get_body'] = wp_json_encode( array(
+	'success'       => true,
+	'channel'       => 'staff_ai',
+	'week'          => '2026-W35',
+	'resets_at'     => '2026-08-31T00:00:00+00:00',
+	'budget_known'  => true,
+	'budget_tokens' => 2000000,
+	'current_week'  => array(
+		'total'     => 1500000,
+		'per_model' => array( 'claude-opus-5' => 1000000, 'claude-sonnet-5' => 500000 ),
+	),
+	// A field the panel does not render must not reach the browser.
+	'internal_note' => 'should never surface',
+) );
+$usage = DEF_Core_Staff_AI::rest_get_usage();
+$data  = $usage->get_data();
+assert_equals( '2026-W35', $data['week'] ?? '', 'week passes through' );
+assert_equals( '2026-08-31T00:00:00+00:00', $data['resets_at'] ?? '', 'resets_at passes through as the ISO instant' );
+assert_equals( 2000000, $data['budget_tokens'] ?? 0, 'budget_tokens passes through' );
+assert_true( true === ( $data['budget_known'] ?? null ), 'budget_known passes through as a bool' );
+assert_equals( 1500000, $data['current_week']['total'] ?? 0, 'total passes through' );
+assert_equals( 1000000, $data['current_week']['per_model']['claude-opus-5'] ?? 0, 'per-model spend passes through' );
+assert_true( ! isset( $data['internal_note'] ), 'unrecognised DEF fields are allowlisted out' );
+assert_equals(
+	'https://def-api.test/api/staff-ai/usage',
+	$GLOBALS['_def_test_last_get_url'] ?? '',
+	'usage reads DEF with no parameters — nothing that could name another user'
+);
+
+// budget_tokens null is UNLIMITED, not zero. Coercing it would turn "no budget"
+// into "a budget of nothing" and paint a full bar.
+$GLOBALS['_def_test_get_body'] = wp_json_encode( array(
+	'success'       => true,
+	'week'          => '2026-W35',
+	'resets_at'     => '2026-08-31T00:00:00+00:00',
+	'budget_known'  => true,
+	'budget_tokens' => null,
+	'current_week'  => array( 'total' => 42, 'per_model' => array( 'claude-opus-5' => 42 ) ),
+) );
+$data = DEF_Core_Staff_AI::rest_get_usage()->get_data();
+assert_true( null === $data['budget_tokens'], 'null budget stays null (unlimited, never zero)' );
+assert_true( true === $data['budget_known'], 'budget_known true with a null budget = an ANSWER' );
+
+// budget_known false is an OUTAGE, and must stay distinguishable from "no budget".
+$GLOBALS['_def_test_get_body'] = wp_json_encode( array(
+	'success'       => true,
+	'week'          => '2026-W35',
+	'resets_at'     => '2026-08-31T00:00:00+00:00',
+	'budget_known'  => false,
+	'budget_tokens' => null,
+	'current_week'  => array( 'total' => 0, 'per_model' => array() ),
+) );
+$data = DEF_Core_Staff_AI::rest_get_usage()->get_data();
+assert_true( false === $data['budget_known'], 'budget_known false survives — the page shows "checking", not "unlimited"' );
+
+// A malformed per-model value is dropped, not coerced to a wrong-length bar.
+$GLOBALS['_def_test_get_body'] = wp_json_encode( array(
+	'success'      => true,
+	'budget_known' => true,
+	'current_week' => array(
+		'total'     => 10,
+		'per_model' => array( 'good-model' => 10, 'bad-model' => 'lots', 'negative-model' => -5 ),
+	),
+) );
+$data = DEF_Core_Staff_AI::rest_get_usage()->get_data();
+assert_equals( 10, $data['current_week']['per_model']['good-model'] ?? 0, 'numeric per-model row kept' );
+assert_true( ! isset( $data['current_week']['per_model']['bad-model'] ), 'non-numeric per-model row dropped' );
+assert_true( ! isset( $data['current_week']['per_model']['negative-model'] ), 'negative per-model row dropped' );
+
+// DEF 503 (store unreachable) is an error, never a zeroed week.
+$GLOBALS['_def_test_get_code'] = 503;
+$GLOBALS['_def_test_get_body'] = '{"detail":"Usage unavailable"}';
+$err = DEF_Core_Staff_AI::rest_get_usage();
+assert_true( is_wp_error( $err ), 'a DEF 503 surfaces as an error, not an empty week' );
+$GLOBALS['_def_test_get_code'] = 200;
 
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

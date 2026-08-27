@@ -67,6 +67,7 @@ final class DEF_Core {
 		DEF_Core_Knowledge_Export::init();
 		DEF_Core_Knowledge_Exclusion::init();
 		DEF_Core_Sync_Nudge::init();
+		DEF_Core_Staff_Roster::init();
 		DEF_Core_Admin_API::init();
 		DEF_Core_Site_Tools::init();
 		DEF_Core_SEO_Meta::init();
@@ -166,6 +167,9 @@ final class DEF_Core {
 		// Event-driven sync nudge — debounced push to DEF on content change (Phase B).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-sync-nudge.php';
 
+		// Staff-AI roster push — User Access ticks → DEF (Usage & Budgets D-U10).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-staff-roster.php';
+
 		// Admin REST API (settings, users, connection, chat proxy).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
@@ -244,6 +248,16 @@ final class DEF_Core {
 			DEF_Core_Logger::create_table();
 			self::ensure_def_admin_capability();
 			update_option( 'def_core_db_version', '2.2.0' );
+		}
+		if ( version_compare( $current, '7.0.0', '<' ) ) {
+			// Usage & Budgets D-U10: backfill the Staff-AI roster once, so an
+			// existing install populates DEF's usage dashboard without waiting
+			// for someone to open User Access and press Save. The option is
+			// advanced regardless of delivery — the push is best-effort and
+			// re-sends full state on the next save, whereas gating the bump on
+			// success would retry on every admin pageview forever.
+			DEF_Core_Staff_Roster::schedule_push();
+			update_option( 'def_core_db_version', '7.0.0' );
 		}
 	}
 
