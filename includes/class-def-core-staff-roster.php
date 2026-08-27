@@ -21,7 +21,7 @@
  * Data minimization (D-U10): id, name and access level cross — never emails.
  *
  * @package DEF_Core
- * @since 6.11.0
+ * @since 7.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

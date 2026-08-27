@@ -475,9 +475,9 @@ assert_equals( 1, count( $_test_cron ), 'revoking a user queues a roster push so
 $core_php = file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php' );
 assert_true(
 	1 === preg_match(
-		'/version_compare\( \$current, \'6\.11\.0\', \'<\' \) \)\s*\{.*?'
+		'/version_compare\( \$current, \'7\.0\.0\', \'<\' \) \)\s*\{.*?'
 		. 'DEF_Core_Staff_Roster::schedule_push\(\);.*?'
-		. 'update_option\( \'def_core_db_version\', \'6\.11\.0\' \);/s',
+		. 'update_option\( \'def_core_db_version\', \'7\.0\.0\' \);/s',
 		(string) $core_php
 	),
 	'maybe_upgrade() queues the full-roster backfill once, then advances the marker'

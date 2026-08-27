@@ -249,7 +249,7 @@ final class DEF_Core {
 			self::ensure_def_admin_capability();
 			update_option( 'def_core_db_version', '2.2.0' );
 		}
-		if ( version_compare( $current, '6.11.0', '<' ) ) {
+		if ( version_compare( $current, '7.0.0', '<' ) ) {
 			// Usage & Budgets D-U10: backfill the Staff-AI roster once, so an
 			// existing install populates DEF's usage dashboard without waiting
 			// for someone to open User Access and press Save. The option is
@@ -257,7 +257,7 @@ final class DEF_Core {
 			// re-sends full state on the next save, whereas gating the bump on
 			// success would retry on every admin pageview forever.
 			DEF_Core_Staff_Roster::schedule_push();
-			update_option( 'def_core_db_version', '6.11.0' );
+			update_option( 'def_core_db_version', '7.0.0' );
 		}
 	}
 

@@ -1,6 +1,6 @@
 *** Digital Employee Framework - Core Changelog ***
 
-= 6.11.0 - 2026/08/27 =
+= 7.0.0 - 2026/08/27 =
 * Feature - Usage. A new Usage panel in the Staff AI sidebar shows what your assistant has cost you this week - one bar for all models against your weekly budget (or an honest token count when no budget is set), a second bar showing which model is eating the most of it, and the exact token count for every model you used. Weekly limits reset Monday morning, shown in your own local time
 * Feature - Staff AI users on the User Access page are now sent to your Digital Employee Framework account automatically, so whoever sets budgets picks a person by name from a list instead of typing a WordPress user id - and people who have never used Staff AI still appear. Only the user id, display name and access level are sent; email addresses never leave your site
 
