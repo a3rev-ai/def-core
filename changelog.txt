@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.1.0 - 2026/08/30 =
+* Fix - Usage. The second bar on the Usage panel now always names the same model - the most powerful one your assistant can use - instead of re-pointing itself at whichever model you happened to spend the most on. Moving work onto cheaper models now makes that share fall toward 0%, which is the whole point of showing it. Before this, spending less on the expensive model simply renamed the bar to the cheaper one and put it back near 100%, so a week of saving money could look like a warning
+
 = 7.0.0 - 2026/08/27 =
 * Feature - Usage. A new Usage panel in the Staff AI sidebar shows what your assistant has cost you this week - one bar for all models against your weekly budget (or an honest token count when no budget is set), a second bar showing which model is eating the most of it, and the exact token count for every model you used. Weekly limits reset Monday morning, shown in your own local time
 * Feature - Staff AI users on the User Access page are now sent to your Digital Employee Framework account automatically, so whoever sets budgets picks a person by name from a list instead of typing a WordPress user id - and people who have never used Staff AI still appear. Only the user id, display name and access level are sent; email addresses never leave your site

@@ -1827,6 +1827,7 @@ $GLOBALS['_def_test_get_body'] = wp_json_encode( array(
 	'resets_at'     => '2026-08-31T00:00:00+00:00',
 	'budget_known'  => true,
 	'budget_tokens' => 2000000,
+	'family_top_model' => 'claude-opus-5',
 	'current_week'  => array(
 		'total'     => 1500000,
 		'per_model' => array( 'claude-opus-5' => 1000000, 'claude-sonnet-5' => 500000 ),
@@ -1843,10 +1844,45 @@ assert_true( true === ( $data['budget_known'] ?? null ), 'budget_known passes th
 assert_equals( 1500000, $data['current_week']['total'] ?? 0, 'total passes through' );
 assert_equals( 1000000, $data['current_week']['per_model']['claude-opus-5'] ?? 0, 'per-model spend passes through' );
 assert_true( ! isset( $data['internal_note'] ), 'unrecognised DEF fields are allowlisted out' );
+assert_equals( 'claude-opus-5', $data['family_top_model'] ?? '', 'family_top_model passes through — the model bar 2 is pinned to' );
 assert_equals(
 	'https://def-api.test/api/staff-ai/usage',
 	$GLOBALS['_def_test_last_get_url'] ?? '',
 	'usage reads DEF with no parameters — nothing that could name another user'
+);
+
+// No pin: an older DEF sends no family_top_model at all, and a resolution
+// failure sends something that is not a model id. Both must arrive as NULL —
+// that is the value the panel reads as "fall back to the heaviest spender".
+// Anything else would paint a bar with no name on it.
+foreach ( array(
+	'absent'       => array(),
+	'null'         => array( 'family_top_model' => null ),
+	'empty string' => array( 'family_top_model' => '' ),
+	'non-string'   => array( 'family_top_model' => 42 ),
+) as $case => $extra ) {
+	$GLOBALS['_def_test_get_body'] = wp_json_encode( array_merge( array(
+		'success'      => true,
+		'budget_known' => true,
+		'current_week' => array( 'total' => 10, 'per_model' => array( 'claude-opus-5' => 10 ) ),
+	), $extra ) );
+	$data = DEF_Core_Staff_AI::rest_get_usage()->get_data();
+	assert_true(
+		array_key_exists( 'family_top_model', $data ) && null === $data['family_top_model'],
+		"family_top_model $case becomes null — no pin, never a nameless bar"
+	);
+}
+
+// Wire parity. The panel reads this key off the response; if either side is
+// renamed the pin silently stops arriving and the bar quietly reverts to the
+// heaviest-spender behaviour this slice exists to replace — a dead feature that
+// no PHP assertion above would notice. A single-shape tripwire, not proof the
+// JS uses it correctly: there is no JS test runner in this repo.
+// The \b matters: without it a renamed data.family_top_model_GONE still matches
+// as a substring and the tripwire passes on the very break it exists to catch.
+assert_true(
+	1 === preg_match( '/data\.family_top_model\b/', (string) file_get_contents( __DIR__ . '/../assets/js/staff-ai.js' ) ),
+	'staff-ai.js reads the same family_top_model key the proxy emits'
 );
 
 // budget_tokens null is UNLIMITED, not zero. Coercing it would turn "no budget"

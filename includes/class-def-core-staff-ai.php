@@ -2432,6 +2432,15 @@ final class DEF_Core_Staff_AI
 				'budget_tokens' => ( isset( $result['budget_tokens'] ) && is_numeric( $result['budget_tokens'] ) )
 					? (int) $result['budget_tokens']
 					: null,
+				// The model the share bar is pinned to — DEF resolves the tenant's
+				// family ladder and names its strong model here. Null (an older
+				// DEF, or a failed resolution) means "no pin", and the panel falls
+				// back to the heaviest spender. Anything that is not a non-empty
+				// string becomes null rather than reaching the browser as a bar
+				// with no name.
+				'family_top_model' => ( isset( $result['family_top_model'] ) && is_string( $result['family_top_model'] ) && '' !== $result['family_top_model'] )
+					? $result['family_top_model']
+					: null,
 				'current_week' => array(
 					'total'     => ( isset( $current['total'] ) && is_numeric( $current['total'] ) ) ? (int) $current['total'] : 0,
 					'per_model' => $per_model,
