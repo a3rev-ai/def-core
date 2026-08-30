@@ -3722,30 +3722,49 @@ function t(key, fallback) {
 			}
 			setStatus('', '');
 
-			// Ordered by spend, biggest first — the per-model rows AND the
-			// choice of which model gets bar 2.
+			// Ordered by spend, biggest first — the per-model rows, and the
+			// fallback choice of which model gets bar 2 when DEF sends no pin.
 			const models = Object.keys(perModel)
 				.map(function (id) { return { id: id, tokens: Number(perModel[id] || 0) }; })
 				.sort(function (a, b) { return b.tokens - a.tokens; });
 
-			// Bar 2 — SHARE OF CONSUMPTION, not fill-toward-a-limit. D-U7 defines
-			// this as the strongest model in the tenant's family; def-core cannot
-			// see that ladder (DEF resolves it per tenant), so the heaviest
-			// spender this week stands in for it — in practice that IS the
-			// expensive model the user wants to watch. Labelled "% of your
-			// usage", never "used": this number FALLS as work moves to cheaper
-			// models, which is the feedback loop the page exists to create.
-			// Only worth drawing when there is a mix to show. With a single model
-			// the share is trivially 100%, and during the observe phase — no
-			// budgets set, so bar 1 renders unfilled — that would be the user's
-			// ONLY filled bar, permanently full, which reads as an alarm about a
-			// limit that does not exist. It also just restates the single row
-			// below it.
-			if (models.length > 1 && total > 0) {
-				const top = models[0];
-				const share = top.tokens / total;
+			// Bar 2 — SHARE OF CONSUMPTION, not fill-toward-a-limit. Labelled
+			// "% of your usage", never "used": this number FALLS as work moves to
+			// cheaper models, which is the feedback loop the page exists to create.
+			//
+			// The bar's IDENTITY is pinned to the family's strong model, which DEF
+			// now resolves and sends as family_top_model. That pin is the whole
+			// point: the share can only fall toward 0% if the model it names holds
+			// still. Originally def-core could not see the family ladder, so the
+			// heaviest spender stood in for it — and that stand-in switched
+			// identity as the user succeeded. Shifting work to a cheaper model
+			// re-pointed the bar AT the cheaper model and showed near-100%, so a
+			// week of doing exactly the right thing read as an alarm. A real user
+			// misread it that way.
+			//
+			// Under a pinned identity the single-model suppression is gone: 100%
+			// on the strong model is the teaching signal, and the bar no longer
+			// merely restates the row below it, because its identity is fixed and
+			// can diverge from the rows — including naming a model with no spend
+			// at all, which renders honestly as an empty track at 0%. That is the
+			// win state, and the old bar could never show it.
+			//
+			// With no family_top_model (an older DEF, or a resolution failure) the
+			// stand-in behaviour is unchanged, suppression included.
+			const pinnedTop = (typeof data.family_top_model === 'string' && data.family_top_model)
+				? data.family_top_model
+				: null;
+			let barModel = null;
+			if (pinnedTop && total > 0) {
+				barModel = pinnedTop;
+			} else if (models.length > 1 && total > 0) {
+				barModel = models[0].id;
+			}
+			if (barModel !== null) {
+				// Absent from per_model = no spend on it this week = 0%.
+				const share = Number(perModel[barModel] || 0) / total;
 				barsEl.appendChild(renderBar(
-					top.id,
+					barModel,
 					share,
 					t('usageShareOfUsage', '%s of your usage').replace('%s', formatPercent(share))
 				));
