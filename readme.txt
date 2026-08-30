@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.1.0
+Stable tag: 7.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.1.0 - 2026-08-30 =
+= 7.0.1 - 2026-08-30 =
 * Fix - Usage. The second bar on the Usage panel now always names the same model - the most powerful one your assistant can use - instead of re-pointing itself at whichever model you happened to spend the most on. Moving work onto cheaper models now makes that share fall toward 0%, which is the whole point of showing it. Before this, spending less on the expensive model simply renamed the bar to the cheaper one and put it back near 100%, so a week of saving money could look like a warning
 
 = 7.0.0 - 2026-08-27 =
