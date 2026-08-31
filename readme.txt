@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.0.1
+Stable tag: 7.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.1.0 - 2026-09-01 =
+* Feature - Staff AI. Chat Options: every chat in the sidebar carries a ⋮ menu with Rename, Add to project and Delete. A name you type survives the assistant's own summarising of the chat; moving a chat into a project makes its next reply use that project's governing documents (Remove from project takes it back out, and the project's name shows under the chat's title); Delete removes the chat from your list and the assistant's readers immediately, and it is permanently forgotten a month later.
 
 = 7.0.1 - 2026-08-30 =
 * Fix - Usage. The second bar on the Usage panel now always names the same model - the most powerful one your assistant can use - instead of re-pointing itself at whichever model you happened to spend the most on. Moving work onto cheaper models now makes that share fall toward 0%, which is the whole point of showing it. Before this, spending less on the expensive model simply renamed the bar to the cheaper one and put it back near 100%, so a week of saving money could look like a warning

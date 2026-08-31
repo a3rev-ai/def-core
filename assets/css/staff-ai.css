@@ -393,6 +393,96 @@ body {
 	color: var(--text-placeholder);
 }
 
+/* ——— Chat Options (v7.1.0): the row grew a ⋮ menu ——— */
+.conversation-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.conversation-item-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.conversation-item-project {
+	display: block;
+	font-size: 10px;
+	color: var(--text-placeholder);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-bottom: 2px;
+}
+
+.conversation-menu-btn {
+	flex: none;
+	border: none;
+	background: transparent;
+	color: var(--text-secondary);
+	font-size: 16px;
+	line-height: 1;
+	padding: 4px 6px;
+	border-radius: 4px;
+	cursor: pointer;
+	opacity: 0;
+}
+
+.conversation-item:hover .conversation-menu-btn,
+.conversation-item:focus-within .conversation-menu-btn {
+	opacity: 1;
+}
+
+.conversation-menu-btn:hover {
+	background: var(--active-bg);
+}
+
+@media (hover: none), (max-width: 768px) {
+	.conversation-menu-btn {
+		opacity: 1; /* touch has no hover — the menu must always be reachable */
+	}
+}
+
+.chat-menu {
+	position: fixed; /* top/right set from the ⋮ button's rect at open time */
+	z-index: 1000;
+	min-width: 190px;
+	background: var(--bg-modal);
+	border: 1px solid var(--border-light);
+	border-radius: 8px;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+	padding: 4px;
+}
+
+.chat-menu-item {
+	display: block;
+	width: 100%;
+	border: none;
+	background: transparent;
+	text-align: left;
+	padding: 8px 10px;
+	border-radius: 6px;
+	font-size: 13px;
+	color: var(--text-secondary);
+	cursor: pointer;
+}
+
+.chat-menu-item:hover {
+	background: var(--hover-bg);
+}
+
+.chat-menu-item-danger {
+	color: #d64541;
+}
+
+.chat-menu-head,
+.chat-menu-empty {
+	padding: 6px 10px;
+	font-size: 11px;
+	color: var(--text-placeholder);
+}
+
 .sidebar-footer {
 	padding: 12px;
 	border-top: 1px solid var(--border-light);
