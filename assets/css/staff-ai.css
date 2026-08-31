@@ -445,10 +445,8 @@ body {
 }
 
 .chat-menu {
-	position: absolute;
-	top: calc(100% - 6px);
-	right: 8px;
-	z-index: 40;
+	position: fixed; /* top/right set from the ⋮ button's rect at open time */
+	z-index: 1000;
 	min-width: 190px;
 	background: var(--bg-modal);
 	border: 1px solid var(--border-light);

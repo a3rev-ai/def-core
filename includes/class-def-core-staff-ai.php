@@ -1143,6 +1143,38 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * The conversation id from the URL match ONLY. WP_REST_Request::get_param()
+	 * reads JSON body before URL params, so a body `id` would otherwise shadow
+	 * the route's [a-zA-Z0-9_-]+ capture on the value spliced into the DEF path.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return string
+	 */
+	private static function url_id( \WP_REST_Request $request ): string
+	{
+		$params = $request->get_url_params();
+		return isset( $params['id'] ) ? (string) $params['id'] : '';
+	}
+
+	/**
+	 * Chat Options refusals. DEF's routine 4xx detail IS the user-facing message
+	 * (a title over 200 characters, a project that is archived) and is URL-free
+	 * by backend_request()'s own rule, so it passes through; the 404 branch,
+	 * which names the internal URL, gets the plain copy via plain_backend_error.
+	 *
+	 * @param \WP_Error $error   Error from backend_request().
+	 * @param string    $message Plain copy for the masked codes.
+	 * @return \WP_Error
+	 */
+	private static function chat_option_error( \WP_Error $error, string $message )
+	{
+		if ( 0 === strpos( (string) $error->get_error_code(), 'staff_ai_http_4' ) ) {
+			return $error;
+		}
+		return self::plain_backend_error( $error, $message );
+	}
+
+	/**
 	 * REST handler: rename a chat (the sidebar's ⋮ menu). DEF enforces the
 	 * 200-char door refusal and sets title_user_set so the summariser stands
 	 * down; ownership is DEF's (foreign/deleted/unknown ids are one 404).
@@ -1162,11 +1194,11 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request(
 			'PATCH',
-			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) ),
-			array( 'title' => sanitize_text_field( $title ) )
+			'/api/staff-ai/threads/' . rawurlencode( self::url_id( $request ) ),
+			array( 'title' => trim( $title ) ) // DEF collapses whitespace + caps at 200; never rendered as HTML here
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
+			return self::chat_option_error(
 				$result,
 				__( 'Could not rename the chat. Nothing has changed - try again in a moment.', 'digital-employees' )
 			);
@@ -1192,7 +1224,7 @@ final class DEF_Core_Staff_AI
 	{
 		$result = self::backend_request(
 			'DELETE',
-			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) )
+			'/api/staff-ai/threads/' . rawurlencode( self::url_id( $request ) )
 		);
 		// DEF answers 204 with no body - backend_request hands that back as
 		// null, which is success here; only a WP_Error is a failure.
@@ -1225,11 +1257,11 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request(
 			'PUT',
-			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) ) . '/project',
+			'/api/staff-ai/threads/' . rawurlencode( self::url_id( $request ) ) . '/project',
 			array( 'project_id' => is_string( $project_id ) ? sanitize_text_field( $project_id ) : null )
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
+			return self::chat_option_error(
 				$result,
 				__( 'Could not move the chat. Nothing has changed - try again in a moment.', 'digital-employees' )
 			);

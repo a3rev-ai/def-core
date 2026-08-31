@@ -528,7 +528,7 @@ function t(key, fallback) {
 			menuBtn.textContent = '⋮';
 			menuBtn.addEventListener('click', function(e) {
 				e.stopPropagation();
-				openChatMenu(conv, row);
+				openChatMenu(conv, menuBtn);
 			});
 			row.appendChild(menuBtn);
 
@@ -537,6 +537,7 @@ function t(key, fallback) {
 			}
 			row.addEventListener('click', activate);
 			row.addEventListener('keydown', function(e) {
+				if (e.target !== row) return; // the ⋮ button handles its own keys
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
 					activate();
@@ -561,6 +562,8 @@ function t(key, fallback) {
 	document.addEventListener('keydown', function(e) {
 		if (e.key === 'Escape') closeChatMenu();
 	});
+	conversationList.addEventListener('scroll', closeChatMenu);
+	window.addEventListener('resize', closeChatMenu);
 
 	function chatMenuItem(label, danger, onPick) {
 		const b = document.createElement('button');
@@ -574,7 +577,7 @@ function t(key, fallback) {
 		return b;
 	}
 
-	function openChatMenu(conv, row) {
+	function openChatMenu(conv, anchor) {
 		if (chatMenuEl && chatMenuEl._for === conv.id) {
 			closeChatMenu();
 			return;
@@ -584,6 +587,11 @@ function t(key, fallback) {
 		menu.className = 'chat-menu';
 		menu._for = conv.id;
 		menu.addEventListener('click', function(e) { e.stopPropagation(); });
+		// Anchored to the ⋮ button in viewport space: the list scrolls, so an
+		// in-row absolute menu would be clipped or add scroll height at the bottom.
+		const rect = anchor.getBoundingClientRect();
+		menu.style.top = Math.round(rect.bottom + 4) + 'px';
+		menu.style.right = Math.max(8, Math.round(window.innerWidth - rect.right)) + 'px';
 
 		menu.appendChild(chatMenuItem(t('chatRename', 'Rename'), false, async function() {
 			const next = window.prompt(t('chatRenamePrompt', 'New chat name:'), conv.title || '');
@@ -621,7 +629,7 @@ function t(key, fallback) {
 			}
 		}));
 
-		row.appendChild(menu);
+		document.body.appendChild(menu);
 		chatMenuEl = menu;
 	}
 
