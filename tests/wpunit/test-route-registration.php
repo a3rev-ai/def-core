@@ -70,6 +70,22 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chat Options (v7.1.0): the ⋮ menu's verbs are registered on the
+	 * conversation routes, each behind rest_permission_check.
+	 */
+	public function test_chat_options_routes_registered(): void {
+		$single = '/a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)';
+		$this->assertArrayHasKey( $single, $this->routes, 'single-conversation route missing' );
+		$methods = $this->get_route_methods( $single );
+		foreach ( array( 'GET', 'PATCH', 'DELETE' ) as $verb ) {
+			$this->assertContains( $verb, $methods, "$single should accept $verb" );
+		}
+		$project = $single . '/project';
+		$this->assertArrayHasKey( $project, $this->routes, 'conversation project route missing' );
+		$this->assertContains( 'PUT', $this->get_route_methods( $project ), "$project should accept PUT" );
+	}
+
+	/**
 	 * Test that the Setup Assistant routes are registered with correct methods.
 	 */
 	public function test_setup_assistant_routes_registered(): void {

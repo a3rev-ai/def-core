@@ -139,6 +139,27 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chat Options: the ⋮ menu's write verbs reject anonymous (401) and a
+	 * subscriber without the capability (403) - all three routes.
+	 */
+	public function test_chat_options_rejects_anonymous_and_uncapped(): void {
+		$calls = array(
+			array( 'PATCH', '/a3-ai/v1/staff-ai/conversations/abc123' ),
+			array( 'DELETE', '/a3-ai/v1/staff-ai/conversations/abc123' ),
+			array( 'PUT', '/a3-ai/v1/staff-ai/conversations/abc123/project' ),
+		);
+		foreach ( $calls as $call ) {
+			wp_set_current_user( 0 );
+			$response = $this->server->dispatch( new WP_REST_Request( $call[0], $call[1] ) );
+			$this->assertEquals( 401, $response->get_status(), $call[0] . ' should 401 anonymously' );
+
+			wp_set_current_user( $this->subscriber_id );
+			$response = $this->server->dispatch( new WP_REST_Request( $call[0], $call[1] ) );
+			$this->assertEquals( 403, $response->get_status(), $call[0] . ' should 403 without the capability' );
+		}
+	}
+
+	/**
 	 * Test: Staff AI conversations passes for user with def_staff_access cap.
 	 *
 	 * Note: The actual backend call will fail (no Python backend), but

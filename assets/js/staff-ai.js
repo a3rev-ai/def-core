@@ -476,9 +476,10 @@ function t(key, fallback) {
 
 	// Render conversation list
 	function renderConversationList() {
-		// Remove existing items
+		// Remove existing rows
 		const items = conversationList.querySelectorAll('.conversation-item');
 		items.forEach(el => el.remove());
+		closeChatMenu();
 
 		if (conversations.length === 0) {
 			conversationPlaceholder.style.display = 'block';
@@ -488,30 +489,194 @@ function t(key, fallback) {
 		conversationPlaceholder.style.display = 'none';
 
 		conversations.forEach(function(conv) {
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'conversation-item';
+			// A div, not a button: the row carries its own ⋮ menu button, and
+			// interactive elements must not nest.
+			const row = document.createElement('div');
+			row.className = 'conversation-item';
+			row.setAttribute('role', 'button');
+			row.tabIndex = 0;
 			if (conv.id === currentConversationId) {
-				btn.classList.add('active');
+				row.classList.add('active');
 			}
-			btn.dataset.id = conv.id;
+			row.dataset.id = conv.id;
+
+			const main = document.createElement('span');
+			main.className = 'conversation-item-main';
 
 			const title = document.createElement('span');
 			title.className = 'conversation-item-title';
 			title.textContent = conv.title || t('newConversation', 'New conversation');
+			main.appendChild(title);
+
+			if (conv.projectName) {
+				const badge = document.createElement('span');
+				badge.className = 'conversation-item-project';
+				badge.textContent = conv.projectName;
+				main.appendChild(badge);
+			}
 
 			const time = document.createElement('span');
 			time.className = 'conversation-item-time';
 			time.textContent = formatTime(conv.updated_at);
+			main.appendChild(time);
+			row.appendChild(main);
 
-			btn.appendChild(title);
-			btn.appendChild(time);
-			btn.addEventListener('click', function() {
+			const menuBtn = document.createElement('button');
+			menuBtn.type = 'button';
+			menuBtn.className = 'conversation-menu-btn';
+			menuBtn.setAttribute('aria-label', t('chatOptions', 'Chat options'));
+			menuBtn.textContent = '⋮';
+			menuBtn.addEventListener('click', function(e) {
+				e.stopPropagation();
+				openChatMenu(conv, row);
+			});
+			row.appendChild(menuBtn);
+
+			function activate() {
 				loadConversation(conv.id, conv.is_shared);
+			}
+			row.addEventListener('click', activate);
+			row.addEventListener('keydown', function(e) {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					activate();
+				}
 			});
 
-			conversationList.insertBefore(btn, conversationPlaceholder);
+			conversationList.insertBefore(row, conversationPlaceholder);
 		});
+	}
+
+	// ——— Chat Options: the row's ⋮ menu (Rename | Add to project | Delete) ———
+	let chatMenuEl = null;
+
+	function closeChatMenu() {
+		if (chatMenuEl) {
+			chatMenuEl.remove();
+			chatMenuEl = null;
+		}
+	}
+
+	document.addEventListener('click', closeChatMenu);
+	document.addEventListener('keydown', function(e) {
+		if (e.key === 'Escape') closeChatMenu();
+	});
+
+	function chatMenuItem(label, danger, onPick) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'chat-menu-item' + (danger ? ' chat-menu-item-danger' : '');
+		b.textContent = label;
+		b.addEventListener('click', function(e) {
+			e.stopPropagation();
+			onPick();
+		});
+		return b;
+	}
+
+	function openChatMenu(conv, row) {
+		if (chatMenuEl && chatMenuEl._for === conv.id) {
+			closeChatMenu();
+			return;
+		}
+		closeChatMenu();
+		const menu = document.createElement('div');
+		menu.className = 'chat-menu';
+		menu._for = conv.id;
+		menu.addEventListener('click', function(e) { e.stopPropagation(); });
+
+		menu.appendChild(chatMenuItem(t('chatRename', 'Rename'), false, async function() {
+			const next = window.prompt(t('chatRenamePrompt', 'New chat name:'), conv.title || '');
+			closeChatMenu();
+			if (next === null || !next.trim() || next.trim() === conv.title) return;
+			try {
+				const res = await apiRequest('/conversations/' + encodeURIComponent(conv.id), {
+					method: 'PATCH', body: JSON.stringify({ title: next.trim() })
+				});
+				conv.title = (res && res.title) || next.trim();
+				renderConversationList();
+			} catch (err) {
+				showError((err && err.message) || t('chatRenameFailed', 'Could not rename the chat.'));
+			}
+		}));
+
+		menu.appendChild(chatMenuItem(t('chatAddToProject', 'Add to project…'), false, function() {
+			renderChatProjectPicker(menu, conv);
+		}));
+
+		menu.appendChild(chatMenuItem(t('chatDelete', 'Delete'), true, async function() {
+			closeChatMenu();
+			if (!window.confirm(t('chatConfirmDelete', 'Delete this chat? It disappears from your list now and is permanently forgotten a month later.'))) return;
+			try {
+				await apiRequest('/conversations/' + encodeURIComponent(conv.id), { method: 'DELETE' });
+				conversations = conversations.filter(function(c) { return c.id !== conv.id; });
+				if (conv.id === currentConversationId) {
+					clearActiveProject();
+					resetToNewChat();
+				} else {
+					renderConversationList();
+				}
+			} catch (err) {
+				showError((err && err.message) || t('chatDeleteFailed', 'Could not delete the chat.'));
+			}
+		}));
+
+		row.appendChild(menu);
+		chatMenuEl = menu;
+	}
+
+	async function renderChatProjectPicker(menu, conv) {
+		menu.textContent = '';
+		const head = document.createElement('div');
+		head.className = 'chat-menu-head';
+		head.textContent = t('chatPickProject', 'Move to project');
+		menu.appendChild(head);
+		let projects = [];
+		try {
+			const data = await apiRequest('/projects');
+			projects = Array.isArray(data.projects) ? data.projects : [];
+		} catch (err) {
+			closeChatMenu();
+			showError((err && err.message) || t('projectsLoadFailed', 'Could not load your projects.'));
+			return;
+		}
+		if (chatMenuEl !== menu) return; // closed while loading
+
+		async function setChatProject(projectId, name) {
+			closeChatMenu();
+			try {
+				await apiRequest('/conversations/' + encodeURIComponent(conv.id) + '/project', {
+					method: 'PUT', body: JSON.stringify({ project_id: projectId })
+				});
+				conv.projectId = projectId;
+				conv.projectName = projectId ? name : null;
+				renderConversationList();
+			} catch (err) {
+				showError((err && err.message) || t('chatMoveFailed', 'Could not move the chat.'));
+			}
+		}
+
+		let shown = 0;
+		projects.forEach(function(p) {
+			if (p.status === 'archived') return; // archived projects hide from pickers
+			shown++;
+			const isCurrent = conv.projectId === p.project_id;
+			menu.appendChild(chatMenuItem((isCurrent ? '✓ ' : '') + p.name, false, function() {
+				if (isCurrent) { closeChatMenu(); return; }
+				setChatProject(p.project_id, p.name);
+			}));
+		});
+		if (conv.projectId) {
+			menu.appendChild(chatMenuItem(t('chatRemoveFromProject', 'Remove from project'), false, function() {
+				setChatProject(null, null);
+			}));
+		}
+		if (!shown) {
+			const none = document.createElement('div');
+			none.className = 'chat-menu-empty';
+			none.textContent = t('chatNoProjects', 'No projects yet — create one from the Projects panel.');
+			menu.appendChild(none);
+		}
 	}
 
 	// Format time for display

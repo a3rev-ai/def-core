@@ -107,14 +107,39 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
-		// Load single conversation.
+		// Load single conversation + Chat Options (the sidebar's ⋮ menu):
+		// rename and delete. DEF owns ownership - a foreign, deleted or unknown
+		// id is one uniform 404 (DEF #1047).
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)',
 			array(
-				'methods'             => 'GET',
+				array(
+					'methods'             => 'GET',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_load_conversation'),
+				),
+				array(
+					'methods'             => 'PATCH',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_rename_conversation'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_delete_conversation'),
+				),
+			)
+		);
+
+		// Chat Options: move a chat into / out of one of the caller's projects.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/project',
+			array(
+				'methods'             => 'PUT',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_load_conversation'),
+				'callback'            => array(__CLASS__, 'rest_set_conversation_project'),
 			)
 		);
 
@@ -1100,6 +1125,10 @@ final class DEF_Core_Staff_AI
 					'title'      => $thread['title'] ?? __('New conversation', 'digital-employees'),
 					'updated_at' => $thread['updatedAt'] ?? $thread['createdAt'] ?? '',
 					'is_shared'  => false, // Backend doesn't support sharing yet.
+					// Chat Options: the chat's project binding (a bind-time
+					// snapshot of the caller's own project's name).
+					'projectId'   => $thread['projectId'] ?? null,
+					'projectName' => $thread['projectName'] ?? null,
 				);
 			}
 		}
@@ -1108,6 +1137,108 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'       => true,
 				'conversations' => $conversations,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: rename a chat (the sidebar's ⋮ menu). DEF enforces the
+	 * 200-char door refusal and sets title_user_set so the summariser stands
+	 * down; ownership is DEF's (foreign/deleted/unknown ids are one 404).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, title}).
+	 */
+	public static function rest_rename_conversation( \WP_REST_Request $request )
+	{
+		$title = $request->get_param( 'title' );
+		if ( ! is_string( $title ) || '' === trim( $title ) ) {
+			return new \WP_Error(
+				'invalid_title',
+				__( 'Enter a name for this chat.', 'digital-employees' ),
+				array( 'status' => 422 )
+			);
+		}
+		$result = self::backend_request(
+			'PATCH',
+			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) ),
+			array( 'title' => sanitize_text_field( $title ) )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not rename the chat. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'title'   => isset( $result['title'] ) ? (string) $result['title'] : '',
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: delete a chat. DEF's delete is SOFT - the chat leaves every
+	 * listing and reader immediately and the row is purged a month later. A
+	 * foreign or already-deleted id gets the same 404 as an unknown one.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success}).
+	 */
+	public static function rest_delete_conversation( \WP_REST_Request $request )
+	{
+		$result = self::backend_request(
+			'DELETE',
+			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) )
+		);
+		// DEF answers 204 with no body - backend_request hands that back as
+		// null, which is success here; only a WP_Error is a failure.
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not delete the chat. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response( array( 'success' => true ), 200 );
+	}
+
+	/**
+	 * REST handler: move a chat into / out of one of the caller's projects.
+	 * Explicit null unbinds; DEF validates the project (the caller's own,
+	 * active) and a rebind replaces the single slot (D-P5).
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, projectId, projectName}).
+	 */
+	public static function rest_set_conversation_project( \WP_REST_Request $request )
+	{
+		$project_id = $request->get_param( 'project_id' );
+		if ( null !== $project_id && ! is_string( $project_id ) ) {
+			return new \WP_Error(
+				'invalid_project',
+				__( 'Pick one of your projects, or remove the chat from its project.', 'digital-employees' ),
+				array( 'status' => 422 )
+			);
+		}
+		$result = self::backend_request(
+			'PUT',
+			'/api/staff-ai/threads/' . rawurlencode( (string) $request->get_param( 'id' ) ) . '/project',
+			array( 'project_id' => is_string( $project_id ) ? sanitize_text_field( $project_id ) : null )
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not move the chat. Nothing has changed - try again in a moment.', 'digital-employees' )
+			);
+		}
+		return new \WP_REST_Response(
+			array(
+				'success'     => true,
+				'projectId'   => isset( $result['projectId'] ) ? $result['projectId'] : null,
+				'projectName' => isset( $result['projectName'] ) ? $result['projectName'] : null,
 			),
 			200
 		);
