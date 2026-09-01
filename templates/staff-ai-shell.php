@@ -477,10 +477,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
-		<!-- Projects (P-A — the container; docs/projects-runsheet.md in the DEF repo).
-		     Governing-document folders Sue works from. This slice is CRUD + membership;
-		     opening a project in chat and Sue maintaining the documents ride the next
-		     release (P-B). -->
+		<!-- Projects (docs/projects-runsheet.md in the DEF repo). Governing-document
+		     folders the assistant works from: P-A the container, P-B chat entry + the
+		     assistant maintaining the documents, P-C scheduled runs inside a project,
+		     P-D (D-P14) the doorway — the chat IS the onboarding: "Ask <assistant> how
+		     Projects work" opens a chat that walks the user through it and can create
+		     the project; every row shows its three documents without a click. -->
 		<div class="modal-overlay" id="projectsModal">
 			<div class="modal" style="max-width: 560px;">
 				<div class="modal-header">
@@ -488,7 +490,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<button type="button" class="modal-close" id="projectsModalClose">&times;</button>
 				</div>
 				<div class="modal-body">
-					<p class="documents-intro"><?php echo esc_html__( 'Folders of working documents for a piece of work — a runsheet, session notes, instructions. Only you can see these.', 'digital-employees' ); ?></p>
+					<p class="documents-intro"><?php echo esc_html__( 'A project is a folder of governing documents your assistant works from — instructions, a runsheet and session notes — so a piece of work can be picked up where it was left. Only you can see these.', 'digital-employees' ); ?></p>
+					<div class="projects-ask">
+						<button type="button" class="modal-btn modal-btn-primary" id="projectsAskAssistant"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
+						<span class="projects-ask-hint"><?php echo esc_html__( 'Opens a chat: your assistant walks you through creating and managing a project, and can create one for you.', 'digital-employees' ); ?></span>
+					</div>
 					<div class="projects-create">
 						<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
 						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create', 'digital-employees' ); ?></button>

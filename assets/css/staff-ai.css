@@ -2863,3 +2863,18 @@ html {
 	background: var(--active-bg);
 	color: var(--text-secondary);
 }
+
+/* P-D2 (D-P14): the Projects panel's doorway — "Ask <assistant> how Projects work". */
+.projects-ask {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin: 0 0 14px;
+}
+.projects-ask-hint {
+	font-size: 12px;
+	opacity: 0.75;
+	flex: 1 1 220px;
+}
+

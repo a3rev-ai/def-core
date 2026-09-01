@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.3.0 - 2026/09/01 =
+* Feature - Staff AI. Projects now start in the chat: the Projects panel has an "Ask <your assistant> how Projects work" button that opens a conversation in which the assistant explains projects step by step and can create one for you when you say so (it opens the new project in that chat and starts it with a skeleton runsheet and instructions for you to fill together). Every project row now shows its three documents - runsheet, session notes, instructions - and whether each exists, without a click.
+
 = 7.2.0 - 2026/09/01 =
 * Feature - Staff AI. Scheduled tasks can now run inside one of your Projects: pick the project on the task form and each run reads the project's instructions, runsheet and session notes, then records itself in the session notes (time, task, result). The task card shows its project. Archiving or deleting a project asks what to do with the tasks bound to it (disable them, remove the project from them, or leave them); a task left bound to an archived project still runs and says so in its output.
 

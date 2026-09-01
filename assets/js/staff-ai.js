@@ -24,6 +24,12 @@ function t(key, fallback) {
 	// SSE streaming config — BFF proxy (WordPress handles auth)
 	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
 	const statusUrl = StaffAIConfig.statusUrl || '';
+	// P-D2: the tenant's own name for the assistant ("Sue" on a3rev), from the
+	// status call below — the Projects panel's "Ask <name> how Projects work"
+	// button relabels itself when it lands. Empty until then: the button still
+	// works, it just says "your assistant".
+	let assistantName = '';
+	let updateProjectsAskLabel = null;
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -304,6 +310,10 @@ function t(key, fallback) {
 				.then(function (r) { return r.ok ? r.json() : null; })
 				.then(function (data) {
 					if (!data) return;
+					if (data.employee && typeof data.employee === 'string') {
+						assistantName = data.employee;
+						if (updateProjectsAskLabel) { updateProjectsAskLabel(); }
+					}
 					var models = data.available_models || [];
 					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
 					var ids = [];
@@ -3436,6 +3446,7 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
+		const askBtn = document.getElementById('projectsAskAssistant');
 		let loading = false;
 
 		function open() {
@@ -3444,6 +3455,29 @@ function t(key, fallback) {
 		}
 		function close() {
 			modal.classList.remove('visible');
+		}
+
+		// P-D2 (D-P14): the chat IS the onboarding. The button starts a fresh chat
+		// (outside any project) with a fixed first message; the assistant explains
+		// the method and, with create_project, can make the project right there.
+		function labelAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('projectsAskNamed', 'Ask %s how Projects work').replace('%s', function () { return assistantName; })
+				: t('projectsAsk', 'Ask how Projects work');
+		}
+		updateProjectsAskLabel = labelAsk;
+		labelAsk();
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				close();
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('projectsAskPrompt',
+					'Walk me through creating and managing a Project, step by step — and create one for me when I\'m ready.');
+				updateSendButton();
+				sendMessage();
+			});
 		}
 
 		function setStatus(message, kind) {
@@ -3488,7 +3522,8 @@ function t(key, fallback) {
 				const projects = Array.isArray(data.projects) ? data.projects : [];
 				projectsCache = projects;
 				if (projects.length === 0) {
-					setStatus(t('projectsEmpty', 'No projects yet — create one above to give a piece of work its own home.'), 'muted');
+					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (the button above), or create one by name.')
+						.replace('%s', function () { return assistantName || t('projectsYourAssistant', 'your assistant'); }), 'muted');
 					return;
 				}
 				setStatus('', '');
@@ -3520,24 +3555,23 @@ function t(key, fallback) {
 			info.appendChild(meta);
 			row.appendChild(info);
 
-			// P-B: clicking the name toggles the governing-slot view — which of
-			// the three documents exist (Sue creates them from chat; a new
-			// project arrives with seeded runsheet + instructions).
+			// P-B / P-D2: the three governing documents, shown on every row without
+			// a click (P-D2 — the canary found them hidden behind the name); the
+			// name click folds/unfolds them. The assistant creates and maintains
+			// them from chat; a new project arrives with seeded runsheet +
+			// instructions.
 			const detail = document.createElement('div');
 			detail.className = 'project-slot-detail';
-			detail.style.display = 'none';
 			wrap.appendChild(detail);
-			let detailLoaded = false;
-			name.addEventListener('click', async function () {
-				if (detail.style.display !== 'none') { detail.style.display = 'none'; return; }
-				detail.style.display = '';
-				if (detailLoaded) return;
+			name.addEventListener('click', function () {
+				detail.style.display = (detail.style.display === 'none') ? '' : 'none';
+			});
+			(async function loadSlots() {
 				detail.textContent = t('projectsSlotsLoading', 'Loading…');
 				try {
 					const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 					const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
 					const docs = Array.isArray(data.documents) ? data.documents : [];
-					detailLoaded = true;
 					detail.textContent = '';
 					const slots = { runsheet: null, session_notes: null, instructions: null };
 					let others = 0;
@@ -3552,7 +3586,7 @@ function t(key, fallback) {
 						line.className = 'project-slot-line';
 						const d = slots[pair[0]];
 						line.textContent = pair[1] + ': ' + (d
-							? (d.title || d.document_id) + (d.version ? ' (v' + d.version + ')' : '')
+							? t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1))
 							: t('projectsSlotMissing', 'not created yet'));
 						detail.appendChild(line);
 					});
@@ -3565,7 +3599,7 @@ function t(key, fallback) {
 				} catch (e) {
 					detail.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
 				}
-			});
+			})();
 
 			const action = document.createElement('div');
 			action.className = 'document-action';
