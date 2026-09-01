@@ -3451,6 +3451,31 @@ function t(key, fallback) {
 			statusEl.className = 'documents-status' + (message ? ' documents-status-' + (kind || 'muted') : '');
 		}
 
+		// P-C (D-P9): the archive / delete prompt. Returns 'keep' | 'unbind' |
+		// 'disable', or null when the user backs out. No bound tasks = no prompt
+		// (keep on archive; DEF unbinds on delete regardless).
+		async function boundTasksDirective(project, deleting) {
+			var tasks = [];
+			try {
+				var data = await apiRequest('/projects/' + encodeURIComponent(project.project_id) + '/tasks');
+				tasks = Array.isArray(data.tasks) ? data.tasks : [];
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsTasksCheckFailed', 'Could not check the tasks bound to this project.'), 'error');
+				return null;
+			}
+			if (!tasks.length) return deleting ? 'unbind' : 'keep';
+			var names = tasks.map(function (x) { return x.name; }).join(', ');
+			var disableMsg = t('projectsBoundTasksDisable',
+				'%n scheduled task(s) run inside "%p": %t.\n\nDisable them? OK = disable them. Cancel = keep them running WITHOUT the project\'s documents.')
+				.replace('%n', String(tasks.length)).replace('%p', function () { return project.name; })
+				.replace('%t', function () { return names; });
+			if (window.confirm(disableMsg)) return 'disable';
+			if (deleting) return 'unbind';
+			var unbindMsg = t('projectsBoundTasksUnbind',
+				'Remove the project from those tasks? OK = they run on with no project. Cancel = leave them bound (they run without the archived project\'s documents until you change them).');
+			return window.confirm(unbindMsg) ? 'unbind' : 'keep';
+		}
+
 		async function loadList() {
 			if (loading) return;
 			loading = true;
@@ -3595,8 +3620,16 @@ function t(key, fallback) {
 			archBtn.textContent = archived ? t('projectsUnarchive', 'Unarchive') : t('projectsArchive', 'Archive');
 			archBtn.addEventListener('click', async function () {
 				try {
+					var body = { status: archived ? 'active' : 'archived' };
+					if (!archived) {
+						// P-C (D-P9): decide at the button. Surface the bound tasks and
+						// ask - disable, unbind, or keep them running without the project.
+						var directive = await boundTasksDirective(project, false);
+						if (directive === null) return;
+						body.bound_tasks = directive;
+					}
 					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
-						method: 'PUT', body: JSON.stringify({ status: archived ? 'active' : 'archived' })
+						method: 'PUT', body: JSON.stringify(body)
 					});
 					loadList();
 				} catch (e) {
@@ -3613,9 +3646,14 @@ function t(key, fallback) {
 				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
 					.replace('%s', function () { return project.name; });
 				if (!window.confirm(msg)) return;
+				// P-C (D-P9): a deleted project's bindings are removed; offer to
+				// disable the tasks too rather than let them run on, unbound.
+				var directive = await boundTasksDirective(project, true);
+				if (directive === null) return;
 				delBtn.disabled = true;
 				try {
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id), { method: 'DELETE' });
+					await apiRequest('/projects/' + encodeURIComponent(project.project_id)
+						+ (directive === 'disable' ? '?bound_tasks=disable' : ''), { method: 'DELETE' });
 					loadList();
 				} catch (e) {
 					delBtn.disabled = false;
@@ -4028,6 +4066,9 @@ function t(key, fallback) {
 		var taskEnabledEl = document.getElementById('taskEnabled');
 		var taskCadenceEl = document.getElementById('taskCadence');
 		var taskModelEl = document.getElementById('taskModel');
+		var taskProjectRow = document.getElementById('taskProjectRow');
+		var taskProjectEl = document.getElementById('taskProject');
+		var taskProjectsLoaded = [];  // the user's projects, refreshed on every form open
 		var taskWeekdayEl = document.getElementById('taskWeekday');
 		var taskWeekdayRow = document.getElementById('taskWeekdayRow');
 		var taskCadenceHint = document.getElementById('taskCadenceHint');
@@ -4216,6 +4257,11 @@ function t(key, fallback) {
 				schedule.enabled
 					? scheduleBadgeText(schedule)
 					: t('taskPaused', 'Not scheduled')));
+			if (schedule.project_id) {
+				var pname = (projectsCache.filter(function (p) { return p.project_id === schedule.project_id; })[0] || {}).name;
+				meta.appendChild(el('span', 'task-badge task-badge-project',
+					t('taskProjectBadge', 'Project: %s').replace('%s', pname || t('taskProjectUnknown', '(project)'))));
+			}
 			if (lastRun && lastRun.status) {
 				var when = whenText(lastRun.at);
 				meta.appendChild(el('span', 'task-last-run',
@@ -4420,6 +4466,7 @@ function t(key, fallback) {
 				taskModelEl.value = wantModel;
 			}
 			if (taskWeekdayEl) taskWeekdayEl.value = String((task && task.send_weekday) || 0);
+			fillProjectOptions(task ? (task.project_id || '') : '');
 			applyCadenceRows();
 			taskTimeEl.value = task
 				? pad(task.send_hour_local || 0) + ':' + pad(task.send_minute_local || 0)
@@ -4432,6 +4479,51 @@ function t(key, fallback) {
 			});
 			applyConnectionRows(dests);
 			setStatus(taskStatusEl, '');
+		}
+
+		// P-C: the project picker. Built synchronously with the task's own binding
+		// selected (a keep-option, the model-select idiom) so a Save that lands
+		// before /projects answers never silently UNBINDS the task; the fresh list
+		// then replaces the options, selection preserved. Archived projects hide
+		// from the picker (D-P9) - a task already bound to one keeps its option.
+		function renderProjectOptions(selected) {
+			if (!taskProjectEl) return;
+			taskProjectEl.innerHTML = '';
+			var none = document.createElement('option');
+			none.value = '';
+			none.textContent = t('taskNoProject', 'No project');
+			taskProjectEl.appendChild(none);
+			var seen = false;
+			taskProjectsLoaded.forEach(function (p) {
+				if (p.status === 'archived' && p.project_id !== selected) return;
+				var opt = document.createElement('option');
+				opt.value = p.project_id;
+				opt.textContent = p.name + (p.status === 'archived' ? ' ' + t('taskProjectArchived', '(archived)') : '');
+				taskProjectEl.appendChild(opt);
+				if (p.project_id === selected) seen = true;
+			});
+			if (selected && !seen) {
+				var keep = document.createElement('option');
+				keep.value = selected;
+				keep.textContent = t('taskProjectUnknown', '(project)');
+				keep.setAttribute('data-keep', '1');
+				taskProjectEl.appendChild(keep);
+			}
+			taskProjectEl.value = selected || '';
+			if (taskProjectRow) {
+				taskProjectRow.style.display = (taskProjectsLoaded.length || selected) ? '' : 'none';
+			}
+		}
+
+		function fillProjectOptions(selected) {
+			renderProjectOptions(selected);
+			apiRequest('/projects' + (apiBase.indexOf('?') === -1 ? '?' : '&') + 'include_archived=true')
+				.then(function (data) {
+					taskProjectsLoaded = Array.isArray(data.projects) ? data.projects : [];
+					var current = taskProjectEl ? taskProjectEl.value : selected;
+					renderProjectOptions(current);
+				})
+				.catch(function () { /* the picker keeps what it has */ });
 		}
 
 		function fillMailboxRow(schedule) {
@@ -4572,7 +4664,9 @@ function t(key, fallback) {
 				send_hour_local: parseInt(parts[0], 10) || 0,
 				send_minute_local: parseInt(parts[1], 10) || 0,
 				timezone: taskTzEl.value || 'UTC',
-				destinations: dests
+				destinations: dests,
+				// P-C: '' = no project (DEF stores NULL). Full-replace, like the rest.
+				project_id: (taskProjectEl && taskProjectEl.value) || null
 			};
 			saveBtn.disabled = true;
 			setStatus(taskStatusEl, t('scheduleSaving', 'Saving…'));

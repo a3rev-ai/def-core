@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.1.0
+Stable tag: 7.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.2.0 - 2026-09-01 =
+* Feature - Staff AI. Scheduled tasks can now run inside one of your Projects: pick the project on the task form and each run reads the project's instructions, runsheet and session notes, then records itself in the session notes (time, task, result). The task card shows its project. Archiving or deleting a project asks what to do with the tasks bound to it (disable them, remove the project from them, or leave them); a task left bound to an archived project still runs and says so in its output.
 
 = 7.1.0 - 2026-09-01 =
 * Feature - Staff AI. Chat Options: every chat in the sidebar carries a ⋮ menu with Rename, Add to project and Delete. A name you type survives the assistant's own summarising of the chat; moving a chat into a project makes its next reply use that project's governing documents (Remove from project takes it back out, and the project's name shows under the chat's title); Delete removes the chat from your list and the assistant's readers immediately, and it is permanently forgotten a month later.

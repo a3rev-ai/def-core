@@ -604,6 +604,17 @@ final class DEF_Core_Staff_AI
 				),
 			)
 		);
+		// Projects P-C (D-P9): the caller's scheduled tasks bound to a project -
+		// what the archive / delete prompt surfaces.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/projects/(?P<project_id>[a-zA-Z0-9-]+)/tasks',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_list_project_tasks'),
+			)
+		);
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/project',
@@ -2358,6 +2369,16 @@ final class DEF_Core_Staff_AI
 			}
 			$payload['status'] = $status;
 		}
+		// P-C (D-P9): what happens to the tasks bound to this project when it is
+		// archived - keep | unbind | disable. DEF applies it in the same
+		// transaction as the status flip; an unknown value is refused here.
+		$bound = $request->get_param( 'bound_tasks' );
+		if ( null !== $bound && '' !== $bound ) {
+			if ( ! is_string( $bound ) || ! in_array( $bound, array( 'keep', 'unbind', 'disable' ), true ) ) {
+				return new \WP_Error( 'invalid_bound_tasks', __( 'bound_tasks must be keep, unbind or disable.', 'digital-employees' ), array( 'status' => 422 ) );
+			}
+			$payload['bound_tasks'] = $bound;
+		}
 		if ( empty( $payload ) ) {
 			return new \WP_Error( 'nothing_to_update', __( 'Nothing to update.', 'digital-employees' ), array( 'status' => 422 ) );
 		}
@@ -2375,11 +2396,65 @@ final class DEF_Core_Staff_AI
 		$row = ( isset( $result['project'] ) && is_array( $result['project'] ) ) ? $result['project'] : array();
 		return new \WP_REST_Response(
 			array(
-				'success' => true,
-				'project' => self::allowlist_project( $row ),
+				'success'     => true,
+				'project'     => self::allowlist_project( $row ),
+				'bound_tasks' => self::allowlist_bound_tasks( $result['bound_tasks'] ?? null ),
 			),
 			200
 		);
+	}
+
+	/**
+	 * P-C: the {action, count} DEF reports for the bound-task directive.
+	 *
+	 * @param mixed $value DEF's bound_tasks field.
+	 * @return array|null
+	 */
+	private static function allowlist_bound_tasks( $value )
+	{
+		if ( ! is_array( $value ) ) {
+			return null;
+		}
+		return array(
+			'action' => ( isset( $value['action'] ) && is_string( $value['action'] ) ) ? $value['action'] : 'keep',
+			'count'  => isset( $value['count'] ) ? (int) $value['count'] : 0,
+		);
+	}
+
+	/**
+	 * REST handler: the caller's scheduled tasks bound to one of their projects
+	 * (P-C, D-P9) - the archive / delete prompt's list. DEF answers a foreign
+	 * id with the same 404 as a missing one.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, tasks}).
+	 */
+	public static function rest_list_project_tasks( \WP_REST_Request $request )
+	{
+		$result = self::backend_request(
+			'GET',
+			'/api/staff-ai/projects/' . rawurlencode( (string) $request->get_param( 'project_id' ) ) . '/tasks'
+		);
+		if ( is_wp_error( $result ) ) {
+			return self::plain_backend_error(
+				$result,
+				__( 'Could not check the tasks bound to this project.', 'digital-employees' )
+			);
+		}
+		$tasks = array();
+		if ( isset( $result['tasks'] ) && is_array( $result['tasks'] ) ) {
+			foreach ( $result['tasks'] as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$tasks[] = array(
+					'id'      => ( isset( $row['id'] ) && is_string( $row['id'] ) ) ? $row['id'] : '',
+					'name'    => ( isset( $row['name'] ) && is_string( $row['name'] ) ) ? $row['name'] : '',
+					'enabled' => ! empty( $row['enabled'] ),
+				);
+			}
+		}
+		return new \WP_REST_Response( array( 'success' => true, 'tasks' => $tasks ), 200 );
 	}
 
 	/**
@@ -2392,9 +2467,19 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function rest_delete_project( \WP_REST_Request $request )
 	{
+		// P-C (D-P9): unbind (DEF's default - a binding to a deleted id has no
+		// meaning) or disable the tasks bound to this project.
+		$bound = $request->get_param( 'bound_tasks' );
+		$query = '';
+		if ( null !== $bound && '' !== $bound ) {
+			if ( ! is_string( $bound ) || ! in_array( $bound, array( 'unbind', 'disable' ), true ) ) {
+				return new \WP_Error( 'invalid_bound_tasks', __( 'bound_tasks must be unbind or disable.', 'digital-employees' ), array( 'status' => 422 ) );
+			}
+			$query = '?bound_tasks=' . rawurlencode( $bound );
+		}
 		$result = self::backend_request(
 			'DELETE',
-			'/api/staff-ai/projects/' . rawurlencode( (string) $request->get_param( 'project_id' ) )
+			'/api/staff-ai/projects/' . rawurlencode( (string) $request->get_param( 'project_id' ) ) . $query
 		);
 		if ( is_wp_error( $result ) ) {
 			return self::plain_backend_error(
@@ -2406,6 +2491,7 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'            => true,
 				'released_documents' => isset( $result['released_documents'] ) ? (int) $result['released_documents'] : 0,
+				'bound_tasks'        => self::allowlist_bound_tasks( $result['bound_tasks'] ?? null ),
 			),
 			200
 		);
@@ -3264,6 +3350,8 @@ final class DEF_Core_Staff_AI
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
 			'destinations'      => ! empty( $destinations ) ? $destinations : array( 'email' ),
 			'model'             => $model,
+			// P-C: null = unbound. DEF's id, shape-trusted (its own response).
+			'project_id'        => ( isset( $row['project_id'] ) && is_string( $row['project_id'] ) ) ? $row['project_id'] : null,
 			'last_run'          => self::allowlist_last_run( $row['last_run'] ?? null ),
 		);
 	}
@@ -3289,8 +3377,16 @@ final class DEF_Core_Staff_AI
 		$timezone     = $request->get_param( 'timezone' );
 		$destinations = $request->get_param( 'destinations' );
 		$model        = $request->get_param( 'model' );
+		// P-C: optional project binding. Shape here; DEF refuses anything that is
+		// not the caller's own ACTIVE project (422), so a stale pick never binds.
+		$project_id = $request->get_param( 'project_id' );
 
 		$problems = array();
+		if ( null === $project_id || '' === $project_id ) {
+			$project_id = null;
+		} elseif ( ! is_string( $project_id ) || ! preg_match( '/^[a-zA-Z0-9-]{1,64}$/', $project_id ) ) {
+			$problems[] = __( 'The project must be one of your projects, or none.', 'digital-employees' );
+		}
 		// Absent defaults mirror DEF exactly (routes.py: body.get with a
 		// default) - a cached pre-6.1.0 page posts no cadence and must keep
 		// saving daily tasks. Present-but-wrong still refuses.
@@ -3371,6 +3467,7 @@ final class DEF_Core_Staff_AI
 			'timezone'          => $timezone,
 			'destinations'      => array_values( array_unique( $clean_destinations ) ),
 			'model'             => $model,
+			'project_id'        => $project_id,
 		);
 	}
 

@@ -2855,3 +2855,9 @@ html {
 	flex: 1;
 	min-width: 0;
 }
+
+/* Projects P-C: a bound task shows its project on the card */
+.task-badge-project {
+	background: var(--active-bg);
+	color: var(--text-secondary);
+}
