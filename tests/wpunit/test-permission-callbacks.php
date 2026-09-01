@@ -160,6 +160,18 @@ class Test_Permission_Callbacks extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Projects P-C: the bound-tasks list rejects anonymous (401) and a
+	 * subscriber without the capability (403).
+	 */
+	public function test_project_tasks_rejects_anonymous_and_uncapped(): void {
+		$path = '/a3-ai/v1/staff-ai/projects/abc-123/tasks';
+		wp_set_current_user( 0 );
+		$this->assertEquals( 401, $this->server->dispatch( new WP_REST_Request( 'GET', $path ) )->get_status() );
+		wp_set_current_user( $this->subscriber_id );
+		$this->assertEquals( 403, $this->server->dispatch( new WP_REST_Request( 'GET', $path ) )->get_status() );
+	}
+
+	/**
 	 * Test: Staff AI conversations passes for user with def_staff_access cap.
 	 *
 	 * Note: The actual backend call will fail (no Python backend), but

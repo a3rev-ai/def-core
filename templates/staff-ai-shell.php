@@ -619,6 +619,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 							</select>
 							<p class="form-hint"><?php echo esc_html__( 'The model this task runs on. Default model follows your Staff AI setting.', 'digital-employees' ); ?></p>
 						</div>
+						<!-- Projects P-C: run the task INSIDE one of the user's projects. Hidden
+						     until the user has a project (or the task is already bound). -->
+						<div class="form-group" id="taskProjectRow" style="display:none;">
+							<label class="form-label" for="taskProject"><?php echo esc_html__( 'Project', 'digital-employees' ); ?></label>
+							<select class="form-input" id="taskProject">
+								<option value="" selected><?php echo esc_html__( 'No project', 'digital-employees' ); ?></option>
+							</select>
+							<p class="form-hint"><?php echo esc_html__( 'The task runs inside this project: it reads the project\'s instructions, runsheet and session notes, and each run is recorded in the session notes.', 'digital-employees' ); ?></p>
+						</div>
 						<div class="form-group" id="taskWeekdayRow" style="display:none;">
 							<label class="form-label" for="taskWeekday"><?php echo esc_html__( 'Day of the week', 'digital-employees' ); ?></label>
 							<select class="form-input" id="taskWeekday">

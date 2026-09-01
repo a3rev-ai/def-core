@@ -1298,9 +1298,9 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'project_id', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$keys,
-	'exactly the twelve task fields - owner_email and any future extras stay out'
+	'exactly the thirteen task fields (P-C added project_id) - owner_email and any future extras stay out'
 );
 assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
 assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
@@ -1376,7 +1376,7 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'instruction', 'model', 'name', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'instruction', 'model', 'name', 'project_id', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE whitelisted object and nothing else - smuggled fields never forwarded'
 );

@@ -86,6 +86,15 @@ class Test_Route_Registration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Projects P-C (v7.2.0): the bound-tasks list behind rest_permission_check.
+	 */
+	public function test_project_tasks_route_registered(): void {
+		$route = '/a3-ai/v1/staff-ai/projects/(?P<project_id>[a-zA-Z0-9-]+)/tasks';
+		$this->assertArrayHasKey( $route, $this->routes, 'project tasks route missing' );
+		$this->assertContains( 'GET', $this->get_route_methods( $route ), "$route should accept GET" );
+	}
+
+	/**
 	 * Test that the Setup Assistant routes are registered with correct methods.
 	 */
 	public function test_setup_assistant_routes_registered(): void {
