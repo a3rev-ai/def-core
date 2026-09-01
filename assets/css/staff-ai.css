@@ -2856,8 +2856,10 @@ html {
 	min-width: 0;
 }
 
-/* Projects P-C: a bound task shows its project on the card */
-.task-badge-project {
+/* Projects P-C: a bound task shows its project on the card. Two classes so it
+   outranks .dark-theme .task-badge (0,2,0) — otherwise dark mode paints it as a
+   second green "scheduled" pill. */
+.task-badge.task-badge-project {
 	background: var(--active-bg);
 	color: var(--text-secondary);
 }

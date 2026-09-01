@@ -3652,8 +3652,9 @@ function t(key, fallback) {
 				if (directive === null) return;
 				delBtn.disabled = true;
 				try {
+					var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 					await apiRequest('/projects/' + encodeURIComponent(project.project_id)
-						+ (directive === 'disable' ? '?bound_tasks=disable' : ''), { method: 'DELETE' });
+						+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
 					loadList();
 				} catch (e) {
 					delBtn.disabled = false;
@@ -4260,7 +4261,9 @@ function t(key, fallback) {
 			if (schedule.project_id) {
 				var pname = (projectsCache.filter(function (p) { return p.project_id === schedule.project_id; })[0] || {}).name;
 				meta.appendChild(el('span', 'task-badge task-badge-project',
-					t('taskProjectBadge', 'Project: %s').replace('%s', pname || t('taskProjectUnknown', '(project)'))));
+					t('taskProjectBadge', 'Project: %s').replace('%s', function () {
+						return pname || t('taskProjectUnknown', '(project)');
+					})));
 			}
 			if (lastRun && lastRun.status) {
 				var when = whenText(lastRun.at);
@@ -4356,6 +4359,14 @@ function t(key, fallback) {
 		async function loadAll() {
 			if (loading) return;
 			loading = true;
+			// P-C: the card badge names the task's project from the shared cache,
+			// which only the Documents / Projects panels filled until now (the
+			// mailConnections lesson): fill it here, archived included, so a task
+			// bound to a shelved project still shows its name.
+			try {
+				var pc = await apiRequest('/projects' + (apiBase.indexOf('?') === -1 ? '?' : '&') + 'include_archived=true');
+				projectsCache = (pc && Array.isArray(pc.projects)) ? pc.projects : projectsCache;
+			} catch (ePc) { /* badges fall back to "(project)" */ }
 			setStatus(paneStatus, t('scheduleLoading', 'Loading your schedule…'));
 			// Connections first: the forms derive their rows from it, and the
 			// grid render does not depend on it.
