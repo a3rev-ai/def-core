@@ -24,10 +24,12 @@ function t(key, fallback) {
 	// SSE streaming config — BFF proxy (WordPress handles auth)
 	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
 	const statusUrl = StaffAIConfig.statusUrl || '';
-	// P-D2: the tenant's own name for the assistant ("Sue" on a3rev), from the
-	// status call below — the Projects panel's "Ask <name> how Projects work"
-	// button relabels itself when it lands. Empty until then: the button still
-	// works, it just says "your assistant".
+	// P-D2: the tenant's own name for the assistant ("Sue" on a3rev) — the
+	// status call's `assistant_name` (the tenant's display_name override, NOT
+	// `employee`, which is the internal specialist id "StaffKnowledgeAssistant";
+	// panel round 1). The Projects panel's "Ask <name> how Projects work" button
+	// relabels itself when it lands; until then, or for a tenant that has not
+	// named the assistant, it says "your assistant".
 	let assistantName = '';
 	let updateProjectsAskLabel = null;
 
@@ -310,8 +312,8 @@ function t(key, fallback) {
 				.then(function (r) { return r.ok ? r.json() : null; })
 				.then(function (data) {
 					if (!data) return;
-					if (data.employee && typeof data.employee === 'string') {
-						assistantName = data.employee;
+					if (data.assistant_name && typeof data.assistant_name === 'string') {
+						assistantName = data.assistant_name;
 						if (updateProjectsAskLabel) { updateProjectsAskLabel(); }
 					}
 					var models = data.available_models || [];
