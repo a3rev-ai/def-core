@@ -3097,6 +3097,11 @@ function t(key, fallback) {
 	// Projects P-A bridge: initProjects opens the Documents panel pre-filtered;
 	// initDocuments publishes the hook and the projects cache both panels read.
 	let openDocumentsForProject = null;
+	// P-D3: the viewer, published by initDocumentViewer for the Documents rows
+	// and the Projects panel's slot lines alike.
+	let openDocumentViewer = null;
+	// What the viewer can show: the same formats DEF can read into text.
+	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx'];
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
@@ -3136,6 +3141,65 @@ function t(key, fallback) {
 		activeProjectName = null;
 		renderProjectChip();
 	}
+
+	// P-D3 (D-P14): read a document in place. The text goes into a <pre> via
+	// textContent — never HTML (a project document is untrusted content, D-P7).
+	// Bounded reads with "Show more" continuation, mirroring DEF's offset contract.
+	(function initDocumentViewer() {
+		const modal = document.getElementById('documentViewerModal');
+		if (!modal) return;
+		const titleEl = document.getElementById('documentViewerTitle');
+		const statusEl = document.getElementById('documentViewerStatus');
+		const textEl = document.getElementById('documentViewerText');
+		const moreBtn = document.getElementById('documentViewerMore');
+		const dlLink = document.getElementById('documentViewerDownload');
+		let current = null;  // { id, nextOffset }
+
+		function close() { modal.classList.remove('visible'); current = null; }
+		document.getElementById('documentViewerClose').addEventListener('click', close);
+		document.getElementById('documentViewerCloseBtn').addEventListener('click', close);
+		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+		async function fetchChunk(offset) {
+			var data = await apiRequest('/documents/' + encodeURIComponent(current.id) + '/content'
+				+ (offset ? '?offset=' + encodeURIComponent(String(offset)) : ''));
+			textEl.textContent += (typeof data.content === 'string') ? data.content : '';
+			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
+			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
+			var doc = data.document || {};
+			if (doc.title) { titleEl.textContent = doc.title; }
+			statusEl.textContent = [
+				(doc.file_type || '').toUpperCase(),
+				doc.version ? 'v' + doc.version : '',
+				(typeof data.total_chars === 'number') ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
+			].filter(Boolean).join(' · ');
+			statusEl.className = 'documents-status documents-status-muted';
+		}
+
+		moreBtn.addEventListener('click', async function () {
+			if (!current || current.nextOffset === null) return;
+			moreBtn.disabled = true;
+			try { await fetchChunk(current.nextOffset); }
+			catch (e) { statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.'); statusEl.className = 'documents-status documents-status-error'; }
+			finally { moreBtn.disabled = false; }
+		});
+
+		openDocumentViewer = async function (docId, title, downloadHref) {
+			current = { id: docId, nextOffset: null };
+			titleEl.textContent = title || t('documentViewerTitle', 'Document');
+			textEl.textContent = '';
+			moreBtn.style.display = 'none';
+			if (downloadHref) { dlLink.href = downloadHref; dlLink.style.display = ''; } else { dlLink.style.display = 'none'; }
+			statusEl.textContent = t('documentViewerLoading', 'Loading…');
+			statusEl.className = 'documents-status documents-status-muted';
+			modal.classList.add('visible');
+			try { await fetchChunk(0); }
+			catch (e) {
+				statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.');
+				statusEl.className = 'documents-status documents-status-error';
+			}
+		};
+	})();
 
 	(function initDocuments() {
 		const modal = document.getElementById('documentsModal');
@@ -3291,6 +3355,16 @@ function t(key, fallback) {
 			}
 
 			const href = safeHttpHref(doc.download_url);
+			// P-D3: read it here. Only the formats DEF can turn into text get the
+			// button; everything else keeps Download alone.
+			if (openDocumentViewer && VIEWABLE_TYPES.indexOf((doc.file_type || '').toLowerCase()) !== -1) {
+				const view = document.createElement('button');
+				view.type = 'button';
+				view.className = 'document-btn';
+				view.textContent = t('documentsView', 'View');
+				view.addEventListener('click', function () { openDocumentViewer(doc.document_id, doc.title, href || ''); });
+				action.appendChild(view);
+			}
 			if (href) {
 				const dl = document.createElement('a');
 				dl.className = 'document-btn document-btn-download';
@@ -3587,9 +3661,21 @@ function t(key, fallback) {
 						const line = document.createElement('div');
 						line.className = 'project-slot-line';
 						const d = slots[pair[0]];
-						line.textContent = pair[1] + ': ' + (d
-							? t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1))
-							: t('projectsSlotMissing', 'not created yet'));
+						if (d && openDocumentViewer) {
+							// P-D3: a present slot reads in place — the label is a button.
+							const openBtn = document.createElement('button');
+							openBtn.type = 'button';
+							openBtn.className = 'project-slot-open';
+							openBtn.textContent = pair[1] + ': ' + t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1));
+							openBtn.addEventListener('click', function () {
+								openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
+							});
+							line.appendChild(openBtn);
+						} else {
+							line.textContent = pair[1] + ': ' + (d
+								? t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1))
+								: t('projectsSlotMissing', 'not created yet'));
+						}
 						detail.appendChild(line);
 					});
 					if (others > 0) {

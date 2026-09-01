@@ -633,6 +633,26 @@ final class DEF_Core_Staff_AI
 				'callback'            => array(__CLASS__, 'rest_delete_document'),
 			)
 		);
+		// Projects P-D3 (D-P14): read a document in place. DEF returns the text
+		// of one of the caller's own documents (owner-scoped from the forwarded
+		// identity, text formats only, bounded with offset continuation); the
+		// panel renders it AS TEXT — never HTML.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/content',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array(__CLASS__, 'rest_document_content'),
+				'args'                => array(
+					'offset' => array(
+						'type'     => 'integer',
+						'required' => false,
+						'minimum'  => 0,
+					),
+				),
+			)
+		);
 
 		// "Memories" panel (privacy slice B). Memories are per-user: DEF scopes
 		// every query to the identity in the X-DEF-User header that
@@ -2187,6 +2207,62 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'   => true,
 				'documents' => $documents,
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: read one of the current user's documents in place (P-D3).
+	 *
+	 * Proxies DEF GET /api/staff-ai/documents/{id}/content. Ownership is
+	 * enforced DEF-side from the forwarded identity, so a foreign id is a
+	 * plain 404; a format that cannot be read as text is DEF's 415 with its
+	 * own sentence. Only the fields the viewer renders are passed through,
+	 * each type-checked; `content` is a string the JS sets via textContent.
+	 */
+	public static function rest_document_content( \WP_REST_Request $request )
+	{
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		if ( '' === $id ) {
+			return new \WP_Error(
+				'invalid_document_id',
+				__( 'A document id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$offset = (int) $request->get_param( 'offset' );
+		$path   = '/api/staff-ai/documents/' . rawurlencode( $id ) . '/content';
+		if ( $offset > 0 ) {
+			$path .= '?offset=' . $offset;
+		}
+		$result = self::backend_request( 'GET', $path );
+		if ( is_wp_error( $result ) ) {
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_not_found',
+					__( 'That document no longer exists.', 'digital-employees' ),
+					array( 'status' => 404 )
+				);
+			}
+			return $result;
+		}
+		$doc = ( isset( $result['document'] ) && is_array( $result['document'] ) ) ? $result['document'] : array();
+		return new \WP_REST_Response(
+			array(
+				'success'     => true,
+				'document'    => array(
+					'document_id' => ( isset( $doc['document_id'] ) && is_string( $doc['document_id'] )
+						&& preg_match( '/^[a-zA-Z0-9-]+$/', $doc['document_id'] ) ) ? $doc['document_id'] : $id,
+					'title'       => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
+					'file_type'   => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
+					'version'     => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
+				),
+				'content'     => ( isset( $result['content'] ) && is_string( $result['content'] ) ) ? $result['content'] : '',
+				'offset'      => isset( $result['offset'] ) ? (int) $result['offset'] : 0,
+				'total_chars' => isset( $result['total_chars'] ) ? (int) $result['total_chars'] : 0,
+				'truncated'   => ! empty( $result['truncated'] ),
+				'next_offset' => ( isset( $result['next_offset'] ) && is_numeric( $result['next_offset'] ) ) ? (int) $result['next_offset'] : null,
 			),
 			200
 		);

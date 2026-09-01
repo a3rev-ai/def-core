@@ -534,6 +534,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
+		<!-- Document viewer (Projects P-D3, D-P14): read a document in place. The text
+		     is set via textContent into a <pre> — never HTML (a project document is
+		     untrusted content, D-P7). Reached from a document row's View and from a
+		     project's slot lines. -->
+		<div class="modal-overlay" id="documentViewerModal">
+			<div class="modal" style="max-width: 720px;">
+				<div class="modal-header">
+					<span class="modal-title" id="documentViewerTitle"><?php echo esc_html__( 'Document', 'digital-employees' ); ?></span>
+					<button type="button" class="modal-close" id="documentViewerClose">&times;</button>
+				</div>
+				<div class="modal-body">
+					<div class="documents-status" id="documentViewerStatus"></div>
+					<pre class="document-viewer-text" id="documentViewerText"></pre>
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerMore" style="display:none;"><?php echo esc_html__( 'Show more', 'digital-employees' ); ?></button>
+				</div>
+				<div class="modal-footer">
+					<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerCloseBtn"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
+				</div>
+			</div>
+		</div>
 		<!-- Memories Modal (what the assistant remembers about you — privacy slice B) -->
 		<div class="modal-overlay" id="memoriesModal">
 			<div class="modal" style="max-width: 560px;">

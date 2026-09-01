@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.4.0 - 2026/09/01 =
+* Feature - Staff AI. Read your documents without downloading them: My Documents has a View button on every text document (Markdown, text, CSV, Word), and a project's runsheet, session notes and instructions open in the same viewer straight from the Projects panel. The viewer shows the document as plain text (long documents load in parts with Show more) and keeps a Download link.
+
 = 7.3.0 - 2026/09/01 =
 * Feature - Staff AI. Projects now start in the chat: the Projects panel has an "Ask <your assistant> how Projects work" button that opens a conversation in which the assistant explains projects step by step and can create one for you when you say so (it opens the new project in that chat and starts it with a skeleton runsheet and instructions for you to fill together). Every project row now shows its three documents - runsheet, session notes, instructions - and whether each exists, without a click.
 
