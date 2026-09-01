@@ -3161,8 +3161,11 @@ function t(key, fallback) {
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 
 		async function fetchChunk(offset) {
+			// apiBase can be the plain-permalink ?rest_route= form — the same
+			// guard the Documents and Projects panels carry (panel round 1).
+			const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 			var data = await apiRequest('/documents/' + encodeURIComponent(current.id) + '/content'
-				+ (offset ? '?offset=' + encodeURIComponent(String(offset)) : ''));
+				+ (offset ? sep + 'offset=' + encodeURIComponent(String(offset)) : ''));
 			textEl.textContent += (typeof data.content === 'string') ? data.content : '';
 			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
 			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
