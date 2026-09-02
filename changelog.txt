@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.5.0 - 2026/09/02 =
+* Staff AI console refresh: cleaner first load (your logo, a short greeting, centred chat box), My Documents as a full page with document cards grouped by month and search by document or project name, and an Ask-your-assistant button on Scheduled Tasks.
+
 = 7.4.0 - 2026/09/01 =
 * Feature - Staff AI. Read your documents without downloading them: My Documents has a View button on every text document (Markdown, text, CSV, Word), and a project's runsheet, session notes and instructions open in the same viewer straight from the Projects panel. The viewer shows the document as plain text (long documents load in parts with Show more) and keeps a Download link.
 

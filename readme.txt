@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.4.0
+Stable tag: 7.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.5.0 - 2026-09-02 =
+* Staff AI console refresh: cleaner first load (your logo, a short greeting, centred chat box), My Documents as a full page with document cards grouped by month and search by document or project name, and an Ask-your-assistant button on Scheduled Tasks.
 
 = 7.4.0 - 2026-09-01 =
 * Feature - Staff AI. Read your documents without downloading them: My Documents has a View button on every text document (Markdown, text, CSV, Word), and a project's runsheet, session notes and instructions open in the same viewer straight from the Projects panel. The viewer shows the document as plain text (long documents load in parts with Show more) and keeps a Download link.

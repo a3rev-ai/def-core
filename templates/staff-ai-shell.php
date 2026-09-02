@@ -239,13 +239,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<h1 class="scheduled-pane-title"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
 						<p class="scheduled-pane-sub"><?php echo esc_html__( 'Run tasks on a schedule or whenever you need them.', 'digital-employees' ); ?></p>
 					</div>
-					<button type="button" class="modal-btn modal-btn-primary" id="taskCreateBtn"><?php echo esc_html__( 'New task', 'digital-employees' ); ?></button>
+					<div class="scheduled-pane-actions">
+						<button type="button" class="modal-btn modal-btn-secondary" id="scheduledAskAssistant"><?php echo esc_html__( 'Ask how Scheduled Tasks work', 'digital-employees' ); ?></button>
+						<button type="button" class="modal-btn modal-btn-primary" id="taskCreateBtn"><?php echo esc_html__( 'New task', 'digital-employees' ); ?></button>
+					</div>
 				</div>
 				<div class="task-card-grid" id="taskCardGrid"></div>
 				<div class="schedule-empty" id="scheduledEmpty" style="display:none;">
 					<p><?php echo esc_html__( 'Nothing scheduled yet. Create your first task.', 'digital-employees' ); ?></p>
 				</div>
 				<div class="schedule-status" id="scheduledPaneStatus"></div>
+			</section>
+
+			<!-- My documents — full-pane landing (tweaks item 3, the D-S7 precedent):
+			     a destination page with document CARDS grouped by month, not a fifth
+			     modal. One search box matches document OR project names; the project
+			     filter and the per-card actions carry over from the old modal. -->
+			<section class="documents-pane" id="documentsPane" hidden>
+				<div class="documents-pane-head">
+					<div>
+						<h1 class="scheduled-pane-title"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></h1>
+						<p class="scheduled-pane-sub"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
+					</div>
+				</div>
+				<div class="documents-controls">
+					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search by document or project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search by document or project name…', 'digital-employees' ); ?>">
+					<select class="form-input documents-project-filter" id="documentsProjectFilter" aria-label="<?php echo esc_attr__( 'Filter by project', 'digital-employees' ); ?>">
+						<option value=""><?php echo esc_html__( 'All documents', 'digital-employees' ); ?></option>
+					</select>
+				</div>
+				<div class="documents-status" id="documentsStatus"></div>
+				<div class="documents-grid" id="documentsGrid"></div>
 			</section>
 
 			<div class="messages-container" id="messagesContainer">
@@ -255,40 +279,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 						$first_name   = $user->first_name ?: $user->display_name;
 						$woo_active   = class_exists( 'WooCommerce' ) || function_exists( 'WC' );
 						$is_manager   = $user->has_cap( 'def_management_access' );
-						// Greeting role: Management users get "Management Assistant",
-						// everyone else gets the plain "Assistant". The display_name
-						// (e.g. "Joe") was previously stitched in here but Steve
-						// reframed Staff-AI as a personal assistant; the brand
-						// name belongs to Customer Chat, not the staff console.
-						$role_label   = $is_manager
-							? __( 'Management Assistant', 'digital-employees' )
-							: __( 'Assistant', 'digital-employees' );
+						// Tweaks item 4 (Steve, 2026-09-02): the 16-bullet capability list is
+						// gone — Claude/ChatGPT-style first load: the tenant's own logo, a
+						// couple-of-words greeting, and the composer centred with it (the
+						// .chat-empty flex centring in staff-ai.css). Capability discovery
+						// now lives where "the chat IS the onboarding" put it: the Ask
+						// buttons and the docs corpus. ($woo_active / $is_manager stay —
+						// the tips build below still reads them.)
 						?>
 						<div id="welcomeFull">
-							<p><strong><?php printf( esc_html__( 'Hi %s! I am your personal AI %s.', 'digital-employees' ), esc_html( $first_name ), esc_html( $role_label ) ); ?></strong></p>
-							<p><?php esc_html_e( 'Here\'s what I can help you with:', 'digital-employees' ); ?></p>
-							<ul>
-								<li><?php esc_html_e( 'Answer questions and explain concepts (technical, business, strategy)', 'digital-employees' ); ?></li>
-								<?php if ( $is_manager ) : ?>
-								<li><?php esc_html_e( 'Help with planning, decision-making, and management-level analysis', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Access management-level documents and guidance', 'digital-employees' ); ?></li>
-								<?php endif; ?>
-								<?php if ( $woo_active ) : ?>
-								<li><?php esc_html_e( 'Search products and look up details', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Look up customer orders and order status', 'digital-employees' ); ?></li>
-								<?php endif; ?>
-								<li><?php esc_html_e( 'Answer questions from the knowledge base', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Draft documents such as reports, policies, memos, and proposals', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Create downloadable files (DOCX, PDF, Markdown, spreadsheets, images)', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Summarise documents or extract information from uploaded files', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Help analyse data or structure information for spreadsheets', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Generate images or diagrams from descriptions', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Help write or review code and technical documentation', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Brainstorm ideas, strategies, or solutions', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Keep track of your preferences and project context across conversations', 'digital-employees' ); ?></li>
-								<li><?php esc_html_e( 'Share a conversation with your team via email', 'digital-employees' ); ?></li>
-							</ul>
-							<p><?php esc_html_e( 'What can I help you with?', 'digital-employees' ); ?></p>
+							<?php if ( ! empty( $logo_html ) ) : ?>
+							<div class="welcome-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped where built. ?></div>
+							<?php endif; ?>
+							<h1 class="welcome-greeting"><?php printf( esc_html__( 'Hi %s', 'digital-employees' ), esc_html( $first_name ) ); ?></h1>
 						</div>
 						<p id="welcomeTip" class="welcome-tip" style="display:none;"></p>
 					</div>
@@ -512,26 +515,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
-		<!-- My Documents Modal (document library — slice 4) -->
-		<div class="modal-overlay" id="documentsModal">
-			<div class="modal" style="max-width: 560px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="documentsModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<p class="documents-intro"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
-					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search your documents by title', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search your documents by title…', 'digital-employees' ); ?>">
-					<select class="form-input documents-project-filter" id="documentsProjectFilter" aria-label="<?php echo esc_attr__( 'Filter by project', 'digital-employees' ); ?>">
-						<option value=""><?php echo esc_html__( 'All documents', 'digital-employees' ); ?></option>
-					</select>
-					<div class="documents-status" id="documentsStatus"></div>
-					<div class="documents-list" id="documentsList"></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="modal-btn modal-btn-secondary" id="documentsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="documentsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
+		<!-- The My Documents modal became the #documentsPane page (tweaks item 3, 2026-09-02). -->
 			</div>
 		</div>
 		<!-- Document viewer (Projects P-D3, D-P14): read a document in place. The text
@@ -883,7 +867,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskDeletedNamed: <?php echo wp_json_encode( __( 'Task removed. Its schedule has stopped.', 'digital-employees' ) ); ?>,
 			taskRunQueued: <?php echo wp_json_encode( __( 'The task will run shortly. Its output arrives at the destinations you chose.', 'digital-employees' ) ); ?>,
 			taskRunFailed: <?php echo wp_json_encode( __( 'Could not start the task. Its schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
-			taskRemoveFailed: <?php echo wp_json_encode( __( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>
+			taskRemoveFailed: <?php echo wp_json_encode( __( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			projectsAsk: <?php echo wp_json_encode( __( 'Ask how Projects work', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			projectsAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Projects work', 'digital-employees' ) ); ?>,
+			projectsAskPrompt: <?php echo wp_json_encode( __( 'Walk me through creating and managing a Project, step by step — and create one for me when I\'m ready.', 'digital-employees' ) ); ?>,
+			projectsYourAssistant: <?php echo wp_json_encode( __( 'your assistant', 'digital-employees' ) ); ?>,
+			scheduledAsk: <?php echo wp_json_encode( __( 'Ask how Scheduled Tasks work', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
+			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
+			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>
