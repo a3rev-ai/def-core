@@ -32,7 +32,7 @@ function t(key, fallback) {
 	// named the assistant, it says "your assistant".
 	let assistantName = '';
 	let updateProjectsAskLabel = null;
-let updateScheduledAskLabel = null;
+	let updateScheduledAskLabel = null;
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {

@@ -875,7 +875,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
-			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>
+			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
+			documentsUndated: <?php echo wp_json_encode( __( 'Undated', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>
