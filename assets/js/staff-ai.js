@@ -32,6 +32,7 @@ function t(key, fallback) {
 	// named the assistant, it says "your assistant".
 	let assistantName = '';
 	let updateProjectsAskLabel = null;
+	let updateScheduledAskLabel = null;
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -315,6 +316,7 @@ function t(key, fallback) {
 					if (data.assistant_name && typeof data.assistant_name === 'string') {
 						assistantName = data.assistant_name;
 						if (updateProjectsAskLabel) { updateProjectsAskLabel(); }
+						if (updateScheduledAskLabel) { updateScheduledAskLabel(); }
 					}
 					var models = data.available_models || [];
 					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
@@ -865,7 +867,9 @@ function t(key, fallback) {
 		}
 	});
 
-	// Show full welcome on first visit, random tip on subsequent new chats
+	// Tweaks item 4 (2026-09-02): the greeting shows on EVERY empty chat (it
+	// is two words now, not a manual); a rotating tip joins it on return
+	// visits as a whisper of guidance. localStorage key kept for the split.
 	function showWelcomeOrTip() {
 		var welcomed = false;
 		try { welcomed = localStorage.getItem('staff-ai-welcome-v1'); } catch (e) { /* blocked */ }
@@ -874,20 +878,16 @@ function t(key, fallback) {
 		var fullEl = document.getElementById('welcomeFull');
 		var tipEl = document.getElementById('welcomeTip');
 
-		if (!welcomed || tips.length === 0) {
-			// First visit or no tips available: show full welcome
+		welcomeMessage.style.display = 'block';
+		if (fullEl) fullEl.style.display = '';
+		if (!welcomed) {
 			try { localStorage.setItem('staff-ai-welcome-v1', '1'); } catch (e) { /* blocked */ }
-			welcomeMessage.style.display = 'block';
-			if (fullEl) fullEl.style.display = '';
 			if (tipEl) tipEl.style.display = 'none';
-		} else {
-			// Returning user: show random tip
-			welcomeMessage.style.display = 'block';
-			if (fullEl) fullEl.style.display = 'none';
-			if (tipEl) {
-				tipEl.textContent = tips[Math.floor(Math.random() * tips.length)];
-				tipEl.style.display = '';
-			}
+		} else if (tipEl && tips.length) {
+			tipEl.textContent = tips[Math.floor(Math.random() * tips.length)];
+			tipEl.style.display = '';
+		} else if (tipEl) {
+			tipEl.style.display = 'none';
 		}
 	}
 
@@ -903,6 +903,10 @@ function t(key, fallback) {
 
 	// Render messages
 	function renderMessages() {
+		// Tweaks item 4: empty chats centre the greeting + composer (CSS
+		// .chat-empty auto-margin pair); any message returns the normal layout.
+		var chatEl = document.querySelector('.chat-container');
+		if (chatEl) chatEl.classList.toggle('chat-empty', messages.length === 0);
 		if (messages.length === 0) {
 			showWelcomeOrTip();
 			const msgElements = messagesList.querySelectorAll('.message');
@@ -3205,15 +3209,18 @@ function t(key, fallback) {
 	})();
 
 	(function initDocuments() {
-		const modal = document.getElementById('documentsModal');
-		if (!modal) return;
+		// Tweaks item 3 (2026-09-02): the modal became a PAGE (the D-S7
+		// precedent) — document CARDS grouped by month, one search box matching
+		// document OR project names (client-side over the caller's own list),
+		// the same per-card actions the modal rows had.
+		const pane = document.getElementById('documentsPane');
+		if (!pane) return;
 
 		const openBtn = document.getElementById('navDocuments');
-		const modalClose = document.getElementById('documentsModalClose');
-		const closeBtn = document.getElementById('documentsClose');
-		const refreshBtn = document.getElementById('documentsRefresh');
 		const statusEl = document.getElementById('documentsStatus');
-		const listEl = document.getElementById('documentsList');
+		const listEl = document.getElementById('documentsGrid');
+		const messagesEl = document.getElementById('messagesContainer');
+		const composerEl = document.getElementById('composerContainer');
 		const searchEl = document.getElementById('documentsSearch');
 		const projectFilterEl = document.getElementById('documentsProjectFilter');
 		let projectFilter = '';
@@ -3249,12 +3256,22 @@ function t(key, fallback) {
 			return searchEl ? searchEl.value.trim() : '';
 		}
 
+		var paneOpen = false;
 		function open() {
-			modal.classList.add('visible');
+			paneOpen = true;
+			var sched = document.getElementById('scheduledPane');
+			if (sched) sched.hidden = true; // one pane at a time
+			if (messagesEl) messagesEl.style.display = 'none';
+			if (composerEl) composerEl.style.display = 'none';
+			pane.hidden = false;
 			refreshProjectsCache().then(loadList);
 		}
 		function close() {
-			modal.classList.remove('visible');
+			if (!paneOpen) return;
+			paneOpen = false;
+			pane.hidden = true;
+			if (messagesEl) messagesEl.style.display = '';
+			if (composerEl) composerEl.style.display = '';
 		}
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
@@ -3274,6 +3291,28 @@ function t(key, fallback) {
 			return (bytes / 1048576).toFixed(1) + ' MB';
 		}
 
+		function monthLabel(iso) {
+			var d = iso ? new Date(iso) : null;
+			if (!d || isNaN(d.getTime())) return t('documentsUndated', 'Undated');
+			return d.toLocaleDateString([], { month: 'long', year: 'numeric' });
+		}
+
+		// Newest first from DEF; a full-width month heading opens each group.
+		function renderGroups(docs) {
+			var lastLabel = null;
+			docs.forEach(function (doc) {
+				var label = monthLabel(doc.created_at);
+				if (label !== lastLabel) {
+					var h = document.createElement('h2');
+					h.className = 'documents-month';
+					h.textContent = label;
+					listEl.appendChild(h);
+					lastLabel = label;
+				}
+				listEl.appendChild(renderRow(doc));
+			});
+		}
+
 		async function loadList() {
 			if (loading) return;
 			loading = true;
@@ -3284,11 +3323,17 @@ function t(key, fallback) {
 				// apiBase can be the plain-permalink ?rest_route= form — pick the
 				// separator accordingly (same idiom as def-core-product-cards.js).
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-				const parts = [];
-				if (term) { parts.push('q=' + encodeURIComponent(term)); }
-				if (projectFilter) { parts.push('project_id=' + encodeURIComponent(projectFilter)); }
-				const data = await apiRequest('/documents' + (parts.length ? sep + parts.join('&') : ''));
-				const docs = Array.isArray(data.documents) ? data.documents : [];
+				const data = await apiRequest('/documents' + (projectFilter ? sep + 'project_id=' + encodeURIComponent(projectFilter) : ''));
+				let docs = Array.isArray(data.documents) ? data.documents : [];
+				// One box searches BOTH names (client-side — the library is the
+				// caller's own; DEF pages 200 rows).
+				const q = term.toLowerCase();
+				if (q) {
+					docs = docs.filter(function (doc) {
+						return ((doc.title || '').toLowerCase().indexOf(q) !== -1)
+							|| ((doc.project_name || '').toLowerCase().indexOf(q) !== -1);
+					});
+				}
 				if (docs.length === 0) {
 					setStatus(term
 						? t('documentsNoMatches', 'No documents match your search.')
@@ -3296,7 +3341,7 @@ function t(key, fallback) {
 					return;
 				}
 				setStatus('', '');
-				docs.forEach(function (doc) { listEl.appendChild(renderRow(doc)); });
+				renderGroups(docs);
 			} catch (e) {
 				setStatus((e && e.message) || t('documentsLoadFailed', 'Could not load your documents.'), 'error');
 			} finally {
@@ -3312,7 +3357,7 @@ function t(key, fallback) {
 
 		function renderRow(doc) {
 			const row = document.createElement('div');
-			row.className = 'document-row';
+			row.className = 'document-card';
 
 			const info = document.createElement('div');
 			info.className = 'document-info';
@@ -3352,7 +3397,7 @@ function t(key, fallback) {
 				const move = document.createElement('button');
 				move.type = 'button';
 				move.className = 'document-btn';
-				move.textContent = t('documentsMoveProject', 'Project…');
+				move.textContent = t('documentsMoveProject', 'Move to project…');
 				move.addEventListener('click', function () { toggleAssignRow(row, doc); });
 				action.appendChild(move);
 			}
@@ -3388,8 +3433,8 @@ function t(key, fallback) {
 		}
 
 		function toggleAssignRow(row, doc) {
-			const existing = row.nextElementSibling;
-			if (existing && existing.classList.contains('document-assign-row')) {
+			const existing = row.querySelector('.document-assign-row');
+			if (existing) {
 				existing.remove();
 				return;
 			}
@@ -3455,7 +3500,7 @@ function t(key, fallback) {
 			});
 			panel.appendChild(save);
 
-			row.insertAdjacentElement('afterend', panel);
+			row.appendChild(panel);
 		}
 
 		async function removeDoc(doc, btn, row) {
@@ -3467,13 +3512,8 @@ function t(key, fallback) {
 			btn.disabled = true;
 			try {
 				await apiRequest('/documents/' + encodeURIComponent(doc.document_id), { method: 'DELETE' });
-				row.remove();
-				setStatus('', '');
-				if (!listEl.children.length) {
-					setStatus(searchTerm()
-						? t('documentsNoMatches', 'No documents match your search.')
-						: t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
-				}
+				// Reload rather than pluck: keeps the month headings honest.
+				loadList();
 			} catch (e) {
 				btn.disabled = false;
 				setStatus((e && e.message) || t('documentsDeleteFailed', 'Could not delete the document.'), 'error');
@@ -3481,9 +3521,11 @@ function t(key, fallback) {
 		}
 
 		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
-		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
+		// Chat navigation leaves the page (capture phase — the D-S7 pattern).
+		var newChatB = document.getElementById('newChatBtn');
+		if (newChatB) newChatB.addEventListener('click', close, true);
+		var convListB = document.getElementById('conversationList');
+		if (convListB) convListB.addEventListener('click', close, true);
 		if (projectFilterEl) {
 			projectFilterEl.addEventListener('change', function () {
 				projectFilter = projectFilterEl.value;
@@ -3505,7 +3547,6 @@ function t(key, fallback) {
 				}
 			});
 		}
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 
 	// =============================================
@@ -4467,6 +4508,8 @@ function t(key, fallback) {
 
 		function showPane() {
 			paneOpen = true;
+			var docsPane = document.getElementById('documentsPane');
+			if (docsPane) docsPane.hidden = true; // one pane at a time
 			if (messagesEl) messagesEl.style.display = 'none';
 			if (composerEl) composerEl.style.display = 'none';
 			pane.hidden = false;
@@ -4939,6 +4982,29 @@ function t(key, fallback) {
 				btn.disabled = false;
 				setStatus(paneStatus, (e && e.message) || t('taskRemoveFailed', 'Could not remove your task. Nothing has changed - try again in a moment.'), 'error');
 			}
+		}
+
+		// Tweaks item 2 (2026-09-02): the Projects Ask pattern on Scheduled —
+		// the chat IS the onboarding, and with create_scheduled_task shipped the
+		// prompt honestly asks the assistant to set one up too.
+		var askBtn = document.getElementById('scheduledAskAssistant');
+		function labelScheduledAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('scheduledAskNamed', 'Ask %s how Scheduled Tasks work').replace('%s', function () { return assistantName; })
+				: t('scheduledAsk', 'Ask how Scheduled Tasks work');
+		}
+		updateScheduledAskLabel = labelScheduledAsk;
+		labelScheduledAsk();
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				hidePane();
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('scheduledAskPrompt', 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.');
+				updateSendButton();
+				sendMessage();
+			});
 		}
 
 		if (navBtn) navBtn.addEventListener('click', showPane);

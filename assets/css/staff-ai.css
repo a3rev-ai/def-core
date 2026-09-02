@@ -2902,3 +2902,140 @@ html {
 	cursor: pointer;
 }
 
+
+/* =============================================
+   Staff console tweaks (2026-09-02, v7.5.0)
+   Item 4: chat column takes the sidebar's ground so the white composer box
+   stands out (Claude-style); empty chats centre the greeting + composer via
+   the flex auto-margin pair below. Item 3: the documents PAGE (cards grouped
+   by month). Appended overrides — same specificity, later wins.
+   ============================================= */
+
+.chat-container,
+.chat-header,
+.composer-container,
+.scheduled-pane,
+.documents-pane {
+	background: var(--bg-sidebar);
+}
+
+.composer {
+	background: var(--bg-main);
+	border-color: var(--border-medium);
+}
+
+/* Empty chat: the auto-margin pair splits the free space above the greeting
+   and below the composer, centring the group without touching the flex order. */
+.chat-container.chat-empty .messages-container {
+	flex: 0 0 auto;
+	margin-top: auto;
+	overflow: visible;
+}
+.chat-container.chat-empty .composer-container {
+	margin-bottom: auto;
+}
+
+.welcome-message {
+	text-align: center;
+	padding: 0 20px 8px;
+}
+.welcome-logo {
+	display: flex;
+	justify-content: center;
+	margin-bottom: 4px;
+}
+.welcome-logo img {
+	max-height: 44px;
+	width: auto;
+}
+.welcome-greeting {
+	font-size: 32px;
+	font-weight: 600;
+	margin: 12px 0 0;
+	color: var(--text-heading);
+}
+.welcome-tip {
+	padding: 12px 20px 0;
+}
+
+/* Scheduled pane: room for the Ask button beside New task. */
+.scheduled-pane-actions {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	flex-shrink: 0;
+	flex-wrap: wrap;
+}
+
+/* My documents page (item 3). Reuses the scheduled pane's title/sub classes. */
+.documents-pane {
+	flex: 1;
+	overflow-y: auto;
+	padding: 28px 32px;
+}
+.documents-pane[hidden] {
+	display: none;
+}
+.documents-pane-head {
+	margin-bottom: 14px;
+}
+.documents-controls {
+	display: flex;
+	gap: 10px;
+	max-width: 640px;
+}
+.documents-controls .documents-search {
+	flex: 1;
+	margin: 0;
+}
+.documents-controls .documents-project-filter {
+	width: auto;
+	margin: 0;
+}
+.documents-pane .documents-status {
+	margin-top: 10px;
+}
+.documents-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 14px;
+	align-items: start;
+	margin-top: 12px;
+}
+.documents-month {
+	grid-column: 1 / -1;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 10px 0 -4px;
+}
+.document-card {
+	background: var(--bg-main);
+	border: 1px solid var(--border-light);
+	border-radius: 10px;
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.document-card .document-action {
+	flex-wrap: wrap;
+	gap: 8px;
+	justify-content: flex-start;
+}
+.document-card .document-assign-row {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+@media (max-width: 640px) {
+	.documents-pane {
+		padding: 20px 16px;
+	}
+	.documents-controls {
+		flex-direction: column;
+	}
+}
