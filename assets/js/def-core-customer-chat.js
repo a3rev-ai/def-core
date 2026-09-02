@@ -2956,6 +2956,14 @@
 		if (replyTo) {
 			payload.reply_to = replyTo;
 		}
+		// Partner attribution (7.6.0, S5c): the lead's name + message ride to
+		// DEFHO with the capture so the referring partner's CRM gets a real
+		// lead, not a domain. Server-side only; never in the email allowlist.
+		// Anonymous visitors only — a logged-in user is not a prospect.
+		if (!isAuthenticated()) {
+			payload.contact_name = (firstName + ' ' + lastName).trim();
+			payload.message = message;
+		}
 		if (els.escalationPref && els.escalationPref.value) {
 			payload.preferred_contact = els.escalationPref.value;
 		}

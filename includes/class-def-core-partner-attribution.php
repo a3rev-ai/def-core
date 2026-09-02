@@ -208,11 +208,13 @@ final class DEF_Core_Partner_Attribution {
 	 * S3 — capture attribution for an escalation lead. FAIL-OPEN (AD-14):
 	 * returns null on any failure and the caller proceeds regardless.
 	 *
-	 * @param string $reply_to Visitor email (its domain feeds the registration rung).
-	 * @param string $page_url The conversion page URL as sent by the client.
+	 * @param string $reply_to     Visitor email (its domain feeds the registration rung; S5c sends it whole).
+	 * @param string $page_url     The conversion page URL as sent by the client.
+	 * @param string $contact_name The visitor's name from the hand-off form (S5c, 7.6.0).
+	 * @param string $message      The visitor's message from the hand-off form (S5c, 7.6.0).
 	 * @return array|null {source, partner_name} or null.
 	 */
-	public static function capture_for_escalation( string $reply_to, string $page_url ): ?array {
+	public static function capture_for_escalation( string $reply_to, string $page_url, string $contact_name = '', string $message = '' ): ?array {
 		$secret = class_exists( 'DEF_Core_Encryption' )
 			? (string) DEF_Core_Encryption::get_secret( 'def_service_auth_secret' )
 			: '';
@@ -228,17 +230,8 @@ final class DEF_Core_Partner_Attribution {
 			$slug = self::extract_slug_from_page_url( $page_url ); // AD-6 leg.
 		}
 
-		$payload = array( 'lead_ref' => 'esc-' . gmdate( 'YmdHis' ) . '-' . strtolower( wp_generate_password( 8, false ) ) );
-		if ( '' !== $slug ) {
-			$payload['slug'] = $slug;
-		}
-		$domain = self::email_domain_from( $reply_to );
-		if ( '' !== $domain ) {
-			$payload['email_domain'] = $domain;
-		}
-		if ( '' !== $page_url ) {
-			$payload['page_url'] = substr( $page_url, 0, 500 );
-		}
+		$lead_ref = 'esc-' . gmdate( 'YmdHis' ) . '-' . strtolower( wp_generate_password( 8, false ) );
+		$payload  = self::build_capture_payload( $lead_ref, $slug, $reply_to, $page_url, $contact_name, $message );
 
 		$response = wp_remote_post(
 			DEF_Core_OAuth::get_defho_api_url() . '/api/bridge/attribution/capture',
@@ -273,6 +266,38 @@ final class DEF_Core_Partner_Attribution {
 	/* ------------------------------------------------------------------ */
 	/* Pure helpers (covered by tests/test-partner-attribution.php)        */
 	/* ------------------------------------------------------------------ */
+
+	/**
+	 * The DEFHO capture payload (S3 + S5c). Contact fields are bounded to the
+	 * capture schema's limits because DEFHO REFUSES over-length with a 422 and
+	 * the call is fail-open — an unbounded field would lose the WHOLE
+	 * attribution, not a suffix. Resolution input (slug, domain) is never cut.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function build_capture_payload( string $lead_ref, string $slug, string $reply_to, string $page_url, string $contact_name = '', string $message = '' ): array {
+		$payload = array( 'lead_ref' => $lead_ref );
+		if ( '' !== $slug ) {
+			$payload['slug'] = $slug;
+		}
+		$domain = self::email_domain_from( $reply_to );
+		if ( '' !== $domain ) {
+			$payload['email_domain']  = $domain;
+			$payload['contact_email'] = strtolower( trim( $reply_to ) );
+		}
+		if ( '' !== $page_url ) {
+			$payload['page_url'] = substr( $page_url, 0, 500 );
+		}
+		$contact_name = trim( (string) preg_replace( '/\s+/', ' ', $contact_name ) );
+		if ( '' !== $contact_name ) {
+			$payload['contact_name'] = mb_substr( $contact_name, 0, 200 );
+		}
+		$message = trim( $message );
+		if ( '' !== $message ) {
+			$payload['message'] = mb_substr( $message, 0, 1000 );
+		}
+		return $payload;
+	}
 
 	/**
 	 * Slugs are lowercase [a-z0-9-], 1–50 chars — DEFHO's Partner.slug shape.

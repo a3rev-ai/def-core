@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.0 - 2026/09/02 =
+* New Feature - Partner attribution: a chat hand-off enquiry now sends the visitor's name, email and message to DEFHO with its attribution, so the referring partner's CRM receives a real lead and the partner is notified of it.
+
 = 7.5.1 - 2026/09/02 =
 * First-load polish: the greeting sits inline with your logo just above the centred chat box, and the chat box gains a soft shadow.
 
