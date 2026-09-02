@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.5.0
+Stable tag: 7.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.5.1 - 2026-09-02 =
+* First-load polish: the greeting sits inline with your logo just above the centred chat box, and the chat box gains a soft shadow.
 
 = 7.5.0 - 2026-09-02 =
 * Staff AI console refresh: cleaner first load (your logo, a short greeting, centred chat box), My Documents as a full page with document cards grouped by month and search by document or project name, and an Ask-your-assistant button on Scheduled Tasks.

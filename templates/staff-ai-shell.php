@@ -118,7 +118,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</aside>
 
 		<!-- Main chat -->
-		<main class="chat-container">
+		<main class="chat-container chat-empty">
 			<header class="chat-header">
 				<button type="button" class="menu-toggle" id="menuToggle" aria-label="<?php echo esc_attr__( 'Toggle menu', 'digital-employees' ); ?>">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -288,10 +288,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 						// the tips build below still reads them.)
 						?>
 						<div id="welcomeFull">
-							<?php if ( ! empty( $logo_html ) ) : ?>
-							<div class="welcome-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped where built. ?></div>
-							<?php endif; ?>
-							<h1 class="welcome-greeting"><?php printf( esc_html__( 'Hi %s', 'digital-employees' ), esc_html( $first_name ) ); ?></h1>
+							<div class="welcome-hero">
+								<?php if ( ! empty( $welcome_logo_html ) ) : ?>
+								<span class="welcome-logo"><?php echo $welcome_logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped where built. ?></span>
+								<?php endif; ?>
+								<h1 class="welcome-greeting"><?php printf( esc_html__( 'Hi %s', 'digital-employees' ), esc_html( $first_name ) ); ?></h1>
+							</div>
 						</div>
 						<p id="welcomeTip" class="welcome-tip" style="display:none;"></p>
 					</div>

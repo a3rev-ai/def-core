@@ -3039,3 +3039,32 @@ html {
 		flex-direction: column;
 	}
 }
+
+/* v7.5.1 first-load polish (Steve's canary): logo INLINE with the greeting as
+   one hero row just above the box; soft shadow so the composer stands out;
+   centring is now the template's default state (.chat-empty in the markup). */
+
+.welcome-hero {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+}
+.welcome-logo {
+	display: flex;
+	align-items: center;
+	margin-bottom: 0;
+}
+.welcome-greeting {
+	margin: 0;
+}
+.welcome-message {
+	padding: 0 20px 4px;
+}
+
+.composer {
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+.dark-theme .composer {
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
