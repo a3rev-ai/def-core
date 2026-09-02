@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.5.1 - 2026/09/02 =
+* First-load polish: the greeting sits inline with your logo just above the centred chat box, and the chat box gains a soft shadow.
+
 = 7.5.0 - 2026/09/02 =
 * Staff AI console refresh: cleaner first load (your logo, a short greeting, centred chat box), My Documents as a full page with document cards grouped by month and search by document or project name, and an Ask-your-assistant button on Scheduled Tasks.
 
