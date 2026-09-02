@@ -516,8 +516,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</div>
 		</div>
 		<!-- The My Documents modal became the #documentsPane page (tweaks item 3, 2026-09-02). -->
-			</div>
-		</div>
 		<!-- Document viewer (Projects P-D3, D-P14): read a document in place. The text
 		     is set via textContent into a <pre> — never HTML (a project document is
 		     untrusted content, D-P7). Reached from a document row's View and from a
