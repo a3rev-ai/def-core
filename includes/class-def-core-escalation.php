@@ -538,8 +538,9 @@ final class DEF_Core_Escalation {
 		$safe_body['channel'] = 'customer';
 
 		// Partner attribution (6.5.0, S3): resolve via DEFHO and stamp the lead.
-		// page_url is read from the RAW body (never the email allowlist) and goes
-		// only to the capture payload. FAIL-OPEN (AD-14): a null result changes
+		// page_url — and, since 7.6.0 (S5c), the contact name + message — are read
+		// from the RAW body (never the email allowlist) and go only to the capture
+		// payload. FAIL-OPEN (AD-14): a null result changes
 		// nothing about the send. Capture only for a submission that can actually
 		// send (non-empty subject+body, mirroring send_escalation_email's checks) —
 		// an invalid submission must not mint a phantom lead_ref.
@@ -547,7 +548,9 @@ final class DEF_Core_Escalation {
 			$attr_page_url = isset( $body['page_url'] ) ? esc_url_raw( (string) $body['page_url'] ) : '';
 			$attribution   = DEF_Core_Partner_Attribution::capture_for_escalation(
 				(string) ( $safe_body['reply_to'] ?? '' ),
-				$attr_page_url
+				$attr_page_url,
+				isset( $body['contact_name'] ) ? sanitize_text_field( (string) $body['contact_name'] ) : '',
+				isset( $body['message'] ) ? sanitize_textarea_field( (string) $body['message'] ) : ''
 			);
 			if ( null !== $attribution ) {
 				$safe_body['body'] .= "\n\n" . DEF_Core_Partner_Attribution::build_attributed_line( $attribution );

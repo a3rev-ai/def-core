@@ -92,6 +92,18 @@ assert_test(
 	'unknown source falls back to the partner-link wording'
 );
 
+echo "build_capture_payload (S5c contact fields)\n";
+$p = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-1', 'acme', 'Ada@Prospect.com', 'https://widrow.ai/p/acme', "  Ada \n Lovelace ", " Call me\nplease " );
+assert_test( 'esc-1' === $p['lead_ref'] && 'acme' === $p['slug'], 'lead_ref + slug carried' );
+assert_test( 'prospect.com' === $p['email_domain'] && 'ada@prospect.com' === $p['contact_email'], 'domain + the whole email (lowered)' );
+assert_test( 'Ada Lovelace' === $p['contact_name'], 'name whitespace collapsed' );
+assert_test( "Call me\nplease" === $p['message'], 'message trimmed, newlines kept' );
+assert_test( 'https://widrow.ai/p/acme' === $p['page_url'], 'page_url carried' );
+$q = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-2', '', 'not-an-email', '', '', '' );
+assert_test( array( 'lead_ref' => 'esc-2' ) === $q, 'empty/invalid inputs send nothing but lead_ref' );
+$r = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-3', '', '', '', str_repeat( 'n', 250 ), str_repeat( 'm', 1200 ) );
+assert_test( 200 === strlen( $r['contact_name'] ) && 1000 === strlen( $r['message'] ), 'contact fields bounded to the capture schema (a 422 would lose the whole stamp)' );
+
 echo "\n{$passed} passed, {$failed} failed\n";
 if ( $failed > 0 ) {
 	echo 'FAILED: ' . implode( '; ', $errors ) . "\n";

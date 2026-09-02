@@ -104,6 +104,12 @@ const BASELINE = array(
 	// attribution, not a suffix. The slug is extracted from the FULL url BEFORE
 	// this cut, so only stored evidence is bounded, never resolution input.
 	'includes/class-def-core-partner-attribution.php::$payload[\'page_url\'] = substr( $page_url, 0, 500 );' => 1,
+	// S5c (7.6.0, classified at introduction): the same shape for the contact
+	// fields — DEFHO's capture schema REFUSES contact_name > 200 / message > 1000
+	// (422) and the call is fail-open, so an unbounded field would lose the whole
+	// attribution. Only stored evidence is bounded; resolution input never is.
+	'includes/class-def-core-partner-attribution.php::$payload[\'contact_name\'] = mb_substr( $contact_name, 0, 200 );' => 1,
+	'includes/class-def-core-partner-attribution.php::$payload[\'message\'] = mb_substr( $message, 0, 1000 );' => 1,
 	// Door-check for DEF's String(64) timezone column, mirrored from the DEF
 	// route it proxies: REFUSES visibly (400, field named), never truncates;
 	// every real IANA zone name fits. Classified at introduction (S4b card).
