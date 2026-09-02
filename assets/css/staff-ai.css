@@ -3055,10 +3055,6 @@ html {
 	align-items: center;
 	margin-bottom: 0;
 }
-.welcome-logo img {
-	max-height: 40px;
-	width: auto;
-}
 .welcome-greeting {
 	margin: 0;
 }

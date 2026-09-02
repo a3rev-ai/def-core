@@ -289,8 +289,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 						?>
 						<div id="welcomeFull">
 							<div class="welcome-hero">
-								<?php if ( ! empty( $logo_html ) ) : ?>
-								<span class="welcome-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped where built. ?></span>
+								<?php if ( ! empty( $welcome_logo_html ) ) : ?>
+								<span class="welcome-logo"><?php echo $welcome_logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped where built. ?></span>
 								<?php endif; ?>
 								<h1 class="welcome-greeting"><?php printf( esc_html__( 'Hi %s', 'digital-employees' ), esc_html( $first_name ) ); ?></h1>
 							</div>

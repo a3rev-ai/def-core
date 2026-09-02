@@ -5628,8 +5628,11 @@ JS;
 			$display_name = get_option( 'def_core_display_name', get_bloginfo( 'name' ) );
 			$logo_html    = '<span class="header-logo-text">' . esc_html( $display_name ) . '</span>';
 		}
+		// Welcome hero (v7.5.1): the same chain at 40px — get_logo_html() emits an
+		// INLINE max-height, so the size must be built here, not styled later.
+		$welcome_logo_html = $show_logo ? DEF_Core_Admin::get_logo_html( 40 ) : $logo_html;
 
-		// Template expects: $channel, $user, $api_base, $nonce, $logo_html.
+		// Template expects: $channel, $user, $api_base, $nonce, $logo_html, $welcome_logo_html.
 		$template = DEF_CORE_PLUGIN_DIR . 'templates/staff-ai-shell.php';
 		if ( ! file_exists( $template ) ) {
 			wp_die(
