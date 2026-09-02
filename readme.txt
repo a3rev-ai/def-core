@@ -109,7 +109,7 @@ Go to **Digital Employees > Chat Settings**. You can set button position (left/r
 
 = What data is sent to the AI service? =
 
-Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed are also sent to DEFHO so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
+Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
@@ -763,9 +763,20 @@ This plugin connects to an external AI service to power the Customer Chat and St
 
 When the Customer Chat widget or Staff AI panel is used, chat messages are sent to the configured Digital Employee Framework (DEF) API server for processing by AI models. This connection is required for the chat features to function.
 
-* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed are also sent to DEFHO so the enquiry can be credited to the referring partner and passed on to them.
+* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them.
 * **When:** Only when a user or visitor actively sends a message via the chat interface.
 * **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
+* **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
+* **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)
+* **Privacy Policy:** [https://defho.ai/privacy](https://defho.ai/privacy)
+
+= DEFHO Platform API =
+
+On a site connected to DEFHO, the plugin also talks to the DEFHO platform API for partner attribution.
+
+* **What is sent:** On a `/p/partner-link` page view, the partner link's slug (to validate it and fetch the partner's display name). When a visitor submits the chat hand-off form, the attribution capture: the name, email and message they typed, the page they were on, and the partner link they arrived through, so the enquiry can be credited to the referring partner and passed on to them.
+* **When:** Only on partner-link page views and hand-off form submissions, and only when the site is connected to DEFHO.
+* **Service URL:** `https://platform-api.defho.ai` (overridable with the `DEF_DEFHO_API_URL` constant).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
 * **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)
 * **Privacy Policy:** [https://defho.ai/privacy](https://defho.ai/privacy)
