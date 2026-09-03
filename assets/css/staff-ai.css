@@ -309,6 +309,22 @@ body {
 	font-size: 14px;
 }
 
+/* The creator's delivery fact + its Ask entry, on one line under "Deliver to". */
+.schedule-results-note {
+	margin: 8px 0 0;
+	font-size: 12px;
+	color: var(--text-secondary);
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+/* My Documents, empty: the Ask button IS the empty state. */
+.documents-empty {
+	text-align: center;
+	padding: 8px 0 24px;
+}
+
 .dark-theme .task-badge {
 	background: rgba(52, 199, 123, 0.16);
 	color: #59d18f;
@@ -2892,7 +2908,8 @@ html {
 	border: 1px solid var(--border-light);
 	border-radius: 6px;
 }
-.project-slot-open {
+.project-slot-open,
+.schedule-results-ask {
 	background: none;
 	border: 0;
 	padding: 0;

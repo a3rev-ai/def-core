@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.2 - 2026/09/03 =
+* Tweak - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
+* Fix - Staff AI: "New chat" on a project row now always opens a fresh chat in that project, instead of sometimes landing back on the My Documents or Scheduled page that was open behind the panel.
+
 = 7.6.1 - 2026/09/03 =
 * Tweak - Partner attribution: the phone number, business name and website a visitor gives on the chat hand-off form now travel with the enquiry to DEFHO and into the referring partner's CRM; the website matches a registered prospect even when the enquiry comes from a free-mail address.
 * Tweak - Customer Chat hand-off form: optional Business name field.

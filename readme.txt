@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.6.1
+Stable tag: 7.6.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.2 - 2026-09-03 =
+* Tweak - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
+* Fix - Staff AI: "New chat" on a project row now always opens a fresh chat in that project, instead of sometimes landing back on the My Documents or Scheduled page that was open behind the panel.
 
 = 7.6.1 - 2026-09-03 =
 * Tweak - Partner attribution: the phone number, business name and website a visitor gives on the chat hand-off form now travel with the enquiry to DEFHO and into the referring partner's CRM; the website matches a registered prospect even when the enquiry comes from a free-mail address.
