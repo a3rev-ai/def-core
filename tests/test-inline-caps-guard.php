@@ -110,7 +110,8 @@ const BASELINE = array(
 	// attribution. Only stored evidence is bounded; resolution input never is.
 	'includes/class-def-core-partner-attribution.php::$payload[\'contact_name\'] = mb_substr( $contact_name, 0, 200 );' => 1,
 	'includes/class-def-core-partner-attribution.php::$payload[\'message\'] = mb_substr( $message, 0, 1000 );' => 1,
-	// 7.6.1: the phone, same class — DEFHO refuses contact_phone > 50 (422) on a fail-open call.
+	// 7.6.1: the phone, same class — bounded to the String(50) the DEFHO/DEF schemas hold
+	// (a 422 on the fail-open capture would lose the whole stamp).
 	'includes/class-def-core-partner-attribution.php::$payload[\'contact_phone\'] = mb_substr( $contact_phone, 0, 50 );' => 1,
 	// Door-check for DEF's String(64) timezone column, mirrored from the DEF
 	// route it proxies: REFUSES visibly (400, field named), never truncates;
