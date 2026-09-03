@@ -103,6 +103,16 @@ $q = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-2', '', 'not-an-e
 assert_test( array( 'lead_ref' => 'esc-2' ) === $q, 'empty/invalid inputs send nothing but lead_ref' );
 $r = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-3', '', '', '', str_repeat( 'n', 250 ), str_repeat( 'm', 1200 ) );
 assert_test( 200 === strlen( $r['contact_name'] ) && 1000 === strlen( $r['message'] ), 'contact fields bounded to the capture schema (a 422 would lose the whole stamp)' );
+$s = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-4', '', 'ada@prospect.com', '', 'Ada', '', '  +61 400 000 000  ' );
+assert_test( '+61 400 000 000' === $s['contact_phone'], 'phone trimmed and carried (7.6.1)' );
+assert_test( ! isset( DEF_Core_Partner_Attribution::build_capture_payload( 'esc-5', '', '', '', '', '', '   ' )['contact_phone'] ), 'blank phone sends nothing' );
+assert_test( 50 === strlen( DEF_Core_Partner_Attribution::build_capture_payload( 'esc-6', '', '', '', '', '', str_repeat( '9', 60 ) )['contact_phone'] ), 'phone bounded to the capture schema' );
+$b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-7', '', 'ada@gmail.com', '', 'Ada', '', '', '  Harbour   Dental ', ' https://www.Harbour-Dental.com/ ' );
+assert_test( 'Harbour Dental' === $b['company_name'] && 'https://www.Harbour-Dental.com/' === $b['website'], 'business name + website carried (7.6.1) — the registration key when the email is free-mail' );
+$b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-8', '', '', '', '', '', '', ' ', ' ' );
+assert_test( ! isset( $b['company_name'] ) && ! isset( $b['website'] ), 'blank business + website send nothing' );
+$b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-9', '', '', '', '', '', '', str_repeat( 'a', 250 ), str_repeat( 'b', 300 ) );
+assert_test( 200 === strlen( $b['company_name'] ) && 255 === strlen( $b['website'] ), 'business + website bounded to the capture schema' );
 
 echo "\n{$passed} passed, {$failed} failed\n";
 if ( $failed > 0 ) {

@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.1 - 2026/09/03 =
+* Tweak - Partner attribution: the phone number, business name and website a visitor gives on the chat hand-off form now travel with the enquiry to DEFHO and into the referring partner's CRM; the website matches a registered prospect even when the enquiry comes from a free-mail address.
+* Tweak - Customer Chat hand-off form: optional Business name field.
+
 = 7.6.0 - 2026/09/02 =
 * New Feature - Partner attribution: a chat hand-off enquiry now sends the visitor's name, email and message to DEFHO with its attribution, so the referring partner's CRM receives a real lead and the partner is notified of it.
 

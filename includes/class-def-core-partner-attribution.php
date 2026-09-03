@@ -212,9 +212,12 @@ final class DEF_Core_Partner_Attribution {
 	 * @param string $page_url     The conversion page URL as sent by the client.
 	 * @param string $contact_name The visitor's name from the hand-off form (S5c, 7.6.0).
 	 * @param string $message      The visitor's message from the hand-off form (S5c, 7.6.0).
+	 * @param string $contact_phone The visitor's phone from the hand-off form (7.6.1).
+	 * @param string $company_name  The visitor's business name from the hand-off form (7.6.1).
+	 * @param string $website       The visitor's business website from the hand-off form (7.6.1).
 	 * @return array|null {source, partner_name} or null.
 	 */
-	public static function capture_for_escalation( string $reply_to, string $page_url, string $contact_name = '', string $message = '' ): ?array {
+	public static function capture_for_escalation( string $reply_to, string $page_url, string $contact_name = '', string $message = '', string $contact_phone = '', string $company_name = '', string $website = '' ): ?array {
 		$secret = class_exists( 'DEF_Core_Encryption' )
 			? (string) DEF_Core_Encryption::get_secret( 'def_service_auth_secret' )
 			: '';
@@ -231,7 +234,7 @@ final class DEF_Core_Partner_Attribution {
 		}
 
 		$lead_ref = 'esc-' . gmdate( 'YmdHis' ) . '-' . strtolower( wp_generate_password( 8, false ) );
-		$payload  = self::build_capture_payload( $lead_ref, $slug, $reply_to, $page_url, $contact_name, $message );
+		$payload  = self::build_capture_payload( $lead_ref, $slug, $reply_to, $page_url, $contact_name, $message, $contact_phone, $company_name, $website );
 
 		$response = wp_remote_post(
 			DEF_Core_OAuth::get_defho_api_url() . '/api/bridge/attribution/capture',
@@ -275,7 +278,7 @@ final class DEF_Core_Partner_Attribution {
 	 *
 	 * @return array<string, string>
 	 */
-	public static function build_capture_payload( string $lead_ref, string $slug, string $reply_to, string $page_url, string $contact_name = '', string $message = '' ): array {
+	public static function build_capture_payload( string $lead_ref, string $slug, string $reply_to, string $page_url, string $contact_name = '', string $message = '', string $contact_phone = '', string $company_name = '', string $website = '' ): array {
 		$payload = array( 'lead_ref' => $lead_ref );
 		if ( '' !== $slug ) {
 			$payload['slug'] = $slug;
@@ -295,6 +298,18 @@ final class DEF_Core_Partner_Attribution {
 		$message = trim( $message );
 		if ( '' !== $message ) {
 			$payload['message'] = mb_substr( $message, 0, 1000 );
+		}
+		$contact_phone = trim( $contact_phone );
+		if ( '' !== $contact_phone ) {
+			$payload['contact_phone'] = mb_substr( $contact_phone, 0, 50 );
+		}
+		$company_name = trim( (string) preg_replace( '/\s+/', ' ', $company_name ) );
+		if ( '' !== $company_name ) {
+			$payload['company_name'] = mb_substr( $company_name, 0, 200 );
+		}
+		$website = trim( $website );
+		if ( '' !== $website ) {
+			$payload['website'] = mb_substr( $website, 0, 255 );
 		}
 		return $payload;
 	}
