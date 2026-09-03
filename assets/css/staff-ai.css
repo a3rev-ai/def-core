@@ -298,11 +298,6 @@ body {
 	color: var(--text-secondary);
 }
 
-/* A run the user just asked for, before the scheduler has picked it up. */
-.task-run-pending {
-	color: var(--text-primary);
-}
-
 .task-card-run {
 	width: 100%;
 }

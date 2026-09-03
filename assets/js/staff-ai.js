@@ -31,7 +31,7 @@ function t(key, fallback) {
 	// relabels itself when it lands; until then, or for a tenant that has not
 	// named the assistant, it says "your assistant".
 	// Every Ask entry point names the assistant, so they subscribe rather than
-	// each owning a module-level relabel hook (there are five of them now).
+	// each owning a module-level relabel hook (four of them now, six buttons).
 	let assistantName = '';
 	const assistantNameSubscribers = [];
 	function onAssistantName(relabel) {
@@ -3357,9 +3357,11 @@ function t(key, fallback) {
 					setStatus(term
 						? t('documentsNoMatches', 'No documents match your search.')
 						: t('documentsEmpty', 'No documents yet.'), 'muted');
-					// Only the genuinely empty library offers the button: a search
-					// that matched nothing is not a reason to create a document.
-					if (emptyEl && !term) emptyEl.style.display = '';
+					// Only the genuinely empty library offers the button. Neither a
+					// search that matched nothing nor a project with no documents
+					// yet is one — and for a filtered view the button would be
+					// actively wrong, since its prompt carries no project binding.
+					if (emptyEl && !term && !projectFilter) emptyEl.style.display = '';
 					return;
 				}
 				setStatus('', '');
@@ -3553,7 +3555,6 @@ function t(key, fallback) {
 		onAssistantName(labelAsk);
 		if (askBtn) {
 			askBtn.addEventListener('click', function () {
-				close();
 				clearActiveProject();
 				resetToNewChat();
 				composerInput.value = t('documentsAskPrompt',
@@ -4350,6 +4351,18 @@ function t(key, fallback) {
 			});
 		}
 
+		// F2: "Results go to: <email>" is a claim about the EMAIL destination, so
+		// it hides when Email is unticked instead of stating a delivery that will
+		// not happen. The Ask link beside it stays — a Slack-only user is exactly
+		// the one who asks where results go.
+		function applyResultsLabel() {
+			[[taskDestEls.email, 'taskResultsLabel'],
+			 [destEls.email, 'scheduleResultsLabel']].forEach(function (pair) {
+				var label = document.getElementById(pair[1]);
+				if (label) label.style.display = (pair[0] && pair[0].checked) ? '' : 'none';
+			});
+		}
+
 		function applyConnectionRows(saved) {
 			// Show a chat row when the app is CONNECTED, or when the saved
 			// schedule already names it (honesty about stored state outranks
@@ -4365,6 +4378,7 @@ function t(key, fallback) {
 					if (row) row.style.display = show ? '' : 'none';
 				});
 			});
+			applyResultsLabel();
 		}
 
 		async function loadConnections() {
@@ -4430,8 +4444,6 @@ function t(key, fallback) {
 			return known[status] || String(status).slice(0, 40);
 		}
 
-		// Both card types are identified by their own row: a task by `id`, a
-		// triage setup by `schedule_id`.
 		function cardId(row) { return row.id || row.schedule_id || ''; }
 
 		// Run now: what the user just asked for, which no API can tell us yet.
@@ -4441,7 +4453,10 @@ function t(key, fallback) {
 		// read as dead. Keyed by card id: { phase, baseline, baselineStatus },
 		// the baseline being the last run the card showed BEFORE the click, so
 		// a NEW run is recognised by its own stamp instead of guessed at.
-		var runRequests = {};
+		// Object.create(null), not {}: `id` is backend-supplied and, unlike
+		// `schedule_id`, the proxy does not charset-pin it — on a plain object an
+		// id of "constructor" reads inherit-truthy and wedges a card nobody ran.
+		var runRequests = Object.create(null);
 		var RUN_POLL_MS = 5000;
 		var RUN_POLL_TRIES = 24;   // ~2 minutes, then the card stops claiming to know
 
@@ -4454,14 +4469,33 @@ function t(key, fallback) {
 		}
 
 		function runOutcomeText(row, status) {
-			// "Succeeded" never said WHERE the output went. The account email is
-			// this page's own WordPress account, and it is only claimed when
-			// email is actually one of the row's destinations.
+			// "Succeeded" never said WHERE the output went. The address is this
+			// page's own WordPress account — DEF's run record does not report
+			// where it delivered (the proxy withholds owner_email by design), so
+			// the claim is only made where it cannot be a half-truth: email as
+			// the row's ONLY destination. Two destinations fall back to the
+			// status, rather than naming one and silently dropping the other.
 			var dests = Array.isArray(row.destinations) ? row.destinations : [];
-			if (status === 'succeeded' && userEmail && dests.indexOf('email') !== -1) {
+			if (status === 'succeeded' && userEmail && dests.length === 1 && dests[0] === 'email') {
 				return t('runStatusSentTo', 'Sent to %s').replace('%s', function () { return userEmail; });
 			}
 			return runStatusText(status);
+		}
+
+		// The one reading of "has the row moved on from the run the card was
+		// showing when Run now was pressed?" — shared by the watcher and by
+		// loadAll, so a list refresh resolves a pending card even if no poll
+		// does. `at` is the primary identity but the proxy allows it to be ''
+		// (allowlist_last_run defaults a missing stamp), so a same-status run
+		// with no stamp is caught by having passed THROUGH running instead —
+		// which is why this takes the request and RECORDS that on it, rather
+		// than reading three fields and staying pure.
+		function runPhase(request, lastRun) {
+			if (!lastRun) return 'queued';
+			if (lastRun.status === 'running') { request.sawRunning = true; return 'running'; }
+			if (request.sawRunning) return 'resolved';
+			return (lastRun.at !== request.baseline || lastRun.status !== request.baselineStatus)
+				? 'resolved' : 'queued';
 		}
 
 		function runLineText(row, lastRun) {
@@ -4516,10 +4550,7 @@ function t(key, fallback) {
 					})));
 			}
 			var runLine = runLineText(schedule, lastRun);
-			if (runLine) {
-				meta.appendChild(el('span', 'task-last-run'
-					+ (runRequests[cardId(schedule)] ? ' task-run-pending' : ''), runLine));
-			}
+			if (runLine) { meta.appendChild(el('span', 'task-last-run', runLine)); }
 			card.appendChild(meta);
 			return { card: card, actions: actions };
 		}
@@ -4648,6 +4679,14 @@ function t(key, fallback) {
 				tasks = [];
 				failures.push((e2 && e2.message) || t('tasksLoadFailed', 'Could not load your scheduled tasks.'));
 			}
+			// A pending card whose row already proves the run moved on must not
+			// survive a list refresh (a save, or re-entering the pane).
+			Object.keys(runRequests).forEach(function (id) {
+				var row = tasks.concat(triages).filter(function (r) { return cardId(r) === id; })[0];
+				if (!row) return;
+				var phase = runPhase(runRequests[id], row.last_run || null);
+				if (phase === 'resolved') { delete runRequests[id]; } else { runRequests[id].phase = phase; }
+			});
 			if (failures.length) {
 				// A failed read is UNKNOWN, not empty — but render what IS known,
 				// in BOTH directions: a failed triage read must not hide N tasks
@@ -4923,6 +4962,9 @@ function t(key, fallback) {
 			if (typeEl.value === 'email_triage') { showTriageForm(false); } else { showTaskForm(false); }
 		});
 		if (taskCadenceEl) taskCadenceEl.addEventListener('change', applyCadenceRows);
+		[taskDestEls.email, destEls.email].forEach(function (box) {
+			if (box) box.addEventListener('change', applyResultsLabel);
+		});
 
 		async function saveTask() {
 			var name = (nameEl.value || '').trim();
@@ -5051,16 +5093,24 @@ function t(key, fallback) {
 				if (!rows) continue;
 				if (key === 'tasks') { tasks = rows; } else { triages = rows; }
 				var fresh = rows.filter(function (r) { return cardId(r) === id; })[0];
-				var last = (fresh && fresh.last_run) || null;
 				if (!fresh) {
-					delete runRequests[id];                       // removed elsewhere
-				} else if (last && last.status === 'running') {
-					request.phase = 'running';
-				} else if (last && (last.at !== request.baseline || last.status !== request.baselineStatus)) {
-					delete runRequests[id];                       // done: the card shows the outcome
+					// Removed in another tab: stop polling a row that is gone.
+					delete runRequests[id];
+				} else {
+					var phase = runPhase(request, fresh.last_run || null);
+					if (phase === 'resolved') { delete runRequests[id]; } else { request.phase = phase; }
 				}
 				renderGrid();
 				if (!runRequests[id]) return;
+			}
+			// Out of patience: STOP CLAIMING. Holding the pending line here was a
+			// stuck state — a run that outlived the poll window left the card
+			// reading "Running now…" for the life of the page, hiding the real
+			// outcome. Falling back to the row's own last_run is honest and
+			// self-correcting: a still-running run reports itself as Running.
+			if (runRequests[id] === request) {
+				delete runRequests[id];
+				renderGrid();
 			}
 		}
 
@@ -5144,6 +5194,12 @@ function t(key, fallback) {
 		onAssistantName(labelResultsAsk);
 		resultsAskBtns.forEach(function (btn) {
 			btn.addEventListener('click', function () {
+				// This entry point is INSIDE the creator, below a long instruction
+				// box, and leaving for the chat tears the form down (the
+				// abandoned-edit rule means it cannot be recovered on reopen).
+				if (((nameEl && nameEl.value) || (instructionEl && instructionEl.value))
+					&& !window.confirm(t('taskDiscardForAsk',
+						'Leave this task and open a chat? What you have typed here is not kept.'))) return;
 				closeModal();
 				hidePane();
 				clearActiveProject();

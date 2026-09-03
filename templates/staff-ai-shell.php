@@ -272,8 +272,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="documents-grid" id="documentsGrid"></div>
 				<!-- The empty state IS the entry point (2026-09-03): the line it replaces
 				     told the reader to "ask me to create one" without giving them a way
-				     to ask. Shown only for a genuinely empty library, never for a search
-				     that matched nothing. -->
+				     to ask. JS decides when it shows. -->
 				<div class="documents-empty" id="documentsEmptyState" style="display:none;">
 					<button type="button" class="modal-btn modal-btn-primary" id="documentsAskAssistant"><?php echo esc_html__( 'Ask your assistant to create a document', 'digital-employees' ); ?></button>
 				</div>
@@ -521,7 +520,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-footer">
 					<!-- The second Ask entry (2026-09-03): the intro button scrolls out of
 					     sight behind a list of projects, which is exactly where a confused
-					     user is looking. Same handler, same label. -->
+					     user is looking. -->
 					<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
@@ -602,8 +601,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					     The type selector sits OUTSIDE both views (2026-09-03) so the
 					     choice stays changeable while the popup is open: it used to live
 					     inside the free-text view, so picking Email Triage hid the only
-					     control that could pick anything else. Creation only — an existing
-					     task's type is a fact, not a choice (JS hides the row on edit). -->
+					     control that could pick anything else. Creation only (JS). -->
 					<div class="form-group" id="taskTypeRow">
 						<label class="form-label" for="taskType"><?php echo esc_html__( 'Task type', 'digital-employees' ); ?></label>
 						<select class="form-input" id="taskType">
@@ -679,9 +677,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="taskDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
 							<label class="share-toggle-label schedule-dest-row" id="taskDestSlackRow"><input type="checkbox" id="taskDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
 							<label class="share-toggle-label schedule-dest-row" id="taskDestTeamsRow"><input type="checkbox" id="taskDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
-							<?php /* A LABEL, not an explanation: which inbox "Email" actually means, and the Ask entry for everything past that fact. */ ?>
+							<?php /* A LABEL, not an explanation: which inbox "Email" actually means. It is hidden with the Email destination (JS), never stated for a run that will not be emailed. The Ask entry beside it always shows. */ ?>
 							<p class="schedule-results-note">
-								<?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?>
+								<span id="taskResultsLabel"><?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?></span>
 								<button type="button" class="schedule-results-ask"><?php echo esc_html__( 'Where do results go? Ask your assistant', 'digital-employees' ); ?></button>
 							</p>
 						</div>
@@ -714,7 +712,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestSlackRow"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestTeamsRow"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
 						<p class="schedule-results-note">
-							<?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?>
+							<span id="scheduleResultsLabel"><?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?></span>
 							<button type="button" class="schedule-results-ask"><?php echo esc_html__( 'Where do results go? Ask your assistant', 'digital-employees' ); ?></button>
 						</p>
 					</div>
@@ -899,6 +897,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskRunRunningNow: <?php echo wp_json_encode( __( 'Running now…', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the WordPress account email a run's output is sent to. */ ?>
 			runStatusSentTo: <?php echo wp_json_encode( __( 'Sent to %s', 'digital-employees' ) ); ?>,
+			taskDiscardForAsk: <?php echo wp_json_encode( __( 'Leave this task and open a chat? What you have typed here is not kept.', 'digital-employees' ) ); ?>,
 			scheduleResultsAsk: <?php echo wp_json_encode( __( 'Where do results go? Ask your assistant', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
 			scheduleResultsAskNamed: <?php echo wp_json_encode( __( 'Where do results go? Ask %s', 'digital-employees' ) ); ?>,
