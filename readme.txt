@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.6.2
+Stable tag: 7.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.3 - 2026-09-03 =
+* Tweak - Customer Chat hand-off form: Business name and Business website are now required - they are the keys that credit a registered prospect to its partner and recognise a contact already in the CRM.
 
 = 7.6.2 - 2026-09-03 =
 * Tweak - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
