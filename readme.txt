@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.7.0
+Stable tag: 7.6.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,8 +120,8 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.7.0 - 2026-09-03 =
-* New Feature - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
+= 7.6.2 - 2026-09-03 =
+* Tweak - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
 * Fix - Staff AI: "New chat" on a project row now always opens a fresh chat in that project, instead of sometimes landing back on the My Documents or Scheduled page that was open behind the panel.
 
 = 7.6.1 - 2026-09-03 =
