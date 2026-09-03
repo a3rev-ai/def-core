@@ -551,7 +551,9 @@ final class DEF_Core_Escalation {
 				$attr_page_url,
 				isset( $body['contact_name'] ) ? sanitize_text_field( (string) $body['contact_name'] ) : '',
 				isset( $body['message'] ) ? sanitize_textarea_field( (string) $body['message'] ) : '',
-				isset( $body['contact_phone'] ) ? sanitize_text_field( (string) $body['contact_phone'] ) : ''
+				isset( $body['contact_phone'] ) ? sanitize_text_field( (string) $body['contact_phone'] ) : '',
+				isset( $body['company_name'] ) ? sanitize_text_field( (string) $body['company_name'] ) : '',
+				isset( $body['website'] ) ? sanitize_text_field( (string) $body['website'] ) : ''
 			);
 			if ( null !== $attribution ) {
 				$safe_body['body'] .= "\n\n" . DEF_Core_Partner_Attribution::build_attributed_line( $attribution );

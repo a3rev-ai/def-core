@@ -898,6 +898,9 @@
 			escalationField('Phone', 'tel', 'escalationPhone', false)
 		);
 		anonFields.appendChild(
+			escalationField('Business name', 'text', 'escalationBusiness', false)
+		);
+		anonFields.appendChild(
 			escalationField('Business website', 'text', 'escalationWebsite', false)
 		);
 
@@ -2794,6 +2797,7 @@
 		if (els.escalationEmail) els.escalationEmail.value = '';
 		if (els.escalationPhone) els.escalationPhone.value = '';
 		if (els.escalationWebsite) els.escalationWebsite.value = '';
+		if (els.escalationBusiness) els.escalationBusiness.value = '';
 		if (els.escalationSubject) els.escalationSubject.value = '';
 		if (els.escalationMessage) els.escalationMessage.value = '';
 		if (els.escalationPref) els.escalationPref.selectedIndex = 0;
@@ -2906,9 +2910,11 @@
 			var email = els.escalationEmail.value.trim();
 			var phone = (els.escalationPhone.value || '').trim();
 			var website = (els.escalationWebsite.value || '').trim();
+			var business = (els.escalationBusiness.value || '').trim();
 			bodyParts.push('From: ' + firstName + ' ' + lastName);
 			bodyParts.push('Email: ' + email);
 			if (phone) bodyParts.push('Phone: ' + phone);
+			if (business) bodyParts.push('Business: ' + business);
 			if (website) bodyParts.push('Website: ' + website);
 			bodyParts.push('');
 		}
@@ -2965,6 +2971,14 @@
 			payload.message = message;
 			if (phone) {
 				payload.contact_phone = phone;
+			}
+			// The business name feeds the CRM's Company; the website is the registration key
+			// when the enquiry comes from a free-mail address (gmail, bigpond).
+			if (business) {
+				payload.company_name = business;
+			}
+			if (website) {
+				payload.website = website;
 			}
 		}
 		if (els.escalationPref && els.escalationPref.value) {
