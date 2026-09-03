@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.6.0
+Stable tag: 7.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,7 +109,7 @@ Go to **Digital Employees > Chat Settings**. You can set button position (left/r
 
 = What data is sent to the AI service? =
 
-Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
+Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.1 - 2026-09-03 =
+* Tweak - Partner attribution: the phone number a visitor gives on the chat hand-off form now travels with the enquiry to DEFHO and into the referring partner's CRM.
 
 = 7.6.0 - 2026-09-02 =
 * New Feature - Partner attribution: a chat hand-off enquiry now sends the visitor's name, email and message to DEFHO with its attribution, so the referring partner's CRM receives a real lead and the partner is notified of it.
@@ -763,7 +766,7 @@ This plugin connects to an external AI service to power the Customer Chat and St
 
 When the Customer Chat widget or Staff AI panel is used, chat messages are sent to the configured Digital Employee Framework (DEF) API server for processing by AI models. This connection is required for the chat features to function.
 
-* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them.
+* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them.
 * **When:** Only when a user or visitor actively sends a message via the chat interface.
 * **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
@@ -774,7 +777,7 @@ When the Customer Chat widget or Staff AI panel is used, chat messages are sent 
 
 On a site connected to DEFHO, the plugin also talks to the DEFHO platform API for partner attribution.
 
-* **What is sent:** On a `/p/partner-link` page view, the partner link's slug (to validate it and fetch the partner's display name). When a visitor submits the chat hand-off form, the attribution capture: the name, email and message they typed, the page they were on, and the partner link they arrived through, so the enquiry can be credited to the referring partner and passed on to them.
+* **What is sent:** On a `/p/partner-link` page view, the partner link's slug (to validate it and fetch the partner's display name). When a visitor submits the chat hand-off form, the attribution capture: the name, email, phone and message they typed, the page they were on, and the partner link they arrived through, so the enquiry can be credited to the referring partner and passed on to them.
 * **When:** Only on partner-link page views and hand-off form submissions, and only when the site is connected to DEFHO.
 * **Service URL:** `https://platform-api.defho.ai` (overridable with the `DEF_DEFHO_API_URL` constant).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.

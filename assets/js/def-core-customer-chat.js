@@ -2963,6 +2963,9 @@
 		if (!isAuthenticated()) {
 			payload.contact_name = (firstName + ' ' + lastName).trim();
 			payload.message = message;
+			if (phone) {
+				payload.contact_phone = phone;
+			}
 		}
 		if (els.escalationPref && els.escalationPref.value) {
 			payload.preferred_contact = els.escalationPref.value;
