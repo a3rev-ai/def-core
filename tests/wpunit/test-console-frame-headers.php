@@ -2,13 +2,15 @@
 /**
  * The Staff-AI console must deny framing.
  *
- * Pins both headers AND the fact that the shell render path sends them, so a
- * future refactor of render_shell cannot silently drop the protection.
+ * Pins the header LINES the console emits, the headers_sent() guard in front
+ * of them, and the two render paths that send them — so a future refactor
+ * cannot silently drop the protection.
  *
- * Why this does not read headers_list(): header() is a no-op under the CLI
- * SAPI that runs this suite, so headers_list() is always empty here — a test
- * asserting on it would pass whether the headers were sent or not. So the
- * sender returns the pair it guarantees, and that is what is pinned.
+ * Why a spy rather than headers_list(): PHPUnit has written its own banner
+ * before any test body runs, so headers_sent() is already true here. A real
+ * header() call would both no-op AND raise the warning this config converts
+ * into a failure, and headers_list() stays empty under the CLI SAPI — so an
+ * assertion on it would pass whether or not anything was ever sent.
  *
  * @package def-core
  * @group security
@@ -19,64 +21,104 @@ declare(strict_types=1);
 class Test_Console_Frame_Headers extends WP_UnitTestCase {
 
 	/**
-	 * The sender returns both frame-denial headers, with the values that
-	 * actually deny cross-origin framing.
+	 * Invoke the private sender with a spy in place of header().
+	 *
+	 * @return array<int, array{0: string, 1: bool}> Emitted [ line, replace ].
 	 */
-	public function test_sender_returns_both_frame_denial_headers(): void {
+	private function emitted_headers(): array {
+		$calls  = array();
 		$method = new ReflectionMethod( 'DEF_Core_Staff_AI', 'send_console_frame_headers' );
 		$method->setAccessible( true );
-		$sent = $method->invoke( null );
-
-		$this->assertSame(
-			array( 'X-Frame-Options', 'Content-Security-Policy' ),
-			array_keys( $sent ),
-			'Both frame-denial headers must be accounted for.'
+		$method->invoke(
+			null,
+			function ( string $line, bool $replace = true ) use ( &$calls ): void {
+				$calls[] = array( $line, $replace );
+			}
 		);
-		$this->assertSame( 'SAMEORIGIN', $sent['X-Frame-Options'] );
-		$this->assertStringContainsString(
-			"frame-ancestors 'self'",
-			$sent['Content-Security-Policy'],
-			"The CSP must restrict frame-ancestors to 'self'."
+		return $calls;
+	}
+
+	/**
+	 * Exactly the two frame-denial headers go out, and the CSP is APPENDED.
+	 *
+	 * Appending matters as much as the value: replacing would wipe a security
+	 * plugin's whole policy on the one page that renders the console and its
+	 * REST nonce. Drop either emit, or flip that flag, and this fails.
+	 */
+	public function test_frame_denial_headers_are_emitted_and_csp_is_appended(): void {
+		$this->assertSame(
+			array(
+				array( 'X-Frame-Options: SAMEORIGIN', true ),
+				array( "Content-Security-Policy: frame-ancestors 'self';", false ),
+			),
+			$this->emitted_headers()
 		);
 	}
 
 	/**
-	 * The shell render path calls the sender.
+	 * With no spy, the real path must return quietly when output has already
+	 * begun — which, in this suite, it always has.
 	 *
-	 * Asserted against render_shell's own source lines rather than by running
-	 * it: render_shell emits a whole HTML document and requires a logged-in
-	 * user with console access, and the headers it sends are unreadable under
-	 * CLI anyway. Reading the method body is what makes "cannot silently drop
-	 * them" enforceable — delete the call and this fails.
+	 * Remove the headers_sent() guard and header() raises E_WARNING, which
+	 * phpunit.xml.dist's convertWarningsToExceptions turns into a failure. So
+	 * this pins the guard by being the case that would break without it.
 	 */
-	public function test_render_shell_sends_them(): void {
-		$render = new ReflectionMethod( 'DEF_Core_Staff_AI', 'render_shell' );
-		$source = file( $render->getFileName() );
-		$body   = implode(
+	public function test_real_path_is_silent_once_output_has_begun(): void {
+		$this->assertTrue( headers_sent(), 'Precondition: this suite runs with output already begun.' );
+
+		$method = new ReflectionMethod( 'DEF_Core_Staff_AI', 'send_console_frame_headers' );
+		$method->setAccessible( true );
+		$method->invoke( null );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * Both render paths of /staff-ai send them.
+	 *
+	 * Read from each method's own source lines: they emit whole HTML documents
+	 * and need a logged-in user, and the headers are unreadable under CLI
+	 * anyway. Line comments are stripped first, so commenting a call out fails
+	 * this too. getStartLine() excludes the docblock, so a mention in prose
+	 * cannot false-pass.
+	 *
+	 * The access-denied branch matters as much as the shell: if only one of
+	 * them denied framing, the difference would be readable cross-site as
+	 * "does this visitor hold console access".
+	 *
+	 * @dataProvider render_paths
+	 *
+	 * @param string $method Method name on DEF_Core_Staff_AI.
+	 */
+	public function test_render_paths_send_them( string $method ): void {
+		$reflected = new ReflectionMethod( 'DEF_Core_Staff_AI', $method );
+		$source    = file( $reflected->getFileName() );
+		$body      = implode(
 			'',
 			array_slice(
 				$source,
-				$render->getStartLine() - 1,
-				$render->getEndLine() - $render->getStartLine() + 1
+				$reflected->getStartLine() - 1,
+				$reflected->getEndLine() - $reflected->getStartLine() + 1
 			)
 		);
+		$body = preg_replace( '~//.*$~m', '', $body );
 
 		$this->assertStringContainsString(
-			'send_console_frame_headers()',
+			'self::send_console_frame_headers()',
 			$body,
-			'render_shell must send the console frame-denial headers.'
+			$method . '() must send the console frame-denial headers.'
 		);
 	}
 
 	/**
-	 * Customer Chat is out of scope, deliberately: embedded-widget deployments
-	 * frame it on purpose. If someone later applies frame denial globally, this
-	 * fails and forces the conversation.
+	 * The two /staff-ai responses that render a document.
+	 *
+	 * @return array<string, array{0: string}>
 	 */
-	public function test_frame_denial_is_not_applied_globally(): void {
-		$this->assertFalse(
-			has_action( 'send_headers', 'send_frame_options_header' ),
-			'Frame denial belongs to the console render, not to every front-end response.'
+	public function render_paths(): array {
+		return array(
+			'console shell'  => array( 'render_shell' ),
+			'access denied'  => array( 'render_access_denied' ),
 		);
 	}
 }

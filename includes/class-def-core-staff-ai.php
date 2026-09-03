@@ -5385,6 +5385,11 @@ final class DEF_Core_Staff_AI
 	private static function render_access_denied(): void
 	{
 		http_response_code(403);
+		// The other branch of the same URL. Without this, a cross-origin frame
+		// of /staff-ai LOADS for a signed-in user who lacks console access and
+		// is BLOCKED for one who has it — a capability oracle readable from an
+		// attacker's page (security leg F4).
+		self::send_console_frame_headers();
 ?>
 		<!DOCTYPE html>
 		<html <?php language_attributes(); ?>>
@@ -5605,52 +5610,50 @@ JS;
 	 *
 	 * WordPress denies framing on wp-admin pages for free. The console is a
 	 * FRONT-END endpoint (template_redirect, its own standalone document), so
-	 * it gets none of that hardening and has to ask. It matters here because the
-	 * console carries one-click Ask buttons that auto-send a fixed prompt to
-	 * the assistant (v7.6.2) — that is what a clickjack would aim at.
+	 * it gets none of that hardening and has to ask. It matters here because
+	 * the console carries one-click Ask buttons that auto-send a fixed prompt
+	 * to the assistant (v7.6.2) — that is what a clickjack would aim at.
 	 *
 	 * Customer Chat is deliberately NOT covered: embedded-widget deployments
 	 * frame it on purpose (assets/js/def-core-cart-sync.js and the parent-side
 	 * JWT bridge in assets/js/def-core.js are that contract's two halves).
 	 *
-	 * WP 7.0's send_frame_options_header() sends BOTH X-Frame-Options and a
-	 * frame-ancestors CSP; on the older versions this plugin still supports
-	 * (Requires at least: 6.2) it sends only the former. So core runs FIRST —
-	 * the console tracks whatever wp-admin sends — and the CSP is added only
-	 * when core has not already sent one, rather than emitting the header
-	 * twice on 7.0.
-	 *
-	 * Returns the pair it GUARANTEES — not what the probe observed — because
-	 * header() is a no-op under the CLI SAPI the test suite runs on, so the
-	 * values cannot be read back from a test. That return is what
-	 * tests/wpunit/test-console-frame-headers.php pins.
+	 * Both headers are sent HERE rather than by core's
+	 * send_frame_options_header(), for two measured reasons (panel, 2026-09-03):
+	 * core sends its CSP with PHP's default $replace = true, so on WP 6.9+ it
+	 * would REPLACE a security plugin's whole Content-Security-Policy with just
+	 * frame-ancestors — on the one page that renders the console and its REST
+	 * nonce; and it sends only X-Frame-Options before 6.9, which this plugin
+	 * still supports (Requires at least: 6.2), so it cannot be relied on for
+	 * the CSP either. Sending directly is identical on every version.
 	 *
 	 * @since 7.6.4
 	 *
-	 * @return array<string, string> Header name => value.
+	 * @param callable|null $emit Header emitter, for the suite's spy. Defaults
+	 *                            to header(). See the guard below for why a
+	 *                            test cannot let the real one run.
+	 * @return void
 	 */
-	private static function send_console_frame_headers(): array
+	private static function send_console_frame_headers( ?callable $emit = null ): void
 	{
-		$csp = "frame-ancestors 'self';";
-		send_frame_options_header();
-		// Send the CSP only if core has not already: the probe decides whether
-		// to SEND, never what we report, so the guarantee below is the same on
-		// every supported version and a future change to core's own policy
-		// cannot move it.
-		$core_sent_csp = false;
-		foreach ( headers_list() as $sent ) {
-			if ( 0 === stripos( $sent, 'content-security-policy:' ) ) {
-				$core_sent_csp = true;
-				break;
-			}
+		// PHPUnit has written its own banner long before a test body runs, so
+		// headers_sent() is TRUE for every test in the suite — a real header()
+		// call there raises E_WARNING, which phpunit.xml.dist's
+		// convertWarningsToExceptions turns into a failure. The same guard is
+		// what production needs: with WP_DEBUG_DISPLAY on, or a stray BOM in
+		// another plugin, template_redirect can run with output already begun,
+		// and this must stay silent rather than print a PHP warning into the
+		// console's HTML (the class-def-core-partner-attribution.php idiom).
+		if ( null === $emit && headers_sent() ) {
+			return;
 		}
-		if ( ! $core_sent_csp ) {
-			header( 'Content-Security-Policy: ' . $csp );
-		}
-		return array(
-			'X-Frame-Options'         => 'SAMEORIGIN',
-			'Content-Security-Policy' => $csp,
-		);
+		$emit = $emit ?? 'header';
+		$emit( 'X-Frame-Options: SAMEORIGIN', true );
+		// APPENDED, never replacing. Multiple CSP headers are each enforced —
+		// the effective policy is their intersection — so a policy carrying
+		// nothing but frame-ancestors can only ever tighten, and can never
+		// clobber a policy the site set for itself.
+		$emit( "Content-Security-Policy: frame-ancestors 'self';", false );
 	}
 
 	/**
