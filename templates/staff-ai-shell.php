@@ -270,6 +270,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="documents-status" id="documentsStatus"></div>
 				<div class="documents-grid" id="documentsGrid"></div>
+				<!-- The empty state IS the entry point (2026-09-03): the line it replaces
+				     told the reader to "ask me to create one" without giving them a way
+				     to ask. Shown only for a genuinely empty library, never for a search
+				     that matched nothing. -->
+				<div class="documents-empty" id="documentsEmptyState" style="display:none;">
+					<button type="button" class="modal-btn modal-btn-primary" id="documentsAskAssistant"><?php echo esc_html__( 'Ask your assistant to create a document', 'digital-employees' ); ?></button>
+				</div>
 			</section>
 
 			<div class="messages-container" id="messagesContainer">
@@ -497,7 +504,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-body">
 					<p class="documents-intro"><?php echo esc_html__( 'A project is a folder of governing documents your assistant works from — instructions, a runsheet and session notes — so a piece of work can be picked up where it was left. Only you can see these.', 'digital-employees' ); ?></p>
 					<div class="projects-ask">
-						<button type="button" class="modal-btn modal-btn-primary" id="projectsAskAssistant"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
+						<button type="button" class="modal-btn modal-btn-primary projects-ask-btn" id="projectsAskAssistant"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
 						<span class="projects-ask-hint"><?php echo esc_html__( 'Opens a chat: your assistant walks you through creating and managing a project, and can create one for you.', 'digital-employees' ); ?></span>
 					</div>
 					<div class="projects-create">
@@ -512,6 +519,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="documents-list" id="projectsList"></div>
 				</div>
 				<div class="modal-footer">
+					<!-- The second Ask entry (2026-09-03): the intro button scrolls out of
+					     sight behind a list of projects, which is exactly where a confused
+					     user is looking. Same handler, same label. -->
+					<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
 				</div>
@@ -587,16 +598,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-body">
 					<!-- The task list lives on the #scheduledPane landing page now
 					     (Phase 3, D-S7); this modal is the CREATOR/EDITOR only. Two
-					     form views, one per task type; the type selector is the
-					     creator's first field and Free text is the DEFAULT (D-S2). -->
+					     form views, one per task type; Free text is the DEFAULT (D-S2).
+					     The type selector sits OUTSIDE both views (2026-09-03) so the
+					     choice stays changeable while the popup is open: it used to live
+					     inside the free-text view, so picking Email Triage hid the only
+					     control that could pick anything else. Creation only — an existing
+					     task's type is a fact, not a choice (JS hides the row on edit). -->
+					<div class="form-group" id="taskTypeRow">
+						<label class="form-label" for="taskType"><?php echo esc_html__( 'Task type', 'digital-employees' ); ?></label>
+						<select class="form-input" id="taskType">
+							<option value="freetext" selected><?php echo esc_html__( 'Custom task - tell Staff AI what to do', 'digital-employees' ); ?></option>
+							<option value="email_triage"><?php echo esc_html__( 'Email Triage - mailbox digest with reply drafts', 'digital-employees' ); ?></option>
+						</select>
+					</div>
 					<div id="taskFormView" style="display:none;">
-						<div class="form-group" id="taskTypeRow">
-							<label class="form-label" for="taskType"><?php echo esc_html__( 'Task type', 'digital-employees' ); ?></label>
-							<select class="form-input" id="taskType">
-								<option value="freetext" selected><?php echo esc_html__( 'Custom task - tell Staff AI what to do', 'digital-employees' ); ?></option>
-								<option value="email_triage"><?php echo esc_html__( 'Email Triage - mailbox digest with reply drafts', 'digital-employees' ); ?></option>
-							</select>
-						</div>
 						<div class="form-group">
 							<label class="form-label" for="taskName"><?php echo esc_html__( 'Name', 'digital-employees' ); ?></label>
 							<input type="text" class="form-input" id="taskName" maxlength="120" placeholder="<?php echo esc_attr__( 'Daily brief', 'digital-employees' ); ?>">
@@ -664,6 +679,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="taskDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
 							<label class="share-toggle-label schedule-dest-row" id="taskDestSlackRow"><input type="checkbox" id="taskDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
 							<label class="share-toggle-label schedule-dest-row" id="taskDestTeamsRow"><input type="checkbox" id="taskDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
+							<?php /* A LABEL, not an explanation: which inbox "Email" actually means, and the Ask entry for everything past that fact. */ ?>
+							<p class="schedule-results-note">
+								<?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?>
+								<button type="button" class="schedule-results-ask"><?php echo esc_html__( 'Where do results go? Ask your assistant', 'digital-employees' ); ?></button>
+							</p>
 						</div>
 						<div class="schedule-status" id="taskStatus"></div>
 					</div>
@@ -693,6 +713,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<label class="share-toggle-label schedule-dest-row"><input type="checkbox" id="scheduleDestEmail" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Email - my own inbox', 'digital-employees' ); ?></label>
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestSlackRow"><input type="checkbox" id="scheduleDestSlack" class="share-transcript-toggle"> <?php echo esc_html__( 'Slack - a direct message, through my own connection', 'digital-employees' ); ?></label>
 						<label class="share-toggle-label schedule-dest-row" id="scheduleDestTeamsRow"><input type="checkbox" id="scheduleDestTeams" class="share-transcript-toggle"> <?php echo esc_html__( 'Teams - a chat message, through my own connection', 'digital-employees' ); ?></label>
+						<p class="schedule-results-note">
+							<?php /* translators: %s: the WordPress account email a run's output is sent to. */ printf( esc_html__( 'Results go to: %s', 'digital-employees' ), esc_html( $user->user_email ) ); ?>
+							<button type="button" class="schedule-results-ask"><?php echo esc_html__( 'Where do results go? Ask your assistant', 'digital-employees' ); ?></button>
+						</p>
 					</div>
 					<!-- 6-A (runsheet §14i item 5): the correspondent context brief. The
 					     CRM half has no switch - it is 2-4 record reads; this half searches
@@ -708,7 +732,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="scheduleBack" style="display:none;"><?php echo esc_html__( 'Back', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-primary" id="scheduleSave" style="display:none;"><?php echo esc_html__( 'Save schedule', 'digital-employees' ); ?></button>
 				</div>
 			</div>
@@ -784,7 +807,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
 			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,
 			documentsLoading: <?php echo wp_json_encode( __( 'Loading your documents…', 'digital-employees' ) ); ?>,
-			documentsEmpty: <?php echo wp_json_encode( __( 'No documents yet — ask me to create one and it will appear here.', 'digital-employees' ) ); ?>,
+			documentsEmpty: <?php echo wp_json_encode( __( 'No documents yet.', 'digital-employees' ) ); ?>,
+			documentsAsk: <?php echo wp_json_encode( __( 'Ask your assistant to create a document', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			documentsAskNamed: <?php echo wp_json_encode( __( 'Ask %s to create a document', 'digital-employees' ) ); ?>,
+			documentsAskPrompt: <?php echo wp_json_encode( __( 'Create a document for me — ask me what it should cover, then write it and save it to my documents.', 'digital-employees' ) ); ?>,
 			documentsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your documents.', 'digital-employees' ) ); ?>,
 			documentsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
 			documentsConfirmDelete: <?php /* translators: %s: document title. */ echo wp_json_encode( __( 'Delete "%s"? This permanently removes it from your library.', 'digital-employees' ) ); ?>,
@@ -868,6 +895,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskRunQueued: <?php echo wp_json_encode( __( 'The task will run shortly. Its output arrives at the destinations you chose.', 'digital-employees' ) ); ?>,
 			taskRunFailed: <?php echo wp_json_encode( __( 'Could not start the task. Its schedule is unchanged - try again in a moment.', 'digital-employees' ) ); ?>,
 			taskRemoveFailed: <?php echo wp_json_encode( __( 'Could not remove your task. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
+			taskRunQueuedCard: <?php echo wp_json_encode( __( 'Queued — starts on the next run cycle', 'digital-employees' ) ); ?>,
+			taskRunRunningNow: <?php echo wp_json_encode( __( 'Running now…', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the WordPress account email a run's output is sent to. */ ?>
+			runStatusSentTo: <?php echo wp_json_encode( __( 'Sent to %s', 'digital-employees' ) ); ?>,
+			scheduleResultsAsk: <?php echo wp_json_encode( __( 'Where do results go? Ask your assistant', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			scheduleResultsAskNamed: <?php echo wp_json_encode( __( 'Where do results go? Ask %s', 'digital-employees' ) ); ?>,
+			scheduleResultsAskPrompt: <?php echo wp_json_encode( __( 'Where do the results of my scheduled tasks go, and how do I change it?', 'digital-employees' ) ); ?>,
 			projectsAsk: <?php echo wp_json_encode( __( 'Ask how Projects work', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
 			projectsAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Projects work', 'digital-employees' ) ); ?>,

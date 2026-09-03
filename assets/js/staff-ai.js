@@ -30,9 +30,14 @@ function t(key, fallback) {
 	// panel round 1). The Projects panel's "Ask <name> how Projects work" button
 	// relabels itself when it lands; until then, or for a tenant that has not
 	// named the assistant, it says "your assistant".
+	// Every Ask entry point names the assistant, so they subscribe rather than
+	// each owning a module-level relabel hook (there are five of them now).
 	let assistantName = '';
-	let updateProjectsAskLabel = null;
-	let updateScheduledAskLabel = null;
+	const assistantNameSubscribers = [];
+	function onAssistantName(relabel) {
+		assistantNameSubscribers.push(relabel);
+		relabel();
+	}
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -315,8 +320,7 @@ function t(key, fallback) {
 					if (!data) return;
 					if (data.assistant_name && typeof data.assistant_name === 'string') {
 						assistantName = data.assistant_name;
-						if (updateProjectsAskLabel) { updateProjectsAskLabel(); }
-						if (updateScheduledAskLabel) { updateScheduledAskLabel(); }
+						assistantNameSubscribers.forEach(function (relabel) { relabel(); });
 					}
 					var models = data.available_models || [];
 					if (!models.length) return;  // nothing switchable (e.g. provider not configured)
@@ -752,8 +756,20 @@ function t(key, fallback) {
 		shareBtn.disabled = !currentConversationId;
 	}
 
+	// A pane (Documents, Scheduled) SWAPS OUT the chat containers, so anything
+	// that lands the user in a chat has to leave whichever one is open. Panes
+	// register their own hide here and resetToNewChat calls it. This replaces
+	// each pane's capture listener on #newChatBtn: those fired for the SIDEBAR
+	// button only, so a project row's "New chat" — and every Ask button — closed
+	// its own modal and left the pane behind it covering the fresh chat (the
+	// intermittent "New chat opened Documents / went back to Scheduled" bug).
+	const paneLeaveHandlers = [];
+	function onLeavePane(hide) { paneLeaveHandlers.push(hide); }
+	function leavePanes() { paneLeaveHandlers.forEach(function (hide) { hide(); }); }
+
 	// New chat (shared with Projects P-B's "New chat in this project")
 	function resetToNewChat() {
+		leavePanes();
 		currentConversationId = null;
 		isReadOnly = false;
 		messages = [];
@@ -3223,6 +3239,8 @@ function t(key, fallback) {
 		const composerEl = document.getElementById('composerContainer');
 		const searchEl = document.getElementById('documentsSearch');
 		const projectFilterEl = document.getElementById('documentsProjectFilter');
+		const emptyEl = document.getElementById('documentsEmptyState');
+		const askBtn = document.getElementById('documentsAskAssistant');
 		let projectFilter = '';
 		let loading = false;
 		let searchTimer = null;
@@ -3319,6 +3337,7 @@ function t(key, fallback) {
 			const term = searchTerm();
 			setStatus(t('documentsLoading', 'Loading your documents…'), 'muted');
 			listEl.innerHTML = '';
+			if (emptyEl) emptyEl.style.display = 'none';
 			try {
 				// apiBase can be the plain-permalink ?rest_route= form — pick the
 				// separator accordingly (same idiom as def-core-product-cards.js).
@@ -3337,7 +3356,10 @@ function t(key, fallback) {
 				if (docs.length === 0) {
 					setStatus(term
 						? t('documentsNoMatches', 'No documents match your search.')
-						: t('documentsEmpty', 'No documents yet — ask me to create one and it will appear here.'), 'muted');
+						: t('documentsEmpty', 'No documents yet.'), 'muted');
+					// Only the genuinely empty library offers the button: a search
+					// that matched nothing is not a reason to create a document.
+					if (emptyEl && !term) emptyEl.style.display = '';
 					return;
 				}
 				setStatus('', '');
@@ -3520,10 +3542,31 @@ function t(key, fallback) {
 			}
 		}
 
+		// The empty state's Ask button — the P-D2 pattern (the chat IS the entry):
+		// a fresh chat outside any project, pre-seeded with the request itself.
+		function labelAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('documentsAskNamed', 'Ask %s to create a document').replace('%s', function () { return assistantName; })
+				: t('documentsAsk', 'Ask your assistant to create a document');
+		}
+		onAssistantName(labelAsk);
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				close();
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('documentsAskPrompt',
+					'Create a document for me — ask me what it should cover, then write it and save it to my documents.');
+				updateSendButton();
+				sendMessage();
+			});
+		}
+
 		if (openBtn) openBtn.addEventListener('click', open);
-		// Chat navigation leaves the page (capture phase — the D-S7 pattern).
-		var newChatB = document.getElementById('newChatBtn');
-		if (newChatB) newChatB.addEventListener('click', close, true);
+		// Chat navigation leaves the page (the D-S7 pattern): resetToNewChat for
+		// every path to a fresh chat, capture phase for opening an existing one.
+		onLeavePane(close);
 		var convListB = document.getElementById('conversationList');
 		if (convListB) convListB.addEventListener('click', close, true);
 		if (projectFilterEl) {
@@ -3566,7 +3609,10 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		const askBtn = document.getElementById('projectsAskAssistant');
+		// Two of them (2026-09-03): the intro one a first-time reader meets, and
+		// the footer one that stays in view once the list has been scrolled — a
+		// confused user was not finding the intro button under their projects.
+		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
 
 		function open() {
@@ -3581,15 +3627,15 @@ function t(key, fallback) {
 		// (outside any project) with a fixed first message; the assistant explains
 		// the method and, with create_project, can make the project right there.
 		function labelAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('projectsAskNamed', 'Ask %s how Projects work').replace('%s', function () { return assistantName; })
-				: t('projectsAsk', 'Ask how Projects work');
+			askBtns.forEach(function (btn) {
+				btn.textContent = assistantName
+					? t('projectsAskNamed', 'Ask %s how Projects work').replace('%s', function () { return assistantName; })
+					: t('projectsAsk', 'Ask how Projects work');
+			});
 		}
-		updateProjectsAskLabel = labelAsk;
-		labelAsk();
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
+		onAssistantName(labelAsk);
+		askBtns.forEach(function (btn) {
+			btn.addEventListener('click', function () {
 				close();
 				clearActiveProject();
 				resetToNewChat();
@@ -3598,7 +3644,7 @@ function t(key, fallback) {
 				updateSendButton();
 				sendMessage();
 			});
-		}
+		});
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
@@ -3642,7 +3688,7 @@ function t(key, fallback) {
 				const projects = Array.isArray(data.projects) ? data.projects : [];
 				projectsCache = projects;
 				if (projects.length === 0) {
-					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (the button above), or create one by name.')
+					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (either Ask button), or create one by name.')
 						.replace('%s', function () { return assistantName || t('projectsYourAssistant', 'your assistant'); }), 'muted');
 					return;
 				}
@@ -4220,7 +4266,6 @@ function t(key, fallback) {
 
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
-		var backBtn = document.getElementById('scheduleBack');
 		var saveBtn = document.getElementById('scheduleSave');
 		var titleEl = document.getElementById('scheduleTitle');
 
@@ -4385,12 +4430,51 @@ function t(key, fallback) {
 			return known[status] || String(status).slice(0, 40);
 		}
 
+		// Both card types are identified by their own row: a task by `id`, a
+		// triage setup by `schedule_id`.
+		function cardId(row) { return row.id || row.schedule_id || ''; }
+
+		// Run now: what the user just asked for, which no API can tell us yet.
+		// DEF stamps the request and the platform scheduler picks it up on its
+		// next pass, so there is a real gap between the click and the first
+		// thing /tasks can show — through it the card said nothing at all and
+		// read as dead. Keyed by card id: { phase, baseline, baselineStatus },
+		// the baseline being the last run the card showed BEFORE the click, so
+		// a NEW run is recognised by its own stamp instead of guessed at.
+		var runRequests = {};
+		var RUN_POLL_MS = 5000;
+		var RUN_POLL_TRIES = 24;   // ~2 minutes, then the card stops claiming to know
+
 		function whenText(at) {
 			if (!at) return '';
 			var d = new Date(at);
 			if (isNaN(d.getTime())) return '';
 			return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' +
 				d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		}
+
+		function runOutcomeText(row, status) {
+			// "Succeeded" never said WHERE the output went. The account email is
+			// this page's own WordPress account, and it is only claimed when
+			// email is actually one of the row's destinations.
+			var dests = Array.isArray(row.destinations) ? row.destinations : [];
+			if (status === 'succeeded' && userEmail && dests.indexOf('email') !== -1) {
+				return t('runStatusSentTo', 'Sent to %s').replace('%s', function () { return userEmail; });
+			}
+			return runStatusText(status);
+		}
+
+		function runLineText(row, lastRun) {
+			var pending = runRequests[cardId(row)];
+			if (pending) {
+				return pending.phase === 'running'
+					? t('taskRunRunningNow', 'Running now…')
+					: t('taskRunQueuedCard', 'Queued — starts on the next run cycle');
+			}
+			if (!lastRun || !lastRun.status) return '';
+			var when = whenText(lastRun.at);
+			return t('taskLastRun', 'Last run: %s').replace('%s', runOutcomeText(row, lastRun.status))
+				+ (when ? ' · ' + when : '');
 		}
 
 		function el(tag, cls, text) {
@@ -4431,11 +4515,10 @@ function t(key, fallback) {
 						return pname || t('taskProjectUnknown', '(project)');
 					})));
 			}
-			if (lastRun && lastRun.status) {
-				var when = whenText(lastRun.at);
-				meta.appendChild(el('span', 'task-last-run',
-					t('taskLastRun', 'Last run: %s').replace('%s', runStatusText(lastRun.status)) +
-					(when ? ' · ' + when : '')));
+			var runLine = runLineText(schedule, lastRun);
+			if (runLine) {
+				meta.appendChild(el('span', 'task-last-run'
+					+ (runRequests[cardId(schedule)] ? ' task-run-pending' : ''), runLine));
 			}
 			card.appendChild(meta);
 			return { card: card, actions: actions };
@@ -4458,7 +4541,7 @@ function t(key, fallback) {
 				t('taskTriageDesc', 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.'),
 				schedule, schedule.last_run
 			);
-			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(false, schedule); }));
+			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(schedule); }));
 			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTriage(del, schedule); });
 			built.actions.appendChild(del);
 			// Only when the schedule is on: DEF refuses a switched-off one with
@@ -4777,51 +4860,69 @@ function t(key, fallback) {
 			setStatus(statusEl, '');
 		}
 
-		function openTaskForm(task) {
-			// Re-fill every time (the abandoned-edit rule): the form must never
-			// keep what was last typed into it.
-			editingTaskId = task ? task.id : null;
-			fillTaskForm(task || null);
-			// The type selector belongs to CREATION - an existing task's type is
-			// a fact, not a choice.
-			typeRow.style.display = task ? 'none' : '';
-			if (typeEl) typeEl.value = 'freetext';
-			if (titleEl) titleEl.textContent = task
+		// Showing a view is SEPARATE from filling it (2026-09-03), which is what
+		// makes the type selector switchable in place: a switch only swaps which
+		// view is visible, so anything already typed into either form is still
+		// there on the way back. Filling stays on the OPEN paths below, so the
+		// abandoned-edit rule holds — a reopened popup never keeps old input.
+		function showTaskForm(editing) {
+			if (titleEl) titleEl.textContent = editing
 				? t('taskFormTitleEdit', 'Edit scheduled task')
 				: t('taskFormTitleNew', 'New scheduled task');
 			taskView.style.display = '';
 			triageView.style.display = 'none';
-			if (backBtn) backBtn.style.display = 'none';
 			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
-			openModal();
 		}
 
-		function openTriageForm(fromCreator, schedule) {
-			// Phase 4a: the form edits ONE setup, or creates a new one from the
-			// type selector (schedule = null). Re-filled every time (the
-			// abandoned-edit rule).
-			editingTriage = schedule || null;
-			fillTriageForm(schedule || {});
-			if (titleEl) titleEl.textContent = schedule
+		function showTriageForm(editing) {
+			if (titleEl) titleEl.textContent = editing
 				? t('scheduleEditTitle', 'Email triage schedule')
 				: t('scheduleNewTitle', 'New Email Triage schedule');
 			taskView.style.display = 'none';
 			triageView.style.display = '';
-			// Back only exists on the creator path - it returns to the type
-			// choice; editing an existing schedule has nowhere to go back to.
-			if (backBtn) backBtn.style.display = fromCreator ? '' : 'none';
 			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
+		}
+
+		function openCreator() {
+			// Both forms filled blank up front: either can be the one saved, and
+			// a switch must not re-fill (it would wipe what was typed). The
+			// triage fill's /mail-connections read is already in hand — loadAll
+			// fetched it when the pane opened.
+			editingTaskId = null;
+			editingTriage = null;
+			fillTaskForm(null);
+			fillTriageForm({});
+			typeRow.style.display = '';
+			if (typeEl) typeEl.value = 'freetext';
+			showTaskForm(false);
+			openModal();
+		}
+
+		function openTaskForm(task) {
+			// Re-fill every time (the abandoned-edit rule): the form must never
+			// keep what was last typed into it.
+			editingTaskId = task.id;
+			fillTaskForm(task);
+			// The type selector belongs to CREATION - an existing task's type is
+			// a fact, not a choice.
+			typeRow.style.display = 'none';
+			showTaskForm(true);
+			openModal();
+		}
+
+		function openTriageForm(schedule) {
+			// Phase 4a: the form edits ONE setup. Re-filled every time.
+			editingTriage = schedule;
+			fillTriageForm(schedule);
+			typeRow.style.display = 'none';
+			showTriageForm(true);
 			openModal();
 		}
 
 		if (typeEl) typeEl.addEventListener('change', function () {
-			if (typeEl.value === 'email_triage') {
-				openTriageForm(true, null);
-				typeEl.value = 'freetext';   // the selector resets for next time
-			}
+			if (typeEl.value === 'email_triage') { showTriageForm(false); } else { showTaskForm(false); }
 		});
 		if (taskCadenceEl) taskCadenceEl.addEventListener('change', applyCadenceRows);
-		if (backBtn) backBtn.addEventListener('click', function () { openTaskForm(null); });
 
 		async function saveTask() {
 			var name = (nameEl.value || '').trim();
@@ -4921,6 +5022,48 @@ function t(key, fallback) {
 			saveTriage();
 		}
 
+		function markRunRequested(row) {
+			var last = row.last_run || {};
+			runRequests[cardId(row)] = {
+				phase: 'queued',
+				baseline: last.at || '',
+				baselineStatus: last.status || ''
+			};
+			renderGrid();
+		}
+
+		// Follow the run the user just asked for until the list reports one that
+		// is NOT the run the card already showed. Bounded on purpose: the sweep
+		// interval belongs to the platform, so after ~2 minutes the card keeps
+		// saying "queued" — which is still true — rather than polling forever.
+		async function watchRun(row, path, key) {
+			var id = cardId(row);
+			var request = runRequests[id];
+			for (var i = 0; i < RUN_POLL_TRIES; i++) {
+				await new Promise(function (done) { setTimeout(done, RUN_POLL_MS); });
+				// A newer Run now (or a reload that resolved this one) owns the card.
+				if (runRequests[id] !== request) return;
+				var rows = null;
+				try {
+					var data = await apiRequest(path);
+					rows = Array.isArray(data[key]) ? data[key] : null;
+				} catch (e) { continue; }   // a failed poll is unknown, not an answer
+				if (!rows) continue;
+				if (key === 'tasks') { tasks = rows; } else { triages = rows; }
+				var fresh = rows.filter(function (r) { return cardId(r) === id; })[0];
+				var last = (fresh && fresh.last_run) || null;
+				if (!fresh) {
+					delete runRequests[id];                       // removed elsewhere
+				} else if (last && last.status === 'running') {
+					request.phase = 'running';
+				} else if (last && (last.at !== request.baseline || last.status !== request.baselineStatus)) {
+					delete runRequests[id];                       // done: the card shows the outcome
+				}
+				renderGrid();
+				if (!runRequests[id]) return;
+			}
+		}
+
 		async function runNowTriage(btn, schedule) {
 			// Deliberately does NOT save first: Run now tests the schedule that
 			// is actually stored.
@@ -4930,6 +5073,8 @@ function t(key, fallback) {
 				await apiRequest('/triage-schedules/' + encodeURIComponent(schedule.schedule_id) + '/run-now',
 					{ method: 'POST' });
 				setStatus(paneStatus, t('scheduleRunQueued', 'Triage will run shortly. Your digest arrives the same way your daily one does.'), 'ok');
+				markRunRequested(schedule);
+				watchRun(schedule, '/triage-schedules', 'schedules');
 			} catch (e) {
 				setStatus(paneStatus, (e && e.message) || t('scheduleRunFailed', 'Could not start a triage run.'), 'error');
 			} finally {
@@ -4943,6 +5088,8 @@ function t(key, fallback) {
 			try {
 				await apiRequest('/tasks/' + encodeURIComponent(task.id) + '/run-now', { method: 'POST' });
 				setStatus(paneStatus, t('taskRunQueued', 'The task will run shortly. Its output arrives at the destinations you chose.'), 'ok');
+				markRunRequested(task);
+				watchRun(task, '/tasks', 'tasks');
 			} catch (e) {
 				setStatus(paneStatus, (e && e.message) || t('taskRunFailed', 'Could not start the task. Its schedule is unchanged - try again in a moment.'), 'error');
 			} finally {
@@ -4984,6 +5131,30 @@ function t(key, fallback) {
 			}
 		}
 
+		// The creator's delivery section (2026-09-03): the label beside it states
+		// the one fact, this asks the assistant everything past that fact.
+		var resultsAskBtns = Array.prototype.slice.call(modal.querySelectorAll('.schedule-results-ask'));
+		function labelResultsAsk() {
+			resultsAskBtns.forEach(function (btn) {
+				btn.textContent = assistantName
+					? t('scheduleResultsAskNamed', 'Where do results go? Ask %s').replace('%s', function () { return assistantName; })
+					: t('scheduleResultsAsk', 'Where do results go? Ask your assistant');
+			});
+		}
+		onAssistantName(labelResultsAsk);
+		resultsAskBtns.forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				closeModal();
+				hidePane();
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('scheduleResultsAskPrompt',
+					'Where do the results of my scheduled tasks go, and how do I change it?');
+				updateSendButton();
+				sendMessage();
+			});
+		});
+
 		// Tweaks item 2 (2026-09-02): the Projects Ask pattern on Scheduled —
 		// the chat IS the onboarding, and with create_scheduled_task shipped the
 		// prompt honestly asks the assistant to set one up too.
@@ -4994,8 +5165,7 @@ function t(key, fallback) {
 				? t('scheduledAskNamed', 'Ask %s how Scheduled Tasks work').replace('%s', function () { return assistantName; })
 				: t('scheduledAsk', 'Ask how Scheduled Tasks work');
 		}
-		updateScheduledAskLabel = labelScheduledAsk;
-		labelScheduledAsk();
+		onAssistantName(labelScheduledAsk);
 		if (askBtn) {
 			askBtn.addEventListener('click', function () {
 				hidePane();
@@ -5008,16 +5178,14 @@ function t(key, fallback) {
 		}
 
 		if (navBtn) navBtn.addEventListener('click', showPane);
-		if (newTaskBtn) newTaskBtn.addEventListener('click', function () { openTaskForm(null); });
+		if (newTaskBtn) newTaskBtn.addEventListener('click', openCreator);
 		if (modalClose) modalClose.addEventListener('click', closeModal);
 		if (closeBtn) closeBtn.addEventListener('click', closeModal);
 		if (saveBtn) saveBtn.addEventListener('click', save);
 		modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
-		// Chat navigation leaves the page (capture phase, so the chat's own
-		// handlers still run untouched).
-		var newChat = document.getElementById('newChatBtn');
-		if (newChat) newChat.addEventListener('click', hidePane, true);
+		// Chat navigation leaves the page — see the Documents pane's note.
+		onLeavePane(hidePane);
 		var convList = document.getElementById('conversationList');
 		if (convList) convList.addEventListener('click', hidePane, true);
 	})();
