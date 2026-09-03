@@ -5601,6 +5601,59 @@ JS;
 	}
 
 	/**
+	 * Deny framing of the Staff-AI console.
+	 *
+	 * WordPress denies framing on wp-admin pages for free. The console is a
+	 * FRONT-END endpoint (template_redirect, its own standalone document), so
+	 * it gets none of that hardening and has to ask. It matters here because the
+	 * console carries one-click Ask buttons that auto-send a fixed prompt to
+	 * the assistant (v7.6.2) — that is what a clickjack would aim at.
+	 *
+	 * Customer Chat is deliberately NOT covered: embedded-widget deployments
+	 * frame it on purpose (assets/js/def-core-cart-sync.js and the parent-side
+	 * JWT bridge in assets/js/def-core.js are that contract's two halves).
+	 *
+	 * WP 7.0's send_frame_options_header() sends BOTH X-Frame-Options and a
+	 * frame-ancestors CSP; on the older versions this plugin still supports
+	 * (Requires at least: 6.2) it sends only the former. So core runs FIRST —
+	 * the console tracks whatever wp-admin sends — and the CSP is added only
+	 * when core has not already sent one, rather than emitting the header
+	 * twice on 7.0.
+	 *
+	 * Returns the pair it GUARANTEES — not what the probe observed — because
+	 * header() is a no-op under the CLI SAPI the test suite runs on, so the
+	 * values cannot be read back from a test. That return is what
+	 * tests/wpunit/test-console-frame-headers.php pins.
+	 *
+	 * @since 7.6.4
+	 *
+	 * @return array<string, string> Header name => value.
+	 */
+	private static function send_console_frame_headers(): array
+	{
+		$csp = "frame-ancestors 'self';";
+		send_frame_options_header();
+		// Send the CSP only if core has not already: the probe decides whether
+		// to SEND, never what we report, so the guarantee below is the same on
+		// every supported version and a future change to core's own policy
+		// cannot move it.
+		$core_sent_csp = false;
+		foreach ( headers_list() as $sent ) {
+			if ( 0 === stripos( $sent, 'content-security-policy:' ) ) {
+				$core_sent_csp = true;
+				break;
+			}
+		}
+		if ( ! $core_sent_csp ) {
+			header( 'Content-Security-Policy: ' . $csp );
+		}
+		return array(
+			'X-Frame-Options'         => 'SAMEORIGIN',
+			'Content-Security-Policy' => $csp,
+		);
+	}
+
+	/**
 	 * Render the Staff AI application shell.
 	 *
 	 * This outputs a standalone HTML document (not embedded in wp-admin).
@@ -5612,6 +5665,7 @@ JS;
 	{
 		// Prevent caching — page contains user-specific nonce and identifiers.
 		nocache_headers();
+		self::send_console_frame_headers();
 
 		$user    = wp_get_current_user();
 		$channel = 'staff_ai';

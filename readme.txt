@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.6.3
+Stable tag: 7.6.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.4 - 2026-09-03 =
+* Tweak - Security hardening: the Staff AI console now tells browsers it may not be displayed inside a frame on another site (X-Frame-Options and a frame-ancestors content-security policy), matching what WordPress already does for admin pages. Customer Chat is unaffected — embedded-widget deployments frame it deliberately.
 
 = 7.6.3 - 2026-09-03 =
 * Tweak - Customer Chat hand-off form: Business name and Business website are now required - they are the keys that credit a registered prospect to its partner and recognise a contact already in the CRM.
