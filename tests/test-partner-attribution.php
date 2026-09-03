@@ -109,7 +109,8 @@ assert_test( ! isset( DEF_Core_Partner_Attribution::build_capture_payload( 'esc-
 assert_test( 50 === strlen( DEF_Core_Partner_Attribution::build_capture_payload( 'esc-6', '', '', '', '', '', str_repeat( '9', 60 ) )['contact_phone'] ), 'phone bounded to the capture schema' );
 $b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-7', '', 'ada@gmail.com', '', 'Ada', '', '', '  Harbour   Dental ', ' https://www.Harbour-Dental.com/ ' );
 assert_test( 'Harbour Dental' === $b['company_name'] && 'https://www.Harbour-Dental.com/' === $b['website'], 'business name + website carried (7.6.1) — the registration key when the email is free-mail' );
-assert_test( ! isset( DEF_Core_Partner_Attribution::build_capture_payload( 'esc-8', '', '', '', '', '', '', ' ', ' ' )['company_name'] ), 'blank business sends nothing' );
+$b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-8', '', '', '', '', '', '', ' ', ' ' );
+assert_test( ! isset( $b['company_name'] ) && ! isset( $b['website'] ), 'blank business + website send nothing' );
 $b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-9', '', '', '', '', '', '', str_repeat( 'a', 250 ), str_repeat( 'b', 300 ) );
 assert_test( 200 === strlen( $b['company_name'] ) && 255 === strlen( $b['website'] ), 'business + website bounded to the capture schema' );
 
