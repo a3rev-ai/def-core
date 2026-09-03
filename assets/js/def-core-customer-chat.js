@@ -898,10 +898,10 @@
 			escalationField('Phone', 'tel', 'escalationPhone', false)
 		);
 		anonFields.appendChild(
-			escalationField('Business name', 'text', 'escalationBusiness', false)
+			escalationField('Business name', 'text', 'escalationBusiness', true)
 		);
 		anonFields.appendChild(
-			escalationField('Business website', 'text', 'escalationWebsite', false)
+			escalationField('Business website', 'text', 'escalationWebsite', true)
 		);
 
 		els.escalationAnonFields = anonFields;
@@ -2867,6 +2867,22 @@
 				showFieldError(els.escalationEmail, 'Valid email required');
 				valid = false;
 			}
+			// The business name + website are the keys that credit a registered prospect and
+			// match an existing CRM contact (7.6.3) — an enquiry without them is uncredited.
+			if (
+				els.escalationBusiness &&
+				!els.escalationBusiness.value.trim()
+			) {
+				showFieldError(els.escalationBusiness, 'Required');
+				valid = false;
+			}
+			if (
+				els.escalationWebsite &&
+				!isValidWebsite(els.escalationWebsite.value.trim())
+			) {
+				showFieldError(els.escalationWebsite, 'Business website required (e.g. harbour-dental.com)');
+				valid = false;
+			}
 		}
 
 		// Always required.
@@ -2890,6 +2906,12 @@
 
 	function isValidEmail(email) {
 		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+	}
+
+	// A host with at least one dot, optionally schemed / with a path — the same shape the
+	// Partner Portal's registration form accepts, so the two keys line up.
+	function isValidWebsite(site) {
+		return /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(site);
 	}
 
 	function handleEscalationSubmit() {

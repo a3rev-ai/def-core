@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.3 - 2026/09/03 =
+* Tweak - Customer Chat hand-off form: Business name and Business website are now required - they are the keys that credit a registered prospect to its partner and recognise a contact already in the CRM.
+
 = 7.6.2 - 2026/09/03 =
 * Tweak - Staff AI console: My Documents and Projects now offer an Ask-your-assistant button where you get stuck, the scheduled-task popup lets you switch task type without reopening it, Run now reports queued / running / sent on the task card, and the delivery section names the address results are sent to.
 * Fix - Staff AI: "New chat" on a project row now always opens a fresh chat in that project, instead of sometimes landing back on the My Documents or Scheduled page that was open behind the panel.
