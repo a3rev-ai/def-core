@@ -549,7 +549,7 @@ final class DEF_Core_Escalation {
 			 * @param array  $safe_body The allowlisted fields (subject, body, reply_to, channel).
 			 * @param array  $raw       The raw request body as posted by the widget.
 			 */
-			$safe_body['body'] = (string) apply_filters( 'def_core_customer_chat_handoff_body', $safe_body['body'], $safe_body, is_array( $body ) ? $body : array() );
+			$safe_body['body'] = (string) apply_filters( 'def_core_customer_chat_handoff_body', (string) $safe_body['body'], $safe_body, is_array( $body ) ? $body : array() );
 		}
 
 		// Delegate to the shared escalation send-email handler.
