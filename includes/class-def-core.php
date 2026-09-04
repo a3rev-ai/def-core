@@ -76,7 +76,6 @@ final class DEF_Core {
 		DEF_Core_Logs_Page::init();
 		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
-		DEF_Core_Partner_Attribution::init();
 
 		// Schedule log cleanup cron.
 		DEF_Core_Logger::schedule_cleanup();
@@ -184,9 +183,6 @@ final class DEF_Core {
 
 		// Chat-driven sale attribution (stamps _def_chat_id onto orders).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-chat-attribution.php';
-
-		// Partner attribution: /p/<slug> co-brand route + first-touch cookie + capture (6.5.0).
-		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-partner-attribution.php';
 
 		// Plugin inited action hook.
 		add_action(
@@ -618,10 +614,19 @@ final class DEF_Core {
 		// via its dependency entry) reads window.DefCorePageContext on
 		// mount; nothing else needs to change.
 		if ( class_exists( 'DEF_Core_Page_Context' ) ) {
-			$payload = DEF_Core_Page_Context::build_payload();
+			/**
+			 * Site companions may add to the page context the chat sends with every
+			 * message (7.6.5). Keys DEF does not know are ignored on the DEF side.
+			 *
+			 * @param array $payload The PHP-derived page context.
+			 */
+			$payload = (array) apply_filters( 'def_core_page_context', DEF_Core_Page_Context::build_payload() );
+			// JSON_HEX_TAG: the payload lands inside an inline <script>; a value carrying
+			// `<!--<script>` would otherwise put the parser into script-data double-escaped
+			// state and swallow every following script on the page.
 			wp_add_inline_script(
 				'def-core-page-context',
-				'window.DefCorePageContext = ' . wp_json_encode( $payload ) . ';',
+				'window.DefCorePageContext = ' . wp_json_encode( $payload, JSON_HEX_TAG ) . ';',
 				'before'
 			);
 		}

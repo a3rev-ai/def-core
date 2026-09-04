@@ -537,27 +537,19 @@ final class DEF_Core_Escalation {
 		// a different escalation channel through this route.
 		$safe_body['channel'] = 'customer';
 
-		// Partner attribution (6.5.0, S3): resolve via DEFHO and stamp the lead.
-		// page_url — and, since 7.6.0 (S5c), the contact name + message — are read
-		// from the RAW body (never the email allowlist) and go only to the capture
-		// payload. FAIL-OPEN (AD-14): a null result changes
-		// nothing about the send. Capture only for a submission that can actually
-		// send (non-empty subject+body, mirroring send_escalation_email's checks) —
-		// an invalid submission must not mint a phantom lead_ref.
+		// Site companions (7.6.5) may stamp a hand-off that can actually send
+		// (non-empty subject + body, mirroring send_escalation_email's checks).
+		// They get the allowlisted fields AND the raw body (page_url, the contact
+		// fields the form posts) — raw never enters the email allowlist here.
 		if ( ! empty( $safe_body['subject'] ) && ! empty( $safe_body['body'] ) ) {
-			$attr_page_url = isset( $body['page_url'] ) ? esc_url_raw( (string) $body['page_url'] ) : '';
-			$attribution   = DEF_Core_Partner_Attribution::capture_for_escalation(
-				(string) ( $safe_body['reply_to'] ?? '' ),
-				$attr_page_url,
-				isset( $body['contact_name'] ) ? sanitize_text_field( (string) $body['contact_name'] ) : '',
-				isset( $body['message'] ) ? sanitize_textarea_field( (string) $body['message'] ) : '',
-				isset( $body['contact_phone'] ) ? sanitize_text_field( (string) $body['contact_phone'] ) : '',
-				isset( $body['company_name'] ) ? sanitize_text_field( (string) $body['company_name'] ) : '',
-				isset( $body['website'] ) ? sanitize_text_field( (string) $body['website'] ) : ''
-			);
-			if ( null !== $attribution ) {
-				$safe_body['body'] .= "\n\n" . DEF_Core_Partner_Attribution::build_attributed_line( $attribution );
-			}
+			/**
+			 * Filter the Customer Chat hand-off email body before it is sent.
+			 *
+			 * @param string $body      The email body.
+			 * @param array  $safe_body The allowlisted fields (subject, body, reply_to, channel).
+			 * @param array  $raw       The raw request body as posted by the widget.
+			 */
+			$safe_body['body'] = (string) apply_filters( 'def_core_customer_chat_handoff_body', (string) $safe_body['body'], $safe_body, is_array( $body ) ? $body : array() );
 		}
 
 		// Delegate to the shared escalation send-email handler.
