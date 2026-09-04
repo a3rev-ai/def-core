@@ -122,7 +122,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 = 7.7.0 - 2026-09-04 =
 * Tweak - Partner attribution (the /p/ partner links, attribution cookie, co-brand banner and hand-off capture into DEFHO) has moved out of Digital Employees into the Widrow Attribution companion plugin, which the Widrow pitch sites install alongside it. Every other site is unaffected: nothing about the chat, the hand-off form or the email changes.
-* Dev - Two extension points for site companions: the `def_core_customer_chat_handoff_body` filter (the hand-off email body, with the allowlisted fields and the raw request) and the `def_core_page_context` filter (the page context the chat sends with every message; a `partner` key is forwarded to DEF).
+* Feature - Two extension points for site companions: the `def_core_customer_chat_handoff_body` filter (the hand-off email body, with the allowlisted fields and the raw request) and the `def_core_page_context` filter (the page context the chat sends with every message; a `partner` key is forwarded to DEF).
 * Tweak - Security hardening: the page-context payload written into the page's inline script is now HTML-safe (JSON_HEX_TAG), so no value on it can break out of the script tag.
 
 = 7.6.4 - 2026-09-03 =
@@ -790,7 +790,6 @@ When the Customer Chat widget or Staff AI panel is used, chat messages are sent 
 * **Privacy Policy:** [https://defho.ai/privacy](https://defho.ai/privacy)
 
 No data is sent to external services when the chat features are not in use. Site administrators can configure a Privacy Policy URL in Chat Settings to display an AI disclosure notice to visitors before they begin chatting.
-
 
 == Privacy Policy ==
 
