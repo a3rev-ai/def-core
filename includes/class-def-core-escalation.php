@@ -537,7 +537,7 @@ final class DEF_Core_Escalation {
 		// a different escalation channel through this route.
 		$safe_body['channel'] = 'customer';
 
-		// Site companions (7.7.0) may stamp a hand-off that can actually send
+		// Site companions (7.6.5) may stamp a hand-off that can actually send
 		// (non-empty subject + body, mirroring send_escalation_email's checks).
 		// They get the allowlisted fields AND the raw body (page_url, the contact
 		// fields the form posts) — raw never enters the email allowlist here.

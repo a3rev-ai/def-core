@@ -223,7 +223,7 @@
 		var payload = { current: current };
 
 		// A site companion may put the referring partner on the page context
-		// (the def_core_page_context filter, 7.7.0); DEF renders it for Joe.
+		// (the def_core_page_context filter, 7.6.5); DEF renders it for Joe.
 		if (ctx.partner && typeof ctx.partner.slug === 'string' && typeof ctx.partner.name === 'string') {
 			payload.partner = { slug: ctx.partner.slug, name: ctx.partner.name };
 		}

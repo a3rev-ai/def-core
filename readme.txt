@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.7.0
+Stable tag: 7.6.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.7.0 - 2026-09-04 =
+= 7.6.5 - 2026-09-04 =
 * Tweak - Partner attribution (the /p/ partner links, attribution cookie, co-brand banner and hand-off capture into DEFHO) has moved out of Digital Employees into the Widrow Attribution companion plugin, which the Widrow pitch sites install alongside it. Every other site is unaffected: nothing about the chat, the hand-off form or the email changes.
 * Feature - Two extension points for site companions: the `def_core_customer_chat_handoff_body` filter (the hand-off email body, with the allowlisted fields and the raw request) and the `def_core_page_context` filter (the page context the chat sends with every message; a `partner` key is forwarded to DEF).
 * Tweak - Security hardening: the page-context payload written into the page's inline script is now HTML-safe (JSON_HEX_TAG), so no value on it can break out of the script tag.

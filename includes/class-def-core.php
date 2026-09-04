@@ -616,7 +616,7 @@ final class DEF_Core {
 		if ( class_exists( 'DEF_Core_Page_Context' ) ) {
 			/**
 			 * Site companions may add to the page context the chat sends with every
-			 * message (7.7.0). Keys DEF does not know are ignored on the DEF side.
+			 * message (7.6.5). Keys DEF does not know are ignored on the DEF side.
 			 *
 			 * @param array $payload The PHP-derived page context.
 			 */

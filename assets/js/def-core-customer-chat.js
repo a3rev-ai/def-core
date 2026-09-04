@@ -2977,14 +2977,14 @@
 			subject: subject,
 			body: bodyText,
 			// The conversion-page URL, for site companions listening on the
-			// hand-off filter (7.7.0). Server-side only; never rendered back.
+			// hand-off filter (7.6.5). Server-side only; never rendered back.
 			page_url: window.location.href,
 		};
 		if (replyTo) {
 			payload.reply_to = replyTo;
 		}
 		// The contact fields the form collected, for site companions listening
-		// on the hand-off filter (7.7.0). Server-side only; never in the email
+		// on the hand-off filter (7.6.5). Server-side only; never in the email
 		// allowlist. Anonymous visitors only — a logged-in user is not a prospect.
 		if (!isAuthenticated()) {
 			payload.contact_name = (firstName + ' ' + lastName).trim();
