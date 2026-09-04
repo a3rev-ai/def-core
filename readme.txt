@@ -789,8 +789,6 @@ When the Customer Chat widget or Staff AI panel is used, chat messages are sent 
 * **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)
 * **Privacy Policy:** [https://defho.ai/privacy](https://defho.ai/privacy)
 
-= DEFHO Platform API =
-
 No data is sent to external services when the chat features are not in use. Site administrators can configure a Privacy Policy URL in Chat Settings to display an AI disclosure notice to visitors before they begin chatting.
 
 
