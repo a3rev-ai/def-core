@@ -121,7 +121,7 @@ Chat messages, user display name, session context (including, on a DEFHO-connect
 == Changelog ==
 
 = 7.7.0 - 2026-09-04 =
-* New Feature - Customer Chat on the pitch site: Joe now knows which partner's link brought the visitor (the /p/ link, or the attribution cookie on later visits) and can acknowledge the referral. The partner context travels with the page context on every message; DEF renders it, the plugin only carries it.
+* New Feature - Customer Chat on the pitch site: Joe now knows which partner's link brought the visitor (the /p/ link, or the attribution cookie on later visits) and can acknowledge the referral.
 
 = 7.6.4 - 2026-09-03 =
 * Tweak - Security hardening: the Staff AI console now tells browsers it may not be displayed inside a frame on another site (X-Frame-Options and a frame-ancestors content-security policy), matching what WordPress already does for admin pages. Customer Chat is unaffected — embedded-widget deployments frame it deliberately.
@@ -791,8 +791,8 @@ When the Customer Chat widget or Staff AI panel is used, chat messages are sent 
 
 On a site connected to DEFHO, the plugin also talks to the DEFHO platform API for partner attribution.
 
-* **What is sent:** On a `/p/partner-link` page view, the partner link's slug (to validate it and fetch the partner's display name). When a visitor submits the chat hand-off form, the attribution capture: the name, email, phone, business name, website and message they typed, the page they were on, and the partner link they arrived through, so the enquiry can be credited to the referring partner and passed on to them.
-* **When:** Only on partner-link page views and hand-off form submissions, and only when the site is connected to DEFHO.
+* **What is sent:** On a `/p/partner-link` page view — and, for a visitor who arrived through one earlier, on later page views — the partner link's slug (to validate it and fetch the partner's display name). When a visitor submits the chat hand-off form, the attribution capture: the name, email, phone, business name, website and message they typed, the page they were on, and the partner link they arrived through, so the enquiry can be credited to the referring partner and passed on to them.
+* **When:** On partner-link page views, on later page views by a visitor who arrived through a partner link (the server re-checks the link, cached for ten minutes), and on hand-off form submissions — and only when the site is connected to DEFHO.
 * **Service URL:** `https://platform-api.defho.ai` (overridable with the `DEF_DEFHO_API_URL` constant).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
 * **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)

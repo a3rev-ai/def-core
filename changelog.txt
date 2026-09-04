@@ -1,7 +1,7 @@
 *** Digital Employee Framework - Core Changelog ***
 
 = 7.7.0 - 2026/09/04 =
-* New Feature - Customer Chat on the pitch site: Joe now knows which partner's link brought the visitor (the /p/ link, or the attribution cookie on later visits) and can acknowledge the referral. The partner context travels with the page context on every message; DEF renders it, the plugin only carries it.
+* New Feature - Customer Chat on the pitch site: Joe now knows which partner's link brought the visitor (the /p/ link, or the attribution cookie on later visits) and can acknowledge the referral.
 
 = 7.6.4 - 2026/09/03 =
 * Tweak - Security hardening: the Staff AI console now tells browsers it may not be displayed inside a frame on another site (X-Frame-Options and a frame-ancestors content-security policy), matching what WordPress already does for admin pages. Customer Chat is unaffected — embedded-widget deployments frame it deliberately.
