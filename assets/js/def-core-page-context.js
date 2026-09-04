@@ -204,7 +204,7 @@
 	 *   calls `markShipped(threadId)` to suppress the trail on subsequent
 	 *   messages).
 	 *
-	 * @returns {Object} { current: {...}, pre_chat_trail?: [...] }
+	 * @returns {Object} { current: {...}, pre_chat_trail?: [...], partner?: {slug, name} }
 	 */
 	function build(threadId) {
 		var ctx = window.DefCorePageContext || {};
@@ -221,6 +221,12 @@
 			referrer_path: getReferrerPath(),
 		};
 		var payload = { current: current };
+
+		// A site companion may put the referring partner on the page context
+		// (the def_core_page_context filter, 7.7.0); DEF renders it for Joe.
+		if (ctx.partner && typeof ctx.partner.slug === 'string' && typeof ctx.partner.name === 'string') {
+			payload.partner = { slug: ctx.partner.slug, name: ctx.partner.name };
+		}
 
 		// Pre-chat trail: ship only if this thread hasn't been ACK'd yet.
 		// Use `__pending__` as the sentinel for the first message of a

@@ -99,23 +99,6 @@ function scan_inline_caps(): array {
 // ── The baseline — EXPLICITLY UNREVIEWED, measured 2026-08-10 ────────────────
 
 const BASELINE = array(
-	// Attribution capture (6.5.0): DEFHO's capture schema REFUSES page_url > 500
-	// (422), and the call is fail-open — an unbounded URL would lose the WHOLE
-	// attribution, not a suffix. The slug is extracted from the FULL url BEFORE
-	// this cut, so only stored evidence is bounded, never resolution input.
-	'includes/class-def-core-partner-attribution.php::$payload[\'page_url\'] = substr( $page_url, 0, 500 );' => 1,
-	// S5c (7.6.0, classified at introduction): the same shape for the contact
-	// fields — DEFHO's capture schema REFUSES contact_name > 200 / message > 1000
-	// (422) and the call is fail-open, so an unbounded field would lose the whole
-	// attribution. Only stored evidence is bounded; resolution input never is.
-	'includes/class-def-core-partner-attribution.php::$payload[\'contact_name\'] = mb_substr( $contact_name, 0, 200 );' => 1,
-	'includes/class-def-core-partner-attribution.php::$payload[\'message\'] = mb_substr( $message, 0, 1000 );' => 1,
-	// 7.6.1: the phone, same class — bounded to the String(50) the DEFHO/DEF schemas hold
-	// (a 422 on the fail-open capture would lose the whole stamp).
-	'includes/class-def-core-partner-attribution.php::$payload[\'contact_phone\'] = mb_substr( $contact_phone, 0, 50 );' => 1,
-	// 7.6.1: business name + website, same class — DEFHO's capture schema bounds (200 / 255).
-	'includes/class-def-core-partner-attribution.php::$payload[\'company_name\'] = mb_substr( $company_name, 0, 200 );' => 1,
-	'includes/class-def-core-partner-attribution.php::$payload[\'website\'] = mb_substr( $website, 0, 255 );' => 1,
 	// Door-check for DEF's String(64) timezone column, mirrored from the DEF
 	// route it proxies: REFUSES visibly (400, field named), never truncates;
 	// every real IANA zone name fits. Classified at introduction (S4b card).

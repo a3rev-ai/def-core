@@ -5643,7 +5643,7 @@ JS;
 		// what production needs: with WP_DEBUG_DISPLAY on, or a stray BOM in
 		// another plugin, template_redirect can run with output already begun,
 		// and this must stay silent rather than print a PHP warning into the
-		// console's HTML (the class-def-core-partner-attribution.php idiom).
+		// console's HTML (the headers_sent() guard idiom).
 		if ( null === $emit && headers_sent() ) {
 			return;
 		}

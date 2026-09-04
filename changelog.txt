@@ -1,5 +1,10 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.7.0 - 2026/09/04 =
+* Tweak - Partner attribution (the /p/ partner links, attribution cookie, co-brand banner and hand-off capture into DEFHO) has moved out of Digital Employees into the Widrow Attribution companion plugin, which the Widrow pitch sites install alongside it. Every other site is unaffected: nothing about the chat, the hand-off form or the email changes.
+* Dev - Two extension points for site companions: the `def_core_customer_chat_handoff_body` filter (the hand-off email body, with the allowlisted fields and the raw request) and the `def_core_page_context` filter (the page context the chat sends with every message; a `partner` key is forwarded to DEF).
+* Tweak - Security hardening: the page-context payload written into the page's inline script is now HTML-safe (JSON_HEX_TAG), so no value on it can break out of the script tag.
+
 = 7.6.4 - 2026/09/03 =
 * Tweak - Security hardening: the Staff AI console now tells browsers it may not be displayed inside a frame on another site (X-Frame-Options and a frame-ancestors content-security policy), matching what WordPress already does for admin pages. Customer Chat is unaffected — embedded-widget deployments frame it deliberately.
 
