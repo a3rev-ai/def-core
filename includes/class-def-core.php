@@ -621,7 +621,7 @@ final class DEF_Core {
 			$payload = DEF_Core_Page_Context::build_payload();
 			wp_add_inline_script(
 				'def-core-page-context',
-				'window.DefCorePageContext = ' . wp_json_encode( $payload ) . ';',
+				'window.DefCorePageContext = ' . wp_json_encode( $payload, JSON_HEX_TAG ) . ';',
 				'before'
 			);
 		}
