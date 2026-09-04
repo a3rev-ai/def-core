@@ -69,6 +69,8 @@ final class DEF_Core_Page_Context {
 			'queried_taxonomy' => self::collect_queried_taxonomy(),
 			'terms'            => self::collect_page_terms( $post_id ),
 			'title'            => self::safe_title(),
+			// Joe partner-context (7.7.0): the referring partner, or null.
+			'partner'          => class_exists( 'DEF_Core_Partner_Attribution' ) ? DEF_Core_Partner_Attribution::current_partner_context() : null,
 		);
 	}
 

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 7.6.4
+Stable tag: 7.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,7 +109,7 @@ Go to **Digital Employees > Chat Settings**. You can set button position (left/r
 
 = What data is sent to the AI service? =
 
-Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone, business name, website and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
+Chat messages, user display name, session context (including, on a DEFHO-connected pitch site, the public name of the partner whose link brought the visitor), and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone, business name, website and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.0 - 2026-09-04 =
+* New Feature - Customer Chat on the pitch site: Joe now knows which partner's link brought the visitor (the /p/ link, or the attribution cookie on later visits) and can acknowledge the referral. The partner context travels with the page context on every message; DEF renders it, the plugin only carries it.
 
 = 7.6.4 - 2026-09-03 =
 * Tweak - Security hardening: the Staff AI console now tells browsers it may not be displayed inside a frame on another site (X-Frame-Options and a frame-ancestors content-security policy), matching what WordPress already does for admin pages. Customer Chat is unaffected — embedded-widget deployments frame it deliberately.
@@ -777,7 +780,7 @@ This plugin connects to an external AI service to power the Customer Chat and St
 
 When the Customer Chat widget or Staff AI panel is used, chat messages are sent to the configured Digital Employee Framework (DEF) API server for processing by AI models. This connection is required for the chat features to function.
 
-* **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone, business name, website and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them.
+* **What is sent:** Chat messages, user display name, session context (including, on a DEFHO-connected pitch site, the public name of the partner whose link brought the visitor), and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection. When a visitor submits the chat hand-off form on a DEFHO-connected site, the name, email, phone, business name, website and message they typed and the page they were on are also sent to the DEFHO platform API (see below) so the enquiry can be credited to the referring partner and passed on to them.
 * **When:** Only when a user or visitor actively sends a message via the chat interface.
 * **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.

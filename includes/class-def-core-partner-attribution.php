@@ -205,6 +205,47 @@ final class DEF_Core_Partner_Attribution {
 	}
 
 	/**
+	 * Joe partner-context (7.7.0) — the referring partner for THIS pageview, for the chat
+	 * widget's page_context payload (DEF renders one line so Joe can acknowledge the
+	 * referral). The /p/ visit knows it already; any later pageview resolves it from the
+	 * first-touch cookie through the same transient-cached validate call.
+	 *
+	 * @return array|null {slug, name} or null when no partner is known.
+	 */
+	public static function current_partner_context(): ?array {
+		if ( ! empty( self::$current_partner['slug'] ) ) {
+			return self::partner_context_from( (string) self::$current_partner['slug'], (string) self::$current_partner['display_name'] );
+		}
+		if ( empty( $_COOKIE[ self::COOKIE_NAME ] ) ) {
+			return null;
+		}
+		$slug = self::slug_from_cookie_value( (string) wp_unslash( $_COOKIE[ self::COOKIE_NAME ] ) );
+		if ( '' === $slug ) {
+			return null;
+		}
+		$info = self::validate_slug( $slug );
+		if ( empty( $info['valid'] ) ) {
+			return null;
+		}
+		return self::partner_context_from( $slug, (string) ( $info['display_name'] ?? '' ) );
+	}
+
+	/**
+	 * Shape {slug, name} for the widget. A partner without a display name is no
+	 * context at all — Joe would have nothing to say.
+	 */
+	public static function partner_context_from( string $slug, string $display_name ): ?array {
+		$name = trim( preg_replace( '/\s+/', ' ', $display_name ) );
+		if ( '' === $slug || '' === $name ) {
+			return null;
+		}
+		return array(
+			'slug' => $slug,
+			'name' => $name,
+		);
+	}
+
+	/**
 	 * S3 — capture attribution for an escalation lead. FAIL-OPEN (AD-14):
 	 * returns null on any failure and the caller proceeds regardless.
 	 *

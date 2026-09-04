@@ -114,6 +114,19 @@ assert_test( ! isset( $b['company_name'] ) && ! isset( $b['website'] ), 'blank b
 $b = DEF_Core_Partner_Attribution::build_capture_payload( 'esc-9', '', '', '', '', '', '', str_repeat( 'a', 250 ), str_repeat( 'b', 300 ) );
 assert_test( 200 === strlen( $b['company_name'] ) && 255 === strlen( $b['website'] ), 'business + website bounded to the capture schema' );
 
+// Joe partner-context (7.7.0): the {slug, name} shape the widget ships inside page_context.
+assert_test( array( 'slug' => 'acme', 'name' => 'Acme Digital' ) === DEF_Core_Partner_Attribution::partner_context_from( 'acme', "  Acme 
+  Digital " ), 'partner context: name whitespace collapsed' );
+assert_test( null === DEF_Core_Partner_Attribution::partner_context_from( 'acme', '   ' ), 'partner context: no display name -> null' );
+assert_test( null === DEF_Core_Partner_Attribution::partner_context_from( '', 'Acme' ), 'partner context: no slug -> null' );
+assert_test( null === DEF_Core_Partner_Attribution::current_partner_context(), 'partner context: no /p/ visit and no cookie -> null' );
+$_COOKIE[ DEF_Core_Partner_Attribution::COOKIE_NAME ] = DEF_Core_Partner_Attribution::build_cookie_value( 'acme', 1755500000 );
+set_transient( 'def_attr_slug_' . md5( 'acme' ), array( 'valid' => true, 'display_name' => 'Acme Digital', 'window_days' => 90 ) ); // TRANSIENT_PREFIX is private; the key is pinned here on purpose.
+assert_test( array( 'slug' => 'acme', 'name' => 'Acme Digital' ) === DEF_Core_Partner_Attribution::current_partner_context(), 'partner context: resolved from the first-touch cookie via the cached validate' );
+set_transient( 'def_attr_slug_' . md5( 'acme' ), array( 'valid' => false ) );
+assert_test( null === DEF_Core_Partner_Attribution::current_partner_context(), 'partner context: a cookie for an inactive slug -> null' );
+unset( $_COOKIE[ DEF_Core_Partner_Attribution::COOKIE_NAME ] );
+
 echo "\n{$passed} passed, {$failed} failed\n";
 if ( $failed > 0 ) {
 	echo 'FAILED: ' . implode( '; ', $errors ) . "\n";
