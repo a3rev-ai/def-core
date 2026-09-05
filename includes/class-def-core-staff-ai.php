@@ -4378,6 +4378,14 @@ final class DEF_Core_Staff_AI
 			$chat_body['project_id'] = $project_id;
 		}
 
+		// The browser's IANA zone (7.6.7): DEF renders today's date in it. Shape-checked
+		// here (the streaming route passes it raw), validated by DEF — an unknown zone
+		// is dropped there, never refused.
+		$timezone = isset($body['timezone']) ? sanitize_text_field($body['timezone']) : '';
+		if ($timezone && preg_match('/^[A-Za-z0-9_+\-]+(\/[A-Za-z0-9_+\-]+)*$/', $timezone)) {
+			$chat_body['timezone'] = $timezone;
+		}
+
 		// Staff AI uses dedicated endpoint - NOT the customer chatbot
 		// Reference: STAFF_AI_CHANNEL_OVERVIEW.md
 		// "Staff AI is NOT a customer chatbot and is NOT used for platform configuration"

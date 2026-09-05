@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.7 - 2026/09/05 =
+* Tweak - Staff AI: your assistant now knows today's date. The console sends your browser's timezone with each message, so the date it works from is yours (for example Australia/Brisbane) - not the site's timezone setting and not UTC.
+
 = 7.6.6 - 2026/09/05 =
 * Fix - Uploading a photo or screenshot from a phone could fail with "Upload does not match what was declared": the browser sometimes hands over an empty file when the upload is sent. Customer Chat and the Staff AI console now read the file into memory and check its size before uploading, so a file the phone can no longer read is reported clearly instead of failing after the upload.
 * Tweak - Tested up to WordPress 7.1.
