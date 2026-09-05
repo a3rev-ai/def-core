@@ -2,9 +2,9 @@
 Contributors: a3rev
 Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.6.5
+Stable tag: 7.6.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.6 - 2026-09-05 =
+* Fix - Uploading a photo or screenshot from a phone could fail with "Upload does not match what was declared": the browser sometimes hands over an empty file when the upload is sent. Customer Chat and the Staff AI console now read the file into memory and check its size before uploading, so a file the phone can no longer read is reported clearly instead of failing after the upload.
+* Tweak - Tested up to WordPress 7.1.
 
 = 7.6.5 - 2026-09-04 =
 * Tweak - Partner attribution (the /p/ partner links, attribution cookie, co-brand banner and hand-off capture into DEFHO) has moved out of Digital Employees into the Widrow Attribution companion plugin, which the Widrow pitch sites install alongside it. Every other site is unaffected: nothing about the chat, the hand-off form or the email changes.

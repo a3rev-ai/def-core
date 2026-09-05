@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.6 - 2026/09/05 =
+* Fix - Uploading a photo or screenshot from a phone could fail with "Upload does not match what was declared": the browser sometimes hands over an empty file when the upload is sent. Customer Chat and the Staff AI console now read the file into memory and check its size before uploading, so a file the phone can no longer read is reported clearly instead of failing after the upload.
+* Tweak - Tested up to WordPress 7.1.
+
 = 7.6.5 - 2026/09/04 =
 * Tweak - Partner attribution (the /p/ partner links, attribution cookie, co-brand banner and hand-off capture into DEFHO) has moved out of Digital Employees into the Widrow Attribution companion plugin, which the Widrow pitch sites install alongside it. Every other site is unaffected: nothing about the chat, the hand-off form or the email changes.
 * Feature - Two extension points for site companions: the `def_core_customer_chat_handoff_body` filter (the hand-off email body, with the allowlisted fields and the raw request) and the `def_core_page_context` filter (the page context the chat sends with every message; a `partner` key is forwarded to DEF).

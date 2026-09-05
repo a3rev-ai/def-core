@@ -1460,6 +1460,21 @@ function t(key, fallback) {
 
 			entry.fileId = initResult.file_id;
 
+			// Read the bytes into memory before the PUT (7.6.6). A file picked from a
+			// phone's Photos is a lazy reference the browser only reads when the request
+			// body is serialised — on mobile it can be dead by then while file.size still
+			// reports the metadata size, so fetch sent an EMPTY body, Azure stored a
+			// 0-byte blob, and commit failed on size (every retry re-sent the same dead
+			// reference). After init so the server's size gate — the one bound — runs
+			// first; a read failure leaves exactly what a PUT network failure leaves.
+			var payload = entry.file;
+			if (typeof entry.file.arrayBuffer === 'function') {
+				payload = await entry.file.arrayBuffer().catch(function() { return null; });
+				if (!payload || payload.byteLength !== entry.file.size) {
+					throw new Error(t('uploadReadFailed', 'Could not read the file. Please remove it, re-select it and try again.'));
+				}
+			}
+
 			// Step 2: Upload binary directly to Azure presigned URL (with retry — V1.1: G2).
 			var blobResponse = null;
 			var lastError = null;
@@ -1472,7 +1487,7 @@ function t(key, fallback) {
 							'Content-Type': getMimeFromExtension(entry.file.name),
 							'x-ms-blob-type': 'BlockBlob',
 						},
-						body: entry.file,
+						body: payload,
 					});
 
 					if (blobResponse.ok) break;
