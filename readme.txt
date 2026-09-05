@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.6.7
+Stable tag: 7.6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.8 - 2026-09-05 =
+* Feature - Staff AI: an image your assistant creates now appears in the chat itself, not only as a download card. On a phone, press and hold the picture to save it to your photos.
+* Fix - Staff AI: when the console is installed as an app on your phone, Download no longer opens a blank screen you cannot leave - it opens the share sheet, where you can save the file to Photos or Files.
 
 = 7.6.7 - 2026-09-05 =
 * Tweak - Staff AI: your assistant now knows today's date. The console sends your browser's timezone with each message, so the date it works from is yours (for example Australia/Brisbane) - not the site's timezone setting and not UTC.
