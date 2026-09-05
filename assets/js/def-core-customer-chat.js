@@ -3411,35 +3411,21 @@
 			headers['X-WP-Nonce'] = config.nonce;
 		}
 
-		// Read the bytes into memory BEFORE declaring the upload (7.6.5): a file picked
-		// from a phone's Photos is a lazy reference that can be dead by the time fetch
-		// serialises the body — Azure then stored a 0-byte blob and commit failed on
-		// size. Eager read = the real bytes, or a clear error here (see staff-ai.js).
-		var payload = staged.file;
-		var readBytes = typeof staged.file.arrayBuffer === 'function'
-			? staged.file.arrayBuffer().then(function (buf) {
-				if (buf.byteLength !== staged.file.size) throw new Error(t('uploadReadFailed'));
-				payload = buf;
-			}, function () { throw new Error(t('uploadReadFailed')); })
-			: Promise.resolve();
-
 		// Step 1: Init via BFF proxy.
 		var controller1 = new AbortController();
 		trackAbort(controller1);
 
-		return readBytes.then(function () {
-			return fetch(config.uploadInitUrl, {
-				method: 'POST',
-				headers: headers,
-				credentials: 'same-origin',
-				body: JSON.stringify({
-					filename: staged.file.name,
-					mime_type: getMimeType(staged.file.name),
-					size_bytes: staged.file.size,
-					conversation_id: conversationId,
-				}),
-				signal: controller1.signal,
-			});
+		return fetch(config.uploadInitUrl, {
+			method: 'POST',
+			headers: headers,
+			credentials: 'same-origin',
+			body: JSON.stringify({
+				filename: staged.file.name,
+				mime_type: getMimeType(staged.file.name),
+				size_bytes: staged.file.size,
+				conversation_id: conversationId,
+			}),
+			signal: controller1.signal,
 		})
 			.then(function (res) {
 				untrackAbort(controller1);
@@ -3451,20 +3437,34 @@
 					throw new Error('Invalid init response');
 				}
 
+				// Read the bytes into memory before the PUT (7.6.6): a file picked from a
+				// phone's Photos is a lazy reference that can be dead by the time fetch
+				// serialises the body — Azure then stored a 0-byte blob and commit failed
+				// on size. After init so the server's size gate (the one bound) runs
+				// first; a read failure leaves what a PUT network failure leaves today.
+				var readBytes = typeof staged.file.arrayBuffer === 'function'
+					? staged.file.arrayBuffer().then(function (buf) {
+						if (buf.byteLength !== staged.file.size) throw new Error(t('uploadReadFailed'));
+						return buf;
+					}, function () { throw new Error(t('uploadReadFailed')); })
+					: Promise.resolve(staged.file);
+
 				// Step 2: PUT blob.
 				// Translate Docker-internal hostnames to browser-routable ones.
 				var putUrl = translateDockerUrl(initData.upload_url);
 				var controller2 = new AbortController();
 				trackAbort(controller2);
 
-				return fetch(putUrl, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': getMimeType(staged.file.name),
-						'x-ms-blob-type': 'BlockBlob',
-					},
-					body: payload,
-					signal: controller2.signal,
+				return readBytes.then(function (payload) {
+					return fetch(putUrl, {
+						method: 'PUT',
+						headers: {
+							'Content-Type': getMimeType(staged.file.name),
+							'x-ms-blob-type': 'BlockBlob',
+						},
+						body: payload,
+						signal: controller2.signal,
+					});
 				}).then(function (putRes) {
 					untrackAbort(controller2);
 					if (!putRes.ok) throw new Error('PUT failed');
