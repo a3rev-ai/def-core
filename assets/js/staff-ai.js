@@ -1443,6 +1443,21 @@ function t(key, fallback) {
 		renderStagedFiles();
 
 		try {
+			// Read the bytes into memory BEFORE declaring the upload (7.6.5). A file
+			// picked from a phone's Photos is a lazy reference the browser only reads
+			// when the request body is serialised — on mobile it can be dead by then
+			// while file.size still reports the metadata size, so fetch sent an EMPTY
+			// body, Azure stored a 0-byte blob, and commit failed on size (every retry
+			// re-sent the same dead reference). Reading eagerly yields the real bytes
+			// or a mismatch/failure, reported here with a clear message instead.
+			var payload = entry.file;
+			if (typeof entry.file.arrayBuffer === 'function') {
+				payload = await entry.file.arrayBuffer().catch(function() { return null; });
+				if (!payload || payload.byteLength !== entry.file.size) {
+					throw new Error(t('uploadReadFailed', 'Could not read the file. Please remove it, re-select it and try again.'));
+				}
+			}
+
 			// Step 1: Init — get presigned URL via WordPress proxy.
 			var initResult = await apiRequest('/uploads/init', {
 				method: 'POST',
@@ -1472,7 +1487,7 @@ function t(key, fallback) {
 							'Content-Type': getMimeFromExtension(entry.file.name),
 							'x-ms-blob-type': 'BlockBlob',
 						},
-						body: entry.file,
+						body: payload,
 					});
 
 					if (blobResponse.ok) break;

@@ -35,6 +35,7 @@
 		escalateSubmit: 'Send',
 		escalateSuccess: 'Your email has been sent.',
 		uploadFailed: 'Upload failed. Please try again.',
+		uploadReadFailed: 'Could not read the file. Please remove it, re-select it and try again.',
 		fileTypeNotSupported: 'File type not supported',
 		offlineTitle: 'Chat is currently unavailable',
 		offlineMessage: 'This feature is being set up. Please check back soon.',
@@ -3410,21 +3411,35 @@
 			headers['X-WP-Nonce'] = config.nonce;
 		}
 
+		// Read the bytes into memory BEFORE declaring the upload (7.6.5): a file picked
+		// from a phone's Photos is a lazy reference that can be dead by the time fetch
+		// serialises the body — Azure then stored a 0-byte blob and commit failed on
+		// size. Eager read = the real bytes, or a clear error here (see staff-ai.js).
+		var payload = staged.file;
+		var readBytes = typeof staged.file.arrayBuffer === 'function'
+			? staged.file.arrayBuffer().then(function (buf) {
+				if (buf.byteLength !== staged.file.size) throw new Error(t('uploadReadFailed'));
+				payload = buf;
+			}, function () { throw new Error(t('uploadReadFailed')); })
+			: Promise.resolve();
+
 		// Step 1: Init via BFF proxy.
 		var controller1 = new AbortController();
 		trackAbort(controller1);
 
-		return fetch(config.uploadInitUrl, {
-			method: 'POST',
-			headers: headers,
-			credentials: 'same-origin',
-			body: JSON.stringify({
-				filename: staged.file.name,
-				mime_type: getMimeType(staged.file.name),
-				size_bytes: staged.file.size,
-				conversation_id: conversationId,
-			}),
-			signal: controller1.signal,
+		return readBytes.then(function () {
+			return fetch(config.uploadInitUrl, {
+				method: 'POST',
+				headers: headers,
+				credentials: 'same-origin',
+				body: JSON.stringify({
+					filename: staged.file.name,
+					mime_type: getMimeType(staged.file.name),
+					size_bytes: staged.file.size,
+					conversation_id: conversationId,
+				}),
+				signal: controller1.signal,
+			});
 		})
 			.then(function (res) {
 				untrackAbort(controller1);
@@ -3448,7 +3463,7 @@
 						'Content-Type': getMimeType(staged.file.name),
 						'x-ms-blob-type': 'BlockBlob',
 					},
-					body: staged.file,
+					body: payload,
 					signal: controller2.signal,
 				}).then(function (putRes) {
 					untrackAbort(controller2);
