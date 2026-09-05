@@ -23,6 +23,12 @@ function t(key, fallback) {
 
 	// SSE streaming config — BFF proxy (WordPress handles auth)
 	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
+	// The browser's IANA zone rides every chat message (7.6.7) so the assistant is
+	// told today's date where the person actually is — never the site's zone, which
+	// admins leave at UTC or set as an offset. Empty when the browser can't say.
+	function browserTimezone() {
+		try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; }
+	}
 	const statusUrl = StaffAIConfig.statusUrl || '';
 	// P-D2: the tenant's own name for the assistant ("Sue" on a3rev) — the
 	// status call's `assistant_name` (the tenant's display_name override, NOT
@@ -1821,6 +1827,8 @@ function t(key, fallback) {
 	async function sendMessageSync(text, fileIds) {
 		try {
 			var requestBody = { message: text };
+			var fallbackTz = browserTimezone();
+			if (fallbackTz) requestBody.timezone = fallbackTz;
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;
 			}
@@ -1883,6 +1891,8 @@ function t(key, fallback) {
 			}
 
 			var requestBody = { messages: reqMessages };
+			var streamTz = browserTimezone();
+			if (streamTz) requestBody.timezone = streamTz;
 			if (selectedModel) requestBody.model_id = selectedModel;
 			if (currentConversationId) {
 				requestBody.thread_id = currentConversationId;

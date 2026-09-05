@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.6.6
+Stable tag: 7.6.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.7 - 2026-09-05 =
+* Tweak - Staff AI: your assistant now knows today's date. The console sends your browser's timezone with each message, so the date it works from is yours (for example Australia/Brisbane) - not the site's timezone setting and not UTC.
 
 = 7.6.6 - 2026-09-05 =
 * Fix - Uploading a photo or screenshot from a phone could fail with "Upload does not match what was declared": the browser sometimes hands over an empty file when the upload is sent. Customer Chat and the Staff AI console now read the file into memory and check its size before uploading, so a file the phone can no longer read is reported clearly instead of failing after the upload.
