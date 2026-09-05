@@ -1043,6 +1043,32 @@ function t(key, fallback) {
 		return url;
 	}
 
+	const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+	// Installed on an iPhone/iPad home screen — navigator.standalone exists only in iOS
+	// Safari. Android's installed app is NOT included on purpose: Chrome hands an
+	// attachment to its download manager there, which is what its users expect.
+	function isInstalledOnIOS() {
+		return window.navigator.standalone === true;
+	}
+
+	// Fetch the file through the cookie-auth'd proxy and hand it to the iOS share sheet
+	// (Save Image / Save to Files). Falls back to a same-window open if sharing is
+	// unavailable or refused; a dismissed sheet is not a failure.
+	async function shareFile(url, name) {
+		try {
+			const res = await fetch(url, { credentials: 'same-origin' });
+			if (!res.ok) throw new Error('fetch failed');
+			const blob = await res.blob();
+			const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+			if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error('cannot share files');
+			await navigator.share({ files: [file], title: name });
+		} catch (e) {
+			if (e && e.name === 'AbortError') return;
+			window.location.href = url;
+		}
+	}
+
 	// Create tool output card
 	function createToolOutputCard(tool) {
 		// V1.2 Result Cards — search_products tool. Staff AI renders cards
@@ -1105,16 +1131,41 @@ function t(key, fallback) {
 		info.appendChild(name);
 		info.appendChild(type);
 
+		const fileUrl = rewriteDownloadUrl(tool.download_url) || '#';
 		const download = document.createElement('a');
 		download.className = 'tool-output-download';
-		download.href = rewriteDownloadUrl(tool.download_url) || '#';
+		download.href = fileUrl;
 		download.target = '_blank';
 		download.rel = 'noopener';
 		download.textContent = t('download', 'Download');
+		// Installed on iOS, a new-window navigation to an attachment is a blank screen
+		// with no way back (7.6.8, Steve's iPhone). Hand the file to the share sheet
+		// instead. Android's installed app downloads normally and is left alone.
+		if (fileUrl !== '#' && isInstalledOnIOS() && navigator.share) {
+			download.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				shareFile(fileUrl, tool.file_name || 'download');
+			});
+		}
 
 		card.appendChild(icon);
 		card.appendChild(info);
 		card.appendChild(download);
+
+		// An image shows as itself (7.6.8): the picture above the card, served inline
+		// by the proxy; press-and-hold saves it to Photos on a phone.
+		if (fileUrl !== '#' && IMAGE_EXTENSIONS.indexOf(String(tool.file_type || '').toLowerCase()) !== -1) {
+			const wrap = document.createElement('div');
+			wrap.className = 'tool-output-image-wrap';
+			const img = document.createElement('img');
+			img.className = 'tool-output-image';
+			img.src = fileUrl;
+			img.alt = tool.file_name || '';
+			img.loading = 'lazy';
+			wrap.appendChild(img);
+			wrap.appendChild(card);
+			return wrap;
+		}
 
 		return card;
 	}

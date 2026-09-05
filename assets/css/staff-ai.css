@@ -3085,3 +3085,13 @@ html {
 .dark-theme .composer {
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
+
+/* 7.6.8 — a generated image shows as itself, above its download card. */
+.tool-output-image-wrap { margin: 6px 0; }
+.tool-output-image {
+	display: block;
+	max-width: 100%;
+	max-height: 60vh;
+	border-radius: 8px;
+	margin-bottom: 6px;
+}

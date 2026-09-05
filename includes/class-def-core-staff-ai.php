@@ -5253,7 +5253,13 @@ final class DEF_Core_Staff_AI
 		// Send file response with security headers.
 		nocache_headers();
 		header( 'Content-Type: ' . $safe_content_type );
-		header( 'Content-Disposition: attachment; filename="' . $safe_filename . '"' );
+		// Images are served inline (7.6.8) so the chat can show the picture and a direct
+		// open renders it — an attachment inside the installed (standalone) app is a
+		// blank screen with no way back. Safe because sanitize_proxy_content_type has
+		// already downgraded SVG/HTML/XML/script types to octet-stream, which stays an
+		// attachment, and nosniff below pins the type.
+		$disposition = ( 0 === strpos( $safe_content_type, 'image/' ) ) ? 'inline' : 'attachment';
+		header( 'Content-Disposition: ' . $disposition . '; filename="' . $safe_filename . '"' );
 		header( 'Content-Length: ' . strlen( $body ) );
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $body;
