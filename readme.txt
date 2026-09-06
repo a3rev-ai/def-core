@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.6.9
+Stable tag: 7.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.0 - 2026-09-07 =
+* Feature - Staff AI: speak your message. A microphone button sits beside Attach in the console — tap it, say what you need, tap again and the transcript goes to your assistant as your message (it wears a small mic in the chat). Your assistant opens its reply by saying back what it will do, then closes with what's done, and those two lines are read aloud — in your assistant's own voice when your tenant has a Voice key on the APIs page, or your device's voice otherwise. A Voice control beside the mic switches between your assistant's voice, the device voice, and off; the choice is remembered on that device. Recordings are transcribed and discarded, never stored. Recording stops itself at two minutes.
 
 = 7.6.9 - 2026-09-06 =
 * Fix - Staff AI: lock your phone or lose signal while your assistant is answering and the reply is no longer lost. Your assistant finishes the work on the server; when the app comes back it fetches the finished reply (and keeps the typing indicator while the work is still going). Before this, the installed app showed "Load failed" and nothing else.

@@ -239,6 +239,9 @@ function t(key, fallback) {
 
 	// Upload DOM references
 	const uploadBtn     = document.getElementById('uploadBtn');
+	const micBtn        = document.getElementById('micBtn');
+	const micTimer      = document.getElementById('micTimer');
+	const voiceMode     = document.getElementById('voiceMode');
 	const fileInput     = document.getElementById('uploadFileInput');
 	const stagedArea    = document.getElementById('uploadStagedArea');
 	const dropOverlay   = document.getElementById('uploadDropOverlay');
@@ -1054,6 +1057,14 @@ function t(key, fallback) {
 					applyCitations(content, buildCitationMap(msg.tool_outputs));
 				} else {
 					content.textContent = msg.content;
+					if (msg.via_voice) {
+						// A spoken turn wears the mic — the transcript is what was said.
+						var glyph = document.createElement('span');
+						glyph.className = 'spoken-glyph';
+						glyph.title = t('spoken', 'Spoken');
+						glyph.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>';
+						content.insertBefore(glyph, content.firstChild);
+					}
 				}
 
 				// Render tool outputs if present
@@ -1834,6 +1845,131 @@ function t(key, fallback) {
 	// SEND MESSAGE — with streaming/sync split
 	// =============================================
 
+	// =============================================
+	// VOICE (7.7.0) — "speak it to Sue"
+	// =============================================
+	// The mic records, the upload rail carries the clip, DEF transcribes and
+	// discards it, and the transcript goes out as an ordinary turn flagged
+	// via_voice — the server marks the model-facing message so the reply
+	// opens by saying back what it will do and closes with what's done.
+	// Those two lines are what get read aloud: in the employee's own voice
+	// (DEF, on the tenant's Voice key) or the device voice, per the Voice
+	// control. The choice lives on this device.
+	var VOICE_MODE_KEY = 'def_staff_ai_voice_mode';
+	var voiceRecorder = null;
+	var speaker = null;
+	var pendingViaVoice = false;   // the next sendMessage() is a spoken turn
+	var spokenTurn = false;         // the turn in flight was spoken → read it back
+	var openingSpoken = null;       // the opening line already read during streaming
+
+	function initVoice() {
+		if (!micBtn) return;
+		if (!window.DefVoice || !DefVoice.supported()) {
+			micBtn.hidden = true;
+			if (voiceMode) voiceMode.hidden = true;
+			return;
+		}
+		var api = { request: apiRequest };
+		speaker = DefVoice.createSpeaker(api, {
+			onFallback: function () {
+				if (voiceMode) voiceMode.value = 'device';
+				showInfo(t('voiceNoKey', 'Reading back with your device voice. For your assistant\'s own voice, add a Voice key on the APIs page of your tenant portal.'));
+			}
+		});
+		var saved = null;
+		try { saved = localStorage.getItem(VOICE_MODE_KEY); } catch (e) { /* storage blocked */ }
+		var mode = (saved === 'device' || saved === 'off') ? saved : 'server';
+		speaker.setMode(mode);
+		if (voiceMode) {
+			voiceMode.value = mode;
+			voiceMode.addEventListener('change', function () {
+				speaker.setMode(voiceMode.value);
+				speaker.stop();
+				try { localStorage.setItem(VOICE_MODE_KEY, voiceMode.value); } catch (e) { /* storage blocked */ }
+			});
+			var serverOption = voiceMode.querySelector('option[value="server"]');
+			if (serverOption) {
+				onAssistantName(function () {
+					serverOption.textContent = assistantName
+						? t('voiceEmployee', "%s's voice").replace('%s', assistantName)
+						: t('voiceAssistant', "Your assistant's voice");
+				});
+			}
+		}
+		voiceRecorder = DefVoice.createRecorder({
+			onTick: function (seconds) {
+				micTimer.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+			},
+			onAutoStop: finishRecording
+		});
+		micBtn.addEventListener('click', function () {
+			if (voiceRecorder.isRecording()) { finishRecording(); return; }
+			if (isLoading || isReadOnly) return;
+			speaker.stop();
+			speaker.unlock();   // inside the tap: iOS lets audio start only from a gesture
+			startRecording();
+		});
+	}
+
+	async function startRecording() {
+		var started;
+		try {
+			started = await voiceRecorder.start();
+		} catch (e) {
+			showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
+			return;
+		}
+		if (!started) return;   // the first tap owns the recording
+		hideError();
+		micBtn.classList.add('recording');
+		micBtn.setAttribute('aria-label', t('micStop', 'Stop and send'));
+		micTimer.textContent = '0:00';
+		micTimer.hidden = false;
+	}
+
+	async function finishRecording() {
+		var recording = await voiceRecorder.stop();
+		micBtn.classList.remove('recording');
+		micBtn.setAttribute('aria-label', t('micStart', 'Speak'));
+		micTimer.hidden = true;
+		if (!recording || recording.seconds < 0.5) return;   // a tap, not a message
+		micBtn.classList.add('transcribing');
+		micBtn.disabled = true;
+		try {
+			var text = await DefVoice.transcribe({ request: apiRequest }, recording, currentConversationId);
+			if (!text) {
+				showInfo(t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.'));
+				return;
+			}
+			composerInput.value = text;
+			pendingViaVoice = true;
+			await sendMessage();
+		} catch (e) {
+			showError(e.message || t('transcribeFailed', 'That recording could not be transcribed. Please try again.'));
+		} finally {
+			micBtn.classList.remove('transcribing');
+			micBtn.disabled = false;
+		}
+	}
+
+	// The reply's opening line was read as it streamed; the closing line
+	// waits for the whole reply. A one-line reply is read once. When the
+	// stream never read an opening (a sync reply, no boundary mid-stream),
+	// the finished text — plus the space its boundary rule needs — supplies it.
+	function readBack(finalContent) {
+		if (!spokenTurn) return;
+		spokenTurn = false;
+		if (openingSpoken === null) {
+			var opening = DefVoice.firstSentence(finalContent + ' ');
+			if (opening) {
+				speaker.speak(opening, currentConversationId);
+				openingSpoken = opening;
+			}
+		}
+		var closing = DefVoice.closingLine(finalContent);
+		if (closing && closing !== openingSpoken) speaker.speak(closing, currentConversationId);
+	}
+
 	async function sendMessage() {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
@@ -1854,6 +1990,12 @@ function t(key, fallback) {
 		}
 
 		if (!text && !hasFiles) return;
+
+		// Consumed only once the send is really going out: an early return above
+		// (a turn in flight, a failed chip) leaves the transcript in the composer
+		// still flagged spoken for the send that does take it.
+		var viaVoice = pendingViaVoice;
+		pendingViaVoice = false;
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
@@ -1896,8 +2038,11 @@ function t(key, fallback) {
 			content: displayText,
 			fileNames: fileAttachments ? fileAttachments.map(function(f) { return f.name; }) : null,
 			fileAttachments: fileAttachments,
+			via_voice: viaVoice,
 		});
 		renderMessages();
+		spokenTurn = viaVoice;
+		openingSpoken = null;
 
 		composerInput.value = '';
 		autoResize();
@@ -1916,18 +2061,19 @@ function t(key, fallback) {
 		// Feature detection: streaming vs sync fallback (V1.1)
 		if (chatStreamUrl && typeof ReadableStream !== 'undefined') {
 			console.info('[Staff AI] Using streaming path');
-			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore);
+			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, viaVoice);
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
 				(!chatStreamUrl ? ' (no chatStreamUrl)' : ' (no ReadableStream)'));
-			await sendMessageSync(text, fileIds);
+			await sendMessageSync(text, fileIds, viaVoice);
 		}
 	}
 
 	// Sync fallback — existing PHP proxy behavior (zero change)
-	async function sendMessageSync(text, fileIds) {
+	async function sendMessageSync(text, fileIds, viaVoice) {
 		try {
 			var requestBody = { message: text };
+			if (viaVoice) requestBody.via_voice = true;
 			var fallbackTz = browserTimezone();
 			if (fallbackTz) requestBody.timezone = fallbackTz;
 			if (currentConversationId) {
@@ -1958,10 +2104,12 @@ function t(key, fallback) {
 			if (result.thread_id) {
 				currentConversationId = result.thread_id;
 			}
+			readBack(result.message?.content || '');
 
 			loadConversations();
 			updateReadOnlyState();
 		} catch (err) {
+			spokenTurn = false;
 			removeTypingMessage();
 			renderMessages();
 			console.error('Failed to send message:', err);
@@ -1973,7 +2121,7 @@ function t(key, fallback) {
 	}
 
 	// Streaming — direct-to-DEF with JWT + SSE
-	async function sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore) {
+	async function sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, viaVoice) {
 		var retried = false;
 
 		async function attemptStream() {
@@ -2002,6 +2150,7 @@ function t(key, fallback) {
 			if (activeProjectId) {
 				requestBody.project_id = activeProjectId;
 			}
+			if (viaVoice) requestBody.via_voice = true;
 			// Phase 10.1: Add suggestion feedback signal
 			if (pendingOutcome) {
 				requestBody.suggestion_outcome = pendingOutcome;
@@ -2051,6 +2200,7 @@ function t(key, fallback) {
 				if (jsonResult.thread_id) {
 					currentConversationId = jsonResult.thread_id;
 				}
+				readBack(jsonResult.choices?.[0]?.message?.content || '');
 				loadConversations();
 				updateReadOnlyState();
 				return;
@@ -2191,6 +2341,13 @@ function t(key, fallback) {
 						}
 						if (streamEl) {
 							streamBuffer += evt.text;
+							if (spokenTurn && openingSpoken === null) {
+								var opening = DefVoice.firstSentence(streamBuffer);
+								if (opening) {
+									openingSpoken = opening;
+									speaker.speak(opening, currentConversationId);
+								}
+							}
 							if (!wordDrainTimer) {
 								renderStreamChunk();
 							}
@@ -2222,6 +2379,7 @@ function t(key, fallback) {
 							content: finalContent,
 							tool_outputs: toolOutputs
 						});
+						readBack(finalContent);
 
 						// Finalize the streamed bubble in place — match Customer
 						// Chat's V2 pattern. Do NOT call renderMessages() when
@@ -2341,6 +2499,7 @@ function t(key, fallback) {
 			await attemptStream();
 		} catch (err) {
 			console.error('[Staff AI] Streaming error:', err);
+			spokenTurn = false;
 			// The server owns the turn (DEF #1116): once the request reached it, a dead
 			// stream — the phone locked, signal dropped — is not a failed turn. The reply
 			// lands on the thread; go and get it (7.6.9, Steve's canary 2026-09-06).
@@ -5397,6 +5556,9 @@ function t(key, fallback) {
 	// =============================================
 	// UPLOAD EVENT HANDLERS
 	// =============================================
+
+	// The mic (7.7.0) sits beside the file picker.
+	initVoice();
 
 	// File picker.
 	if (uploadBtn && fileInput) {
