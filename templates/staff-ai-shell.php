@@ -358,7 +358,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 									</svg>
 								</button>
 								<span class="mic-timer" id="micTimer" hidden aria-live="off"></span>
-								<select class="voice-mode" id="voiceMode" aria-label="<?php echo esc_attr__( 'Voice', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'How spoken replies are read back', 'digital-employees' ); ?>">
+								<select class="model-select voice-mode" id="voiceMode" aria-label="<?php echo esc_attr__( 'Voice', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'How spoken replies are read back', 'digital-employees' ); ?>">
 									<option value="server"><?php echo esc_html__( "Your assistant's voice", 'digital-employees' ); ?></option>
 									<option value="device"><?php echo esc_html__( 'Device voice', 'digital-employees' ); ?></option>
 									<option value="off"><?php echo esc_html__( 'Voice off', 'digital-employees' ); ?></option>

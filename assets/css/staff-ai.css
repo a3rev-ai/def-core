@@ -1883,33 +1883,7 @@ html {
 }
 
 /* Upload button (paperclip) */
-.upload-btn {
-	background: transparent;
-	border: none;
-	color: var(--text-tertiary);
-	width: 32px;
-	height: 32px;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 6px;
-	transition: color 0.15s, background 0.15s;
-	flex-shrink: 0;
-}
-
-.upload-btn:hover {
-	color: var(--text-primary);
-	background: var(--hover-bg);
-}
-
-.upload-btn svg {
-	width: 18px;
-	height: 18px;
-}
-
-/* Voice (7.7.0): the mic beside attach, the timer while it records, the
-   Voice control (assistant's voice / device voice / off). */
+.upload-btn,
 .mic-btn {
 	background: transparent;
 	border: none;
@@ -1925,16 +1899,20 @@ html {
 	flex-shrink: 0;
 }
 
+.upload-btn:hover,
 .mic-btn:hover {
 	color: var(--text-primary);
 	background: var(--hover-bg);
 }
 
+.upload-btn svg,
 .mic-btn svg {
 	width: 18px;
 	height: 18px;
 }
 
+/* Voice (7.7.0): the mic beside attach (it shares the attach button's
+   rules above), the timer while it records, the Voice control. */
 .mic-btn.recording {
 	color: #fff;
 	background: #d63638;
@@ -1964,16 +1942,7 @@ html {
 }
 
 .voice-mode {
-	margin-left: auto;
-	margin-right: 8px;
 	max-width: 180px;
-	padding: 5px 8px;
-	font-size: 12px;
-	font-family: inherit;
-	color: var(--text-secondary);
-	background: var(--bg-input);
-	border: 1px solid var(--border-color);
-	border-radius: 6px;
 }
 
 .voice-mode:not([hidden]) + .model-select {
