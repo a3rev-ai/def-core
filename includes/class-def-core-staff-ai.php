@@ -5582,7 +5582,12 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-	// Network-first for all requests — Staff AI is a live app, not offline-capable.
+	// GETs only. The chat stream is a POST and must reach the network untouched: wrapping
+	// it in respondWith() turned a locked phone's dropped stream into "FetchEvent.respondWith
+	// received an error: Load failed" with nothing to fall back to (7.6.9, Steve's canary
+	// 2026-09-06). The page's own fetch now sees the drop and reloads the finished reply.
+	if (event.request.method !== 'GET') return;
+	// Network-first for everything else — Staff AI is a live app, not offline-capable.
 	event.respondWith(
 		fetch(event.request).catch(function() {
 			return caches.match(event.request);

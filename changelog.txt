@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.6.9 - 2026/09/06 =
+* Fix - Staff AI: lock your phone or lose signal while your assistant is answering and the reply is no longer lost. Your assistant finishes the work on the server; when the app comes back it fetches the finished reply (and keeps the typing indicator while the work is still going). Before this, the installed app showed "Load failed" and nothing else.
+
 = 7.6.8 - 2026/09/05 =
 * Feature - Staff AI: an image your assistant creates now appears in the chat itself, not only as a download card. On a phone, press and hold the picture to save it to your photos.
 * Fix - Staff AI: when the console is installed as an app on your phone, Download no longer opens a blank screen you cannot leave - it opens the share sheet, where you can save the file to Photos or Files.

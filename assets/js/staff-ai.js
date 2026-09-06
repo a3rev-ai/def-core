@@ -923,6 +923,56 @@ function t(key, fallback) {
 		}
 	}
 
+	// V-S1's client half (7.6.9). The server owns a turn to completion (DEF #1116); the
+	// stream is only a viewer. When the viewer dies — the phone locked, signal dropped, the
+	// installed app's service worker gave up — the finished reply is on the thread. Fetch
+	// it, keeping the typing indicator while the assistant is still working, and stop
+	// after RECOVER_TURN_MAX_MS with an honest banner rather than polling a phone forever:
+	// the turn itself is not stopped by this, only the phone's polling.
+	var RECOVER_TURN_POLL_MS = 3000;
+	var RECOVER_TURN_MAX_MS = 120000;
+	// Longer than one DEF keepalive (10s), so a live-but-quiet stream is never mistaken
+	// for a dead one on resume.
+	var RESUME_GRACE_MS = 15000;
+	var _streamAbort = null;
+	var _turnReachedServer = false;
+	var _eventsSeen = 0;
+
+	async function recoverTurn() {
+		var id = currentConversationId;
+		var deadline = Date.now() + RECOVER_TURN_MAX_MS;
+		while (Date.now() < deadline) {
+			// The user moved on (New chat, another conversation): nothing to recover into.
+			if (currentConversationId !== id) return true;
+			try {
+				var result = await apiRequest('/conversations/' + encodeURIComponent(id));
+				var fetched = result.messages || [];
+				var last = fetched[fetched.length - 1];
+				if (last && last.role === 'assistant' && (last.content || '').trim()) {
+					if (currentConversationId !== id) return true;
+					messages = fetched;
+					renderMessages();
+					dirtyInput = false;
+					updateReadOnlyState();
+					loadConversations();
+					return true;
+				}
+			} catch (e) { /* transient — try again until the deadline */ }
+			await new Promise(function(r) { setTimeout(r, RECOVER_TURN_POLL_MS); });
+		}
+		return false;
+	}
+
+	// A locked phone can leave the reader hanging rather than failing it. On resume, give
+	// the live stream a moment; if nothing arrives, abort it so the catch above recovers.
+	document.addEventListener('visibilitychange', function() {
+		if (document.visibilityState !== 'visible' || !_isStreaming || !_streamAbort) return;
+		var seen = _eventsSeen, controller = _streamAbort;
+		setTimeout(function() {
+			if (_isStreaming && _streamAbort === controller && _eventsSeen === seen) controller.abort();
+		}, RESUME_GRACE_MS);
+	});
+
 	// Render messages
 	function renderMessages() {
 		// Tweaks item 4: empty chats centre the greeting + composer (CSS
@@ -1958,6 +2008,9 @@ function t(key, fallback) {
 				requestBody.similarity_score = pendingScore;
 			}
 
+			_streamAbort = new AbortController();
+			_turnReachedServer = false;
+			_eventsSeen = 0;
 			var response = await fetch(chatStreamUrl, {
 				method: 'POST',
 				headers: {
@@ -1966,8 +2019,8 @@ function t(key, fallback) {
 				},
 				body: JSON.stringify(requestBody),
 				credentials: 'same-origin',
+				signal: _streamAbort.signal,
 			});
-
 			if (!response.ok) {
 				// String-safe extraction (5.8.4): a DEF refusal object here
 				// used to stringify to "[object Object]" in the banner.
@@ -1979,6 +2032,9 @@ function t(key, fallback) {
 				} catch (e) { /* ignore */ }
 				throw new Error(errText || 'Stream request failed (' + response.status + ')');
 			}
+			// Only a turn the server ACCEPTED is worth recovering — a refusal (a billing
+			// gate, a rate limit) must show its own message, not two minutes of polling.
+			_turnReachedServer = true;
 
 			// Check if response is JSON (extraction early-exit) vs SSE
 			var ct = response.headers.get('content-type') || '';
@@ -2077,6 +2133,10 @@ function t(key, fallback) {
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
+					// Every event names its thread (DEF #1118), so a brand-new chat knows where
+					// its reply lives from the first chunk — what recoverTurn() reloads if the
+					// stream dies before `done` (7.6.9).
+					if (evt.thread_id && !currentConversationId) currentConversationId = evt.thread_id;
 					persona.handleEvent(evt, thinkingStatusEl);
 					if (evt.type === 'thinking') {
 						var thinkMsg = persona.formatThinkingLabel(evt.message);
@@ -2256,6 +2316,9 @@ function t(key, fallback) {
 			while (true) {
 				var result = await reader.read();
 				if (result.done) break;
+				// Liveness counts every chunk, including DEF's ": keepalive" comment frames
+				// (dropped by the parser below) — a long tool call is quiet but alive.
+				_eventsSeen++;
 				buffer += decoder.decode(result.value, { stream: true });
 				var parsed = parseSSEBuffer(buffer);
 				buffer = parsed.remaining;
@@ -2277,11 +2340,20 @@ function t(key, fallback) {
 		try {
 			await attemptStream();
 		} catch (err) {
-			removeTypingMessage();
-			renderMessages();
 			console.error('[Staff AI] Streaming error:', err);
-			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
+			// The server owns the turn (DEF #1116): once the request reached it, a dead
+			// stream — the phone locked, signal dropped — is not a failed turn. The reply
+			// lands on the thread; go and get it (7.6.9, Steve's canary 2026-09-06).
+			var recovered = _turnReachedServer && currentConversationId && await recoverTurn();
+			if (!recovered) {
+				removeTypingMessage();
+				renderMessages();
+				showError(_turnReachedServer && currentConversationId
+					? t('stillWorking', 'Your assistant is still working on this — reopen the chat in a minute to see the reply.')
+					: (err.message || t('failedToSend', 'Failed to send message. Please try again.')));
+			}
 		} finally {
+			_streamAbort = null;
 			_isStreaming = false;
 			_userScrolledUp = false;
 			isLoading = false;
