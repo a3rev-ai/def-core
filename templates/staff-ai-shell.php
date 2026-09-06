@@ -803,6 +803,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			retrySuffix: <?php /* translators: %d: seconds until the rate limit window reopens. */ echo wp_json_encode( __( '(retry in %ds)', 'digital-employees' ) ); ?>,
 			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'digital-employees' ) ); ?>,
 			uploadReadFailed: <?php echo wp_json_encode( __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ) ); ?>,
+			stillWorking: <?php echo wp_json_encode( __( 'Your assistant is still working on this — reopen the chat in a minute to see the reply.', 'digital-employees' ) ); ?>,
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
 			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,
 			documentsLoading: <?php echo wp_json_encode( __( 'Loading your documents…', 'digital-employees' ) ); ?>,

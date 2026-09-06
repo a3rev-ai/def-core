@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.6.8
+Stable tag: 7.6.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.6.9 - 2026-09-06 =
+* Fix - Staff AI: lock your phone or lose signal while your assistant is answering and the reply is no longer lost. Your assistant finishes the work on the server; when the app comes back it fetches the finished reply (and keeps the typing indicator while the work is still going). Before this, the installed app showed "Load failed" and nothing else.
 
 = 7.6.8 - 2026-09-05 =
 * Feature - Staff AI: an image your assistant creates now appears in the chat itself, not only as a download card. On a phone, press and hold the picture to save it to your photos.
