@@ -4129,9 +4129,11 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// Two of them (2026-09-03): the intro one a first-time reader meets, and
-		// the footer one that stays in view once the list has been scrolled — a
-		// confused user was not finding the intro button under their projects.
+		// One entry, in the footer (P-D5, 7.7.1): Ask Sue IS the help layer, and
+		// the footer keeps it in view however far the project list is scrolled —
+		// the intro button used to disappear behind the list, which is exactly
+		// where a confused user was looking. Kept as a querySelectorAll so a
+		// second Ask entry needs no JS change.
 		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
 
@@ -4208,12 +4210,12 @@ function t(key, fallback) {
 				const projects = Array.isArray(data.projects) ? data.projects : [];
 				projectsCache = projects;
 				if (projects.length === 0) {
-					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (either Ask button), or create one by name.')
+					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (the button below), or create one by name.')
 						.replace('%s', function () { return assistantName || t('projectsYourAssistant', 'your assistant'); }), 'muted');
 					return;
 				}
 				setStatus('', '');
-				projects.forEach(function (p) { listEl.appendChild(renderRow(p)); });
+				projects.forEach(function (p) { listEl.appendChild(renderCard(p)); });
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsLoadFailed', 'Could not load your projects.'), 'error');
 			} finally {
@@ -4221,182 +4223,360 @@ function t(key, fallback) {
 			}
 		}
 
-		function renderRow(project) {
-			const wrap = document.createElement('div');
-			const row = document.createElement('div');
-			row.className = 'document-row';
-			wrap.appendChild(row);
+		// P-D5 (7.7.1): the project CARD. It reads top to bottom as a workspace —
+		// what project, what to do next, what is inside it, and last (and
+		// separated) how to manage it. One filled action per card; the
+		// low-frequency management lives behind the ⋯ menu.
+		function renderCard(project) {
+			const archived = project.status === 'archived';
+			const card = document.createElement('article');
+			card.className = 'project-card' + (archived ? ' project-card-archived' : '');
 
-			const info = document.createElement('div');
-			info.className = 'document-info';
-			const name = document.createElement('span');
-			name.className = 'document-name project-name-toggle';
+			const head = document.createElement('div');
+			head.className = 'project-card-head';
+			card.appendChild(head);
+
+			const ident = document.createElement('div');
+			ident.className = 'project-card-id';
+			const name = document.createElement('h3');
+			name.className = 'project-card-name';
 			name.textContent = project.name;
-			info.appendChild(name);
-			const meta = document.createElement('span');
-			meta.className = 'document-meta';
-			meta.textContent = (project.status === 'archived'
-				? t('projectsArchived', 'Archived')
-				: t('projectsActive', 'Active')) + ' · ' + formatTime(project.created_at);
-			info.appendChild(meta);
-			row.appendChild(info);
+			ident.appendChild(name);
 
-			// P-B / P-D2: the three governing documents, shown on every row without
-			// a click (P-D2 — the canary found them hidden behind the name); the
-			// name click folds/unfolds them. The assistant creates and maintains
-			// them from chat; a new project arrives with seeded runsheet +
-			// instructions.
-			const detail = document.createElement('div');
-			detail.className = 'project-slot-detail';
-			wrap.appendChild(detail);
-			name.addEventListener('click', function () {
-				detail.style.display = (detail.style.display === 'none') ? '' : 'none';
-			});
-			(async function loadSlots() {
-				detail.textContent = t('projectsSlotsLoading', 'Loading…');
-				try {
-					const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-					const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
-					const docs = Array.isArray(data.documents) ? data.documents : [];
-					detail.textContent = '';
-					const slots = { runsheet: null, session_notes: null, instructions: null };
-					let others = 0;
-					docs.forEach(function (d) {
-						if (d.slot && Object.prototype.hasOwnProperty.call(slots, d.slot)) { slots[d.slot] = d; }
-						else { others++; }
-					});
-					[['runsheet', t('projectsSlotRunsheet', 'Runsheet')],
-					 ['session_notes', t('projectsSlotSessionNotes', 'Session notes')],
-					 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
-						const line = document.createElement('div');
-						line.className = 'project-slot-line';
-						const d = slots[pair[0]];
-						if (d && openDocumentViewer) {
-							// P-D3: a present slot reads in place — the label is a button.
-							const openBtn = document.createElement('button');
-							openBtn.type = 'button';
-							openBtn.className = 'project-slot-open';
-							openBtn.textContent = pair[1] + ': ' + t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1));
-							openBtn.addEventListener('click', function () {
-								openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
-							});
-							line.appendChild(openBtn);
-						} else {
-							line.textContent = pair[1] + ': ' + (d
-								? t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1))
-								: t('projectsSlotMissing', 'not created yet'));
-						}
-						detail.appendChild(line);
-					});
-					if (others > 0) {
-						const more = document.createElement('div');
-						more.className = 'project-slot-line';
-						more.textContent = t('projectsOtherDocs', 'Other documents: ') + others;
-						detail.appendChild(more);
-					}
-				} catch (e) {
-					detail.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
-				}
-			})();
+			const sub = document.createElement('div');
+			sub.className = 'project-card-sub';
+			const pill = document.createElement('span');
+			pill.className = 'project-pill ' + (archived ? 'project-pill-archived' : 'project-pill-active');
+			pill.textContent = archived ? t('projectsArchived', 'Archived') : t('projectsActive', 'Active');
+			sub.appendChild(pill);
+			// Filled in by loadSlots, which is already counting the project's documents.
+			const countEl = document.createElement('span');
+			sub.appendChild(countEl);
+			const createdEl = document.createElement('span');
+			createdEl.textContent = formatTime(project.created_at);
+			sub.appendChild(createdEl);
+			ident.appendChild(sub);
+			head.appendChild(ident);
 
-			const action = document.createElement('div');
-			action.className = 'document-action';
-
-			// P-B: a fresh chat that opens INSIDE this project — DEF seeds the
-			// thread's binding at mint and Sue loads the governing documents.
-			if (project.status !== 'archived') {
-				const chatBtn = document.createElement('button');
-				chatBtn.type = 'button';
-				chatBtn.className = 'document-btn';
-				chatBtn.textContent = t('projectsNewChat', 'New chat');
-				chatBtn.addEventListener('click', function () {
+			const actions = document.createElement('div');
+			actions.className = 'project-card-actions';
+			// P-B: the one primary action — a fresh chat that opens INSIDE this
+			// project. DEF seeds the thread's binding at mint, Sue loads the
+			// governing documents, and setActiveProject puts the chip on the
+			// composer. An archived project keeps no chat entry: it is out of the
+			// project pickers too, and archiving it is how you put it down.
+			if (!archived) {
+				const openBtn = document.createElement('button');
+				openBtn.type = 'button';
+				openBtn.className = 'modal-btn modal-btn-primary project-open-btn';
+				openBtn.textContent = t('projectsOpen', 'Open Project');
+				openBtn.addEventListener('click', function () {
 					close();
 					setActiveProject(project);
 					resetToNewChat();
 				});
-				action.appendChild(chatBtn);
+				actions.appendChild(openBtn);
 			}
 
-			const docsBtn = document.createElement('button');
-			docsBtn.type = 'button';
-			docsBtn.className = 'document-btn';
-			docsBtn.textContent = t('projectsDocuments', 'Documents');
-			docsBtn.addEventListener('click', function () {
-				close();
-				if (openDocumentsForProject) { openDocumentsForProject(project.project_id); }
+			const menuBtn = document.createElement('button');
+			menuBtn.type = 'button';
+			menuBtn.className = 'project-menu-btn';
+			menuBtn.setAttribute('aria-haspopup', 'menu');
+			menuBtn.setAttribute('aria-expanded', 'false');
+			menuBtn.setAttribute('aria-label', t('projectsManage', 'Manage project'));
+			menuBtn.textContent = '•••';
+			menuBtn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				toggleManageMenu(project, menuBtn);
 			});
-			action.appendChild(docsBtn);
+			actions.appendChild(menuBtn);
+			head.appendChild(actions);
 
-			const renameBtn = document.createElement('button');
-			renameBtn.type = 'button';
-			renameBtn.className = 'document-btn';
-			renameBtn.textContent = t('projectsRename', 'Rename');
-			renameBtn.addEventListener('click', async function () {
-				const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
-				if (next === null || !next.trim() || next.trim() === project.name) return;
-				try {
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
-						method: 'PUT', body: JSON.stringify({ name: next.trim() })
-					});
-					loadList();
-				} catch (e) {
-					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			// The same actions, expanded in place, for touch. CSS shows one or
+			// the other — never both.
+			card.appendChild(manageDisclosure(project));
+
+			// P-B / P-D2: the governing documents on the card itself, no click to
+			// reveal them (the canary found them hidden behind the name).
+			const knowledge = document.createElement('div');
+			knowledge.className = 'project-knowledge';
+			const knowledgeHead = document.createElement('p');
+			knowledgeHead.className = 'project-knowledge-head';
+			knowledgeHead.textContent = t('projectsKnowledge', 'Project knowledge');
+			knowledge.appendChild(knowledgeHead);
+			const slotsEl = document.createElement('div');
+			slotsEl.className = 'project-slots';
+			slotsEl.textContent = t('projectsSlotsLoading', 'Loading…');
+			knowledge.appendChild(slotsEl);
+			card.appendChild(knowledge);
+
+			loadSlots(project, slotsEl, countEl);
+			return card;
+		}
+
+		// The three governing slots plus a count of everything else. "Other
+		// documents" is the way into the rest of the project's library (D-P10),
+		// which is why the card carries no second Documents button.
+		async function loadSlots(project, slotsEl, countEl) {
+			let docs = [];
+			try {
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
+				docs = Array.isArray(data.documents) ? data.documents : [];
+			} catch (e) {
+				slotsEl.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
+				return;
+			}
+			const slots = { runsheet: null, session_notes: null, instructions: null };
+			let others = 0;
+			docs.forEach(function (d) {
+				if (d.slot && Object.prototype.hasOwnProperty.call(slots, d.slot)) { slots[d.slot] = d; }
+				else { others++; }
+			});
+			countEl.textContent = docs.length === 1
+				? t('projectsDocCountOne', '1 document')
+				: t('projectsDocCount', '%s documents').replace('%s', String(docs.length));
+
+			slotsEl.textContent = '';
+			[['runsheet', t('projectsSlotRunsheet', 'Runsheet')],
+			 ['session_notes', t('projectsSlotSessionNotes', 'Session notes')],
+			 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
+				const d = slots[pair[0]];
+				if (d) {
+					// P-D3: a present slot reads in place, in the document viewer.
+					slotsEl.appendChild(slotButton(pair[1],
+						t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1)), false, function () {
+						if (openDocumentViewer) {
+							openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
+						} else {
+							openProjectDocuments(project);
+						}
+					}));
+				} else {
+					// An empty slot invites the document rather than hiding: My
+					// Documents, filtered to this project, is where a document is
+					// given its slot (Move to project…) — no new flow, no new route.
+					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Not set — add'), true, function () {
+						openProjectDocuments(project);
+					}));
 				}
 			});
-			action.appendChild(renameBtn);
+			slotsEl.appendChild(slotButton(t('projectsOtherDocs', 'Other documents'),
+				others === 1
+					? t('projectsFileCountOne', '1 file')
+					: t('projectsFileCount', '%s files').replace('%s', String(others)),
+				others === 0, function () { openProjectDocuments(project); }));
+		}
 
-			const archBtn = document.createElement('button');
-			archBtn.type = 'button';
-			archBtn.className = 'document-btn';
+		function slotButton(label, meta, empty, onPick) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'project-slot' + (empty ? ' project-slot-empty' : '');
+			const name = document.createElement('span');
+			name.className = 'project-slot-name';
+			name.textContent = label;
+			btn.appendChild(name);
+			const metaEl = document.createElement('span');
+			metaEl.className = 'project-slot-meta';
+			metaEl.textContent = meta;
+			btn.appendChild(metaEl);
+			btn.addEventListener('click', onPick);
+			return btn;
+		}
+
+		// D-P10: the existing Projects → My Documents bridge, pre-filtered.
+		function openProjectDocuments(project) {
+			close();
+			if (openDocumentsForProject) { openDocumentsForProject(project.project_id); }
+		}
+
+		// ——— management: Rename | Archive (Restore) | — | Delete ———
+		// One list, rendered two ways: the ⋯ popover on a pointer, the in-place
+		// sheet on touch. Delete sits under the divider, in red, so it cannot be
+		// hit on the way to Archive.
+		function manageActions(project) {
 			const archived = project.status === 'archived';
-			archBtn.textContent = archived ? t('projectsUnarchive', 'Unarchive') : t('projectsArchive', 'Archive');
-			archBtn.addEventListener('click', async function () {
-				try {
-					var body = { status: archived ? 'active' : 'archived' };
-					if (!archived) {
-						// P-C (D-P9): decide at the button. Surface the bound tasks and
-						// ask - disable, unbind, or keep them running without the project.
-						var directive = await boundTasksDirective(project, false);
-						if (directive === null) return;
-						body.bound_tasks = directive;
-					}
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
-						method: 'PUT', body: JSON.stringify(body)
-					});
-					loadList();
-				} catch (e) {
-					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			return [
+				{ label: t('projectsRename', 'Rename'), onPick: function () { renameProject(project); } },
+				{
+					label: archived ? t('projectsRestore', 'Restore') : t('projectsArchive', 'Archive'),
+					onPick: function () { setArchived(project, !archived); }
+				},
+				{ separator: true },
+				{ label: t('projectsDelete', 'Delete'), danger: true, onPick: function () { deleteProject(project); } }
+			];
+		}
+
+		function manageMenuItem(item, closeOnPick) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'chat-menu-item' + (item.danger ? ' chat-menu-item-danger' : '');
+			btn.setAttribute('role', 'menuitem');
+			btn.textContent = item.label;
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				if (closeOnPick) { closeManageMenu(false); }
+				item.onPick();
+			});
+			return btn;
+		}
+
+		function manageMenuSeparator() {
+			const sep = document.createElement('div');
+			sep.className = 'chat-menu-sep';
+			sep.setAttribute('role', 'separator');
+			return sep;
+		}
+
+		// The ⋯ popover reuses the chat row's menu shell (.chat-menu), anchored in
+		// viewport space: the project list scrolls under it, so an in-card
+		// absolute menu would be clipped by the list's own overflow.
+		let manageMenuEl = null;
+		let manageMenuAnchor = null;
+
+		function closeManageMenu(restoreFocus) {
+			if (!manageMenuEl) return;
+			const menu = manageMenuEl;
+			const anchor = manageMenuAnchor;
+			manageMenuEl = null;
+			manageMenuAnchor = null;
+			// Move focus to the trigger before the menu leaves the DOM, so the
+			// focused node is never the one being removed: Escape must put a
+			// keyboard user back on the ⋯ button, not at the top of the page.
+			if (anchor) {
+				anchor.setAttribute('aria-expanded', 'false');
+				if (restoreFocus) { anchor.focus(); }
+			}
+			menu.remove();
+		}
+
+		function toggleManageMenu(project, anchor) {
+			const wasOpen = manageMenuAnchor === anchor;
+			closeManageMenu(false);
+			if (wasOpen) return;
+
+			const menu = document.createElement('div');
+			menu.className = 'chat-menu project-manage-menu';
+			menu.setAttribute('role', 'menu');
+			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
+			menu.addEventListener('click', function (e) { e.stopPropagation(); });
+
+			const rect = anchor.getBoundingClientRect();
+			menu.style.top = Math.round(rect.bottom + 4) + 'px';
+			menu.style.right = Math.max(8, Math.round(window.innerWidth - rect.right)) + 'px';
+
+			manageActions(project).forEach(function (item) {
+				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
+			});
+
+			menu.addEventListener('keydown', function (e) {
+				const items = Array.prototype.slice.call(menu.querySelectorAll('.chat-menu-item'));
+				if (!items.length) return;
+				const at = items.indexOf(document.activeElement);
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					items[at === -1 ? 0 : (at + 1) % items.length].focus();
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					items[at <= 0 ? items.length - 1 : at - 1].focus();
+				} else if (e.key === 'Escape') {
+					// Stopped here so Escape closes the menu, not the panel behind it.
+					e.preventDefault();
+					e.stopPropagation();
+					closeManageMenu(true);
 				}
 			});
-			action.appendChild(archBtn);
 
-			const delBtn = document.createElement('button');
-			delBtn.type = 'button';
-			delBtn.className = 'document-btn document-btn-delete';
-			delBtn.textContent = t('projectsDelete', 'Delete');
-			delBtn.addEventListener('click', async function () {
-				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
-					.replace('%s', function () { return project.name; });
-				if (!window.confirm(msg)) return;
-				// P-C (D-P9): a deleted project's bindings are removed; offer to
-				// disable the tasks too rather than let them run on, unbound.
-				var directive = await boundTasksDirective(project, true);
-				if (directive === null) return;
-				delBtn.disabled = true;
-				try {
-					var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id)
-						+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
-					loadList();
-				} catch (e) {
-					delBtn.disabled = false;
-					setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
-				}
+			document.body.appendChild(menu);
+			manageMenuEl = menu;
+			manageMenuAnchor = anchor;
+			anchor.setAttribute('aria-expanded', 'true');
+			const first = menu.querySelector('.chat-menu-item');
+			if (first) { first.focus(); }
+		}
+
+		// Touch: the same actions expand in place under Open Project rather than
+		// hanging a popover off a small target.
+		let manageSheetSeq = 0;
+
+		function manageDisclosure(project) {
+			const wrap = document.createElement('div');
+			wrap.className = 'project-manage';
+
+			const sheet = document.createElement('div');
+			sheet.className = 'project-manage-sheet';
+			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
+			sheet.hidden = true;
+			manageActions(project).forEach(function (item) {
+				sheet.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, false));
 			});
-			action.appendChild(delBtn);
 
-			row.appendChild(action);
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'project-manage-btn';
+			btn.setAttribute('aria-expanded', 'false');
+			btn.setAttribute('aria-controls', sheet.id);
+			btn.textContent = t('projectsManage', 'Manage project');
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				const opening = sheet.hidden;
+				sheet.hidden = !opening;
+				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(sheet);
 			return wrap;
+		}
+
+		async function renameProject(project) {
+			const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
+			if (next === null || !next.trim() || next.trim() === project.name) return;
+			try {
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+					method: 'PUT', body: JSON.stringify({ name: next.trim() })
+				});
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			}
+		}
+
+		async function setArchived(project, archive) {
+			try {
+				var body = { status: archive ? 'archived' : 'active' };
+				if (archive) {
+					// P-C (D-P9): decide at the button. Surface the bound tasks and
+					// ask - disable, unbind, or keep them running without the project.
+					var directive = await boundTasksDirective(project, false);
+					if (directive === null) return;
+					body.bound_tasks = directive;
+				}
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+					method: 'PUT', body: JSON.stringify(body)
+				});
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			}
+		}
+
+		async function deleteProject(project) {
+			const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
+				.replace('%s', function () { return project.name; });
+			if (!window.confirm(msg)) return;
+			// P-C (D-P9): a deleted project's bindings are removed; offer to
+			// disable the tasks too rather than let them run on, unbound.
+			var directive = await boundTasksDirective(project, true);
+			if (directive === null) return;
+			try {
+				var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id)
+					+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
+			}
 		}
 
 		async function createProject() {
@@ -4424,6 +4604,14 @@ function t(key, fallback) {
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+		// The ⋯ popover is fixed at the anchor's rect, so anything that moves the
+		// card out from under it must close it (the chat row menu's rule).
+		document.addEventListener('click', function () { closeManageMenu(false); });
+		document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeManageMenu(false); });
+		if (listEl) listEl.addEventListener('scroll', function () { closeManageMenu(false); });
+		modal.addEventListener('scroll', function () { closeManageMenu(false); });
+		window.addEventListener('resize', function () { closeManageMenu(false); });
 	})();
 
 	(function initMemories() {
