@@ -1884,7 +1884,8 @@ html {
 
 /* Upload button (paperclip) */
 .upload-btn,
-.mic-btn {
+.mic-btn,
+.voice-btn {
 	background: transparent;
 	border: none;
 	color: var(--text-tertiary);
@@ -1900,32 +1901,52 @@ html {
 }
 
 .upload-btn:hover,
-.mic-btn:hover {
+.mic-btn:hover,
+.voice-btn:hover {
 	color: var(--text-primary);
 	background: var(--hover-bg);
 }
 
 .upload-btn svg,
-.mic-btn svg {
+.mic-btn svg,
+.voice-btn svg {
 	width: 18px;
 	height: 18px;
 }
 
-/* Voice (7.7.0): the mic beside attach (it shares the attach button's
-   rules above), the timer while it records, the Voice control. */
-.mic-btn.recording {
+/* Voice (7.7.1): the mic beside attach (it shares the attach button's rules
+   above) grows into a pill while it listens, transcribes or waits for the
+   answer; the Voice button cycles the readback (assistant / device / off). */
+.mic-btn[data-state="listening"],
+.mic-btn[data-state="transcribing"],
+.mic-btn[data-state="answering"] {
+	width: auto;
+	padding: 0 10px 0 8px;
+	border-radius: 16px;
+	gap: 6px;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.mic-btn[data-state="listening"] {
 	color: #fff;
 	background: #d63638;
 	animation: def-mic-pulse 1.2s ease-in-out infinite;
 }
 
-.mic-btn.recording:hover {
+.mic-btn[data-state="listening"]:hover {
 	color: #fff;
 	background: #b32d2e;
 }
 
-.mic-btn.transcribing {
-	opacity: 0.5;
+.mic-btn[data-state="transcribing"],
+.mic-btn[data-state="answering"] {
+	color: var(--text-secondary);
+	background: var(--hover-bg);
+}
+
+.mic-btn[data-state="transcribing"] {
 	cursor: progress;
 }
 
@@ -1934,19 +1955,27 @@ html {
 	50% { box-shadow: 0 0 0 6px rgba(214, 54, 56, 0); }
 }
 
-.mic-timer {
-	font-size: 12px;
-	color: #d63638;
-	font-variant-numeric: tabular-nums;
-	flex-shrink: 0;
+.mic-label {
+	line-height: 1;
 }
 
-.voice-mode {
-	max-width: 180px;
+.voice-btn svg {
+	display: none;
 }
 
-.voice-mode:not([hidden]) + .model-select {
-	margin-left: 0;
+.voice-btn[data-mode="server"] .voice-icon-server,
+.voice-btn[data-mode="device"] .voice-icon-device,
+.voice-btn[data-mode="off"] .voice-icon-off {
+	display: block;
+}
+
+.voice-btn[data-mode="off"] {
+	opacity: 0.55;
+}
+
+.message-user .message-content.transcribing {
+	font-style: italic;
+	opacity: 0.7;
 }
 
 .message-user .spoken-glyph {

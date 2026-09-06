@@ -346,9 +346,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 										<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
 									</svg>
 								</button>
-								<button type="button" class="mic-btn" id="micBtn"
+								<button type="button" class="mic-btn" id="micBtn" data-state="idle"
 									aria-label="<?php echo esc_attr__( 'Speak', 'digital-employees' ); ?>"
-									title="<?php echo esc_attr__( 'Speak your message — tap again to send it', 'digital-employees' ); ?>">
+									title="<?php echo esc_attr__( 'Speak your message — a pause sends it', 'digital-employees' ); ?>">
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
 										stroke-linecap="round" stroke-linejoin="round">
 										<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -356,13 +356,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 										<line x1="12" y1="19" x2="12" y2="23"></line>
 										<line x1="8" y1="23" x2="16" y2="23"></line>
 									</svg>
+									<span class="mic-label" id="micLabel" hidden></span>
 								</button>
-								<span class="mic-timer" id="micTimer" hidden aria-live="off"></span>
-								<select class="model-select voice-mode" id="voiceMode" aria-label="<?php echo esc_attr__( 'Voice', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'How spoken replies are read back', 'digital-employees' ); ?>">
-									<option value="server"><?php echo esc_html__( "Your assistant's voice", 'digital-employees' ); ?></option>
-									<option value="device"><?php echo esc_html__( 'Device voice', 'digital-employees' ); ?></option>
-									<option value="off"><?php echo esc_html__( 'Voice off', 'digital-employees' ); ?></option>
-								</select>
+								<button type="button" class="voice-btn" id="voiceBtn" data-mode="server"
+									aria-label="<?php echo esc_attr__( 'Voice', 'digital-employees' ); ?>"
+									title="<?php echo esc_attr__( 'How spoken replies are read back', 'digital-employees' ); ?>">
+									<svg class="voice-icon-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+										<path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+									</svg>
+									<svg class="voice-icon-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+										<line x1="12" y1="18" x2="12.01" y2="18"></line>
+									</svg>
+									<svg class="voice-icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+										<line x1="23" y1="9" x2="17" y2="15"></line>
+										<line x1="17" y1="9" x2="23" y2="15"></line>
+									</svg>
+								</button>
 								<select class="model-select" id="modelSelect" hidden aria-label="<?php echo esc_attr__( 'AI model', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Choose the AI model for this session', 'digital-employees' ); ?>"></select>
 								<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'digital-employees' ); ?>">
 									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -822,13 +834,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 			uploadReadFailed: <?php echo wp_json_encode( __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ) ); ?>,
 			stillWorking: <?php echo wp_json_encode( __( 'Your assistant is still working on this — reopen the chat in a minute to see the reply.', 'digital-employees' ) ); ?>,
 			micStart: <?php echo wp_json_encode( __( 'Speak', 'digital-employees' ) ); ?>,
-			micStop: <?php echo wp_json_encode( __( 'Stop and send', 'digital-employees' ) ); ?>,
 			micDenied: <?php echo wp_json_encode( __( 'Microphone access was refused. Allow the microphone for this site and try again.', 'digital-employees' ) ); ?>,
 			nothingHeard: <?php echo wp_json_encode( __( 'Nothing was heard. Try again a little closer to the microphone.', 'digital-employees' ) ); ?>,
 			transcribeFailed: <?php echo wp_json_encode( __( 'That recording could not be transcribed. Please try again.', 'digital-employees' ) ); ?>,
-			voiceNoKey: <?php echo wp_json_encode( __( "Reading back with your device voice. For your assistant's own voice, add a Voice key on the APIs page of your tenant portal.", 'digital-employees' ) ); ?>,
-			voiceEmployee: <?php echo wp_json_encode( __( "%s's voice", 'digital-employees' ) ); ?>,
-			voiceAssistant: <?php echo wp_json_encode( __( "Your assistant's voice", 'digital-employees' ) ); ?>,
+			tapToSend: <?php echo wp_json_encode( __( 'Tap to send', 'digital-employees' ) ); ?>,
+			listening: <?php echo wp_json_encode( __( 'Listening… pause when you\'re done, or tap to send', 'digital-employees' ) ); ?>,
+			transcribing: <?php echo wp_json_encode( __( 'Transcribing…', 'digital-employees' ) ); ?>,
+			answering: <?php echo wp_json_encode( __( '%s is answering · tap to end', 'digital-employees' ) ); ?>,
+			assistant: <?php echo wp_json_encode( __( 'Your assistant', 'digital-employees' ) ); ?>,
+			voiceEmployee: <?php echo wp_json_encode( __( "Reading back in %s's voice", 'digital-employees' ) ); ?>,
+			voiceAssistant: <?php echo wp_json_encode( __( "Reading back in your assistant's voice", 'digital-employees' ) ); ?>,
+			voiceDevice: <?php echo wp_json_encode( __( 'Reading back with your device voice', 'digital-employees' ) ); ?>,
+			voiceOff: <?php echo wp_json_encode( __( 'Voice off', 'digital-employees' ) ); ?>,
+			voiceNeedsStreaming: <?php echo wp_json_encode( __( 'Voice needs a browser that can stream replies.', 'digital-employees' ) ); ?>,
 			spoken: <?php echo wp_json_encode( __( 'Spoken', 'digital-employees' ) ); ?>,
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
 			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,

@@ -45,9 +45,6 @@ final class DEF_Core_Staff_AI
 		'text/csv',
 		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-		// Voice recordings (7.7.0): iPhone records mp4, Android/desktop webm.
-		'audio/mp4',
-		'audio/webm',
 	);
 
 
@@ -209,29 +206,6 @@ final class DEF_Core_Staff_AI
 				'methods'             => 'POST',
 				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
 				'callback'            => array(__CLASS__, 'rest_upload_commit'),
-			)
-		);
-
-		// Voice (7.7.0): the recording went up the upload rail; DEF transcribes
-		// it on the tenant's Voice key and discards it. Text in, text out.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/voice/transcribe',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_voice_transcribe'),
-			)
-		);
-
-		// Voice (7.7.0): the assistant's own voice for a line of its reply.
-		register_rest_route(
-			DEF_CORE_API_NAME_SPACE,
-			'/staff-ai/voice/speak',
-			array(
-				'methods'             => 'POST',
-				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
-				'callback'            => array(__CLASS__, 'rest_voice_speak'),
 			)
 		);
 
@@ -984,7 +958,7 @@ final class DEF_Core_Staff_AI
 		return '';
 	}
 
-	private static function backend_request(string $method, string $endpoint, array $body = array(), bool $raw = false)
+	private static function backend_request(string $method, string $endpoint, array $body = array())
 	{
 		$base_url = self::get_api_base_url();
 		if (! $base_url) {
@@ -1155,15 +1129,6 @@ final class DEF_Core_Staff_AI
 				$error_code,
 				$error_message,
 				array('status' => $status)
-			);
-		}
-
-		// $raw: a bytes endpoint (voice/speak returns audio) — the caller gets
-		// the body untouched with its content type; errors above stay JSON.
-		if ($raw) {
-			return array(
-				'body'         => $body,
-				'content_type' => (string) wp_remote_retrieve_header($response, 'content-type'),
 			);
 		}
 
@@ -4333,63 +4298,6 @@ final class DEF_Core_Staff_AI
 			'mime_type'       => $mime_type,
 			'size_bytes'      => $size,
 			'conversation_id' => $conv_id,
-		));
-	}
-
-	/**
-	 * Voice (7.7.0): transcribe a committed recording. DEF owns every bound
-	 * (the upload's ownership, READY, audio-only, the tenant's Voice key) and
-	 * returns {text} only — the clip is discarded server-side.
-	 */
-	public static function rest_voice_transcribe(\WP_REST_Request $request)
-	{
-		$body    = $request->get_json_params();
-		$file_id = isset($body['file_id']) ? sanitize_text_field($body['file_id']) : '';
-		$conv_id = isset($body['conversation_id']) ? sanitize_text_field($body['conversation_id']) : '';
-		$seconds = isset($body['seconds']) && is_numeric($body['seconds']) && is_finite((float) $body['seconds']) ? max(0, (float) $body['seconds']) : 0;
-
-		if ('' === $file_id || '' === $conv_id) {
-			return new \WP_Error('invalid_request', __('file_id and conversation_id are required.', 'digital-employees'), array('status' => 400));
-		}
-
-		return self::backend_request('POST', '/api/staff_ai/voice/transcribe', array(
-			'file_id'         => $file_id,
-			'conversation_id' => $conv_id,
-			'seconds'         => $seconds,
-		));
-	}
-
-	/**
-	 * Voice (7.7.0): one line of the reply in the assistant's own voice. DEF
-	 * answers with audio bytes; the REST layer speaks JSON, so they travel
-	 * base64 (a sentence is tens of KB). DEF's 409 — no Voice key on the
-	 * tenant — reaches the console as staff_ai_http_409, its cue to read
-	 * back with the device voice instead.
-	 */
-	public static function rest_voice_speak(\WP_REST_Request $request)
-	{
-		$body    = $request->get_json_params();
-		// Plain prose bound for a text-to-speech call: valid UTF-8, trimmed, and
-		// nothing else — sanitize_textarea_field would turn "3 < 5" into a spoken
-		// "3 ampersand-l-t 5". Both DEF providers take plain text (no SSML).
-		$text    = isset($body['text']) && is_string($body['text']) ? trim(wp_check_invalid_utf8($body['text'])) : '';
-		$conv_id = isset($body['conversation_id']) ? sanitize_text_field($body['conversation_id']) : '';
-
-		if ('' === $text || '' === $conv_id) {
-			return new \WP_Error('invalid_request', __('text and conversation_id are required.', 'digital-employees'), array('status' => 400));
-		}
-
-		$audio = self::backend_request('POST', '/api/staff_ai/voice/speak', array(
-			'text'            => $text,
-			'conversation_id' => $conv_id,
-		), true);
-		if (is_wp_error($audio)) {
-			return $audio;
-		}
-
-		return rest_ensure_response(array(
-			'audio_base64' => base64_encode($audio['body']),
-			'mime'         => $audio['content_type'],
 		));
 	}
 
