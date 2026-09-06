@@ -931,21 +931,29 @@ function t(key, fallback) {
 	// the turn itself is not stopped by this, only the phone's polling.
 	var RECOVER_TURN_POLL_MS = 3000;
 	var RECOVER_TURN_MAX_MS = 120000;
-	var RESUME_GRACE_MS = 5000;
+	// Longer than one DEF keepalive (10s), so a live-but-quiet stream is never mistaken
+	// for a dead one on resume.
+	var RESUME_GRACE_MS = 15000;
 	var _streamAbort = null;
 	var _turnReachedServer = false;
 	var _eventsSeen = 0;
 
 	async function recoverTurn() {
+		var id = currentConversationId;
 		var deadline = Date.now() + RECOVER_TURN_MAX_MS;
 		while (Date.now() < deadline) {
+			// The user moved on (New chat, another conversation): nothing to recover into.
+			if (currentConversationId !== id) return true;
 			try {
-				var result = await apiRequest('/conversations/' + encodeURIComponent(currentConversationId));
+				var result = await apiRequest('/conversations/' + encodeURIComponent(id));
 				var fetched = result.messages || [];
 				var last = fetched[fetched.length - 1];
 				if (last && last.role === 'assistant' && (last.content || '').trim()) {
+					if (currentConversationId !== id) return true;
 					messages = fetched;
 					renderMessages();
+					dirtyInput = false;
+					updateReadOnlyState();
 					loadConversations();
 					return true;
 				}
@@ -959,9 +967,9 @@ function t(key, fallback) {
 	// the live stream a moment; if nothing arrives, abort it so the catch above recovers.
 	document.addEventListener('visibilitychange', function() {
 		if (document.visibilityState !== 'visible' || !_isStreaming || !_streamAbort) return;
-		var seen = _eventsSeen;
+		var seen = _eventsSeen, controller = _streamAbort;
 		setTimeout(function() {
-			if (_isStreaming && _streamAbort && _eventsSeen === seen) _streamAbort.abort();
+			if (_isStreaming && _streamAbort === controller && _eventsSeen === seen) controller.abort();
 		}, RESUME_GRACE_MS);
 	});
 
@@ -2013,8 +2021,6 @@ function t(key, fallback) {
 				credentials: 'same-origin',
 				signal: _streamAbort.signal,
 			});
-			_turnReachedServer = true;
-
 			if (!response.ok) {
 				// String-safe extraction (5.8.4): a DEF refusal object here
 				// used to stringify to "[object Object]" in the banner.
@@ -2026,6 +2032,9 @@ function t(key, fallback) {
 				} catch (e) { /* ignore */ }
 				throw new Error(errText || 'Stream request failed (' + response.status + ')');
 			}
+			// Only a turn the server ACCEPTED is worth recovering — a refusal (a billing
+			// gate, a rate limit) must show its own message, not two minutes of polling.
+			_turnReachedServer = true;
 
 			// Check if response is JSON (extraction early-exit) vs SSE
 			var ct = response.headers.get('content-type') || '';
@@ -2124,7 +2133,6 @@ function t(key, fallback) {
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
-					_eventsSeen++;
 					// Every event names its thread (DEF #1118), so a brand-new chat knows where
 					// its reply lives from the first chunk — what recoverTurn() reloads if the
 					// stream dies before `done` (7.6.9).
@@ -2308,6 +2316,9 @@ function t(key, fallback) {
 			while (true) {
 				var result = await reader.read();
 				if (result.done) break;
+				// Liveness counts every chunk, including DEF's ": keepalive" comment frames
+				// (dropped by the parser below) — a long tool call is quiet but alive.
+				_eventsSeen++;
 				buffer += decoder.decode(result.value, { stream: true });
 				var parsed = parseSSEBuffer(buffer);
 				buffer = parsed.remaining;
