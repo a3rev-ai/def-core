@@ -240,8 +240,8 @@ function t(key, fallback) {
 	// Upload DOM references
 	const uploadBtn     = document.getElementById('uploadBtn');
 	const micBtn        = document.getElementById('micBtn');
-	const micTimer      = document.getElementById('micTimer');
-	const voiceMode     = document.getElementById('voiceMode');
+	const micLabel      = document.getElementById('micLabel');
+	const voiceBtn      = document.getElementById('voiceBtn');
 	const fileInput     = document.getElementById('uploadFileInput');
 	const stagedArea    = document.getElementById('uploadStagedArea');
 	const dropOverlay   = document.getElementById('uploadDropOverlay');
@@ -1056,7 +1056,8 @@ function t(key, fallback) {
 					// Inline web-citation pills from [src_N] markers (see done handler).
 					applyCitations(content, buildCitationMap(msg.tool_outputs));
 				} else {
-					content.textContent = msg.content;
+					content.textContent = msg.transcribing ? t('transcribing', 'Transcribing…') : msg.content;
+					if (msg.transcribing) content.classList.add('transcribing');
 					if (msg.via_voice) {
 						// A spoken turn wears the mic — the transcript is what was said.
 						var glyph = document.createElement('span');
@@ -1846,128 +1847,185 @@ function t(key, fallback) {
 	// =============================================
 
 	// =============================================
-	// VOICE (7.7.0) — "speak it to Sue"
+	// VOICE (7.7.1) — "speak it to Sue", hands-free
 	// =============================================
-	// The mic records, the upload rail carries the clip, DEF transcribes and
-	// discards it, and the transcript goes out as an ordinary turn flagged
-	// via_voice — the server marks the model-facing message so the reply
-	// opens by saying back what it will do and closes with what's done.
-	// Those two lines are what get read aloud: in the employee's own voice
-	// (DEF, on the tenant's Voice key) or the device voice, per the Voice
-	// control. The choice lives on this device.
+	// One round trip: the recording rides the chat request as base64, DEF
+	// transcribes it on the stream (the `transcript` event fills the bubble) and
+	// the reply's opening and closing lines come back as `speech` frames in the
+	// employee's own voice — or the device voice reads them from the text. A
+	// pause after speaking sends; when the employee finishes speaking the mic
+	// opens again; a tap on the pill while she answers ends the conversation.
 	var VOICE_MODE_KEY = 'def_staff_ai_voice_mode';
+	var VOICE_MODES = ['server', 'device', 'off'];
 	var voiceRecorder = null;
 	var speaker = null;
-	var pendingViaVoice = false;   // the next sendMessage() is a spoken turn
+	var conversationOn = false;     // the hands-free loop, until the pill is tapped or the room stays quiet
 	var spokenTurn = false;         // the turn in flight was spoken → read it back
-	var openingSpoken = null;       // the opening line already read during streaming
+	var openingSpoken = null;       // the opening line already read during streaming (device voice)
+	var composerPlaceholder = '';
+
+	function voiceModeLabel(mode) {
+		if (mode === 'device') return t('voiceDevice', 'Reading back with your device voice');
+		if (mode === 'off') return t('voiceOff', 'Voice off');
+		return assistantName
+			? t('voiceEmployee', "Reading back in %s's voice").replace('%s', assistantName)
+			: t('voiceAssistant', "Reading back in your assistant's voice");
+	}
+
+	function setMicState(state, label) {
+		micBtn.dataset.state = state;
+		micLabel.textContent = label || '';
+		micLabel.hidden = !label;
+		micBtn.setAttribute('aria-label', label || t('micStart', 'Speak'));
+	}
 
 	function initVoice() {
 		if (!micBtn) return;
 		if (!window.DefVoice || !DefVoice.supported()) {
 			micBtn.hidden = true;
-			if (voiceMode) voiceMode.hidden = true;
+			if (voiceBtn) voiceBtn.hidden = true;
 			return;
 		}
-		var api = { request: apiRequest };
-		speaker = DefVoice.createSpeaker(api, {
-			onFallback: function () {
-				if (voiceMode) voiceMode.value = 'device';
-				showInfo(t('voiceNoKey', 'Reading back with your device voice. For your assistant\'s own voice, add a Voice key on the APIs page of your tenant portal.'));
-			}
-		});
+		speaker = DefVoice.createSpeaker();
 		var saved = null;
 		try { saved = localStorage.getItem(VOICE_MODE_KEY); } catch (e) { /* storage blocked */ }
-		var mode = (saved === 'device' || saved === 'off') ? saved : 'server';
-		speaker.setMode(mode);
-		if (voiceMode) {
-			voiceMode.value = mode;
-			voiceMode.addEventListener('change', function () {
-				speaker.setMode(voiceMode.value);
+		speaker.setMode(VOICE_MODES.indexOf(saved) >= 0 ? saved : 'server');
+		if (voiceBtn) {
+			var paint = function () {
+				voiceBtn.dataset.mode = speaker.getMode();
+				voiceBtn.setAttribute('aria-label', voiceModeLabel(speaker.getMode()));
+				voiceBtn.title = voiceModeLabel(speaker.getMode());
+			};
+			onAssistantName(paint);
+			voiceBtn.addEventListener('click', function () {
+				var next = VOICE_MODES[(VOICE_MODES.indexOf(speaker.getMode()) + 1) % VOICE_MODES.length];
 				speaker.stop();
-				try { localStorage.setItem(VOICE_MODE_KEY, voiceMode.value); } catch (e) { /* storage blocked */ }
+				speaker.setMode(next);
+				try { localStorage.setItem(VOICE_MODE_KEY, next); } catch (e) { /* storage blocked */ }
+				paint();
+				showInfo(voiceModeLabel(next));
 			});
-			var serverOption = voiceMode.querySelector('option[value="server"]');
-			if (serverOption) {
-				onAssistantName(function () {
-					serverOption.textContent = assistantName
-						? t('voiceEmployee', "%s's voice").replace('%s', assistantName)
-						: t('voiceAssistant', "Your assistant's voice");
-				});
-			}
 		}
 		voiceRecorder = DefVoice.createRecorder({
 			onTick: function (seconds) {
-				micTimer.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+				setMicState('listening', Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + ' · ' + t('tapToSend', 'Tap to send'));
 			},
-			onAutoStop: finishRecording
+			onAutoStop: finishRecording,
+			onSilence: finishRecording,
+			onIdle: function () { endConversation(t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.')); }
 		});
 		micBtn.addEventListener('click', function () {
 			if (voiceRecorder.isRecording()) { finishRecording(); return; }
+			if (conversationOn) { endConversation(); return; }   // she is answering or speaking
 			if (isLoading || isReadOnly) return;
 			speaker.stop();
 			speaker.unlock();   // inside the tap: iOS lets audio start only from a gesture
-			startRecording();
+			conversationOn = true;
+			listen();
 		});
 	}
 
-	async function startRecording() {
+	async function listen() {
 		var started;
 		try {
 			started = await voiceRecorder.start();
 		} catch (e) {
+			conversationOn = false;
+			setMicState('idle');
 			showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
 			return;
 		}
 		if (!started) return;   // the first tap owns the recording
 		hideError();
-		micBtn.classList.add('recording');
-		micBtn.setAttribute('aria-label', t('micStop', 'Stop and send'));
-		micTimer.textContent = '0:00';
-		micTimer.hidden = false;
+		hideInfo();
+		setMicState('listening', '0:00 · ' + t('tapToSend', 'Tap to send'));
+		if (!composerPlaceholder) composerPlaceholder = composerInput.placeholder;
+		composerInput.placeholder = t('listening', 'Listening… pause when you\'re done, or tap to send');
+	}
+
+	function restorePlaceholder() {
+		if (composerPlaceholder) { composerInput.placeholder = composerPlaceholder; composerPlaceholder = ''; }
+	}
+
+	function endConversation(message) {
+		conversationOn = false;
+		if (voiceRecorder) voiceRecorder.release();
+		if (speaker) speaker.stop();
+		setMicState('idle');
+		restorePlaceholder();
+		if (message) showInfo(message);
 	}
 
 	async function finishRecording() {
 		var recording = await voiceRecorder.stop();
-		micBtn.classList.remove('recording');
-		micBtn.setAttribute('aria-label', t('micStart', 'Speak'));
-		micTimer.hidden = true;
-		if (!recording || recording.seconds < 0.5) return;   // a tap, not a message
-		micBtn.classList.add('transcribing');
-		micBtn.disabled = true;
-		try {
-			var text = await DefVoice.transcribe({ request: apiRequest }, recording, currentConversationId);
-			if (!text) {
-				showInfo(t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.'));
-				return;
-			}
-			composerInput.value = text;
-			pendingViaVoice = true;
-			await sendMessage();
-		} catch (e) {
-			showError(e.message || t('transcribeFailed', 'That recording could not be transcribed. Please try again.'));
-		} finally {
-			micBtn.classList.remove('transcribing');
-			micBtn.disabled = false;
+		restorePlaceholder();
+		if (!recording || recording.seconds < 0.5 || !recording.spoke) {
+			endConversation();   // a tap with nothing said: the conversation is over
+			return;
 		}
+		setMicState('transcribing', t('transcribing', 'Transcribing…'));
+		var base64;
+		try {
+			base64 = await DefVoice.toBase64(recording.blob);
+		} catch (e) {
+			endConversation(t('transcribeFailed', 'That recording could not be transcribed. Please try again.'));
+			return;
+		}
+		await sendSpoken({ audio_base64: base64, audio_mime: recording.mime, audio_seconds: recording.seconds });
 	}
 
-	// The reply's opening line was read as it streamed; the closing line
-	// waits for the whole reply. A one-line reply is read once. When the
-	// stream never read an opening (a sync reply, no boundary mid-stream),
-	// the finished text — plus the space its boundary rule needs — supplies it.
+	// The spoken turn goes out on the stream: an empty user message the server
+	// replaces with the transcript (the bubble reads "Transcribing…" until the
+	// `transcript` event fills it), the recording, and whether to send her voice.
+	async function sendSpoken(voice) {
+		if (isLoading || isReadOnly) { endConversation(); return; }
+		if (!chatStreamUrl || typeof ReadableStream === 'undefined') {
+			endConversation(t('voiceNeedsStreaming', 'Voice needs a browser that can stream replies.'));
+			return;
+		}
+		hideError();
+		hideInfo();
+		messages.push({ role: 'user', content: '', via_voice: true, transcribing: true });
+		messages.push({ role: 'assistant', content: '', isTyping: true });
+		renderMessages();
+		isLoading = true;
+		updateSendButton();
+		spokenTurn = true;
+		openingSpoken = null;
+		voice.speech_out = speaker.getMode() === 'server';
+		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
+		await sendMessageStreaming('', [], null, null, voice);
+	}
+
+	// After every turn (the stream's finally): hands-free listens again once the
+	// employee has finished speaking; otherwise the pill goes back to the mic.
+	function afterSpokenTurn() {
+		if (!micBtn || !speaker) return;
+		if (!conversationOn) {
+			if (!voiceRecorder.isRecording()) setMicState('idle');
+			return;
+		}
+		speaker.whenIdle().then(function () {
+			if (conversationOn && !isLoading) listen();
+		});
+	}
+
+	// The device voice reads the reply from its text: the opening line was read as
+	// it streamed; the closing line waits for the whole reply. A one-line reply is
+	// read once. The employee's own voice arrives as `speech` frames instead.
 	function readBack(finalContent) {
 		if (!spokenTurn) return;
 		spokenTurn = false;
+		if (speaker.getMode() !== 'device') return;
 		if (openingSpoken === null) {
 			var opening = DefVoice.firstSentence(finalContent + ' ');
 			if (opening) {
-				speaker.speak(opening, currentConversationId);
+				speaker.speak(opening);
 				openingSpoken = opening;
 			}
 		}
 		var closing = DefVoice.closingLine(finalContent);
-		if (closing && closing !== openingSpoken) speaker.speak(closing, currentConversationId);
+		if (closing && closing !== openingSpoken) speaker.speak(closing);
 	}
 
 	async function sendMessage() {
@@ -1990,12 +2048,6 @@ function t(key, fallback) {
 		}
 
 		if (!text && !hasFiles) return;
-
-		// Consumed only once the send is really going out: an early return above
-		// (a turn in flight, a failed chip) leaves the transcript in the composer
-		// still flagged spoken for the send that does take it.
-		var viaVoice = pendingViaVoice;
-		pendingViaVoice = false;
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
@@ -2038,11 +2090,8 @@ function t(key, fallback) {
 			content: displayText,
 			fileNames: fileAttachments ? fileAttachments.map(function(f) { return f.name; }) : null,
 			fileAttachments: fileAttachments,
-			via_voice: viaVoice,
 		});
 		renderMessages();
-		spokenTurn = viaVoice;
-		openingSpoken = null;
 
 		composerInput.value = '';
 		autoResize();
@@ -2061,19 +2110,18 @@ function t(key, fallback) {
 		// Feature detection: streaming vs sync fallback (V1.1)
 		if (chatStreamUrl && typeof ReadableStream !== 'undefined') {
 			console.info('[Staff AI] Using streaming path');
-			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, viaVoice);
+			await sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, null);
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
 				(!chatStreamUrl ? ' (no chatStreamUrl)' : ' (no ReadableStream)'));
-			await sendMessageSync(text, fileIds, viaVoice);
+			await sendMessageSync(text, fileIds);
 		}
 	}
 
 	// Sync fallback — existing PHP proxy behavior (zero change)
-	async function sendMessageSync(text, fileIds, viaVoice) {
+	async function sendMessageSync(text, fileIds) {
 		try {
 			var requestBody = { message: text };
-			if (viaVoice) requestBody.via_voice = true;
 			var fallbackTz = browserTimezone();
 			if (fallbackTz) requestBody.timezone = fallbackTz;
 			if (currentConversationId) {
@@ -2104,12 +2152,10 @@ function t(key, fallback) {
 			if (result.thread_id) {
 				currentConversationId = result.thread_id;
 			}
-			readBack(result.message?.content || '');
 
 			loadConversations();
 			updateReadOnlyState();
 		} catch (err) {
-			spokenTurn = false;
 			removeTypingMessage();
 			renderMessages();
 			console.error('Failed to send message:', err);
@@ -2121,7 +2167,9 @@ function t(key, fallback) {
 	}
 
 	// Streaming — direct-to-DEF with JWT + SSE
-	async function sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, viaVoice) {
+	// voice (7.7.1): a spoken turn's {audio_base64, audio_mime, audio_seconds,
+	// speech_out} — the recording rides the request; null for a typed turn.
+	async function sendMessageStreaming(text, fileIds, pendingOutcome, pendingScore, voice) {
 		var retried = false;
 
 		async function attemptStream() {
@@ -2150,7 +2198,13 @@ function t(key, fallback) {
 			if (activeProjectId) {
 				requestBody.project_id = activeProjectId;
 			}
-			if (viaVoice) requestBody.via_voice = true;
+			if (voice) {
+				requestBody.via_voice = true;
+				requestBody.audio_base64 = voice.audio_base64;
+				requestBody.audio_mime = voice.audio_mime;
+				requestBody.audio_seconds = voice.audio_seconds;
+				requestBody.speech_out = !!voice.speech_out;
+			}
 			// Phase 10.1: Add suggestion feedback signal
 			if (pendingOutcome) {
 				requestBody.suggestion_outcome = pendingOutcome;
@@ -2341,7 +2395,7 @@ function t(key, fallback) {
 						}
 						if (streamEl) {
 							streamBuffer += evt.text;
-							if (spokenTurn && openingSpoken === null) {
+							if (spokenTurn && openingSpoken === null && speaker.getMode() === 'device') {
 								var opening = DefVoice.firstSentence(streamBuffer);
 								if (opening) {
 									openingSpoken = opening;
@@ -2430,6 +2484,23 @@ function t(key, fallback) {
 						dirtyInput = false;
 						loadConversations();
 						updateReadOnlyState();
+					} else if (evt.type === 'transcript') {
+						// The server heard the recording (7.7.1): the bubble gets its words.
+						// Before any text streams, so a full re-render wipes nothing.
+						for (var ti = messages.length - 1; ti >= 0; ti--) {
+							if (messages[ti].role === 'user' && messages[ti].transcribing) {
+								messages[ti].content = evt.text || '';
+								delete messages[ti].transcribing;
+								break;
+							}
+						}
+						renderMessages();
+					} else if (evt.type === 'speech') {
+						// A spoken line in the employee's own voice — or, when its synthesis
+						// failed server-side, the text alone for the device voice to read.
+						if (spokenTurn) {
+							speaker.speak(evt.text || '', evt.audio_base64 ? { base64: evt.audio_base64, mime: evt.mime } : null);
+						}
 					} else if (evt.type === 'suggestions') {
 						lastSuggestion = evt.suggestion || null;
 						if (!dirtyInput && composerInput && evt.suggestion) {
@@ -2500,6 +2571,7 @@ function t(key, fallback) {
 		} catch (err) {
 			console.error('[Staff AI] Streaming error:', err);
 			spokenTurn = false;
+			if (conversationOn) endConversation();
 			// The server owns the turn (DEF #1116): once the request reached it, a dead
 			// stream — the phone locked, signal dropped — is not a failed turn. The reply
 			// lands on the thread; go and get it (7.6.9, Steve's canary 2026-09-06).
@@ -2517,6 +2589,7 @@ function t(key, fallback) {
 			_userScrolledUp = false;
 			isLoading = false;
 			updateSendButton();
+			afterSpokenTurn();
 		}
 	}
 
