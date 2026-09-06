@@ -1092,7 +1092,13 @@ final class DEF_Core_Staff_AI
 			$backend_detail = self::stringify_backend_detail(isset($data['detail']) ? $data['detail'] : '');
 
 			// Handle different error status codes - each branch MUST set both $error_code and $error_message.
-			if (401 === $status || 403 === $status) {
+			$backend_error = isset($data['detail']['error']) && is_string($data['detail']['error']) ? $data['detail']['error'] : '';
+			if (403 === $status && 'speech_disabled' === $backend_error) {
+				// Not an auth failure: the tenant switched this employee's voice
+				// off (Employees page). DEF's own sentence says so (7.7.0).
+				$error_code    = 'speech_disabled';
+				$error_message = $backend_detail;
+			} elseif (401 === $status || 403 === $status) {
 				$error_code    = 'staff_ai_auth_failed';
 				$error_message = sprintf(
 					/* translators: 1: HTTP status code, 2: backend error detail */
@@ -4340,7 +4346,7 @@ final class DEF_Core_Staff_AI
 		$body    = $request->get_json_params();
 		$file_id = isset($body['file_id']) ? sanitize_text_field($body['file_id']) : '';
 		$conv_id = isset($body['conversation_id']) ? sanitize_text_field($body['conversation_id']) : '';
-		$seconds = isset($body['seconds']) && is_numeric($body['seconds']) ? max(0, (float) $body['seconds']) : 0;
+		$seconds = isset($body['seconds']) && is_numeric($body['seconds']) && is_finite((float) $body['seconds']) ? max(0, (float) $body['seconds']) : 0;
 
 		if ('' === $file_id || '' === $conv_id) {
 			return new \WP_Error('invalid_request', __('file_id and conversation_id are required.', 'digital-employees'), array('status' => 400));
@@ -4363,7 +4369,10 @@ final class DEF_Core_Staff_AI
 	public static function rest_voice_speak(\WP_REST_Request $request)
 	{
 		$body    = $request->get_json_params();
-		$text    = isset($body['text']) ? sanitize_textarea_field($body['text']) : '';
+		// Plain prose bound for a text-to-speech call: valid UTF-8, trimmed, and
+		// nothing else — sanitize_textarea_field would turn "3 < 5" into a spoken
+		// "3 ampersand-l-t 5". Both DEF providers take plain text (no SSML).
+		$text    = isset($body['text']) && is_string($body['text']) ? trim(wp_check_invalid_utf8($body['text'])) : '';
 		$conv_id = isset($body['conversation_id']) ? sanitize_text_field($body['conversation_id']) : '';
 
 		if ('' === $text || '' === $conv_id) {

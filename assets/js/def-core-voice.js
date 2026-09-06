@@ -59,8 +59,10 @@ window.DefVoice = (function () {
 			recorder = null;
 		}
 
+		// Resolves true when recording began; false when a recording was already
+		// live or starting (a second tap during the permission prompt).
 		async function start() {
-			if (recorder || starting) return;   // a second tap during the permission prompt
+			if (recorder || starting) return false;
 			starting = true;
 			try {
 				stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -88,6 +90,7 @@ window.DefVoice = (function () {
 			autoStop = setTimeout(function () {
 				if (handlers.onAutoStop) handlers.onAutoStop();
 			}, MAX_RECORD_MS);
+			return true;
 		}
 
 		function stop() {
@@ -130,12 +133,23 @@ window.DefVoice = (function () {
 		});
 		if (!init || !init.upload_url) throw new Error('Upload could not start');
 		var bytes = await recording.blob.arrayBuffer();
-		var put = await fetch(init.upload_url, {
-			method: 'PUT',
-			headers: { 'Content-Type': recording.mime, 'x-ms-blob-type': 'BlockBlob' },
-			body: bytes
-		});
-		if (!put.ok) throw new Error('Upload failed (' + put.status + ')');
+		// Three tries with backoff, as attachments get: a phone's first PUT after
+		// waking is the one that fails, and a lost clip means re-recording it.
+		var put = null;
+		for (var attempt = 1; attempt <= 3; attempt++) {
+			try {
+				put = await fetch(init.upload_url, {
+					method: 'PUT',
+					headers: { 'Content-Type': recording.mime, 'x-ms-blob-type': 'BlockBlob' },
+					body: bytes
+				});
+				if (put.ok) break;
+			} catch (e) {
+				put = null;
+			}
+			if (attempt < 3) await new Promise(function (r) { setTimeout(r, 500 * attempt); });
+		}
+		if (!put || !put.ok) throw new Error('Upload failed' + (put ? ' (' + put.status + ')' : ''));
 		await api.request('/uploads/commit', { method: 'POST', body: JSON.stringify({ file_id: init.file_id }) });
 		var out = await api.request('/voice/transcribe', {
 			method: 'POST',
@@ -190,6 +204,7 @@ window.DefVoice = (function () {
 			try {
 				await new Promise(function (resolve, reject) {
 					audio.onended = resolve;
+					audio.onpause = resolve;   // stop() pauses; a natural end fires pause too
 					audio.onerror = function () { reject(new Error('Playback failed')); };
 					audio.src = url;
 					audio.play().catch(reject);
@@ -250,10 +265,13 @@ window.DefVoice = (function () {
 	}
 
 	// The opening sentence — the first prefix of at least three words that
-	// ends at a sentence boundary — or null while it is still arriving.
+	// ends at a sentence boundary — or null while it is still arriving. The
+	// boundary needs the whitespace AFTER it: a chunk ending "costs 3." is
+	// not a sentence until the next chunk says whether "5 million" follows.
+	// Callers holding the finished text append a space.
 	function firstSentence(buffer) {
 		var text = String(buffer || '');
-		var boundary = /[.!?](?=\s|$)/g;
+		var boundary = /[.!?](?=\s)/g;
 		var match;
 		while ((match = boundary.exec(text))) {
 			var sentence = plain(text.slice(0, match.index + 1));
@@ -264,7 +282,8 @@ window.DefVoice = (function () {
 
 	// The closing line: the last sentence of the reply's last non-empty line.
 	function closingLine(text) {
-		var lines = String(text || '').split(/\r?\n/).map(plain).filter(Boolean);
+		// Fences go first: a reply that ends in a code block must not read "```".
+		var lines = String(text || '').replace(/```[\s\S]*?```/g, '\n').split(/\r?\n/).map(plain).filter(Boolean);
 		if (!lines.length) return '';
 		var last = lines[lines.length - 1];
 		var boundary = /[.!?](?=\s)/g, cut = 0, match;

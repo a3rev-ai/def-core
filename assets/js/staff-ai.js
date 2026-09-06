@@ -1912,12 +1912,14 @@ function t(key, fallback) {
 	}
 
 	async function startRecording() {
+		var started;
 		try {
-			await voiceRecorder.start();
+			started = await voiceRecorder.start();
 		} catch (e) {
 			showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
 			return;
 		}
+		if (!started) return;   // the first tap owns the recording
 		hideError();
 		micBtn.classList.add('recording');
 		micBtn.setAttribute('aria-label', t('micStop', 'Stop and send'));
@@ -1951,14 +1953,18 @@ function t(key, fallback) {
 	}
 
 	// The reply's opening line was read as it streamed; the closing line
-	// waits for the whole reply. A one-line reply is read once.
+	// waits for the whole reply. A one-line reply is read once. When the
+	// stream never read an opening (a sync reply, no boundary mid-stream),
+	// the finished text — plus the space its boundary rule needs — supplies it.
 	function readBack(finalContent) {
 		if (!spokenTurn) return;
 		spokenTurn = false;
-		var opening = DefVoice.firstSentence(finalContent);
-		if (opening && opening !== openingSpoken) {
-			speaker.speak(opening, currentConversationId);
-			openingSpoken = opening;
+		if (openingSpoken === null) {
+			var opening = DefVoice.firstSentence(finalContent + ' ');
+			if (opening) {
+				speaker.speak(opening, currentConversationId);
+				openingSpoken = opening;
+			}
 		}
 		var closing = DefVoice.closingLine(finalContent);
 		if (closing && closing !== openingSpoken) speaker.speak(closing, currentConversationId);
@@ -1967,8 +1973,6 @@ function t(key, fallback) {
 	async function sendMessage() {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
-		var viaVoice = pendingViaVoice;
-		pendingViaVoice = false;
 
 		if (isLoading || isReadOnly) return;
 
@@ -1986,6 +1990,12 @@ function t(key, fallback) {
 		}
 
 		if (!text && !hasFiles) return;
+
+		// Consumed only once the send is really going out: an early return above
+		// (a turn in flight, a failed chip) leaves the transcript in the composer
+		// still flagged spoken for the send that does take it.
+		var viaVoice = pendingViaVoice;
+		pendingViaVoice = false;
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
@@ -2190,6 +2200,7 @@ function t(key, fallback) {
 				if (jsonResult.thread_id) {
 					currentConversationId = jsonResult.thread_id;
 				}
+				readBack(jsonResult.choices?.[0]?.message?.content || '');
 				loadConversations();
 				updateReadOnlyState();
 				return;
