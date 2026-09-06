@@ -54,7 +54,7 @@ window.DefVoice = (function () {
 	 * conversation (reopening it per turn would re-prompt on some phones).
 	 * start() resolves true when recording began, false when one was already live
 	 * or starting; rejects when the browser refuses the mic. stop() resolves
-	 * {blob, mime, seconds, base64} or null. release() closes the stream.
+	 * {blob, mime, seconds, spoke} or null. release() closes the stream.
 	 * handlers: onTick(seconds), onAutoStop (the two-minute stop), onSilence (a
 	 * pause after speech), onIdle (no speech at all).
 	 */
@@ -77,8 +77,16 @@ window.DefVoice = (function () {
 			if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); stream = null; }
 		}
 
+		// The detector counts only while its context runs: a suspended or
+		// interrupted context (iOS after the lock screen) reads zeros, which would
+		// look like ten seconds of silence while the user is talking.
+		function detecting() {
+			return !!(analyser && audioCtx && audioCtx.state === 'running');
+		}
+
 		async function openStream() {
 			if (stream && stream.active) return;
+			release();   // a dead stream's context goes with it — never two contexts
 			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 			var Ctx = window.AudioContext || window.webkitAudioContext;
 			if (!Ctx) return;
@@ -101,7 +109,7 @@ window.DefVoice = (function () {
 		}
 
 		function watch() {
-			if (!analyser) return;
+			if (!detecting()) return;
 			var now = Date.now();
 			if (rms() > SPEECH_RMS) {
 				spokeAt = now;
@@ -120,7 +128,7 @@ window.DefVoice = (function () {
 			starting = true;
 			try {
 				await openStream();
-				if (audioCtx && audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) { /* stays suspended */ } }
+				if (audioCtx && audioCtx.state !== 'running') { try { await audioCtx.resume(); } catch (e) { /* the tap decides */ } }
 			} finally {
 				starting = false;
 			}
@@ -138,8 +146,9 @@ window.DefVoice = (function () {
 				pending = null;
 				stopTimers();
 				recorder = null;
-				// No detector (no AudioContext) → assume speech: the tap decides.
-				if (resolve) resolve({ blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: !analyser || !!spokeAt });
+				// No live detector → assume speech: the tap decides.
+				var spoke = !!spokeAt || !detecting();
+				if (resolve) resolve({ blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: spoke });
 			};
 			startedAt = Date.now();
 			rec.start();
@@ -163,8 +172,7 @@ window.DefVoice = (function () {
 			start: start,
 			stop: stop,
 			release: release,
-			isRecording: function () { return !!recorder; },
-			hasSpoken: function () { return !!spokeAt; }
+			isRecording: function () { return !!recorder; }
 		};
 	}
 

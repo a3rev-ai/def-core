@@ -731,6 +731,7 @@ function t(key, fallback) {
 
 	// Load a specific conversation
 	async function loadConversation(id, shared) {
+		if (conversationOn) endConversation();   // a spoken turn never lands in a thread she just opened
 		clearActiveProject();
 		currentConversationId = id;
 		isReadOnly = !!shared;
@@ -778,6 +779,7 @@ function t(key, fallback) {
 
 	// New chat (shared with Projects P-B's "New chat in this project")
 	function resetToNewChat() {
+		if (conversationOn) endConversation();
 		leavePanes();
 		currentConversationId = null;
 		isReadOnly = false;
@@ -969,6 +971,9 @@ function t(key, fallback) {
 	// A locked phone can leave the reader hanging rather than failing it. On resume, give
 	// the live stream a moment; if nothing arrives, abort it so the catch above recovers.
 	document.addEventListener('visibilitychange', function() {
+		// Hands-free is a foreground interaction: a pocketed phone must not keep
+		// listening (7.7.1) — the mic is released the moment the page hides.
+		if (document.visibilityState === 'hidden' && conversationOn) endConversation();
 		if (document.visibilityState !== 'visible' || !_isStreaming || !_streamAbort) return;
 		var seen = _eventsSeen, controller = _streamAbort;
 		setTimeout(function() {
@@ -1931,11 +1936,13 @@ function t(key, fallback) {
 			started = await voiceRecorder.start();
 		} catch (e) {
 			conversationOn = false;
+			voiceRecorder.release();   // a stream granted before the failure does not stay hot
 			setMicState('idle');
 			showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
 			return;
 		}
 		if (!started) return;   // the first tap owns the recording
+		if (!conversationOn) { voiceRecorder.release(); return; }   // ended during the permission prompt
 		hideError();
 		hideInfo();
 		setMicState('listening', '0:00 · ' + t('tapToSend', 'Tap to send'));
@@ -1949,6 +1956,8 @@ function t(key, fallback) {
 
 	function endConversation(message) {
 		conversationOn = false;
+		spokenTurn = false;      // nothing more of this turn is read aloud
+		openingSpoken = null;
 		if (voiceRecorder) voiceRecorder.release();
 		if (speaker) speaker.stop();
 		setMicState('idle');
@@ -1956,11 +1965,22 @@ function t(key, fallback) {
 		if (message) showInfo(message);
 	}
 
+	// A spoken turn the server never answered with a transcript (a refusal before
+	// the stream, a dead connection) must not leave "Transcribing…" in the chat —
+	// or ride every later request as an empty user message.
+	function dropUnfilledTranscript() {
+		for (var i = messages.length - 1; i >= 0; i--) {
+			if (messages[i].role === 'user' && messages[i].transcribing) { messages.splice(i, 1); return true; }
+		}
+		return false;
+	}
+
 	async function finishRecording() {
 		var recording = await voiceRecorder.stop();
 		restorePlaceholder();
 		if (!recording || recording.seconds < 0.5 || !recording.spoke) {
-			endConversation();   // a tap with nothing said: the conversation is over
+			// A tap with nothing heard: say so, and the conversation is over.
+			endConversation(recording ? t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.') : null);
 			return;
 		}
 		setMicState('transcribing', t('transcribing', 'Transcribing…'));
@@ -1978,6 +1998,7 @@ function t(key, fallback) {
 	// replaces with the transcript (the bubble reads "Transcribing…" until the
 	// `transcript` event fills it), the recording, and whether to send her voice.
 	async function sendSpoken(voice) {
+		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
 		if (isLoading || isReadOnly) { endConversation(); return; }
 		if (!chatStreamUrl || typeof ReadableStream === 'undefined') {
 			endConversation(t('voiceNeedsStreaming', 'Voice needs a browser that can stream replies.'));
@@ -2002,7 +2023,8 @@ function t(key, fallback) {
 	function afterSpokenTurn() {
 		if (!micBtn || !speaker) return;
 		if (!conversationOn) {
-			if (!voiceRecorder.isRecording()) setMicState('idle');
+			voiceRecorder.release();   // whatever the turn left open, the mic is off now
+			setMicState('idle');
 			return;
 		}
 		speaker.whenIdle().then(function () {
@@ -2048,6 +2070,12 @@ function t(key, fallback) {
 		}
 
 		if (!text && !hasFiles) return;
+
+		// Typing is the choice to type: a live conversation ends, and nothing of a
+		// spoken turn that never finished is read over this one.
+		if (conversationOn) endConversation();
+		spokenTurn = false;
+		openingSpoken = null;
 
 		// Phase 10.1: Classify suggestion outcome before clearing input
 		var suggResult = classifySuggestionOutcome(text, lastSuggestion);
@@ -2399,7 +2427,7 @@ function t(key, fallback) {
 								var opening = DefVoice.firstSentence(streamBuffer);
 								if (opening) {
 									openingSpoken = opening;
-									speaker.speak(opening, currentConversationId);
+									speaker.speak(opening);
 								}
 							}
 							if (!wordDrainTimer) {
@@ -2428,6 +2456,9 @@ function t(key, fallback) {
 
 						var toolOutputs = finalMessage.tool_outputs || [];
 
+						// A server that never sent `transcript` (it predates the voice stream)
+						// answered an empty message: the unfilled bubble must not stay.
+						if (dropUnfilledTranscript()) renderMessages();
 						messages.push({
 							role: 'assistant',
 							content: finalContent,
@@ -2513,6 +2544,8 @@ function t(key, fallback) {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
 						removeTypingMessage();
+						if (conversationOn) endConversation();   // no listening again over a failed turn
+						dropUnfilledTranscript();
 						// If text already streamed, leave it visible — finalise the
 						// bubble and surface the error separately. Match Customer
 						// Chat's pattern: don't renderMessages() and wipe what the
@@ -2578,6 +2611,7 @@ function t(key, fallback) {
 			var recovered = _turnReachedServer && currentConversationId && await recoverTurn();
 			if (!recovered) {
 				removeTypingMessage();
+				dropUnfilledTranscript();
 				renderMessages();
 				showError(_turnReachedServer && currentConversationId
 					? t('stillWorking', 'Your assistant is still working on this — reopen the chat in a minute to see the reply.')
