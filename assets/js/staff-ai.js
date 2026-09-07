@@ -1911,7 +1911,25 @@ function t(key, fallback) {
 				voiceBtn.title = voiceModeLabel(speaker.getMode());
 			};
 			onAssistantName(paint);
+			// A long press (or right-click) shows what the phone did with the voice —
+			// the canary's own account, on the device (7.7.4).
+			var showVoiceLog = function (e) {
+				if (e && e.preventDefault) e.preventDefault();
+				var lines = DefVoice.log().slice(-14);
+				showInfo(lines.length ? lines.join(' · ') : t('voiceLogEmpty', 'No voice events yet.'));
+			};
+			var pressTimer = null, pressShown = false;
+			voiceBtn.addEventListener('contextmenu', function (e) {
+				// Android fires this itself at ~500 ms and swallows the click; the timer must not also fire.
+				if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+				showVoiceLog(e);
+			});
+			voiceBtn.addEventListener('touchstart', function () { pressTimer = setTimeout(function () { pressTimer = null; pressShown = true; showVoiceLog(); }, 650); }, { passive: true });
+			['touchend', 'touchcancel', 'touchmove'].forEach(function (name) {
+				voiceBtn.addEventListener(name, function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }, { passive: true });
+			});
 			voiceBtn.addEventListener('click', function () {
+				if (pressShown) { pressShown = false; return; }   // the click that ends a long press is not a cycle
 				var next = VOICE_MODES[(VOICE_MODES.indexOf(speaker.getMode()) + 1) % VOICE_MODES.length];
 				speaker.stop();
 				speaker.setMode(next);

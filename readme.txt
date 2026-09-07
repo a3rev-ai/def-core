@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.3
+Stable tag: 7.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.4 - 2026-09-07 =
+* Fix - Staff AI voice: your assistant's voice now plays every line of every reply. The phone was playing the first clip after the microphone tap and refusing the rest; playback now goes through the audio session that tap unlocked, which plays clip after clip. Long-press the Voice button to see a short log of what the device did with the voice.
 
 = 7.7.3 - 2026-09-07 =
 * Fix - Staff AI voice: the closing line of a spoken reply is read aloud again (it was dropped after the opening). Playback stays on the loudspeaker between turns. Room noise no longer counts as speech, so a quiet pause after you speak sends and a silent room does not. When the microphone closes because nothing was said for ten seconds, the message now says so. If the device refuses to play your assistant's voice, the console shows the device's own reason.
