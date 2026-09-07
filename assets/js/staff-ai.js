@@ -4525,6 +4525,9 @@ function t(key, fallback) {
 			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
 			menu.addEventListener('focusout', function (e) {
+				// Focus returning to the ⋯ button is its own click arriving: leave the
+				// menu up so that click performs the normal toggle-close.
+				if (e.relatedTarget === anchor) return;
 				if (!menu.contains(e.relatedTarget)) { closeManageMenu(false); }
 			});
 
