@@ -4157,7 +4157,7 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// One entry, in the footer (P-D5, 7.7.7): Ask Sue IS the help layer, and
+		// One entry, in the footer (P-D5, 7.7.10): Ask Sue IS the help layer, and
 		// the footer keeps it in view however far the project list is scrolled —
 		// the intro button used to disappear behind the list, which is exactly
 		// where a confused user was looking. Kept as a querySelectorAll so a
@@ -4257,7 +4257,7 @@ function t(key, fallback) {
 			}
 		}
 
-		// P-D5 (7.7.7): the project CARD. It reads top to bottom as a workspace —
+		// P-D5 (7.7.10): the project CARD. It reads top to bottom as a workspace —
 		// what project, what to do next, what is inside it, and last (and
 		// separated) how to manage it. One filled action per card; the
 		// low-frequency management lives behind the ⋯ menu.

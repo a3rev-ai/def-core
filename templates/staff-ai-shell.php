@@ -522,7 +522,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		     assistant maintaining the documents, P-C scheduled runs inside a project,
 		     P-D (D-P14) the doorway — the chat IS the onboarding: "Ask <assistant> how
 		     Projects work" opens a chat that walks the user through it and can create
-		     the project. P-D5 (7.7.7): every project is a CARD - name and status,
+		     the project. P-D5 (7.7.10): every project is a CARD - name and status,
 		     one filled Open Project, its governing documents in reach, and the
 		     low-frequency management actions behind a single three-dot menu. -->
 		<div class="modal-overlay" id="projectsModal">
@@ -544,7 +544,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="documents-list projects-list" id="projectsList"></div>
 				</div>
 				<div class="modal-footer">
-					<!-- Ask Sue IS the help layer (P-D5, 7.7.7): the panel carries no
+					<!-- Ask Sue IS the help layer (P-D5, 7.7.10): the panel carries no
 					     explainer paragraph, and the one Ask entry lives in the footer,
 					     where it stays in view however far the project list is scrolled. -->
 					<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
