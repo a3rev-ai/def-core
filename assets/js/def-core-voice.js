@@ -28,6 +28,15 @@ window.DefVoice = (function () {
 		return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 	}
 
+	// A site can forbid the microphone for every visitor with a Permissions-Policy
+	// header (security hardening does it by default); Chrome then refuses without
+	// asking, which read as "permission denied" on two phones (2026-09-07, a3rev.com).
+	// false = the site itself blocks it; true = allowed, or the browser can't say.
+	function micAllowedBySite() {
+		var policy = document.featurePolicy || document.permissionsPolicy;
+		try { return !policy || policy.allowsFeature('microphone') !== false; } catch (e) { return true; }
+	}
+
 	// One AudioContext for the page, made and started inside the first mic tap (a
 	// context made outside a gesture never runs on iOS). The recorder's analyser
 	// hangs off it and the employee's voice plays THROUGH it — the way a phone
@@ -297,7 +306,9 @@ window.DefVoice = (function () {
 			return new Promise(function (resolve) {
 				if (!window.speechSynthesis) { resolve(); return; }
 				var utterance = new SpeechSynthesisUtterance(text);
-				utterance.lang = document.documentElement.lang || navigator.language;
+				// The device's own language first: a Vietnamese phone reads a Vietnamese
+				// reply in a Vietnamese voice, whatever language the page is served in.
+				utterance.lang = navigator.language || document.documentElement.lang;
 				utterance.onend = resolve;
 				utterance.onerror = resolve;
 				speechSynthesis.speak(utterance);
@@ -458,6 +469,7 @@ window.DefVoice = (function () {
 
 	return {
 		supported: supported,
+		micAllowedBySite: micAllowedBySite,
 		createRecorder: createRecorder,
 		createSpeaker: createSpeaker,
 		toBase64: toBase64,
