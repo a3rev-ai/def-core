@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.2
+Stable tag: 7.7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.3 - 2026-09-07 =
+* Fix - Staff AI voice: the closing line of a spoken reply is read aloud again (it was dropped after the opening). Playback stays on the loudspeaker between turns. Room noise no longer counts as speech, so a quiet pause after you speak sends and a silent room does not. When the microphone closes because nothing was said for ten seconds, the message now says so. If the device refuses to play your assistant's voice, the console shows the device's own reason.
 
 = 7.7.2 - 2026-09-07 =
 * Fix - Staff AI voice: your assistant's voice is heard through the loudspeaker again. The microphone is now released the moment your recording stops (an open microphone sends an iPhone's playback to the earpiece) and taken again for your next turn. A photo or file attached before you speak now goes with the spoken message, exactly as with a typed one. A budget or billing notice ahead of a reply is shown but no longer read aloud.

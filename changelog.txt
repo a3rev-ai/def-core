@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.7.3 - 2026/09/07 =
+* Fix - Staff AI voice: the closing line of a spoken reply is read aloud again (it was dropped after the opening). Playback stays on the loudspeaker between turns. Room noise no longer counts as speech, so a quiet pause after you speak sends and a silent room does not. When the microphone closes because nothing was said for ten seconds, the message now says so. If the device refuses to play your assistant's voice, the console shows the device's own reason.
+
 = 7.7.2 - 2026/09/07 =
 * Fix - Staff AI voice: your assistant's voice is heard through the loudspeaker again. The microphone is now released the moment your recording stops (an open microphone sends an iPhone's playback to the earpiece) and taken again for your next turn. A photo or file attached before you speak now goes with the spoken message, exactly as with a typed one. A budget or billing notice ahead of a reply is shown but no longer read aloud.
 

@@ -1892,7 +1892,15 @@ function t(key, fallback) {
 			if (voiceBtn) voiceBtn.hidden = true;
 			return;
 		}
-		speaker = DefVoice.createSpeaker();
+		speaker = DefVoice.createSpeaker({
+			onError: function (e) {
+				// The browser's own reason (NotAllowedError, NotSupportedError…): a canary
+				// on a phone reports the cause instead of a silence.
+				showInfo(t('voicePlaybackFailed', "Couldn't play %s's voice on this device (%e).")
+					.replace('%s', assistantName || t('assistant', 'Your assistant'))
+					.replace('%e', (e && (e.name && e.name !== 'Error' ? e.name : e.message)) || 'unknown'));
+			}
+		});
 		var saved = null;
 		try { saved = localStorage.getItem(VOICE_MODE_KEY); } catch (e) { /* storage blocked */ }
 		speaker.setMode(VOICE_MODES.indexOf(saved) >= 0 ? saved : 'server');
@@ -1918,7 +1926,7 @@ function t(key, fallback) {
 			},
 			onAutoStop: finishRecording,
 			onSilence: finishRecording,
-			onIdle: function () { endConversation(t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.')); }
+			onIdle: function () { endConversation(t('micClosedIdle', 'The mic closed — tap it to speak again.')); }
 		});
 		micBtn.addEventListener('click', function () {
 			if (voiceRecorder.isRecording()) { finishRecording(); return; }
@@ -2053,6 +2061,10 @@ function t(key, fallback) {
 	// After every turn (the stream's finally): hands-free listens again once the
 	// employee has finished speaking; otherwise the pill goes back to the mic.
 	function afterSpokenTurn() {
+		// The turn is over only here: the closing line's audio arrives AFTER `done`
+		// (7.7.2 cleared the flag at done and never played it).
+		spokenTurn = false;
+		openingSpoken = null;
 		if (!micBtn || !speaker) return;
 		if (!conversationOn) {
 			voiceRecorder.release();   // whatever the turn left open, the mic is off now
@@ -2068,9 +2080,7 @@ function t(key, fallback) {
 	// it streamed; the closing line waits for the whole reply. A one-line reply is
 	// read once. The employee's own voice arrives as `speech` frames instead.
 	function readBack(finalContent) {
-		if (!spokenTurn) return;
-		spokenTurn = false;
-		if (speaker.getMode() !== 'device') return;
+		if (!spokenTurn || speaker.getMode() !== 'device') return;
 		if (readbackBuffer.trim()) finalContent = readbackBuffer;   // the reply as streamed, notices excluded
 		if (openingSpoken === null) {
 			var opening = DefVoice.firstSentence(finalContent + ' ');
