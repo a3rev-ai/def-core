@@ -28,6 +28,7 @@
 		transcribing: 'Transcribing\u2026',
 		answering: 'Answering\u2026 tap the mic to end',
 		voiceNeedsStreaming: 'Voice needs a browser that can stream replies.',
+		voiceLogEmpty: 'No voice events yet.',
 		clearChat: 'Clear conversation & start fresh',
 		clearConfirmTitle: 'Clear conversation?',
 		clearConfirmDesc:
@@ -205,6 +206,7 @@
 	var isComposerDisabled = false;
 	var dirtyInput = false;
 	var lastSuggestion = null;       // Phase 10.1: last suggestion shown
+	var lastUserText = '';           // the previous message: the next recording's transcription context (7.7.9)
 
 	// Upload state.
 	var stagedFiles = [];
@@ -647,7 +649,8 @@
 		micBtn.type = 'button';
 		micBtn.setAttribute('aria-label', t('micStart'));
 		micBtn.innerHTML =
-			'<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+			'<svg class="def-cc-mic-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'
+			+ '<svg class="def-cc-mic-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 		micBtn.style.display = 'none';
 		micBtn.addEventListener('click', handleMicClick);
 		els.micBtn = micBtn;
@@ -1941,6 +1944,10 @@
 			body.audio_mime = voice.audio_mime;
 			body.audio_seconds = voice.audio_seconds;
 			body.speech_out = true;
+			// The previous message anchors the vendor's language on a short clip (7.7.9).
+			// Cut by code point: a slice through an emoji would leave a half character the
+			// server refuses, and the whole spoken turn with it.
+			if (lastUserText) body.audio_context = Array.from(lastUserText).slice(0, 200).join('');
 		}
 
 		// Page Context Build Plan V1.1 Sub-PR C: splice the
@@ -2015,7 +2022,10 @@
 			onSilence: finishRecording,
 			onIdle: function () { endConversation(t('micClosedIdle')); },
 		});
-		if (els.micBtn) els.micBtn.style.display = '';
+		if (els.micBtn) {
+			bindVoiceLog(els.micBtn);
+			els.micBtn.style.display = '';
+		}
 	}
 
 	// The mic's state paints the button; the composer placeholder says what is happening.
@@ -2027,7 +2037,29 @@
 		els.input.placeholder = placeholder || composerPlaceholder;
 	}
 
+	// A long press (or right-click) on the mic shows what the phone did with the voice —
+	// the canary's own account, on the device; Android fires contextmenu itself at ~500 ms.
+	var pressTimer = null, pressShown = false;
+	function showVoiceLog(e) {
+		if (e && e.preventDefault) e.preventDefault();
+		var lines = window.DefVoice ? window.DefVoice.log().slice(-14) : [];
+		appendMessage('assistant', lines.length ? lines.join(' \u00b7 ') : t('voiceLogEmpty'));
+	}
+	function bindVoiceLog(btn) {
+		btn.addEventListener('contextmenu', function (e) {
+			if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+			showVoiceLog(e);
+		});
+		btn.addEventListener('touchstart', function () {
+			pressTimer = setTimeout(function () { pressTimer = null; pressShown = true; showVoiceLog(); }, 650);
+		}, { passive: true });
+		['touchend', 'touchcancel', 'touchmove'].forEach(function (name) {
+			btn.addEventListener(name, function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }, { passive: true });
+		});
+	}
+
 	function handleMicClick() {
+		if (pressShown) { pressShown = false; return; }   // the click that ends a long press is not a tap
 		if (!voiceRecorder || destroyed) return;
 		if (voiceRecorder.isRecording()) { finishRecording(); return; }
 		if (conversationOn) { endConversation(); return; }   // it is answering or speaking
@@ -2422,6 +2454,7 @@
 						}
 					}
 
+					if (text) lastUserText = text;
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'transcript':
@@ -4072,6 +4105,7 @@
 	}
 
 	function clearConversation() {
+		lastUserText = '';
 		// Remove thread from local history.
 		if (threadId) {
 			localThreads = localThreads.filter(function (t) {

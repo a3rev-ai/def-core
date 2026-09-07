@@ -2089,6 +2089,10 @@ function t(key, fallback) {
 		readbackBuffer = '';
 		readbackCut = 0;
 		voice.speech_out = speaker.getMode() === 'server';
+		// The previous message anchors the vendor's language on a short clip (7.7.9).
+		for (var pi = messages.length - 1; pi >= 0; pi--) {
+			if (messages[pi].role === 'user' && messages[pi].content && !messages[pi].transcribing) { voice.audio_context = Array.from(String(messages[pi].content)).slice(0, 200).join(''); break; }   // by code point: never a half character
+		}
 		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
 		await sendMessageStreaming('', fileIds, null, null, voice);
 	}
@@ -2333,6 +2337,7 @@ function t(key, fallback) {
 				requestBody.audio_mime = voice.audio_mime;
 				requestBody.audio_seconds = voice.audio_seconds;
 				requestBody.speech_out = !!voice.speech_out;
+				if (voice.audio_context) requestBody.audio_context = voice.audio_context;
 			}
 			// Phase 10.1: Add suggestion feedback signal
 			if (pendingOutcome) {

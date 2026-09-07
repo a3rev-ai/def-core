@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.8
+Stable tag: 7.7.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.9 - 2026-09-07 =
+* Update - Voice: the Customer Chat microphone now shows plainly what it is doing - solid and pulsing while it listens, solid while it transcribes, a stop mark while the employee answers (tap it to end). A long press on the microphone shows what the phone did with the voice, for support. On both Customer Chat and Staff AI a spoken question is now transcribed with the conversation as context, so a short "Hi, Bruce" stays in the conversation's language, and the employee restates what it will do only when there is something to do - plain conversation is answered once. Needs the platform release of the same day.
 
 = 7.7.8 - 2026-09-07 =
 * Feature - Customer Chat voice: when the tenant switches the customer employee's Voice on (the Employees page of the tenant portal, with a Voice key on its APIs page), the chat widget shows a microphone beside Send. Visitors tap it and speak: a pause sends, their words appear as their message, the reply is read aloud in the employee's own voice, and the microphone opens again for the next question. A tap while it answers ends the conversation; ten quiet seconds end it too. Off by default - nothing changes on a site until the switch is on. Site admins: the microphone needs the site to allow it (`microphone=(self)` in the site's Permissions-Policy header, if one is set).
