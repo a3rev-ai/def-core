@@ -94,7 +94,9 @@ final class DEF_Core_Tools {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function rest_proxy_chat_voice( $request ) {
-		$headers = self::build_proxy_headers();
+		// No visitor IP: this fires when the panel opens, not on a send, and the readme
+		// promises the IP travels only with a message. DEF's answer does not use it.
+		$headers = self::build_proxy_headers( false, false );
 		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/customer/voice';
 		return self::json_proxy_get( $def_url, $headers );
 	}

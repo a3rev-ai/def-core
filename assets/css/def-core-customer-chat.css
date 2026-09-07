@@ -846,33 +846,7 @@
 	stroke-linejoin: round;
 }
 
-.def-cc-composer-attach {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 44px;
-	height: 44px;
-	border: none;
-	border-radius: var(--def-cc-radius-control);
-	background: transparent;
-	color: var(--def-cc-text-light);
-	cursor: pointer;
-	flex-shrink: 0;
-	transition: background 0.15s ease, color 0.15s ease;
-}
-
-.def-cc-composer-attach:hover {
-	background: var(--def-cc-bg-hover);
-	color: var(--def-cc-text);
-}
-
-.def-cc-composer-attach:disabled {
-	color: var(--def-cc-disabled-text);
-	cursor: not-allowed;
-}
-
-/* Voice (7.7.8) — the mic beside Send, shown when the employee takes spoken turns;
-   its state paints it: listening pulses, transcribing/answering hold the accent. */
+.def-cc-composer-attach,
 .def-cc-composer-mic {
 	display: inline-flex;
 	align-items: center;
@@ -888,26 +862,21 @@
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
+.def-cc-composer-attach:hover,
 .def-cc-composer-mic:hover {
 	background: var(--def-cc-bg-hover);
 	color: var(--def-cc-text);
 }
 
+.def-cc-composer-attach:disabled,
 .def-cc-composer-mic:disabled {
 	color: var(--def-cc-disabled-text);
 	cursor: not-allowed;
 }
 
-.def-cc-composer-mic svg {
-	width: 18px;
-	height: 18px;
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 2;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-}
-
+/* Voice (7.7.8) — the mic beside Send (the attach button's rules above), shown when
+   the employee takes spoken turns; its state paints it: listening pulses,
+   transcribing/answering hold the accent. */
 .def-cc-composer-mic[data-state="listening"],
 .def-cc-composer-mic[data-state="transcribing"],
 .def-cc-composer-mic[data-state="answering"] {
@@ -928,7 +897,8 @@
 	font-style: italic;
 }
 
-.def-cc-composer-attach svg {
+.def-cc-composer-attach svg,
+.def-cc-composer-mic svg {
 	width: 18px;
 	height: 18px;
 	fill: none;

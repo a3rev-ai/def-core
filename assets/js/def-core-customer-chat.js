@@ -2022,6 +2022,7 @@
 	function setMicState(state, placeholder) {
 		if (!els.micBtn || !els.input) return;
 		els.micBtn.dataset.state = state;
+		els.micBtn.setAttribute('aria-label', placeholder || t('micStart'));
 		if (!composerPlaceholder) composerPlaceholder = els.input.placeholder;
 		els.input.placeholder = placeholder || composerPlaceholder;
 	}
@@ -2031,6 +2032,13 @@
 		if (voiceRecorder.isRecording()) { finishRecording(); return; }
 		if (conversationOn) { endConversation(); return; }   // it is answering or speaking
 		if (isComposerDisabled) return;
+		if (els.input.classList.contains('def-cc-suggestion-text')) {
+			// A ghost suggestion would hide the mic's status (the placeholder).
+			els.input.value = '';
+			setState(els.input, 'def-cc-suggestion-text', false);
+			autoResizeInput();
+			updateSendButton();
+		}
 		if (!window.DefVoice.micAllowedBySite()) {
 			// The site's own security headers forbid it: no prompt will ever appear.
 			appendMessage('assistant', t('micBlockedBySite'));
@@ -2122,7 +2130,7 @@
 				if (!conversationOn) { setComposerDisabled(false); return; }   // a tap to end during the upload wins
 				if (window.DefResultCards) window.DefResultCards.resetTurn();
 				transcribingEl = appendUserMessage(t('transcribing'), fileIds);
-				transcribingEl.parentNode.classList.add('def-cc-message--transcribing');
+				setState(transcribingEl.parentNode, 'def-cc-message--transcribing', true);
 				clearStagedFiles();
 				var thinkingEl = showThinking();
 				var req = buildTurnRequest('', fileIds, voice);
@@ -2421,7 +2429,8 @@
 					// before any text streams; the thread history records them as the turn.
 					text = evt.text || '';
 					if (transcribingEl) {
-						transcribingEl.firstChild.nodeValue = text;
+						if (transcribingEl.firstChild && transcribingEl.firstChild.nodeType === 3) transcribingEl.firstChild.nodeValue = text;
+						else transcribingEl.insertBefore(document.createTextNode(text), transcribingEl.firstChild);
 						setState(transcribingEl.parentNode, 'def-cc-message--transcribing', false);
 						transcribingEl = null;
 					}
@@ -2438,7 +2447,9 @@
 					break;
 				case 'suggestions':
 					lastSuggestion = evt.suggestion || null;
-					if (!dirtyInput && els.input && evt.suggestion) {
+					// Not during a live conversation: the ghost text would hide the composer
+					// placeholder, which is where the mic says what it is doing.
+					if (!dirtyInput && !conversationOn && els.input && evt.suggestion) {
 						els.input.value = evt.suggestion;
 						setState(els.input, 'def-cc-suggestion-text', true);
 						autoResizeInput();
@@ -2471,9 +2482,13 @@
 					displayedLen = 0;
 					thinkingStatusEl = null;
 					persona.reset();  // V2: symmetry with done-branch reset
-					if (conversationOn) endConversation();   // no listening again over a failed turn
+					// A voice refusal before the stream (the proxy carries DEF's status, not its
+					// words): a silent clip and a vendor failure get their own lines, the rest
+					// the proxy's. No listening again over a failed turn.
+					var spokenRefusal = transcribingEl && ({ 422: t('nothingHeard'), 502: t('transcribeFailed') })[evt.status];
+					if (conversationOn) endConversation();
 					dropUnfilledTranscript();
-					appendMessage('assistant', evt.message || t('connectionError'));
+					appendMessage('assistant', spokenRefusal || evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;
 			}
@@ -2574,6 +2589,8 @@
 				displayedLen = 0;
 				thinkingStatusEl = null;
 				persona.reset();
+				if (conversationOn) endConversation();   // a lost stream is not a turn to listen again over
+				dropUnfilledTranscript();
 				appendMessage('assistant', t('streamIncomplete'));
 				setComposerDisabled(false);
 			})
