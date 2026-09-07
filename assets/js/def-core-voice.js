@@ -17,7 +17,7 @@ window.DefVoice = (function () {
 	var SILENCE_MS = 1800;
 	var IDLE_MS = 10000;
 	var SPEECH_RMS = 0.02;   // a voice at phone distance sits well above; room tone below
-	var SPEECH_SAMPLES = 3;  // 300 ms above it before it counts as speech
+	var SPEECH_SAMPLES = 2;  // two loud 100 ms reads before it counts as speech (a hand shift is one)
 	// Safari (iPhone) records audio/mp4; Chrome (Android/desktop) webm+opus.
 	var MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
 	// A 46-byte silent WAV. Playing it INSIDE the mic-tap gesture is what lets
@@ -83,9 +83,13 @@ window.DefVoice = (function () {
 		function stopCapture() {
 			if (source) { try { source.disconnect(); } catch (e) { /* already gone */ } source = null; }
 			if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); stream = null; }
-			// A running context keeps an iPhone's audio session in record mode even
-			// with the mic gone — playback then goes to the earpiece. Suspended
-			// between turns; start() resumes it (the tap unlocked it for the page).
+		}
+
+		// A running context keeps an iPhone's audio session in record mode even
+		// with the mic gone — playback then goes to the earpiece. Slept once a
+		// recording ends (never inside openCapture, which would put the detector
+		// to sleep for the turn); start() resumes it — the tap unlocked it.
+		function sleepContext() {
 			if (audioCtx && audioCtx.state === 'running') { try { audioCtx.suspend(); } catch (e) { /* closing */ } }
 		}
 
@@ -147,7 +151,7 @@ window.DefVoice = (function () {
 				if (loudRun >= SPEECH_SAMPLES) { spokeAt = now; quietSince = 0; }
 				return;
 			}
-			loudRun = 0;
+			if (loudRun) loudRun -= 1;   // decays, so a stop consonant mid-word does not reset it
 			if (spokeAt) {
 				if (!quietSince) quietSince = now;
 				if (now - quietSince >= SILENCE_MS && handlers.onSilence) { stopTimers(); handlers.onSilence(); }
@@ -162,7 +166,15 @@ window.DefVoice = (function () {
 			starting = true;
 			try {
 				ensureContext();
-				if (audioCtx && audioCtx.state !== 'running') { try { await audioCtx.resume(); } catch (e) { /* the tap decides */ } }
+				if (audioCtx && audioCtx.state !== 'running') {
+					// Outside a gesture (a hands-free turn) a phone may refuse, or never
+					// answer; a mic with no silence or idle stop is not opened blind — the
+					// caller shows "tap to speak again", and the tap resumes it.
+					try {
+						await Promise.race([audioCtx.resume(), new Promise(function (r) { setTimeout(r, 1500); })]);
+					} catch (e) { /* judged below */ }
+					if (audioCtx.state !== 'running') throw new Error('Silence detection unavailable until the next tap');
+				}
 				await openCapture();
 			} finally {
 				starting = false;
@@ -192,6 +204,7 @@ window.DefVoice = (function () {
 				// No live detector → assume speech: the tap decides.
 				var spoke = !!spokeAt || !detecting();
 				stopCapture();   // the mic is off before a word of the reply plays
+				sleepContext();
 				if (resolve) resolve({ blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: spoke });
 			};
 			startedAt = Date.now();
@@ -206,7 +219,7 @@ window.DefVoice = (function () {
 
 		function stop() {
 			return new Promise(function (resolve) {
-				if (!recorder || recorder.state === 'inactive') { stopTimers(); recorder = null; stopCapture(); resolve(null); return; }
+				if (!recorder || recorder.state === 'inactive') { stopTimers(); recorder = null; stopCapture(); sleepContext(); resolve(null); return; }
 				pending = resolve;
 				recorder.stop();
 			});
@@ -228,6 +241,8 @@ window.DefVoice = (function () {
 	 * gets read). Lines play in order; whenIdle() resolves once nothing is left —
 	 * hands-free listens again on that. unlock() must run inside the user's
 	 * gesture — the mic tap — because iOS starts audio only from one.
+	 * handlers.onError(e) hears every line that failed to play (the browser's
+	 * own error), so a consumer can put the reason on screen.
 	 */
 	function createSpeaker(handlers) {
 		handlers = handlers || {};

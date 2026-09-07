@@ -1898,7 +1898,7 @@ function t(key, fallback) {
 				// on a phone reports the cause instead of a silence.
 				showInfo(t('voicePlaybackFailed', "Couldn't play %s's voice on this device (%e).")
 					.replace('%s', assistantName || t('assistant', 'Your assistant'))
-					.replace('%e', (e && (e.name || e.message)) || 'unknown'));
+					.replace('%e', (e && (e.name && e.name !== 'Error' ? e.name : e.message)) || 'unknown'));
 			}
 		});
 		var saved = null;
