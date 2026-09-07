@@ -175,6 +175,12 @@ $status = $_wp_test_rest_routes[ $ns . '/staff-ai/status' ]['permission_callback
 assert_test( is_callable( $stream ), 'chat/stream passthrough captured' );
 assert_test( is_callable( $status ), 'status passthrough captured' );
 
+// Customer Chat voice (7.7.8): the widget's open-time read is a public GET proxied to
+// DEF's customer voice status — anonymous visitors included, like /chat/stream.
+$voice = $_wp_test_rest_routes[ $ns . '/chat/voice' ] ?? null;
+assert_test( is_array( $voice ) && 'GET' === ( $voice['methods'] ?? null ) && '__return_true' === ( $voice['permission_callback'] ?? null ), 'chat/voice: a public GET' );
+assert_test( is_array( $voice ) && array( 'DEF_Core_Tools', 'rest_proxy_chat_voice' ) === ( $voice['callback'] ?? null ), 'chat/voice: proxied by rest_proxy_chat_voice' );
+
 foreach ( array( 'chat/stream' => $stream, 'status' => $status ) as $name => $cb ) {
 	as_user( null, array() );
 	assert_test( false === $cb(), "$name: anonymous still gets bare false (401 shape untouched)" );

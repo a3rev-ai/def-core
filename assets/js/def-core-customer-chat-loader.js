@@ -691,19 +691,23 @@
 		if (!config.productCardsScriptUrl) {
 			console.warn('[def-cc] productCardsScriptUrl missing from DEFCore — PHP/JS version skew?');
 		}
+		// The voice module (7.7.8) sits before the chat module; an older PHP without
+		// voiceModuleUrl skips it and the widget simply shows no mic.
 		loadScript(config.markedUrl, function () {
 			loadScript(config.purifyUrl, function () {
 				loadScript(config.productCardsScriptUrl, function () {
-					loadScript(config.chatModuleUrl, function () {
-						moduleLoading = false;
-						moduleLoaded = true;
+					loadScript(config.voiceModuleUrl, function () {
+						loadScript(config.chatModuleUrl, function () {
+							moduleLoading = false;
+							moduleLoaded = true;
 
-						if (
-							window.DEFCustomerChat &&
-							typeof window.DEFCustomerChat.init === 'function'
-						) {
-							window.DEFCustomerChat.init(shadowRoot, config);
-						}
+							if (
+								window.DEFCustomerChat &&
+								typeof window.DEFCustomerChat.init === 'function'
+							) {
+								window.DEFCustomerChat.init(shadowRoot, config);
+							}
+						});
 					});
 				});
 			});

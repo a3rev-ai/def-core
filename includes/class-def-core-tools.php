@@ -87,6 +87,21 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * BFF proxy — whether the customer employee takes a spoken turn: its Voice switch on
+	 * and a speech key on the tenant (7.7.8). The widget shows its mic on `enabled`.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_chat_voice( $request ) {
+		// No visitor IP: this fires when the panel opens, not on a send, and the readme
+		// promises the IP travels only with a message. DEF's answer does not use it.
+		$headers = self::build_proxy_headers( false, false );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/customer/voice';
+		return self::json_proxy_get( $def_url, $headers );
+	}
+
+	/**
 	 * SSE streaming proxy — forwards request to DEF and streams response back.
 	 *
 	 * @param string $url     DEF backend URL.

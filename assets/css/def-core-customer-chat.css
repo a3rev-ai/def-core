@@ -846,7 +846,8 @@
 	stroke-linejoin: round;
 }
 
-.def-cc-composer-attach {
+.def-cc-composer-attach,
+.def-cc-composer-mic {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -861,17 +862,43 @@
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
-.def-cc-composer-attach:hover {
+.def-cc-composer-attach:hover,
+.def-cc-composer-mic:hover {
 	background: var(--def-cc-bg-hover);
 	color: var(--def-cc-text);
 }
 
-.def-cc-composer-attach:disabled {
+.def-cc-composer-attach:disabled,
+.def-cc-composer-mic:disabled {
 	color: var(--def-cc-disabled-text);
 	cursor: not-allowed;
 }
 
-.def-cc-composer-attach svg {
+/* Voice (7.7.8) — the mic beside Send (the attach button's rules above), shown when
+   the employee takes spoken turns; its state paints it: listening pulses,
+   transcribing/answering hold the accent. */
+.def-cc-composer-mic[data-state="listening"],
+.def-cc-composer-mic[data-state="transcribing"],
+.def-cc-composer-mic[data-state="answering"] {
+	color: var(--def-cc-primary);
+}
+
+.def-cc-composer-mic[data-state="listening"] {
+	animation: def-cc-mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes def-cc-mic-pulse {
+	0%, 100% { box-shadow: 0 0 0 0 transparent; }
+	50% { box-shadow: 0 0 0 6px var(--def-cc-bg-hover); }
+}
+
+.def-cc-message--transcribing .def-cc-message-content {
+	opacity: 0.6;
+	font-style: italic;
+}
+
+.def-cc-composer-attach svg,
+.def-cc-composer-mic svg {
 	width: 18px;
 	height: 18px;
 	fill: none;

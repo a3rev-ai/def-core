@@ -15,6 +15,19 @@
 	// ─── 1. DEFAULTS + i18n ────────────────────────────────────────
 
 	var DEFAULT_STRINGS = {
+		micStart: 'Speak',
+		micBlockedBySite: "This site's security settings block the microphone for every visitor (Permissions-Policy). The site admin needs to allow it for this site.",
+		micDenied: 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.',
+		micNotFound: 'No microphone was found on this device.',
+		micFailed: "The microphone couldn't start (%e).",
+		tapToSpeakAgain: 'Tap the mic to speak again.',
+		micClosedIdle: 'The mic closed \u2014 tap it to speak again.',
+		nothingHeard: 'Nothing was heard. Try again a little closer to the microphone.',
+		transcribeFailed: 'That recording could not be transcribed. Please try again.',
+		listening: "Listening\u2026 pause when you're done, or tap to send",
+		transcribing: 'Transcribing\u2026',
+		answering: 'Answering\u2026 tap the mic to end',
+		voiceNeedsStreaming: 'Voice needs a browser that can stream replies.',
 		clearChat: 'Clear conversation & start fresh',
 		clearConfirmTitle: 'Clear conversation?',
 		clearConfirmDesc:
@@ -196,6 +209,14 @@
 	// Upload state.
 	var stagedFiles = [];
 	var uploadEligible = false;
+	// Voice (7.7.8): the employee's Voice switch is on and the tenant has a speech
+	// key (GET chat/voice at open) — the mic then shows. One module shared with Staff AI.
+	var voiceRecorder = null;
+	var speaker = null;
+	var conversationOn = false;   // the hands-free loop, until the mic is tapped or the room stays quiet
+	var spokenTurn = false;       // the turn in flight was spoken: its reply is read back
+	var transcribingEl = null;    // the user bubble waiting for the server's transcript
+	var composerPlaceholder = '';
 	var fileIdCounter = 0;
 	var dragCounter = 0;
 
@@ -620,6 +641,17 @@
 
 		els.input = input;
 		form.appendChild(input);
+
+		// Mic (7.7.8) — hidden until the voice check says the employee takes spoken turns.
+		var micBtn = el('button', 'def-cc-composer-mic');
+		micBtn.type = 'button';
+		micBtn.setAttribute('aria-label', t('micStart'));
+		micBtn.innerHTML =
+			'<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+		micBtn.style.display = 'none';
+		micBtn.addEventListener('click', handleMicClick);
+		els.micBtn = micBtn;
+		form.appendChild(micBtn);
 
 		// Send button.
 		var sendBtn = el('button', 'def-cc-composer-send');
@@ -1827,6 +1859,8 @@
 		}
 		if (!text && !hasFiles) return;
 
+		// Typing is the choice to type: a live conversation ends here.
+		if (conversationOn) endConversation();
 		setComposerDisabled(true);
 
 		// Upload files first if any.
@@ -1867,67 +1901,264 @@
 				// Show thinking indicator.
 				var thinkingEl = showThinking();
 
-				// Build request body.
-				var msgPayload = {
-					role: 'user',
-					content: text || 'Please analyze the attached file(s).',
-				};
-				if (fileIds.length > 0) {
-					msgPayload.attachments = fileIds.map(function (id) {
-						return { file_id: id };
-					});
-				}
-
-				var body = {
-					messages: [msgPayload],
-					thread_id: threadId || null,
-					continue_thread: isContinuing,
-				};
-
-				// Page Context Build Plan V1.1 Sub-PR C: splice the
-				// page_context payload (current page + first-message
-				// pre_chat_trail) into the request body. The helper is
-				// loaded BEFORE this module via the def-core-page-context
-				// dependency on the customer-chat loader. Defensive
-				// presence check covers the rare case where the helper
-				// failed to load (silent degrade — chat still works,
-				// just without page context).
-				if (window.DefCorePageContextHelper && typeof window.DefCorePageContextHelper.build === 'function') {
-					try {
-						body.page_context = window.DefCorePageContextHelper.build(threadId || null);
-					} catch (e) {
-						// Silent degrade — chat turn still proceeds.
-					}
-				}
-
-				// Phase 10.1: Add suggestion feedback signal
-				var suggResult = classifySuggestionOutcome(text, lastSuggestion);
-				if (suggResult.outcome) {
-					body.suggestion_outcome = suggResult.outcome;
-					body.similarity_score = suggResult.score;
-				}
-				lastSuggestion = null;
-
-				// Headers — chat goes through WP proxy (no Authorization needed).
-				var headers = {
-					'Content-Type': 'application/json',
-					'X-WP-Nonce': config.nonce,
-				};
-				// Forward Cart-Token for DEF's sync get_cart tool.
-				if (wcCartToken) {
-					headers['Cart-Token'] = wcCartToken;
-				}
+				var req = buildTurnRequest(text, fileIds, null);
 
 				// Feature detection: stream if ReadableStream supported
 				if (typeof ReadableStream !== 'undefined') {
-					sendMessageStreaming(text, body, headers, thinkingEl);
+					sendMessageStreaming(text, req.body, req.headers, thinkingEl);
 				} else {
-					sendMessageSync(text, body, headers, thinkingEl);
+					sendMessageSync(text, req.body, req.headers, thinkingEl);
 				}
 			})
 			.catch(function (err) {
 				handleChatError(err, root ? root.querySelector('.def-cc-message--thinking') : null);
 			});
+	}
+
+	/**
+	 * The turn's request body and headers — a typed message, or (7.7.8) a recording the
+	 * server transcribes on the stream, in which case the message content is empty and
+	 * the reply is asked for in the employee's own voice.
+	 */
+	function buildTurnRequest(text, fileIds, voice) {
+		var msgPayload = {
+			role: 'user',
+			content: voice ? '' : (text || 'Please analyze the attached file(s).'),
+		};
+		if (fileIds.length > 0) {
+			msgPayload.attachments = fileIds.map(function (id) {
+				return { file_id: id };
+			});
+		}
+
+		var body = {
+			messages: [msgPayload],
+			thread_id: threadId || null,
+			continue_thread: isContinuing,
+		};
+		if (voice) {
+			body.audio_base64 = voice.audio_base64;
+			body.audio_mime = voice.audio_mime;
+			body.audio_seconds = voice.audio_seconds;
+			body.speech_out = true;
+		}
+
+		// Page Context Build Plan V1.1 Sub-PR C: splice the
+		// page_context payload (current page + first-message
+		// pre_chat_trail) into the request body. The helper is
+		// loaded BEFORE this module via the def-core-page-context
+		// dependency on the customer-chat loader. Defensive
+		// presence check covers the rare case where the helper
+		// failed to load (silent degrade — chat still works,
+		// just without page context).
+		if (window.DefCorePageContextHelper && typeof window.DefCorePageContextHelper.build === 'function') {
+			try {
+				body.page_context = window.DefCorePageContextHelper.build(threadId || null);
+			} catch (e) {
+				// Silent degrade — chat turn still proceeds.
+			}
+		}
+
+		// Phase 10.1: Add suggestion feedback signal (a spoken turn sends none:
+		// nothing was typed over the suggestion).
+		if (!voice) {
+			var suggResult = classifySuggestionOutcome(text, lastSuggestion);
+			if (suggResult.outcome) {
+				body.suggestion_outcome = suggResult.outcome;
+				body.similarity_score = suggResult.score;
+			}
+		}
+		lastSuggestion = null;
+
+		// Headers — chat goes through WP proxy (no Authorization needed).
+		var headers = {
+			'Content-Type': 'application/json',
+			'X-WP-Nonce': config.nonce,
+		};
+		// Forward Cart-Token for DEF's sync get_cart tool.
+		if (wcCartToken) {
+			headers['Cart-Token'] = wcCartToken;
+		}
+		return { body: body, headers: headers };
+	}
+
+	// ─── 6b. VOICE (7.7.8) ───────────────────────────────────────
+	// The module Staff AI uses: a tap opens the mic; a pause after speaking sends
+	// the recording on the chat request (DEF transcribes it on the stream — the
+	// `transcript` event fills the bubble); the reply comes back as `speech` frames
+	// in the employee's own voice; the mic opens again once it has finished
+	// speaking. A tap while it answers ends the conversation; ten quiet seconds
+	// end it too. The mic shows only when DEF says a recording would be accepted.
+
+	function checkVoiceEligibility() {
+		if (!config.wpRestUrl || !window.DefVoice || !window.DefVoice.supported()) return;
+		var controller = new AbortController();
+		trackAbort(controller);
+		// No nonce on purpose: a public read, and a stale nonce would 403 it.
+		fetch(config.wpRestUrl + 'chat/voice', { method: 'GET', signal: controller.signal })
+			.then(function (res) {
+				untrackAbort(controller);
+				return res.ok ? res.json() : null;
+			})
+			.then(function (data) {
+				if (data && data.enabled === true && !destroyed) enableVoice();
+			})
+			.catch(function () {
+				untrackAbort(controller);
+			});
+	}
+
+	function enableVoice() {
+		speaker = window.DefVoice.createSpeaker({});
+		voiceRecorder = window.DefVoice.createRecorder({
+			onAutoStop: finishRecording,
+			onSilence: finishRecording,
+			onIdle: function () { endConversation(t('micClosedIdle')); },
+		});
+		if (els.micBtn) els.micBtn.style.display = '';
+	}
+
+	// The mic's state paints the button; the composer placeholder says what is happening.
+	function setMicState(state, placeholder) {
+		if (!els.micBtn || !els.input) return;
+		els.micBtn.dataset.state = state;
+		els.micBtn.setAttribute('aria-label', placeholder || t('micStart'));
+		if (!composerPlaceholder) composerPlaceholder = els.input.placeholder;
+		els.input.placeholder = placeholder || composerPlaceholder;
+	}
+
+	function handleMicClick() {
+		if (!voiceRecorder || destroyed) return;
+		if (voiceRecorder.isRecording()) { finishRecording(); return; }
+		if (conversationOn) { endConversation(); return; }   // it is answering or speaking
+		if (isComposerDisabled) return;
+		if (els.input.classList.contains('def-cc-suggestion-text')) {
+			// A ghost suggestion would hide the mic's status (the placeholder).
+			els.input.value = '';
+			setState(els.input, 'def-cc-suggestion-text', false);
+			autoResizeInput();
+			updateSendButton();
+		}
+		if (!window.DefVoice.micAllowedBySite()) {
+			// The site's own security headers forbid it: no prompt will ever appear.
+			appendMessage('assistant', t('micBlockedBySite'));
+			return;
+		}
+		speaker.stop();
+		speaker.unlock();   // inside the tap: iOS lets audio start only from a gesture
+		conversationOn = true;
+		listen(true);
+	}
+
+	// fromTap: the first listen runs inside the user's tap; the hands-free ones do
+	// not, and a phone that hands the mic over only inside a gesture gets a plain
+	// "tap to speak again", not a refusal.
+	function listen(fromTap) {
+		voiceRecorder.start().then(function (started) {
+			if (!started) return;   // the first tap owns the recording
+			if (!conversationOn) { voiceRecorder.release(); return; }   // ended during the permission prompt
+			setMicState('listening', t('listening'));
+		}, function (e) {
+			conversationOn = false;
+			voiceRecorder.release();   // a stream granted before the failure does not stay hot
+			setMicState('idle');
+			// Say what the browser said. The module's own "context won't wake" error (a
+			// plain Error) is the quiet hint.
+			var name = (e && e.name) || '';
+			var msg;
+			if (!fromTap || name === 'Error') msg = t('tapToSpeakAgain');
+			else if (name === 'NotAllowedError' || name === 'SecurityError') msg = t('micDenied');
+			else if (name === 'NotFoundError' || name === 'OverconstrainedError') msg = t('micNotFound');
+			else msg = t('micFailed').replace('%e', (name && name !== 'Error' ? name : (e && e.message)) || 'unknown');
+			appendMessage('assistant', msg);
+		});
+	}
+
+	function endConversation(message) {
+		conversationOn = false;
+		spokenTurn = false;   // nothing more of this turn is read aloud
+		if (voiceRecorder) voiceRecorder.release();
+		if (speaker) speaker.stop();
+		setMicState('idle');
+		if (message) appendMessage('assistant', message);
+	}
+
+	// A spoken turn the server never answered with a transcript (a refusal before the
+	// stream, a dead connection) must not leave "Transcribing…" in the chat.
+	function dropUnfilledTranscript() {
+		if (transcribingEl && transcribingEl.parentNode) transcribingEl.parentNode.remove();
+		transcribingEl = null;
+	}
+
+	function finishRecording() {
+		voiceRecorder.stop().then(function (recording) {
+			if (!recording || recording.seconds < 0.5 || !recording.spoke) {
+				// A tap with nothing heard: say so, and the conversation is over.
+				endConversation(recording ? t('nothingHeard') : null);
+				return;
+			}
+			setMicState('transcribing', t('transcribing'));
+			window.DefVoice.toBase64(recording.blob).then(function (base64) {
+				sendSpoken({ audio_base64: base64, audio_mime: recording.mime, audio_seconds: recording.seconds });
+			}, function () {
+				endConversation(t('transcribeFailed'));
+			});
+		});
+	}
+
+	// The spoken turn goes out on the stream: an empty user message the server
+	// replaces with the transcript (the bubble reads "Transcribing…" until the
+	// `transcript` event fills it), the recording, and the files staged in the
+	// composer, exactly as a typed turn carries them.
+	function sendSpoken(voice) {
+		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
+		if (destroyed || isComposerDisabled) { endConversation(); return; }
+		if (!config.chatStreamUrl || typeof ReadableStream === 'undefined') {
+			endConversation(t('voiceNeedsStreaming'));
+			return;
+		}
+		var failed = stagedFiles.filter(function (f) { return f.status === 'failed'; })[0];
+		if (failed) {
+			// A failed chip refuses the send with its reason (5.8.3's rule for typed sends).
+			endConversation(failed.error || t('uploadFailed'));
+			return;
+		}
+		setComposerDisabled(true);
+		var hasFiles = stagedFiles.some(function (f) { return f.status === 'staged' || f.status === 'uploaded'; });
+		(hasFiles ? uploadStagedFiles() : Promise.resolve([]))
+			.then(function (fileIds) {
+				if (!conversationOn) { setComposerDisabled(false); return; }   // a tap to end during the upload wins
+				if (window.DefResultCards) window.DefResultCards.resetTurn();
+				transcribingEl = appendUserMessage(t('transcribing'), fileIds);
+				setState(transcribingEl.parentNode, 'def-cc-message--transcribing', true);
+				clearStagedFiles();
+				var thinkingEl = showThinking();
+				var req = buildTurnRequest('', fileIds, voice);
+				spokenTurn = true;
+				setMicState('answering', t('answering'));
+				sendMessageStreaming('', req.body, req.headers, thinkingEl);
+			})
+			.catch(function (err) {
+				endConversation();
+				handleChatError(err, root ? root.querySelector('.def-cc-message--thinking') : null);
+			});
+	}
+
+	// After a spoken turn (the stream's end — the tail of the reply plays after `done`):
+	// hands-free listens again once the employee has finished speaking; otherwise
+	// the mic rests.
+	function afterSpokenTurn() {
+		spokenTurn = false;
+		dropUnfilledTranscript();
+		if (!voiceRecorder) return;
+		if (!conversationOn) {
+			voiceRecorder.release();
+			setMicState('idle');
+			return;
+		}
+		speaker.whenIdle().then(function () {
+			if (conversationOn && !isComposerDisabled && !destroyed) listen();
+		});
 	}
 
 	/**
@@ -2193,9 +2424,32 @@
 
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
+				case 'transcript':
+					// The server heard the recording (7.7.8): the bubble gets its words,
+					// before any text streams; the thread history records them as the turn.
+					text = evt.text || '';
+					if (transcribingEl) {
+						if (transcribingEl.firstChild && transcribingEl.firstChild.nodeType === 3) transcribingEl.firstChild.nodeValue = text;
+						else transcribingEl.insertBefore(document.createTextNode(text), transcribingEl.firstChild);
+						setState(transcribingEl.parentNode, 'def-cc-message--transcribing', false);
+						transcribingEl = null;
+					}
+					if (!currentEscalationSubject && text) {
+						currentEscalationSubject = text.length > 60 ? text.substring(0, 60) + '...' : text;
+					}
+					break;
+				case 'speech':
+					// A line of the reply in the employee's own voice — or, when its synthesis
+					// failed server-side, the text alone for the device voice to read.
+					if (spokenTurn && speaker) {
+						speaker.speak(evt.text || '', evt.audio_base64 ? { base64: evt.audio_base64, mime: evt.mime } : null);
+					}
+					break;
 				case 'suggestions':
 					lastSuggestion = evt.suggestion || null;
-					if (!dirtyInput && els.input && evt.suggestion) {
+					// Not during a live conversation: the ghost text would hide the composer
+					// placeholder, which is where the mic says what it is doing.
+					if (!dirtyInput && !conversationOn && els.input && evt.suggestion) {
 						els.input.value = evt.suggestion;
 						setState(els.input, 'def-cc-suggestion-text', true);
 						autoResizeInput();
@@ -2228,7 +2482,13 @@
 					displayedLen = 0;
 					thinkingStatusEl = null;
 					persona.reset();  // V2: symmetry with done-branch reset
-					appendMessage('assistant', evt.message || t('connectionError'));
+					// A voice refusal before the stream (the proxy carries DEF's status, not its
+					// words): a silent clip and a vendor failure get their own lines, the rest
+					// the proxy's. No listening again over a failed turn.
+					var spokenRefusal = transcribingEl && ({ 422: t('nothingHeard'), 502: t('transcribeFailed') })[evt.status];
+					if (conversationOn) endConversation();
+					dropUnfilledTranscript();
+					appendMessage('assistant', spokenRefusal || evt.message || t('connectionError'));
 					setComposerDisabled(false);
 					break;
 			}
@@ -2329,10 +2589,17 @@
 				displayedLen = 0;
 				thinkingStatusEl = null;
 				persona.reset();
+				if (conversationOn) endConversation();   // a lost stream is not a turn to listen again over
+				dropUnfilledTranscript();
 				appendMessage('assistant', t('streamIncomplete'));
 				setComposerDisabled(false);
 			})
+			.then(function () {
+				if (spokenTurn) afterSpokenTurn();
+			})
 			.catch(function (err) {
+				if (spokenTurn) endConversation();
+				dropUnfilledTranscript();
 				handleChatError(err, thinkingEl);
 			});
 	}
@@ -2525,6 +2792,7 @@
 		msgEl.appendChild(content);
 		els.messages.appendChild(msgEl);
 		scrollToBottom();
+		return content;
 	}
 
 	// V1.2 Result Cards — Customer Chat integration.
@@ -4029,6 +4297,7 @@
 		if (els.input) els.input.disabled = disabled;
 		if (els.sendBtn) els.sendBtn.disabled = disabled;
 		if (els.attachBtn) els.attachBtn.disabled = disabled;
+		if (els.micBtn) els.micBtn.disabled = disabled && !conversationOn;
 		// Welcome chips share the composer's disabled state — without this,
 		// taps during sending would silently no-op (chips look tappable
 		// but the click handler early-returns).
@@ -4210,6 +4479,8 @@
 
 		// Check upload eligibility.
 		checkUploadEligibility();
+		// Voice (7.7.8): the mic shows once DEF says the employee takes spoken turns.
+		checkVoiceEligibility();
 
 		// Focus input.
 		setTimeout(function () {
@@ -4232,6 +4503,10 @@
 
 	function destroy() {
 		destroyed = true;
+		if (conversationOn) endConversation();
+		voiceRecorder = null;
+		speaker = null;
+		transcribingEl = null;
 
 		// Clear refresh timer.
 		if (refreshTimer) {

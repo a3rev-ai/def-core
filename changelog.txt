@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.7.8 - 2026/09/07 =
+* Feature - Customer Chat voice: when the tenant switches the customer employee's Voice on (the Employees page of the tenant portal, with a Voice key on its APIs page), the chat widget shows a microphone beside Send. Visitors tap it and speak: a pause sends, their words appear as their message, the reply is read aloud in the employee's own voice, and the microphone opens again for the next question. A tap while it answers ends the conversation; ten quiet seconds end it too. Off by default - nothing changes on a site until the switch is on. Site admins: the microphone needs the site to allow it (`microphone=(self)` in the site's Permissions-Policy header, if one is set).
+
 = 7.7.6 - 2026/09/07 =
 * Fix - Staff AI voice: when a site's own security headers block the microphone (a Permissions-Policy header, common with hardening), the console now says so and that the site admin needs to allow it, instead of "access was refused"; a browser that has the microphone blocked for the site is told where to allow it; a device with no microphone is told that. On narrow phones the model switcher now shrinks so the Send button stays on screen. Your device's voice reads replies in your device's language, not the page's.
 
