@@ -3770,7 +3770,12 @@ function t(key, fallback) {
 
 		async function refreshProjectsCache() {
 			try {
-				const data = await apiRequest('/projects');
+				// include_archived: the Projects panel can send an archived project
+				// here (its knowledge tiles), and a filter target with no <option>
+				// is silently dropped below. "Move to project" keeps its own
+				// active-only guard, so archived never becomes an assign target.
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const data = await apiRequest('/projects' + sep + 'include_archived=true');
 				projectsCache = Array.isArray(data.projects) ? data.projects : [];
 			} catch (e) {
 				projectsCache = [];
@@ -4094,7 +4099,14 @@ function t(key, fallback) {
 			});
 		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
+		// Opening My Documents from the nav is a plain visit: drop the Projects
+		// bridge's slot exclusion, which has no control of its own to undo it.
+		// The project filter itself keeps its existing stickiness — the <select>
+		// shows it, so it can be seen and changed.
+		if (openBtn) openBtn.addEventListener('click', function () {
+			projectExcludeSlots = false;
+			open();
+		});
 		// Chat navigation leaves the page (the D-S7 pattern): resetToNewChat for
 		// every path to a fresh chat, capture phase for opening an existing one.
 		onLeavePane(close);
@@ -4291,7 +4303,19 @@ function t(key, fallback) {
 			openBtn.className = 'modal-btn project-open-btn '
 				+ (archived ? 'modal-btn-secondary' : 'modal-btn-primary');
 			openBtn.textContent = t('projectsOpen', 'Open Project');
-			openBtn.addEventListener('click', function () {
+			openBtn.addEventListener('click', async function () {
+				// DEF binds a thread only to the caller's own ACTIVE project, so an
+				// archived one is restored FIRST and the chat opens only if that
+				// write lands — an archived project_id never reaches the chat
+				// endpoint, and a failed restore never leaves a false chip.
+				if (project.status === 'archived') {
+					var ask = t('projectsConfirmRestoreOpen',
+						'Restore "%s" and open it? It moves back to your active projects.')
+						.replace('%s', function () { return project.name; });
+					if (!window.confirm(ask)) return;
+					var restored = await setArchived(project, false, false);
+					if (!restored) return;
+				}
 				close();
 				setActiveProject(project);
 				resetToNewChat();
@@ -4571,8 +4595,11 @@ function t(key, fallback) {
 			}
 		}
 
-		async function setArchived(project, archive) {
-			if (mutating) return;
+		// Returns true only when the write landed, so Open Project can chain a
+		// restore. reload === false leaves the list alone for a caller that is
+		// closing the panel anyway.
+		async function setArchived(project, archive, reload) {
+			if (mutating) return false;
 			mutating = true;
 			try {
 				var body = { status: archive ? 'archived' : 'active' };
@@ -4580,15 +4607,18 @@ function t(key, fallback) {
 					// P-C (D-P9): decide at the button. Surface the bound tasks and
 					// ask - disable, unbind, or keep them running without the project.
 					var directive = await boundTasksDirective(project, false);
-					if (directive === null) return;
+					if (directive === null) return false;
 					body.bound_tasks = directive;
 				}
 				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
 					method: 'PUT', body: JSON.stringify(body)
 				});
-				loadList();
+				project.status = body.status;
+				if (reload !== false) { loadList(); }
+				return true;
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+				return false;
 			} finally {
 				mutating = false;
 			}
