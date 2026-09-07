@@ -1911,6 +1911,19 @@ function t(key, fallback) {
 				voiceBtn.title = voiceModeLabel(speaker.getMode());
 			};
 			onAssistantName(paint);
+			// A long press (or right-click) shows what the phone did with the voice —
+			// the canary's own account, on the device (7.7.4).
+			var showVoiceLog = function (e) {
+				if (e && e.preventDefault) e.preventDefault();
+				var lines = DefVoice.log().slice(-14);
+				showInfo(lines.length ? lines.join(' · ') : t('voiceLogEmpty', 'No voice events yet.'));
+			};
+			var pressTimer = null;
+			voiceBtn.addEventListener('contextmenu', showVoiceLog);
+			voiceBtn.addEventListener('touchstart', function () { pressTimer = setTimeout(function () { pressTimer = null; showVoiceLog(); }, 650); }, { passive: true });
+			['touchend', 'touchcancel', 'touchmove'].forEach(function (name) {
+				voiceBtn.addEventListener(name, function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }, { passive: true });
+			});
 			voiceBtn.addEventListener('click', function () {
 				var next = VOICE_MODES[(VOICE_MODES.indexOf(speaker.getMode()) + 1) % VOICE_MODES.length];
 				speaker.stop();
