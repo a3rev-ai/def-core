@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.1
+Stable tag: 7.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.2 - 2026-09-07 =
+* Fix - Staff AI voice: your assistant's voice is heard through the loudspeaker again. The microphone is now released the moment your recording stops (an open microphone sends an iPhone's playback to the earpiece) and taken again for your next turn. A photo or file attached before you speak now goes with the spoken message, exactly as with a typed one. A budget or billing notice ahead of a reply is shown but no longer read aloud.
 
 = 7.7.1 - 2026-09-07 =
 * Update - Staff AI voice: hands-free and much faster. Tap the microphone once, speak, and a pause sends it — no second tap. Your assistant answers, and when it finishes speaking the microphone opens again by itself; tap the pill while it is answering to end the conversation. The recording now travels with the message in one round trip and the reply's spoken lines come back on the same stream, so the transcript appears about twice as fast and you hear the first words in about half the time. The Voice select is now a single button that cycles your assistant's voice, your device's voice, and off, so the composer no longer crowds the Send button on a phone.

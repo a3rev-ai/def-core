@@ -60,7 +60,7 @@ window.DefVoice = (function () {
 	 */
 	function createRecorder(handlers) {
 		handlers = handlers || {};
-		var stream = null, audioCtx = null, analyser = null, samples = null;
+		var stream = null, source = null, audioCtx = null, analyser = null, samples = null;
 		var recorder = null, chunks = [], startedAt = 0, timer = null, autoStop = null, meter = null;
 		var pending = null, starting = false, spokeAt = 0, quietSince = 0;
 
@@ -70,34 +70,56 @@ window.DefVoice = (function () {
 			if (meter) { clearInterval(meter); meter = null; }
 		}
 
-		function release() {
-			stopTimers();
-			recorder = null;
-			if (audioCtx) { try { audioCtx.close(); } catch (e) { /* already closed */ } audioCtx = null; analyser = null; }
+		// The microphone is held only while a recording runs. An open mic puts an
+		// iPhone's audio session into record mode — playback drops to the earpiece
+		// and is ducked, which is how 7.7.1's readback went unheard — so it is
+		// dropped the moment the recording stops and taken again for the next turn
+		// (no re-prompt once granted). The AudioContext, unlocked by the tap, lives
+		// for the whole conversation: one made outside a gesture never runs on iOS,
+		// and the silence detector needs it on every turn.
+		function stopCapture() {
+			if (source) { try { source.disconnect(); } catch (e) { /* already gone */ } source = null; }
 			if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); stream = null; }
 		}
 
-		// The detector counts only while its context runs: a suspended or
-		// interrupted context (iOS after the lock screen) reads zeros, which would
-		// look like ten seconds of silence while the user is talking.
-		function detecting() {
-			return !!(analyser && audioCtx && audioCtx.state === 'running');
+		function release() {
+			stopTimers();
+			recorder = null;
+			stopCapture();
+			if (audioCtx) { try { audioCtx.close(); } catch (e) { /* already closed */ } audioCtx = null; analyser = null; }
 		}
 
-		async function openStream() {
-			if (stream && stream.active) return;
-			release();   // a dead stream's context goes with it — never two contexts
-			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		// The detector counts only while its context runs and the mic feeds it: a
+		// suspended or interrupted context (iOS after the lock screen) reads zeros,
+		// which would look like ten seconds of silence while the user is talking.
+		function detecting() {
+			return !!(source && audioCtx && audioCtx.state === 'running');
+		}
+
+		function ensureContext() {
 			var Ctx = window.AudioContext || window.webkitAudioContext;
-			if (!Ctx) return;
+			if (audioCtx || !Ctx) return;
 			try {
 				audioCtx = new Ctx();
 				analyser = audioCtx.createAnalyser();
 				analyser.fftSize = 1024;
-				audioCtx.createMediaStreamSource(stream).connect(analyser);
 				samples = new Float32Array(analyser.fftSize);
 			} catch (e) {
+				audioCtx = null;
 				analyser = null;   // no silence detection: the tap still sends
+			}
+		}
+
+		async function openCapture() {
+			stopCapture();
+			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			if (analyser) {
+				try {
+					source = audioCtx.createMediaStreamSource(stream);
+					source.connect(analyser);
+				} catch (e) {
+					source = null;
+				}
 			}
 		}
 
@@ -127,8 +149,9 @@ window.DefVoice = (function () {
 			if (recorder || starting) return false;
 			starting = true;
 			try {
-				await openStream();
+				ensureContext();
 				if (audioCtx && audioCtx.state !== 'running') { try { await audioCtx.resume(); } catch (e) { /* the tap decides */ } }
+				await openCapture();
 			} finally {
 				starting = false;
 			}
@@ -148,6 +171,7 @@ window.DefVoice = (function () {
 				recorder = null;
 				// No live detector → assume speech: the tap decides.
 				var spoke = !!spokeAt || !detecting();
+				stopCapture();   // the mic is off before a word of the reply plays
 				if (resolve) resolve({ blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: spoke });
 			};
 			startedAt = Date.now();
@@ -162,7 +186,7 @@ window.DefVoice = (function () {
 
 		function stop() {
 			return new Promise(function (resolve) {
-				if (!recorder || recorder.state === 'inactive') { stopTimers(); recorder = null; resolve(null); return; }
+				if (!recorder || recorder.state === 'inactive') { stopTimers(); recorder = null; stopCapture(); resolve(null); return; }
 				pending = resolve;
 				recorder.stop();
 			});
