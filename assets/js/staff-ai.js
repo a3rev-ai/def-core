@@ -1976,15 +1976,16 @@ function t(key, fallback) {
 			voiceRecorder.release();   // a stream granted before the failure does not stay hot
 			setMicState('idle');
 			restorePlaceholder();
-			if (!fromTap) { showInfo(t('tapToSpeakAgain', 'Tap the mic to speak again.')); return; }
-			// Say what the browser said, not one line for every failure (7.7.6).
+			// Say what the browser said, not one line for every failure (7.7.6). The
+			// module's own "context won't wake" error (a plain Error) is the quiet hint.
 			var name = (e && e.name) || '';
+			if (!fromTap || name === 'Error') { showInfo(t('tapToSpeakAgain', 'Tap the mic to speak again.')); return; }
 			if (name === 'NotAllowedError' || name === 'SecurityError') {
 				showError(t('micDenied', 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.'));
 			} else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
 				showError(t('micNotFound', 'No microphone was found on this device.'));
 			} else {
-				showError(t('micFailed', "The microphone couldn't start (%e).").replace('%e', name || (e && e.message) || 'unknown'));
+				showError(t('micFailed', "The microphone couldn't start (%e).").replace('%e', (name && name !== 'Error' ? name : (e && e.message)) || 'unknown'));
 			}
 			return;
 		}

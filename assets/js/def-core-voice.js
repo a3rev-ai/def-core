@@ -308,6 +308,8 @@ window.DefVoice = (function () {
 				var utterance = new SpeechSynthesisUtterance(text);
 				// The device's own language first: a Vietnamese phone reads a Vietnamese
 				// reply in a Vietnamese voice, whatever language the page is served in.
+				// (The reply's own language would be the right signal; it isn't known here,
+				// so the device's language is the better guess of the two.)
 				utterance.lang = navigator.language || document.documentElement.lang;
 				utterance.onend = resolve;
 				utterance.onerror = resolve;

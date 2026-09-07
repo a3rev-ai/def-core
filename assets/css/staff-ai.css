@@ -1147,9 +1147,9 @@ body {
 	margin-left: auto;
 	margin-right: 8px;
 	max-width: 220px;
-	/* On a narrow phone the switcher gives way before the buttons do: it shrinks,
-	   its label ellipsises, and Send stays on screen (a Samsung, 2026-09-07). */
-	flex: 0 1 auto;
+	/* On a narrow phone the switcher gives way before the buttons do (they don't
+	   shrink): min-width 0 lets a select shrink below its widest option, and Send
+	   stays on screen (a Samsung, 2026-09-07). */
 	min-width: 0;
 	text-overflow: ellipsis;
 	padding: 5px 8px;
