@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.4
+Stable tag: 7.7.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.5 - 2026-09-07 =
+* Update - Staff AI voice: your assistant reads back the whole reply, paragraph by paragraph as it arrives, not just the opening and closing lines. Applies to the device voice in this release; your assistant's own voice reads the whole reply from the same date on the platform side.
 
 = 7.7.4 - 2026-09-07 =
 * Fix - Staff AI voice: your assistant's voice now plays every line of every reply. The phone was playing the first clip after the microphone tap and refusing the rest; playback now goes through the audio session that tap unlocked, which plays clip after clip. Long-press the Voice button to see a short log of what the device did with the voice.

@@ -1866,8 +1866,9 @@ function t(key, fallback) {
 	var speaker = null;
 	var conversationOn = false;     // the hands-free loop, until the pill is tapped or the room stays quiet
 	var spokenTurn = false;         // the turn in flight was spoken → read it back
-	var openingSpoken = null;       // the opening line already read during streaming (device voice)
+	var openingSpoken = null;       // the opening sentence already read during streaming (device voice)
 	var readbackBuffer = '';        // the reply's own words as streamed — notices (step 0) excluded
+	var readbackCut = 0;            // how much of readbackBuffer the device voice has been given
 	var composerPlaceholder = '';
 
 	function voiceModeLabel(mode) {
@@ -2071,6 +2072,7 @@ function t(key, fallback) {
 		spokenTurn = true;
 		openingSpoken = null;
 		readbackBuffer = '';
+		readbackCut = 0;
 		voice.speech_out = speaker.getMode() === 'server';
 		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
 		await sendMessageStreaming('', fileIds, null, null, voice);
@@ -2095,20 +2097,43 @@ function t(key, fallback) {
 	}
 
 	// The device voice reads the reply from its text: the opening line was read as
-	// it streamed; the closing line waits for the whole reply. A one-line reply is
-	// read once. The employee's own voice arrives as `speech` frames instead.
-	function readBack(finalContent) {
+	// it streamed, then each paragraph as it completed; the tail waits for the
+	// whole reply (7.7.5: the whole reply, not two lines). The employee's own voice
+	// arrives as `speech` frames instead.
+	function readBackSoFar(finished) {
 		if (!spokenTurn || speaker.getMode() !== 'device') return;
-		if (readbackBuffer.trim()) finalContent = readbackBuffer;   // the reply as streamed, notices excluded
 		if (openingSpoken === null) {
-			var opening = DefVoice.firstSentence(finalContent + ' ');
-			if (opening) {
-				speaker.speak(opening);
-				openingSpoken = opening;
+			// The opening is the first sentence OF THE FIRST PARAGRAPH; a first paragraph
+			// with no sentence boundary (a greeting, a list) is the opening as it is.
+			var gap0 = readbackBuffer.indexOf('\n\n');
+			var head = gap0 >= 0 ? readbackBuffer.slice(0, gap0) : readbackBuffer;
+			var opening = DefVoice.firstSentence(finished ? head + ' ' : head);
+			if (!opening && gap0 < 0) { if (!finished) return; }
+			else {
+				openingSpoken = opening || DefVoice.plain(head) || '-';
+				readbackCut = opening ? DefVoice.boundaryEnd(head, opening) : gap0;
+				speaker.speak(opening || DefVoice.plain(head));
 			}
 		}
-		var closing = DefVoice.closingLine(finalContent);
-		if (closing && closing !== openingSpoken) speaker.speak(closing);
+		// A blank line inside an open code fence is not a paragraph break: the cut
+		// waits for the fence to close (plain() then drops the whole block).
+		var gap, from = readbackCut;
+		while ((gap = readbackBuffer.indexOf('\n\n', from)) >= 0) {
+			var para = readbackBuffer.slice(readbackCut, gap);
+			if ((para.match(/```/g) || []).length % 2) { from = gap + 2; continue; }
+			speaker.speak(DefVoice.plain(para));
+			readbackCut = from = gap + 2;
+		}
+		if (finished && readbackBuffer.slice(readbackCut).trim()) {
+			speaker.speak(DefVoice.plain(readbackBuffer.slice(readbackCut)));
+			readbackCut = readbackBuffer.length;
+		}
+	}
+
+	function readBack(finalContent) {
+		if (!spokenTurn) return;
+		if (!readbackBuffer.trim()) readbackBuffer = finalContent || '';   // a reply nothing streamed for
+		readBackSoFar(true);
 	}
 
 	async function sendMessage() {
@@ -2486,13 +2511,9 @@ function t(key, fallback) {
 							streamBuffer += evt.text;
 							// A budget/billing notice streams at step 0 ahead of the reply: shown,
 							// never read — the device voice reads the reply's own words.
-							if (spokenTurn && evt.step !== 0) readbackBuffer += evt.text;
-							if (spokenTurn && openingSpoken === null && speaker.getMode() === 'device') {
-								var opening = DefVoice.firstSentence(readbackBuffer);
-								if (opening) {
-									openingSpoken = opening;
-									speaker.speak(opening);
-								}
+							if (spokenTurn && evt.step !== 0) {
+								readbackBuffer += evt.text;
+								readBackSoFar(false);
 							}
 							if (!wordDrainTimer) {
 								renderStreamChunk();
