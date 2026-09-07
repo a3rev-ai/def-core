@@ -1945,7 +1945,9 @@
 			body.audio_seconds = voice.audio_seconds;
 			body.speech_out = true;
 			// The previous message anchors the vendor's language on a short clip (7.7.9).
-			if (lastUserText) body.audio_context = lastUserText.slice(0, 200);
+			// Cut by code point: a slice through an emoji would leave a half character the
+			// server refuses, and the whole spoken turn with it.
+			if (lastUserText) body.audio_context = Array.from(lastUserText).slice(0, 200).join('');
 		}
 
 		// Page Context Build Plan V1.1 Sub-PR C: splice the
