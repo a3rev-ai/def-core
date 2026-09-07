@@ -2103,12 +2103,16 @@ function t(key, fallback) {
 	function readBackSoFar(finished) {
 		if (!spokenTurn || speaker.getMode() !== 'device') return;
 		if (openingSpoken === null) {
-			var opening = DefVoice.firstSentence(finished ? readbackBuffer + ' ' : readbackBuffer);
-			if (!opening) { if (!finished) return; }
+			// The opening is the first sentence OF THE FIRST PARAGRAPH; a first paragraph
+			// with no sentence boundary (a greeting, a list) is the opening as it is.
+			var gap0 = readbackBuffer.indexOf('\n\n');
+			var head = gap0 >= 0 ? readbackBuffer.slice(0, gap0) : readbackBuffer;
+			var opening = DefVoice.firstSentence(finished ? head + ' ' : head);
+			if (!opening && gap0 < 0) { if (!finished) return; }
 			else {
-				openingSpoken = opening;
-				readbackCut = DefVoice.boundaryEnd(readbackBuffer, opening);
-				speaker.speak(opening);
+				openingSpoken = opening || DefVoice.plain(head) || '-';
+				readbackCut = opening ? DefVoice.boundaryEnd(head, opening) : gap0;
+				speaker.speak(opening || DefVoice.plain(head));
 			}
 		}
 		// A blank line inside an open code fence is not a paragraph break: the cut
