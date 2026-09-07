@@ -93,6 +93,17 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// Customer Chat BFF proxy — whether the customer employee takes a spoken turn (7.7.8).
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/chat/voice',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true',
+				'callback'            => array( 'DEF_Core_Tools', 'rest_proxy_chat_voice' ),
+			)
+		);
+
 		// Customer Chat BFF proxy — upload init/commit (same pattern as chat)
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,

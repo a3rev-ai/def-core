@@ -584,6 +584,8 @@ final class DEF_Core {
 			'wcStoreApiNonce' => wp_create_nonce( 'wc_store_api' ),
 			// Asset URLs for lazy loading (versioned for cache-busting).
 			'chatModuleUrl'   => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-customer-chat.js?ver=' . DEF_CORE_VERSION,
+			// Voice (7.7.8) — the module Staff AI shares; loaded before the chat module.
+			'voiceModuleUrl'  => DEF_CORE_PLUGIN_URL . 'assets/js/def-core-voice.js?ver=' . DEF_CORE_VERSION,
 			'chatStyleUrl'    => DEF_CORE_PLUGIN_URL . 'assets/css/def-core-customer-chat.css?ver=' . DEF_CORE_VERSION,
 			'markedUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/marked.min.js?ver=' . DEF_CORE_VERSION,
 			'purifyUrl'       => DEF_CORE_PLUGIN_URL . 'assets/js/vendor/purify.min.js?ver=' . DEF_CORE_VERSION,
@@ -1102,6 +1104,21 @@ final class DEF_Core {
 			'retrySuffix'          => __( '(retry in %ds)', 'digital-employees' ),
 			'uploadInitFailed'     => __( 'Upload could not start. Please try again.', 'digital-employees' ),
 			'uploadCommitFailed'   => __( 'Upload could not be completed. Please try again.', 'digital-employees' ),
+			// Voice (7.7.8): the mic in the composer, shown when the employee's Voice switch is on.
+			'micStart'             => __( 'Speak', 'digital-employees' ),
+			'micBlockedBySite'     => __( "This site's security settings block the microphone for every visitor (Permissions-Policy). The site admin needs to allow it for this site.", 'digital-employees' ),
+			'micDenied'            => __( 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.', 'digital-employees' ),
+			'micNotFound'          => __( 'No microphone was found on this device.', 'digital-employees' ),
+			/* translators: %e: the browser's own error name. */
+			'micFailed'            => __( "The microphone couldn't start (%e).", 'digital-employees' ),
+			'tapToSpeakAgain'      => __( 'Tap the mic to speak again.', 'digital-employees' ),
+			'micClosedIdle'        => __( 'The mic closed — tap it to speak again.', 'digital-employees' ),
+			'nothingHeard'         => __( 'Nothing was heard. Try again a little closer to the microphone.', 'digital-employees' ),
+			'transcribeFailed'     => __( 'That recording could not be transcribed. Please try again.', 'digital-employees' ),
+			'listening'            => __( "Listening… pause when you're done, or tap to send", 'digital-employees' ),
+			'transcribing'         => __( 'Transcribing…', 'digital-employees' ),
+			'answering'            => __( 'Answering… tap the mic to end', 'digital-employees' ),
+			'voiceNeedsStreaming'  => __( 'Voice needs a browser that can stream replies.', 'digital-employees' ),
 		);
 
 		// Per-site overrides for the hand-off form copy (5.6.0): the same form

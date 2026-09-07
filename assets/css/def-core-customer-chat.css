@@ -871,6 +871,63 @@
 	cursor: not-allowed;
 }
 
+/* Voice (7.7.8) — the mic beside Send, shown when the employee takes spoken turns;
+   its state paints it: listening pulses, transcribing/answering hold the accent. */
+.def-cc-composer-mic {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border: none;
+	border-radius: var(--def-cc-radius-control);
+	background: transparent;
+	color: var(--def-cc-text-light);
+	cursor: pointer;
+	flex-shrink: 0;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.def-cc-composer-mic:hover {
+	background: var(--def-cc-bg-hover);
+	color: var(--def-cc-text);
+}
+
+.def-cc-composer-mic:disabled {
+	color: var(--def-cc-disabled-text);
+	cursor: not-allowed;
+}
+
+.def-cc-composer-mic svg {
+	width: 18px;
+	height: 18px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.def-cc-composer-mic[data-state="listening"],
+.def-cc-composer-mic[data-state="transcribing"],
+.def-cc-composer-mic[data-state="answering"] {
+	color: var(--def-cc-primary);
+}
+
+.def-cc-composer-mic[data-state="listening"] {
+	animation: def-cc-mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes def-cc-mic-pulse {
+	0%, 100% { box-shadow: 0 0 0 0 transparent; }
+	50% { box-shadow: 0 0 0 6px var(--def-cc-bg-hover); }
+}
+
+.def-cc-message--transcribing .def-cc-message-content {
+	opacity: 0.6;
+	font-style: italic;
+}
+
 .def-cc-composer-attach svg {
 	width: 18px;
 	height: 18px;
