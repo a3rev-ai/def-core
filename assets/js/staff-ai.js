@@ -3761,6 +3761,10 @@ function t(key, fallback) {
 		const emptyEl = document.getElementById('documentsEmptyState');
 		const askBtn = document.getElementById('documentsAskAssistant');
 		let projectFilter = '';
+		// Set ONLY by the Projects panel's "Other documents" tile, cleared by
+		// every other entry point: the tile counts the project's documents minus
+		// its three governing slots, and must open exactly that list.
+		let projectExcludeSlots = false;
 		let loading = false;
 		let searchTimer = null;
 
@@ -3785,7 +3789,7 @@ function t(key, fallback) {
 					projectFilterEl.appendChild(opt);
 				});
 				projectFilterEl.value = current;
-				if (projectFilterEl.value !== current) { projectFilter = ''; }
+				if (projectFilterEl.value !== current) { projectFilter = ''; projectExcludeSlots = false; }
 			}
 		}
 
@@ -3812,8 +3816,9 @@ function t(key, fallback) {
 		}
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
-		openDocumentsForProject = function (projectId) {
+		openDocumentsForProject = function (projectId, excludeSlots) {
 			projectFilter = projectId || '';
+			projectExcludeSlots = !!excludeSlots && !!projectFilter;
 			open();
 		};
 
@@ -3863,6 +3868,11 @@ function t(key, fallback) {
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				const data = await apiRequest('/documents' + (projectFilter ? sep + 'project_id=' + encodeURIComponent(projectFilter) : ''));
 				let docs = Array.isArray(data.documents) ? data.documents : [];
+				// "Other documents" (Projects P-D5): the project's documents apart
+				// from its runsheet / session notes / instructions.
+				if (projectExcludeSlots) {
+					docs = docs.filter(function (doc) { return !doc.slot; });
+				}
 				// One box searches BOTH names (client-side — the library is the
 				// caller's own; DEF pages 200 rows).
 				const q = term.toLowerCase();
@@ -3926,6 +3936,7 @@ function t(key, fallback) {
 				chip.textContent = (doc.slot ? doc.slot + ' · ' : '') + doc.project_name;
 				chip.addEventListener('click', function () {
 					projectFilter = doc.project_id;
+					projectExcludeSlots = false;
 					if (projectFilterEl) { projectFilterEl.value = doc.project_id; }
 					loadList();
 				});
@@ -4092,6 +4103,7 @@ function t(key, fallback) {
 		if (projectFilterEl) {
 			projectFilterEl.addEventListener('change', function () {
 				projectFilter = projectFilterEl.value;
+				projectExcludeSlots = false;
 				loadList();
 			});
 		}
@@ -4136,12 +4148,18 @@ function t(key, fallback) {
 		// second Ask entry needs no JS change.
 		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
+		// `loading` guards list loads only. A mutation runs a blocking confirm,
+		// THEN a /tasks round trip, THEN the write — a window in which the same
+		// control is still live (the touch sheet stays open on pick). Two
+		// Archives answered differently would land conflicting bound_tasks.
+		let mutating = false;
 
 		function open() {
 			modal.classList.add('visible');
 			loadList();
 		}
 		function close() {
+			closeManageMenu(false);
 			modal.classList.remove('visible');
 		}
 
@@ -4200,6 +4218,9 @@ function t(key, fallback) {
 
 		async function loadList() {
 			if (loading) return;
+			// The rebuild detaches every card: an open menu would be left floating
+			// over the new list, still bound to the project it was opened for.
+			closeManageMenu(false);
 			loading = true;
 			setStatus(t('projectsLoading', 'Loading your projects…'), 'muted');
 			listEl.innerHTML = '';
@@ -4263,20 +4284,19 @@ function t(key, fallback) {
 			// P-B: the one primary action — a fresh chat that opens INSIDE this
 			// project. DEF seeds the thread's binding at mint, Sue loads the
 			// governing documents, and setActiveProject puts the chip on the
-			// composer. An archived project keeps no chat entry: it is out of the
-			// project pickers too, and archiving it is how you put it down.
-			if (!archived) {
-				const openBtn = document.createElement('button');
-				openBtn.type = 'button';
-				openBtn.className = 'modal-btn modal-btn-primary project-open-btn';
-				openBtn.textContent = t('projectsOpen', 'Open Project');
-				openBtn.addEventListener('click', function () {
-					close();
-					setActiveProject(project);
-					resetToNewChat();
-				});
-				actions.appendChild(openBtn);
-			}
+			// composer. An archived project keeps the same entry but drops the
+			// fill, so it never looks like — or manages like — a live one.
+			const openBtn = document.createElement('button');
+			openBtn.type = 'button';
+			openBtn.className = 'modal-btn project-open-btn '
+				+ (archived ? 'modal-btn-secondary' : 'modal-btn-primary');
+			openBtn.textContent = t('projectsOpen', 'Open Project');
+			openBtn.addEventListener('click', function () {
+				close();
+				setActiveProject(project);
+				resetToNewChat();
+			});
+			actions.appendChild(openBtn);
 
 			const menuBtn = document.createElement('button');
 			menuBtn.type = 'button';
@@ -4365,7 +4385,7 @@ function t(key, fallback) {
 				others === 1
 					? t('projectsFileCountOne', '1 file')
 					: t('projectsFileCount', '%s files').replace('%s', String(others)),
-				others === 0, function () { openProjectDocuments(project); }));
+				others === 0, function () { openProjectDocuments(project, true); }));
 		}
 
 		function slotButton(label, meta, empty, onPick) {
@@ -4385,9 +4405,11 @@ function t(key, fallback) {
 		}
 
 		// D-P10: the existing Projects → My Documents bridge, pre-filtered.
-		function openProjectDocuments(project) {
+		// excludeSlots drops the three governing documents, so what the Other
+		// documents tile counts is exactly what opens.
+		function openProjectDocuments(project, excludeSlots) {
 			close();
-			if (openDocumentsForProject) { openDocumentsForProject(project.project_id); }
+			if (openDocumentsForProject) { openDocumentsForProject(project.project_id, excludeSlots); }
 		}
 
 		// ——— management: Rename | Archive (Restore) | — | Delete ———
@@ -4415,7 +4437,10 @@ function t(key, fallback) {
 			btn.textContent = item.label;
 			btn.addEventListener('click', function (e) {
 				e.stopPropagation();
-				if (closeOnPick) { closeManageMenu(false); }
+				// Restore focus to the trigger: on the cancel paths (prompt
+				// dismissed, bound-task question backed out) nothing re-renders,
+				// so without this a keyboard user is left on <body>.
+				if (closeOnPick) { closeManageMenu(true); }
 				item.onPick();
 			});
 			return btn;
@@ -4530,19 +4555,25 @@ function t(key, fallback) {
 		}
 
 		async function renameProject(project) {
-			const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
-			if (next === null || !next.trim() || next.trim() === project.name) return;
+			if (mutating) return;
+			mutating = true;
 			try {
+				const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
+				if (next === null || !next.trim() || next.trim() === project.name) return;
 				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
 					method: 'PUT', body: JSON.stringify({ name: next.trim() })
 				});
 				loadList();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			} finally {
+				mutating = false;
 			}
 		}
 
 		async function setArchived(project, archive) {
+			if (mutating) return;
+			mutating = true;
 			try {
 				var body = { status: archive ? 'archived' : 'active' };
 				if (archive) {
@@ -4558,24 +4589,30 @@ function t(key, fallback) {
 				loadList();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			} finally {
+				mutating = false;
 			}
 		}
 
 		async function deleteProject(project) {
-			const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
-				.replace('%s', function () { return project.name; });
-			if (!window.confirm(msg)) return;
-			// P-C (D-P9): a deleted project's bindings are removed; offer to
-			// disable the tasks too rather than let them run on, unbound.
-			var directive = await boundTasksDirective(project, true);
-			if (directive === null) return;
+			if (mutating) return;
+			mutating = true;
 			try {
+				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
+					.replace('%s', function () { return project.name; });
+				if (!window.confirm(msg)) return;
+				// P-C (D-P9): a deleted project's bindings are removed; offer to
+				// disable the tasks too rather than let them run on, unbound.
+				var directive = await boundTasksDirective(project, true);
+				if (directive === null) return;
 				var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				await apiRequest('/projects/' + encodeURIComponent(project.project_id)
 					+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
 				loadList();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
+			} finally {
+				mutating = false;
 			}
 		}
 
@@ -4610,7 +4647,9 @@ function t(key, fallback) {
 		document.addEventListener('click', function () { closeManageMenu(false); });
 		document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeManageMenu(false); });
 		if (listEl) listEl.addEventListener('scroll', function () { closeManageMenu(false); });
-		modal.addEventListener('scroll', function () { closeManageMenu(false); });
+		// Capture: #projectsModal is the fixed overlay and never scrolls itself —
+		// the inner .modal does, and scroll events do not bubble.
+		modal.addEventListener('scroll', function () { closeManageMenu(false); }, true);
 		window.addEventListener('resize', function () { closeManageMenu(false); });
 	})();
 

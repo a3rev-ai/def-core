@@ -3018,6 +3018,7 @@ html {
 	border: 1px solid transparent;
 	background: transparent;
 	color: var(--text-secondary);
+	font: inherit;
 	font-size: 11px;
 	line-height: 1;
 	letter-spacing: 1.5px;
@@ -3081,9 +3082,10 @@ html {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
 	border-radius: 6px;
+	font: inherit;
 	text-align: left;
 	cursor: pointer;
-	transition: border-color 0.15s, background 0.15s;
+	transition: border-color 0.15s;
 }
 .project-slot:hover {
 	border-color: var(--border-hover);
@@ -3120,6 +3122,7 @@ html {
 	background: transparent;
 	border: 1px solid var(--border-light);
 	border-radius: 6px;
+	font: inherit;
 	font-size: 13px;
 	color: var(--text-secondary);
 	cursor: pointer;
