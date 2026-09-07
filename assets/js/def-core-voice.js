@@ -17,6 +17,7 @@ window.DefVoice = (function () {
 	var SILENCE_MS = 1800;
 	var IDLE_MS = 10000;
 	var SPEECH_RMS = 0.02;   // a voice at phone distance sits well above; room tone below
+	var SPEECH_SAMPLES = 3;  // 300 ms above it before it counts as speech
 	// Safari (iPhone) records audio/mp4; Chrome (Android/desktop) webm+opus.
 	var MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
 	// A 46-byte silent WAV. Playing it INSIDE the mic-tap gesture is what lets
@@ -64,7 +65,7 @@ window.DefVoice = (function () {
 		handlers = handlers || {};
 		var stream = null, source = null, audioCtx = null, analyser = null, samples = null;
 		var recorder = null, chunks = [], startedAt = 0, timer = null, autoStop = null, meter = null;
-		var pending = null, starting = false, spokeAt = 0, quietSince = 0;
+		var pending = null, starting = false, spokeAt = 0, quietSince = 0, loudRun = 0;
 
 		function stopTimers() {
 			if (timer) { clearInterval(timer); timer = null; }
@@ -82,6 +83,10 @@ window.DefVoice = (function () {
 		function stopCapture() {
 			if (source) { try { source.disconnect(); } catch (e) { /* already gone */ } source = null; }
 			if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); stream = null; }
+			// A running context keeps an iPhone's audio session in record mode even
+			// with the mic gone — playback then goes to the earpiece. Suspended
+			// between turns; start() resumes it (the tap unlocked it for the page).
+			if (audioCtx && audioCtx.state === 'running') { try { audioCtx.suspend(); } catch (e) { /* closing */ } }
 		}
 
 		function release() {
@@ -137,9 +142,13 @@ window.DefVoice = (function () {
 			if (!detecting()) return;
 			var now = Date.now();
 			if (rms() > SPEECH_RMS) {
-				spokeAt = now;
-				quietSince = 0;
-			} else if (spokeAt) {
+				// Speech is sustained; a phone shifting in the hand is one loud sample.
+				loudRun += 1;
+				if (loudRun >= SPEECH_SAMPLES) { spokeAt = now; quietSince = 0; }
+				return;
+			}
+			loudRun = 0;
+			if (spokeAt) {
 				if (!quietSince) quietSince = now;
 				if (now - quietSince >= SILENCE_MS && handlers.onSilence) { stopTimers(); handlers.onSilence(); }
 			} else if (now - startedAt >= IDLE_MS && handlers.onIdle) {
@@ -170,6 +179,7 @@ window.DefVoice = (function () {
 			chunks = [];
 			spokeAt = 0;
 			quietSince = 0;
+			loudRun = 0;
 			rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
 			rec.onstop = function () {
 				if (recorder !== rec) return;   // release() already tore this one down
@@ -219,7 +229,8 @@ window.DefVoice = (function () {
 	 * hands-free listens again on that. unlock() must run inside the user's
 	 * gesture — the mic tap — because iOS starts audio only from one.
 	 */
-	function createSpeaker() {
+	function createSpeaker(handlers) {
+		handlers = handlers || {};
 		var mode = 'server', audio = null, queue = [], busy = false, idleWaiters = [];
 
 		function unlock() {
@@ -278,6 +289,7 @@ window.DefVoice = (function () {
 					else await playDevice(item.text);
 				} catch (e) {
 					console.warn('[DEF voice] readback skipped:', e);
+					if (handlers.onError) handlers.onError(e);   // the phone's own reason, on screen
 				}
 			}
 			busy = false;
