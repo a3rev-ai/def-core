@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.5
+Stable tag: 7.7.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.7.6 - 2026-09-07 =
+* Fix - Staff AI voice: when a site's own security headers block the microphone (a Permissions-Policy header, common with hardening), the console now says so and that the site admin needs to allow it, instead of "access was refused"; a browser that has the microphone blocked for the site is told where to allow it; a device with no microphone is told that. On narrow phones the model switcher now shrinks so the Send button stays on screen. Your device's voice reads replies in your device's language, not the page's.
 
 = 7.7.5 - 2026-09-07 =
 * Update - Staff AI voice: your assistant reads back the whole reply, paragraph by paragraph as it arrives, not just the opening and closing lines. Applies to the device voice in this release; your assistant's own voice reads the whole reply from the same date on the platform side.

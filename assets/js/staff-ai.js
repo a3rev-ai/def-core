@@ -1951,6 +1951,12 @@ function t(key, fallback) {
 			if (voiceRecorder.isRecording()) { finishRecording(); return; }
 			if (conversationOn) { endConversation(); return; }   // she is answering or speaking
 			if (isLoading || isReadOnly) return;
+			if (!DefVoice.micAllowedBySite()) {
+				// The site's own security headers forbid it: no prompt will ever appear,
+				// and only the site admin can change that (a3rev.com, 2026-09-07).
+				showError(t('micBlockedBySite', "This site's security settings block the microphone for every visitor (Permissions-Policy). The site admin needs to allow it for this site."));
+				return;
+			}
 			speaker.stop();
 			speaker.unlock();   // inside the tap: iOS lets audio start only from a gesture
 			conversationOn = true;
@@ -1970,8 +1976,17 @@ function t(key, fallback) {
 			voiceRecorder.release();   // a stream granted before the failure does not stay hot
 			setMicState('idle');
 			restorePlaceholder();
-			if (fromTap) showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
-			else showInfo(t('tapToSpeakAgain', 'Tap the mic to speak again.'));
+			// Say what the browser said, not one line for every failure (7.7.6). The
+			// module's own "context won't wake" error (a plain Error) is the quiet hint.
+			var name = (e && e.name) || '';
+			if (!fromTap || name === 'Error') { showInfo(t('tapToSpeakAgain', 'Tap the mic to speak again.')); return; }
+			if (name === 'NotAllowedError' || name === 'SecurityError') {
+				showError(t('micDenied', 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.'));
+			} else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+				showError(t('micNotFound', 'No microphone was found on this device.'));
+			} else {
+				showError(t('micFailed', "The microphone couldn't start (%e).").replace('%e', (name && name !== 'Error' ? name : (e && e.message)) || 'unknown'));
+			}
 			return;
 		}
 		if (!started) return;   // the first tap owns the recording
