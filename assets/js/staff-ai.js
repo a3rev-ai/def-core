@@ -2089,6 +2089,10 @@ function t(key, fallback) {
 		readbackBuffer = '';
 		readbackCut = 0;
 		voice.speech_out = speaker.getMode() === 'server';
+		// The previous message anchors the vendor's language on a short clip (7.7.9).
+		for (var pi = messages.length - 1; pi >= 0; pi--) {
+			if (messages[pi].role === 'user' && messages[pi].content && !messages[pi].transcribing) { voice.audio_context = String(messages[pi].content).slice(0, 200); break; }
+		}
 		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
 		await sendMessageStreaming('', fileIds, null, null, voice);
 	}

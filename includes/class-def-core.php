@@ -1119,6 +1119,7 @@ final class DEF_Core {
 			'transcribing'         => __( 'Transcribing…', 'digital-employees' ),
 			'answering'            => __( 'Answering… tap the mic to end', 'digital-employees' ),
 			'voiceNeedsStreaming'  => __( 'Voice needs a browser that can stream replies.', 'digital-employees' ),
+			'voiceLogEmpty'        => __( 'No voice events yet.', 'digital-employees' ),
 		);
 
 		// Per-site overrides for the hand-off form copy (5.6.0): the same form

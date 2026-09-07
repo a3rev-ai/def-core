@@ -877,10 +877,16 @@
 /* Voice (7.7.8) — the mic beside Send (the attach button's rules above), shown when
    the employee takes spoken turns; its state paints it: listening pulses,
    transcribing/answering hold the accent. */
+/* Active = the Send button's own colours, so it cannot be missed on a phone (7.7.9): solid
+   and pulsing while listening, solid while transcribing, a stop mark while answering. */
 .def-cc-composer-mic[data-state="listening"],
 .def-cc-composer-mic[data-state="transcribing"],
-.def-cc-composer-mic[data-state="answering"] {
-	color: var(--def-cc-primary);
+.def-cc-composer-mic[data-state="answering"],
+.def-cc-composer-mic[data-state="listening"]:hover,
+.def-cc-composer-mic[data-state="transcribing"]:hover,
+.def-cc-composer-mic[data-state="answering"]:hover {
+	background: var(--def-cc-primary);
+	color: var(--def-cc-primary-text);
 }
 
 .def-cc-composer-mic[data-state="listening"] {
@@ -888,8 +894,18 @@
 }
 
 @keyframes def-cc-mic-pulse {
-	0%, 100% { box-shadow: 0 0 0 0 transparent; }
-	50% { box-shadow: 0 0 0 6px var(--def-cc-bg-hover); }
+	0%, 100% { transform: scale(1); opacity: 1; }
+	50% { transform: scale(1.12); opacity: 0.75; }
+}
+
+.def-cc-composer-mic .def-cc-mic-stop,
+.def-cc-composer-mic[data-state="answering"] .def-cc-mic-icon {
+	display: none;
+}
+
+.def-cc-composer-mic[data-state="answering"] .def-cc-mic-stop {
+	display: block;
+	fill: currentColor;
 }
 
 .def-cc-message--transcribing .def-cc-message-content {
