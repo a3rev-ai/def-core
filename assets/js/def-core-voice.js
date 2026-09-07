@@ -444,15 +444,16 @@ window.DefVoice = (function () {
 		return null;
 	}
 
-	// The closing line: the last sentence of the reply's last non-empty line.
-	function closingLine(text) {
-		// Fences go first: a reply that ends in a code block must not read "```".
-		var lines = String(text || '').replace(/```[\s\S]*?```/g, '\n').split(/\r?\n/).map(plain).filter(Boolean);
-		if (!lines.length) return '';
-		var last = lines[lines.length - 1];
-		var boundary = /[.!?](?=\s)/g, cut = 0, match;
-		while ((match = boundary.exec(last))) cut = match.index + 1;
-		return last.slice(cut).trim() || last;
+	// Index just past the sentence boundary that produced `opening` in the raw
+	// (markdown) text — the first boundary at which the plain text so far equals
+	// it — so the device voice can cut the opening out and read on from there.
+	function boundaryEnd(text, opening) {
+		var raw = String(text || '');
+		var boundary = /[.!?](?=\s)/g, match;
+		while ((match = boundary.exec(raw))) {
+			if (plain(raw.slice(0, match.index + 1)) === opening) return match.index + 1;
+		}
+		return raw.length;
 	}
 
 	return {
@@ -460,8 +461,9 @@ window.DefVoice = (function () {
 		createRecorder: createRecorder,
 		createSpeaker: createSpeaker,
 		toBase64: toBase64,
+		plain: plain,
 		firstSentence: firstSentence,
-		closingLine: closingLine,
+		boundaryEnd: boundaryEnd,
 		log: function () { return voiceLog.slice(); },
 		MAX_RECORD_MS: MAX_RECORD_MS
 	};
