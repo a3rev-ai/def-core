@@ -2111,10 +2111,14 @@ function t(key, fallback) {
 				speaker.speak(opening);
 			}
 		}
-		var gap;
-		while ((gap = readbackBuffer.indexOf('\n\n', readbackCut)) >= 0) {
-			speaker.speak(DefVoice.plain(readbackBuffer.slice(readbackCut, gap)));
-			readbackCut = gap + 2;
+		// A blank line inside an open code fence is not a paragraph break: the cut
+		// waits for the fence to close (plain() then drops the whole block).
+		var gap, from = readbackCut;
+		while ((gap = readbackBuffer.indexOf('\n\n', from)) >= 0) {
+			var para = readbackBuffer.slice(readbackCut, gap);
+			if ((para.match(/```/g) || []).length % 2) { from = gap + 2; continue; }
+			speaker.speak(DefVoice.plain(para));
+			readbackCut = from = gap + 2;
 		}
 		if (finished && readbackBuffer.slice(readbackCut).trim()) {
 			speaker.speak(DefVoice.plain(readbackBuffer.slice(readbackCut)));
@@ -2123,6 +2127,7 @@ function t(key, fallback) {
 	}
 
 	function readBack(finalContent) {
+		if (!spokenTurn) return;
 		if (!readbackBuffer.trim()) readbackBuffer = finalContent || '';   // a reply nothing streamed for
 		readBackSoFar(true);
 	}
