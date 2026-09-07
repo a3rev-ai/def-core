@@ -2480,13 +2480,6 @@ html {
 /* =============================================
    My Documents modal (document library — slice 4)
    ============================================= */
-.documents-intro {
-	margin: 0 0 14px;
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.5;
-}
-
 /* Deltas over .form-input, which carries the border/focus/placeholder theme. */
 .documents-search {
 	margin: 0 0 12px;
@@ -2937,7 +2930,7 @@ html {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-/* Projects P-D5 (7.7.1): the project card — a workspace, not an admin row.
+/* Projects P-D5 (7.7.7): the project card — a workspace, not an admin row.
    Name and status, then the one filled Open Project, then the project
    knowledge, and the ⋯ management menu last. Tokens only: the shell borrows
    the document card's, the menu borrows the chat row's, so dark mode and the
@@ -3033,18 +3026,14 @@ html {
 .project-open-btn:focus-visible,
 .project-menu-btn:focus-visible,
 .project-slot:focus-visible,
-.project-manage-btn:focus-visible {
-	outline: 2px solid var(--border-hover);
-	outline-offset: -2px;
-}
-/* Scoped to the project menu: the chat row's menu keeps its own treatment. */
+.project-manage-btn:focus-visible,
 .project-manage-menu .chat-menu-item:focus-visible,
 .project-manage-sheet .chat-menu-item:focus-visible {
 	outline: 2px solid var(--border-hover);
 	outline-offset: -2px;
 }
-/* Delete sits under a divider in the ⋯ menu, so it cannot be hit on the way
-   to Archive. Shared with the chat row's menu shell. */
+/* Delete sits under a divider so it cannot be hit on the way to Archive.
+   Only the project menus build one; the chat row menu has no separator. */
 .chat-menu-sep {
 	height: 1px;
 	margin: 4px 6px;
@@ -3087,8 +3076,13 @@ html {
 	cursor: pointer;
 	transition: border-color 0.15s;
 }
-.project-slot:hover {
+.project-slot:hover:not(:disabled) {
 	border-color: var(--border-hover);
+}
+/* A tile with nothing behind it must not send the user to an empty list. */
+.project-slot:disabled {
+	cursor: default;
+	opacity: 0.55;
 }
 .project-slot-name {
 	font-size: 13px;
@@ -3128,21 +3122,25 @@ html {
 	cursor: pointer;
 }
 .project-manage-btn::after {
-	content: '⌄';
-	font-size: 13px;
-	line-height: 1;
-	margin-top: -5px;
+	content: '';
+	width: 7px;
+	height: 7px;
+	margin-top: -4px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: rotate(45deg);
+	transition: transform 0.15s;
 }
 .project-manage-btn[aria-expanded="true"]::after {
-	content: '⌃';
 	margin-top: 3px;
+	transform: rotate(-135deg);
 }
+/* Deltas over the .chat-menu shell it reuses. */
 .project-manage-sheet {
+	position: static;
 	margin-top: 6px;
-	padding: 4px;
-	background: var(--bg-main);
-	border: 1px solid var(--border-light);
-	border-radius: 8px;
+	min-width: 0;
+	box-shadow: none;
 }
 .project-manage-sheet .chat-menu-item {
 	font-size: 14px;
@@ -3182,7 +3180,7 @@ html {
 	/* The four slots become list rows with a chevron — same targets, at tap size. */
 	.project-slots {
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1px;
+		gap: 6px;
 	}
 	.project-slot {
 		flex-direction: row;

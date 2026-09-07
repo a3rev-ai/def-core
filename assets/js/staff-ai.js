@@ -3769,18 +3769,20 @@ function t(key, fallback) {
 		let searchTimer = null;
 
 		async function refreshProjectsCache() {
+			// Archived projects are listed so a project-scoped view from the
+			// Projects panel keeps its filter; "Move to project" stays active-only.
+			let cacheOk = true;
 			try {
-				// include_archived: the Projects panel can send an archived project
-				// here (its knowledge tiles), and a filter target with no <option>
-				// is silently dropped below. "Move to project" keeps its own
-				// active-only guard, so archived never becomes an assign target.
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				const data = await apiRequest('/projects' + sep + 'include_archived=true');
 				projectsCache = Array.isArray(data.projects) ? data.projects : [];
 			} catch (e) {
-				projectsCache = [];
+				// A failed fetch is not evidence the filtered project is gone: keep
+				// the cache and the filter, or the view silently widens to the
+				// whole library.
+				cacheOk = false;
 			}
-			if (projectFilterEl) {
+			if (cacheOk && projectFilterEl) {
 				const current = projectFilter;
 				projectFilterEl.innerHTML = '';
 				const all = document.createElement('option');
@@ -3790,7 +3792,9 @@ function t(key, fallback) {
 				projectsCache.forEach(function (p) {
 					const opt = document.createElement('option');
 					opt.value = p.project_id;
-					opt.textContent = p.name;
+					opt.textContent = p.status === 'archived'
+						? p.name + ' (' + t('projectsArchived', 'Archived') + ')'
+						: p.name;
 					projectFilterEl.appendChild(opt);
 				});
 				projectFilterEl.value = current;
@@ -3898,7 +3902,9 @@ function t(key, fallback) {
 					if (emptyEl && !term && !projectFilter) emptyEl.style.display = '';
 					return;
 				}
-				setStatus('', '');
+				setStatus(projectExcludeSlots
+					? t('documentsOtherOnly', 'Other documents only — the runsheet, session notes and instructions are on the project card.')
+					: '', 'muted');
 				renderGroups(docs);
 			} catch (e) {
 				setStatus((e && e.message) || t('documentsLoadFailed', 'Could not load your documents.'), 'error');
@@ -3952,7 +3958,7 @@ function t(key, fallback) {
 			const action = document.createElement('div');
 			action.className = 'document-action';
 
-			if (projectsCache.length) {
+			if (projectsCache.some(function (p) { return p.status === 'active'; })) {
 				const move = document.createElement('button');
 				move.type = 'button';
 				move.className = 'document-btn';
@@ -4099,10 +4105,8 @@ function t(key, fallback) {
 			});
 		}
 
-		// Opening My Documents from the nav is a plain visit: drop the Projects
-		// bridge's slot exclusion, which has no control of its own to undo it.
-		// The project filter itself keeps its existing stickiness — the <select>
-		// shows it, so it can be seen and changed.
+		// A plain visit drops the bridge's slot exclusion, which has no control
+		// of its own to undo it. The project filter keeps its stickiness.
 		if (openBtn) openBtn.addEventListener('click', function () {
 			projectExcludeSlots = false;
 			open();
@@ -4153,17 +4157,15 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// One entry, in the footer (P-D5, 7.7.1): Ask Sue IS the help layer, and
+		// One entry, in the footer (P-D5, 7.7.7): Ask Sue IS the help layer, and
 		// the footer keeps it in view however far the project list is scrolled —
 		// the intro button used to disappear behind the list, which is exactly
 		// where a confused user was looking. Kept as a querySelectorAll so a
 		// second Ask entry needs no JS change.
 		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
-		// `loading` guards list loads only. A mutation runs a blocking confirm,
-		// THEN a /tasks round trip, THEN the write — a window in which the same
-		// control is still live (the touch sheet stays open on pick). Two
-		// Archives answered differently would land conflicting bound_tasks.
+		// One mutation at a time: the confirm and the /tasks round trip leave the
+		// control live, and two Archives answered differently would conflict.
 		let mutating = false;
 
 		function open() {
@@ -4230,8 +4232,7 @@ function t(key, fallback) {
 
 		async function loadList() {
 			if (loading) return;
-			// The rebuild detaches every card: an open menu would be left floating
-			// over the new list, still bound to the project it was opened for.
+			// The rebuild detaches every card the open menu is anchored to.
 			closeManageMenu(false);
 			loading = true;
 			setStatus(t('projectsLoading', 'Loading your projects…'), 'muted');
@@ -4256,7 +4257,7 @@ function t(key, fallback) {
 			}
 		}
 
-		// P-D5 (7.7.1): the project CARD. It reads top to bottom as a workspace —
+		// P-D5 (7.7.7): the project CARD. It reads top to bottom as a workspace —
 		// what project, what to do next, what is inside it, and last (and
 		// separated) how to manage it. One filled action per card; the
 		// low-frequency management lives behind the ⋯ menu.
@@ -4293,34 +4294,29 @@ function t(key, fallback) {
 
 			const actions = document.createElement('div');
 			actions.className = 'project-card-actions';
-			// P-B: the one primary action — a fresh chat that opens INSIDE this
-			// project. DEF seeds the thread's binding at mint, Sue loads the
-			// governing documents, and setActiveProject puts the chip on the
-			// composer. An archived project keeps the same entry but drops the
-			// fill, so it never looks like — or manages like — a live one.
-			const openBtn = document.createElement('button');
-			openBtn.type = 'button';
-			openBtn.className = 'modal-btn project-open-btn '
+			// P-B: a fresh chat that opens INSIDE this project. An archived card
+			// keeps the entry but drops the fill.
+			const cardOpenBtn = document.createElement('button');
+			cardOpenBtn.type = 'button';
+			cardOpenBtn.className = 'modal-btn project-open-btn '
 				+ (archived ? 'modal-btn-secondary' : 'modal-btn-primary');
-			openBtn.textContent = t('projectsOpen', 'Open Project');
-			openBtn.addEventListener('click', async function () {
-				// DEF binds a thread only to the caller's own ACTIVE project, so an
-				// archived one is restored FIRST and the chat opens only if that
-				// write lands — an archived project_id never reaches the chat
-				// endpoint, and a failed restore never leaves a false chip.
+			cardOpenBtn.textContent = t('projectsOpen', 'Open Project');
+			cardOpenBtn.addEventListener('click', async function () {
+				// DEF binds a thread only to an ACTIVE project, so an archived one is
+				// restored first and the chat opens only if that write lands.
 				if (project.status === 'archived') {
 					var ask = t('projectsConfirmRestoreOpen',
 						'Restore "%s" and open it? It moves back to your active projects.')
 						.replace('%s', function () { return project.name; });
 					if (!window.confirm(ask)) return;
-					var restored = await setArchived(project, false, false);
+					var restored = await setArchived(project, false);
 					if (!restored) return;
 				}
 				close();
 				setActiveProject(project);
 				resetToNewChat();
 			});
-			actions.appendChild(openBtn);
+			actions.appendChild(cardOpenBtn);
 
 			const menuBtn = document.createElement('button');
 			menuBtn.type = 'button';
@@ -4409,12 +4405,14 @@ function t(key, fallback) {
 				others === 1
 					? t('projectsFileCountOne', '1 file')
 					: t('projectsFileCount', '%s files').replace('%s', String(others)),
-				others === 0, function () { openProjectDocuments(project, true); }));
+				others === 0, function () { openProjectDocuments(project, true); },
+				others === 0));
 		}
 
-		function slotButton(label, meta, empty, onPick) {
+		function slotButton(label, meta, empty, onPick, disabled) {
 			const btn = document.createElement('button');
 			btn.type = 'button';
+			btn.disabled = !!disabled;
 			btn.className = 'project-slot' + (empty ? ' project-slot-empty' : '');
 			const name = document.createElement('span');
 			name.className = 'project-slot-name';
@@ -4461,9 +4459,7 @@ function t(key, fallback) {
 			btn.textContent = item.label;
 			btn.addEventListener('click', function (e) {
 				e.stopPropagation();
-				// Restore focus to the trigger: on the cancel paths (prompt
-				// dismissed, bound-task question backed out) nothing re-renders,
-				// so without this a keyboard user is left on <body>.
+				// Focus the trigger before the dialog: the cancel paths re-render nothing.
 				if (closeOnPick) { closeManageMenu(true); }
 				item.onPick();
 			});
@@ -4518,6 +4514,10 @@ function t(key, fallback) {
 				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
 			});
 
+			menu.addEventListener('focusout', function (e) {
+				if (!menu.contains(e.relatedTarget)) { closeManageMenu(false); }
+			});
+
 			menu.addEventListener('keydown', function (e) {
 				const items = Array.prototype.slice.call(menu.querySelectorAll('.chat-menu-item'));
 				if (!items.length) return;
@@ -4553,7 +4553,7 @@ function t(key, fallback) {
 			wrap.className = 'project-manage';
 
 			const sheet = document.createElement('div');
-			sheet.className = 'project-manage-sheet';
+			sheet.className = 'chat-menu project-manage-sheet';
 			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
 			sheet.hidden = true;
 			manageActions(project).forEach(function (item) {
@@ -4579,7 +4579,7 @@ function t(key, fallback) {
 		}
 
 		async function renameProject(project) {
-			if (mutating) return;
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return; }
 			mutating = true;
 			try {
 				const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
@@ -4595,11 +4595,9 @@ function t(key, fallback) {
 			}
 		}
 
-		// Returns true only when the write landed, so Open Project can chain a
-		// restore. reload === false leaves the list alone for a caller that is
-		// closing the panel anyway.
-		async function setArchived(project, archive, reload) {
-			if (mutating) return false;
+		// Returns true only when the write landed, so Open Project can chain a restore.
+		async function setArchived(project, archive) {
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return false; }
 			mutating = true;
 			try {
 				var body = { status: archive ? 'archived' : 'active' };
@@ -4614,7 +4612,9 @@ function t(key, fallback) {
 					method: 'PUT', body: JSON.stringify(body)
 				});
 				project.status = body.status;
-				if (reload !== false) { loadList(); }
+				// The chip would otherwise point at a project that can no longer run a chat.
+				if (archive && activeProjectId === project.project_id) { clearActiveProject(); }
+				loadList();
 				return true;
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
@@ -4625,7 +4625,7 @@ function t(key, fallback) {
 		}
 
 		async function deleteProject(project) {
-			if (mutating) return;
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return; }
 			mutating = true;
 			try {
 				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
@@ -4638,6 +4638,7 @@ function t(key, fallback) {
 				var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				await apiRequest('/projects/' + encodeURIComponent(project.project_id)
 					+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
+				if (activeProjectId === project.project_id) { clearActiveProject(); }
 				loadList();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
