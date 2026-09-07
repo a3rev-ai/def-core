@@ -3799,6 +3799,11 @@ function t(key, fallback) {
 				});
 				projectFilterEl.value = current;
 				if (projectFilterEl.value !== current) { projectFilter = ''; projectExcludeSlots = false; }
+			} else if (projectFilterEl && projectFilterEl.value !== projectFilter) {
+				// The rebuild was skipped, so the control still names the project it
+				// showed last. Point it at the real filter — blank when the option is
+				// missing, which is silent rather than wrong.
+				projectFilterEl.value = projectFilter;
 			}
 		}
 
@@ -4514,6 +4519,11 @@ function t(key, fallback) {
 				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
 			});
 
+			// Safari focuses no button on mousedown: the focused item would blur to
+			// <body>, focusout would tear the menu down mid-click, and the item would
+			// never fire. Preventing the default keeps focus put; the click still runs.
+			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+
 			menu.addEventListener('focusout', function (e) {
 				if (!menu.contains(e.relatedTarget)) { closeManageMenu(false); }
 			});
@@ -4554,6 +4564,7 @@ function t(key, fallback) {
 
 			const sheet = document.createElement('div');
 			sheet.className = 'chat-menu project-manage-sheet';
+			sheet.setAttribute('role', 'menu');
 			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
 			sheet.hidden = true;
 			manageActions(project).forEach(function (item) {
