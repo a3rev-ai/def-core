@@ -2337,6 +2337,7 @@ function t(key, fallback) {
 				requestBody.audio_mime = voice.audio_mime;
 				requestBody.audio_seconds = voice.audio_seconds;
 				requestBody.speech_out = !!voice.speech_out;
+				if (voice.audio_context) requestBody.audio_context = voice.audio_context;
 			}
 			// Phase 10.1: Add suggestion feedback signal
 			if (pendingOutcome) {

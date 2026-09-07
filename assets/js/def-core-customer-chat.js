@@ -2452,7 +2452,7 @@
 						}
 					}
 
-					lastUserText = text || '';
+					if (text) lastUserText = text;
 					processChatResponseMeta(evt, text, wasStreamed);
 					break;
 				case 'transcript':
@@ -4103,6 +4103,7 @@
 	}
 
 	function clearConversation() {
+		lastUserText = '';
 		// Remove thread from local history.
 		if (threadId) {
 			localThreads = localThreads.filter(function (t) {
