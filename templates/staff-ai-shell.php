@@ -847,6 +847,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			voiceDevice: <?php echo wp_json_encode( __( 'Reading back with your device voice', 'digital-employees' ) ); ?>,
 			voiceOff: <?php echo wp_json_encode( __( 'Voice off', 'digital-employees' ) ); ?>,
 			voiceNeedsStreaming: <?php echo wp_json_encode( __( 'Voice needs a browser that can stream replies.', 'digital-employees' ) ); ?>,
+			tapToSpeakAgain: <?php echo wp_json_encode( __( 'Tap the mic to speak again.', 'digital-employees' ) ); ?>,
 			spoken: <?php echo wp_json_encode( __( 'Spoken', 'digital-employees' ) ); ?>,
 			removeFailedFiles: <?php echo wp_json_encode( __( 'Some files failed to upload. Remove failed files and try again.', 'digital-employees' ) ); ?>,
 			analyzingFiles: <?php echo wp_json_encode( __( 'Analyzing files...', 'digital-employees' ) ); ?>,

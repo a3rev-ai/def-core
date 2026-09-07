@@ -1867,6 +1867,7 @@ function t(key, fallback) {
 	var conversationOn = false;     // the hands-free loop, until the pill is tapped or the room stays quiet
 	var spokenTurn = false;         // the turn in flight was spoken → read it back
 	var openingSpoken = null;       // the opening line already read during streaming (device voice)
+	var readbackBuffer = '';        // the reply's own words as streamed — notices (step 0) excluded
 	var composerPlaceholder = '';
 
 	function voiceModeLabel(mode) {
@@ -1926,11 +1927,14 @@ function t(key, fallback) {
 			speaker.stop();
 			speaker.unlock();   // inside the tap: iOS lets audio start only from a gesture
 			conversationOn = true;
-			listen();
+			listen(true);
 		});
 	}
 
-	async function listen() {
+	// fromTap: the first listen of a conversation runs inside the user's tap; the
+	// hands-free ones do not, and a phone that will only hand the mic over inside
+	// a gesture gets a plain "tap to speak again", not a refusal.
+	async function listen(fromTap) {
 		var started;
 		try {
 			started = await voiceRecorder.start();
@@ -1938,7 +1942,9 @@ function t(key, fallback) {
 			conversationOn = false;
 			voiceRecorder.release();   // a stream granted before the failure does not stay hot
 			setMicState('idle');
-			showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
+			restorePlaceholder();
+			if (fromTap) showError(t('micDenied', 'Microphone access was refused. Allow the microphone for this site and try again.'));
+			else showInfo(t('tapToSpeakAgain', 'Tap the mic to speak again.'));
 			return;
 		}
 		if (!started) return;   // the first tap owns the recording
@@ -1996,7 +2002,9 @@ function t(key, fallback) {
 
 	// The spoken turn goes out on the stream: an empty user message the server
 	// replaces with the transcript (the bubble reads "Transcribing…" until the
-	// `transcript` event fills it), the recording, and whether to send her voice.
+	// `transcript` event fills it), the recording, whether to send her voice —
+	// and the files staged in the composer, exactly as a typed turn carries them
+	// (7.7.2: a photo attached then spoken about went out without the photo).
 	async function sendSpoken(voice) {
 		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
 		if (isLoading || isReadOnly) { endConversation(); return; }
@@ -2006,16 +2014,40 @@ function t(key, fallback) {
 		}
 		hideError();
 		hideInfo();
-		messages.push({ role: 'user', content: '', via_voice: true, transcribing: true });
+		// A failed chip refuses the send with its reason (5.8.3's rule for typed
+		// sends): otherwise the turn goes out fileless and done wipes the chip.
+		var failedChips = stagedFiles.filter(function(f) { return f.status === 'failed'; });
+		if (failedChips.length > 0) {
+			endConversation(failedChips[0].error || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
+			return;
+		}
+		var fileIds = [], fileAttachments = null;
+		if (hasActiveFiles()) {
+			var uploadResult = await uploadAllStagedFiles();
+			if (!uploadResult.success) {
+				var failedFile = stagedFiles.filter(function(f) { return f.status === 'failed'; })[0];
+				endConversation((failedFile && failedFile.error) || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
+				return;
+			}
+			fileIds = uploadResult.fileIds;
+			fileAttachments = stagedFiles
+				.filter(function(f) { return f.status === 'uploaded'; })
+				.map(function(f) { return { name: f.file.name, type: f.file.type || '', thumbnailUrl: f.thumbnailUrl || null }; });
+			// The upload wait can be long; a tap to end (or a typed send) in it wins.
+			if (!conversationOn) return;
+			if (isLoading || isReadOnly) { endConversation(); return; }
+		}
+		messages.push({ role: 'user', content: '', via_voice: true, transcribing: true, fileAttachments: fileAttachments });
 		messages.push({ role: 'assistant', content: '', isTyping: true });
 		renderMessages();
 		isLoading = true;
 		updateSendButton();
 		spokenTurn = true;
 		openingSpoken = null;
+		readbackBuffer = '';
 		voice.speech_out = speaker.getMode() === 'server';
 		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
-		await sendMessageStreaming('', [], null, null, voice);
+		await sendMessageStreaming('', fileIds, null, null, voice);
 	}
 
 	// After every turn (the stream's finally): hands-free listens again once the
@@ -2039,6 +2071,7 @@ function t(key, fallback) {
 		if (!spokenTurn) return;
 		spokenTurn = false;
 		if (speaker.getMode() !== 'device') return;
+		if (readbackBuffer.trim()) finalContent = readbackBuffer;   // the reply as streamed, notices excluded
 		if (openingSpoken === null) {
 			var opening = DefVoice.firstSentence(finalContent + ' ');
 			if (opening) {
@@ -2423,8 +2456,11 @@ function t(key, fallback) {
 						}
 						if (streamEl) {
 							streamBuffer += evt.text;
+							// A budget/billing notice streams at step 0 ahead of the reply: shown,
+							// never read — the device voice reads the reply's own words.
+							if (spokenTurn && evt.step !== 0) readbackBuffer += evt.text;
 							if (spokenTurn && openingSpoken === null && speaker.getMode() === 'device') {
-								var opening = DefVoice.firstSentence(streamBuffer);
+								var opening = DefVoice.firstSentence(readbackBuffer);
 								if (opening) {
 									openingSpoken = opening;
 									speaker.speak(opening);
