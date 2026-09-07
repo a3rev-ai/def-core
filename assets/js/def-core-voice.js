@@ -44,6 +44,7 @@ window.DefVoice = (function () {
 	}
 	function ensureContext() {
 		var Ctx = window.AudioContext || window.webkitAudioContext;
+		if (audioCtx && audioCtx.state === 'closed') { log('context closed'); audioCtx = null; }   // the browser shut it: a new one on this tap
 		if (audioCtx || !Ctx) return audioCtx;
 		try {
 			audioCtx = new Ctx();
@@ -55,14 +56,18 @@ window.DefVoice = (function () {
 		return audioCtx;
 	}
 	// Resolves true when the context runs. Outside a gesture a phone may refuse,
-	// or never answer — the race keeps a caller from waiting on it forever.
+	// or never answer — the race keeps a caller from waiting on it forever, and a
+	// refusal is remembered for ten seconds so a multi-line reply pays it once.
+	var wakeRefusedAt = 0;
 	async function wakeContext() {
 		if (!audioCtx) return false;
 		if (audioCtx.state !== 'running') {
+			if (Date.now() - wakeRefusedAt < 10000) return false;
 			try {
 				await Promise.race([audioCtx.resume(), new Promise(function (r) { setTimeout(r, 1500); })]);
 			} catch (e) { /* judged by state */ }
 			log('context ' + audioCtx.state);
+			if (audioCtx.state !== 'running') wakeRefusedAt = Date.now();
 		}
 		return audioCtx.state === 'running';
 	}
@@ -91,8 +96,8 @@ window.DefVoice = (function () {
 
 	/**
 	 * One recording at a time. The mic is taken in start() and dropped in onstop —
-	 * before a word of the reply plays — and taken again next turn; the
-	 * AudioContext lives for the conversation. start() resolves true when
+	 * before a word of the reply plays — and taken again next turn; the page's
+	 * AudioContext is shared with the speaker. start() resolves true when
 	 * recording began, false when one was already live or starting; it rejects
 	 * when the browser refuses the mic, and can reject after the mic was granted
 	 * (the recorder itself failing), so a caller release()s on rejection. stop()
@@ -138,7 +143,9 @@ window.DefVoice = (function () {
 		}
 
 		function ensureAnalyser() {
-			if (analyser || !ensureContext()) return;
+			if (!ensureContext()) return;
+			if (analyser && analyser.context !== audioCtx) analyser = null;   // the context was replaced
+			if (analyser) return;
 			try {
 				analyser = audioCtx.createAnalyser();
 				analyser.fftSize = 1024;
@@ -272,7 +279,8 @@ window.DefVoice = (function () {
 		function unlock() {
 			// Inside the tap: the page's context starts here, and stays running.
 			if (ensureContext() && audioCtx.state !== 'running') {
-				try { audioCtx.resume().then(function () { log('context ' + audioCtx.state); }); } catch (e) { /* judged at play */ }
+				var note = function () { log('context ' + audioCtx.state); };
+				try { audioCtx.resume().then(note, note); } catch (e) { /* judged at play */ }
 			}
 			// The element fallback needs its own unlock: one gesture-time play.
 			if (!audio) {
@@ -316,7 +324,7 @@ window.DefVoice = (function () {
 				var node = audioCtx.createBufferSource();
 				node.buffer = buffer;
 				node.connect(audioCtx.destination);
-				node.onended = function () { if (playing === node) playing = null; resolve(); };
+				node.onended = function () { if (playing === node) playing = null; node.onended = null; resolve(); };
 				playing = node;
 				node.start();
 			});
@@ -392,7 +400,15 @@ window.DefVoice = (function () {
 			},
 			stop: function () {
 				queue = [];
-				if (playing) { try { playing.stop(); } catch (e) { /* already ended */ } playing = null; }
+				if (playing) {
+					// Settled here, not by `ended`: a suspended context (lock screen, a call)
+					// fires no `ended` for a stopped node, and busy would never clear.
+					var node = playing;
+					playing = null;
+					try { node.stop(); } catch (e) { /* already ended */ }
+					log('stopped');
+					if (node.onended) node.onended();
+				}
 				if (audio) { try { audio.pause(); } catch (e) { /* never started */ } }
 				if (window.speechSynthesis) speechSynthesis.cancel();
 			}
