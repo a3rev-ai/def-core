@@ -50,13 +50,15 @@ window.DefVoice = (function () {
 	}
 
 	/**
-	 * One recording at a time on a mic stream that stays open for a whole
-	 * conversation (reopening it per turn would re-prompt on some phones).
-	 * start() resolves true when recording began, false when one was already live
-	 * or starting; rejects when the browser refuses the mic. stop() resolves
-	 * {blob, mime, seconds, spoke} or null. release() closes the stream.
-	 * handlers: onTick(seconds), onAutoStop (the two-minute stop), onSilence (a
-	 * pause after speech), onIdle (no speech at all).
+	 * One recording at a time. The mic is taken in start() and dropped in onstop —
+	 * before a word of the reply plays — and taken again next turn; the
+	 * AudioContext lives for the conversation. start() resolves true when
+	 * recording began, false when one was already live or starting; it rejects
+	 * when the browser refuses the mic, and can reject after the mic was granted
+	 * (the recorder itself failing), so a caller release()s on rejection. stop()
+	 * resolves {blob, mime, seconds, spoke} or null. release() drops the mic and
+	 * the context. handlers: onTick(seconds), onAutoStop (the two-minute stop),
+	 * onSilence (a pause after speech), onIdle (no speech at all).
 	 */
 	function createRecorder(handlers) {
 		handlers = handlers || {};
@@ -105,6 +107,7 @@ window.DefVoice = (function () {
 				analyser.fftSize = 1024;
 				samples = new Float32Array(analyser.fftSize);
 			} catch (e) {
+				if (audioCtx) { try { audioCtx.close(); } catch (e2) { /* never opened */ } }
 				audioCtx = null;
 				analyser = null;   // no silence detection: the tap still sends
 			}
@@ -156,13 +159,20 @@ window.DefVoice = (function () {
 				starting = false;
 			}
 			var mime = pickMime();
-			var rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+			var rec;
+			try {
+				rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+			} catch (e) {
+				stopCapture();   // the module's own promise: no recorder, no open mic
+				throw e;
+			}
 			recorder = rec;
 			chunks = [];
 			spokeAt = 0;
 			quietSince = 0;
 			rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
 			rec.onstop = function () {
+				if (recorder !== rec) return;   // release() already tore this one down
 				var seconds = (Date.now() - startedAt) / 1000;
 				var type = containerOf(rec.mimeType || mime);
 				var resolve = pending;

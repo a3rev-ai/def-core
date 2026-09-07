@@ -2014,6 +2014,13 @@ function t(key, fallback) {
 		}
 		hideError();
 		hideInfo();
+		// A failed chip refuses the send with its reason (5.8.3's rule for typed
+		// sends): otherwise the turn goes out fileless and done wipes the chip.
+		var failedChips = stagedFiles.filter(function(f) { return f.status === 'failed'; });
+		if (failedChips.length > 0) {
+			endConversation(failedChips[0].error || t('removeFailedFiles', 'Some files failed to upload. Remove failed files and try again.'));
+			return;
+		}
 		var fileIds = [], fileAttachments = null;
 		if (hasActiveFiles()) {
 			var uploadResult = await uploadAllStagedFiles();
@@ -2026,6 +2033,9 @@ function t(key, fallback) {
 			fileAttachments = stagedFiles
 				.filter(function(f) { return f.status === 'uploaded'; })
 				.map(function(f) { return { name: f.file.name, type: f.file.type || '', thumbnailUrl: f.thumbnailUrl || null }; });
+			// The upload wait can be long; a tap to end (or a typed send) in it wins.
+			if (!conversationOn) return;
+			if (isLoading || isReadOnly) { endConversation(); return; }
 		}
 		messages.push({ role: 'user', content: '', via_voice: true, transcribing: true, fileAttachments: fileAttachments });
 		messages.push({ role: 'assistant', content: '', isTyping: true });
