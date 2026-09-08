@@ -188,11 +188,7 @@ body {
 	border: 1px solid var(--border-hover);
 	border-radius: 6px;
 	color: var(--text-heading);
-	/* See .sidebar-nav-item: the sidebar states its font rather than taking the
-	   UA's button default, so every control in it reads as one menu. */
-	font-family: inherit;
 	font-size: 14px;
-	line-height: 16px;
 	cursor: pointer;
 	display: flex;
 	align-items: center;

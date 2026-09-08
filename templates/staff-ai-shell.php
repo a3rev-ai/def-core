@@ -236,10 +236,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</header>
 
 			<!-- Scheduled tasks — a console PAGE on the shared .console-page shell
-			     (D-C3, 7.8.1): a header with the title, one line of description and
-			     an actions slot for the primary action and the Ask entry, then a body
-			     that scrolls with the page. showPage()/showChat() swap it with the
-			     chat containers and drive #scheduled; the pane's own toggle is gone. -->
+			     (D-C3): a head with the title, one line of description and an actions
+			     slot, then a body that scrolls with the page. showPage()/showChat()
+			     swap it with the chat containers and drive #scheduled. -->
 			<section class="console-page" id="scheduledPane" hidden>
 				<div class="console-page-head">
 					<div>
@@ -261,8 +260,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<!-- My documents — the same .console-page shell (D-C3): document CARDS
 			     grouped by month, one search box matching document OR project names,
 			     the project filter and the per-card actions. Its actions slot stays
-			     empty: the Ask entry belongs to the empty state below, which is where
-			     it earns its place (2026-09-03), and C1 changes nothing visual. -->
+			     empty on purpose — the Ask entry belongs to the empty state below. -->
 			<section class="console-page console-page-compact" id="documentsPane" hidden>
 				<div class="console-page-head">
 					<div>

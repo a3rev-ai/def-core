@@ -768,10 +768,9 @@ function t(key, fallback) {
 
 	// ── The console's page shell (D-C3, D-C4, D-C6) ──────────────────────
 	// A page SWAPS OUT the chat containers, so anything that lands the user in a
-	// chat has to leave whichever page is open. Until 7.8.1 each pane hid the
-	// other one by id and registered its own "leave" handler; the registry below
-	// is the one place that knows a page is showing, which is what lets the
-	// address bar, the sidebar's current marker and focus all agree.
+	// chat has to leave whichever page is open. The registry is the one place
+	// that knows a page is showing, which is what lets the address bar, the
+	// sidebar's current marker and focus all agree.
 	//
 	// A page is { route, el, title, onEnter, onLeave }: `el` is the section,
 	// `title` its heading (tabindex="-1", the focus target on entry).
@@ -779,20 +778,12 @@ function t(key, fallback) {
 	// The page showing, or null for the chat. Read by the hash listener to tell
 	// its own echo (see applyRoute) from a real navigation.
 	var openPage = null;
-	// The sidebar entry that opened the page, so leaving hands focus back to it
-	// rather than dropping it on <body> (D-C6).
-	var pageOpener = null;
-
-	function registerConsolePage(page) {
-		consolePages.push(page);
-		return page;
-	}
+	// True while the entry we are on is the page entry the console itself pushed
+	// over its chat entry — the one case where leaving is a POP, not a push.
+	var chatEntryBelow = false;
 
 	function pageForRoute(route) {
-		for (var i = 0; i < consolePages.length; i++) {
-			if (consolePages[i].route === route) return consolePages[i];
-		}
-		return null;
+		return consolePages.find(function (p) { return p.route === route; }) || null;
 	}
 
 	// The sidebar entry IS the route's link, so the marker follows from the
@@ -818,14 +809,19 @@ function t(key, fallback) {
 			if (location.hash !== hash) location.hash = hash;
 			return;
 		}
-		if (!location.hash) return;
-		if (window.history && window.history.pushState) {
-			// Assigning '' leaves a bare "#" in the address bar; pushState gives
-			// the chat the clean URL the console loaded on.
-			window.history.pushState('', document.title, location.pathname + location.search);
-		} else {
-			location.hash = '';
+		// Opening a page from the chat PUSHED one entry, so leaving POPS it.
+		// Pushing a second clean URL instead would grow history on every
+		// open/leave cycle, leave Back re-opening the page just left, and in
+		// time strand the phone's back gesture inside the console.
+		if (chatEntryBelow) {
+			chatEntryBelow = false;
+			window.history.back();
+			return;
 		}
+		if (!location.hash) return;
+		// Assigning '' leaves a bare "#" in the address bar; pushState gives
+		// the chat the clean URL the console loaded on.
+		window.history.pushState('', document.title, location.pathname + location.search);
 	}
 
 	function showPage(route, opts) {
@@ -836,14 +832,10 @@ function t(key, fallback) {
 		if (!page) { showChat({ fromHash: fromHash }); return; }
 		if (fromHash && openPage === page) return;
 
-		// Only on the way IN, so moving from one page to another keeps the entry
-		// the user actually came from.
-		if (!openPage) {
-			var active = document.activeElement;
-			pageOpener = (active && active.classList && active.classList.contains('sidebar-nav-item'))
-				? active
-				: null;
-		}
+		// Only a page opened FROM the chat sits directly above the chat entry.
+		// Page → page pushes over the page entry, and an entry the user reached
+		// by address, reload or Back/Forward is not ours to pop at all.
+		chatEntryBelow = !fromHash && !openPage;
 
 		consolePages.forEach(function (other) {
 			if (other === page) return;
@@ -877,6 +869,8 @@ function t(key, fallback) {
 
 		var leaving = openPage;
 		openPage = null;
+		// Back/Forward already moved us off the entry we pushed.
+		if (fromHash) chatEntryBelow = false;
 		leaving.el.hidden = true;
 		markNavCurrent(leaving.route, false);
 		if (leaving.onLeave) leaving.onLeave();
@@ -884,14 +878,12 @@ function t(key, fallback) {
 		composerContainer.style.display = '';
 		if (!fromHash) setRoute('');
 		// Hiding the page takes its focused title out of the document, which drops
-		// focus on <body> and loses a keyboard user's place. A page reached by its
-		// address rather than by the sidebar has no opener to go back to, so the
-		// entry that WOULD have opened it stands in.
+		// focus on <body> and loses a keyboard user's place. The sidebar entry for
+		// the page being LEFT is that place, however the page was reached.
 		if (restoreFocus) {
-			var back = (pageOpener && document.contains(pageOpener)) ? pageOpener : navItemForRoute(leaving.route);
+			var back = navItemForRoute(leaving.route);
 			if (back) back.focus();
 		}
-		pageOpener = null;
 	}
 
 	function applyRoute() {
@@ -909,6 +901,12 @@ function t(key, fallback) {
 		if (e.key !== 'Escape' || !openPage) return;
 		if (document.querySelector('.chat-menu')) return;
 		if (document.querySelector('.modal-overlay.visible')) return;
+		// Escape belongs to whatever the user is editing before it belongs to the
+		// page: the Documents inline "Move to project…" editor, the search field,
+		// any form control. Leaving would discard that state under them.
+		if (document.querySelector('.document-assign-row')) return;
+		var tag = e.target && e.target.tagName;
+		if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 		showChat();
 	}, true);
 
@@ -3955,12 +3953,11 @@ function t(key, fallback) {
 		// hiding the other page and remembering which page is open all belong to
 		// showPage now — this page contributes its route, its section, its focus
 		// target and what it loads on entry.
-		registerConsolePage({
+		consolePages.push({
 			route: 'documents',
 			el: pane,
 			title: document.getElementById('documentsTitle'),
-			onEnter: function () { refreshProjectsCache().then(loadList); },
-			onLeave: null
+			onEnter: function () { refreshProjectsCache().then(loadList); }
 		});
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
@@ -5524,12 +5521,11 @@ function t(key, fallback) {
 		// Scheduled on the shared page shell (D-C3), where the container swap,
 		// the other page's hiding and the sidebar's current marker now live.
 
-		registerConsolePage({
+		consolePages.push({
 			route: 'scheduled',
 			el: pane,
 			title: document.getElementById('scheduledTitle'),
-			onEnter: loadAll,
-			onLeave: null
+			onEnter: loadAll
 		});
 
 		async function loadAll() {

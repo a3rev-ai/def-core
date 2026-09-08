@@ -13,6 +13,10 @@
  * translator ever sees it. 98 of them had accumulated by 7.8.0; this test is
  * what stops the gap reopening one commit at a time.
  *
+ * Ten map entries (`usageLoadFailed`, `taskDeleted`, …) word their text
+ * differently from the JS default on purpose and pre-date this test: the map is
+ * the shipped string, so they must not be "corrected" back to the JS fallback.
+ *
  * Runs standalone (no WordPress bootstrap) — it reads the two files as text.
  *
  * @package def-core/tests
@@ -56,10 +60,11 @@ $php = (string) file_get_contents( $php_path );
  * Keys the JS asks for, however each call writes its default.
  *
  * The leading character class keeps `t(` from matching the tail of another
- * identifier (`format(`, `parseInt(`), which a bare \b would not.
+ * identifier (`format(`, `parseInt(`), which a bare \b would not. The key's
+ * quotes are a class so a future double-quoted t( "key" ) cannot slip the scan.
  */
 $js_keys = array();
-preg_match_all( "/[^A-Za-z0-9_.\\$]t\\(\\s*'([A-Za-z0-9_]+)'/", $js, $m );
+preg_match_all( "/[^A-Za-z0-9_.\\$]t\\(\\s*['\"]([A-Za-z0-9_]+)['\"]/", $js, $m );
 foreach ( $m[1] as $key ) {
 	$js_keys[ $key ] = true;
 }
