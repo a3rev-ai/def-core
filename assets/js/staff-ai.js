@@ -4822,72 +4822,33 @@ function t(key, fallback) {
 			}
 		}
 
-		// ——— Create project: naming a new project is a decision you return from,
-		// so it is the one Projects flow that stays a modal (D-C2). The two
-		// controls are the 7.8.0 panel's create row; the status line is the
-		// modal's own, because the page's sits behind the overlay. ———
-		const createModal = document.getElementById('projectCreateModal');
-		const createOpenBtn = document.getElementById('projectsCreateBtn');
-		const createConfirmBtn = document.getElementById('projectCreateConfirm');
-		const createCancelBtn = document.getElementById('projectCreateCancel');
-		const createCloseBtn = document.getElementById('projectCreateModalClose');
-		const createStatusEl = document.getElementById('projectCreateStatus');
+		// ——— Create project: the 7.8.0 create row, in the page head's actions slot.
+		// One name field and one button — not a decision you return from, so not a
+		// dialog (D-C2). It answers through the page's own status line. ———
+		const createBtn = document.getElementById('projectsCreateBtn');
 		const nameEl = document.getElementById('projectsNewName');
-
-		function setCreateStatus(message, kind) {
-			if (!createStatusEl) return;
-			createStatusEl.textContent = message || '';
-			createStatusEl.className = 'documents-status' + (message ? ' documents-status-' + (kind || 'muted') : '');
-		}
-
-		function openCreate() {
-			nameEl.value = '';
-			setCreateStatus('', '');
-			createModal.classList.add('visible');
-			nameEl.focus();
-		}
-
-		function closeCreate() {
-			createModal.classList.remove('visible');
-			// The page is still underneath; put the keyboard back on the control
-			// that opened the dialog rather than dropping focus on <body>.
-			if (createOpenBtn) { createOpenBtn.focus(); }
-		}
 
 		async function createProject() {
 			const name = nameEl.value.trim();
 			if (!name) return;
-			createConfirmBtn.disabled = true;
+			createBtn.disabled = true;
 			try {
 				await apiRequest('/projects', { method: 'POST', body: JSON.stringify({ name: name }) });
-				closeCreate();
+				nameEl.value = '';
 				loadList();
+				// The field is where the next project starts: keep the keyboard there
+				// rather than on the button that has just emptied it.
+				nameEl.focus();
 			} catch (e) {
-				setCreateStatus((e && e.message) || t('projectsCreateFailed', 'Could not create the project.'), 'error');
+				setStatus((e && e.message) || t('projectsCreateFailed', 'Could not create the project.'), 'error');
 			} finally {
-				createConfirmBtn.disabled = false;
+				createBtn.disabled = false;
 			}
 		}
 
-		if (createOpenBtn) createOpenBtn.addEventListener('click', openCreate);
-		createConfirmBtn.addEventListener('click', createProject);
-		if (createCancelBtn) createCancelBtn.addEventListener('click', closeCreate);
-		if (createCloseBtn) createCloseBtn.addEventListener('click', closeCreate);
+		createBtn.addEventListener('click', createProject);
 		nameEl.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter') { e.preventDefault(); createProject(); }
-		});
-		// Escape belongs to the dialog before it belongs to the page, from whichever
-		// control holds focus — the name field, Cancel or Create. Bound on the dialog
-		// so every one of them bubbles to it; the shell's own guard already stands
-		// aside while a .modal-overlay.visible is up, so the page stays open behind.
-		createModal.addEventListener('keydown', function (e) {
-			if (e.key !== 'Escape') return;
-			e.preventDefault();
-			e.stopPropagation();
-			closeCreate();
-		});
-		createModal.addEventListener('click', function (e) {
-			if (e.target === createModal) closeCreate();
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
 

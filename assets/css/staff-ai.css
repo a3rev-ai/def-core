@@ -2905,6 +2905,11 @@ html {
 	.console-page-head {
 		flex-direction: column;
 	}
+	/* The head has stacked, so the slot is full width: give the name field a
+	   line of its own rather than a 200px stub beside a wrapped button. */
+	.projects-create-name {
+		flex-basis: 100%;
+	}
 }
 
 /* --- Projects P-A (the container) ------------------------------------- */
@@ -3334,18 +3339,6 @@ html {
 	padding: 12px 20px 0;
 }
 
-/* Create project (D-C2): the dialog's status line answers under the name field
-   rather than above it, where the page's own line sits behind the overlay. It
-   collapses when it has nothing to say — .documents-status reserves 18px for a
-   line the dialog only sometimes shows. */
-.documents-status-dialog {
-	margin: 8px 0 0;
-}
-.documents-status-dialog:empty {
-	margin-top: 0;
-	min-height: 0;
-}
-
 /* The header's actions slot: room for the Ask entry beside the primary action. */
 .console-page-actions {
 	display: flex;
@@ -3359,6 +3352,15 @@ html {
    which on a phone (where the head stacks) would be visible space. */
 .console-page-actions:empty {
 	display: none;
+}
+
+/* The Projects create row in that slot: the name field takes a fixed share and
+   gives it up first, so the two buttons keep their own width. min-width:0
+   because a flex item otherwise refuses to shrink past an input's intrinsic
+   size and would push the head wider than a phone's viewport. */
+.projects-create-name {
+	flex: 0 1 200px;
+	min-width: 0;
 }
 
 /* My documents page (item 3) — the shell carries its frame and header now. */

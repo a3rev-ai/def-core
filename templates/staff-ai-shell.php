@@ -250,8 +250,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<h1 class="console-page-title" id="projectsTitle" tabindex="-1"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Folders your assistant works from, each with its own governing documents.', 'digital-employees' ); ?></p>
 					</div>
+					<!-- The 7.8.0 create row, in the shell's actions slot: a name field and
+					     the button beside the Ask entry. Enter in the field creates too. -->
 					<div class="console-page-actions">
 						<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
+						<input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
 						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
 					</div>
 				</div>
@@ -549,26 +552,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
-		<!-- Create project — the one Projects flow that stays a modal (D-C2: a page
-		     is a place you browse, a modal is a decision you return from). The two
-		     controls are the 7.8.0 panel's create row, unchanged; the status line is
-		     the modal's own, because the page's sits behind it. -->
-		<div class="modal-overlay" id="projectCreateModal">
-			<div class="modal" style="max-width: 420px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="projectCreateModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
-					<div class="documents-status documents-status-dialog" id="projectCreateStatus"></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="modal-btn modal-btn-secondary" id="projectCreateCancel"><?php echo esc_html__( 'Cancel', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-primary" id="projectCreateConfirm"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
 				</div>
 			</div>
 		</div>
