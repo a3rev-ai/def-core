@@ -766,21 +766,193 @@ function t(key, fallback) {
 		shareBtn.disabled = !currentConversationId;
 	}
 
-	// A pane (Documents, Scheduled) SWAPS OUT the chat containers, so anything
-	// that lands the user in a chat has to leave whichever one is open. Panes
-	// register their own hide here and resetToNewChat calls it. This replaces
-	// each pane's capture listener on #newChatBtn: those fired for the SIDEBAR
-	// button only, so a project row's "New chat" — and every Ask button — closed
-	// its own modal and left the pane behind it covering the fresh chat (the
-	// intermittent "New chat opened Documents / went back to Scheduled" bug).
-	const paneLeaveHandlers = [];
-	function onLeavePane(hide) { paneLeaveHandlers.push(hide); }
-	function leavePanes() { paneLeaveHandlers.forEach(function (hide) { hide(); }); }
+	// ── The console's page shell (D-C3, D-C4, D-C6) ──────────────────────
+	// A page SWAPS OUT the chat containers, so anything that lands the user in a
+	// chat has to leave whichever page is open. The registry is the one place
+	// that knows a page is showing, which is what lets the address bar, the
+	// sidebar's current marker and focus all agree.
+	//
+	// A page is { route, el, title, onEnter, onLeave }: `el` is the section,
+	// `title` its heading (tabindex="-1", the focus target on entry).
+	const consolePages = [];
+	// The page showing, or null for the chat. Read by the hash listener to tell
+	// its own echo (see applyRoute) from a real navigation.
+	var openPage = null;
+	// True while the entry we are on is the page entry the console itself pushed
+	// over its chat entry — the one case where leaving is a POP, not a push.
+	var chatEntryBelow = false;
+
+	function pageForRoute(route) {
+		return consolePages.find(function (p) { return p.route === route; }) || null;
+	}
+
+	// The sidebar entry IS the route's link, so the marker follows from the
+	// route with nothing to keep in step by hand.
+	function navItemForRoute(route) {
+		return document.querySelector('.sidebar-nav-item[href="#' + route + '"]');
+	}
+
+	function markNavCurrent(route, current) {
+		var item = navItemForRoute(route);
+		if (!item) return;
+		item.classList.toggle('sidebar-nav-item-current', current);
+		if (current) item.setAttribute('aria-current', 'page');
+		else item.removeAttribute('aria-current');
+	}
+
+	// Writing location.hash fires hashchange ASYNCHRONOUSLY, so a flag set
+	// around the write is already cleared when the event lands. Instead every
+	// hash-driven call is a no-op when it names the state we are already in
+	// (see the fromHash guards), and the echo costs nothing.
+	function setRoute(hash) {
+		if (hash) {
+			if (location.hash !== hash) location.hash = hash;
+			return;
+		}
+		// Opening a page from the chat PUSHED one entry, so leaving POPS it.
+		// Pushing a second clean URL instead would grow history on every
+		// open/leave cycle, leave Back re-opening the page just left, and in
+		// time strand the phone's back gesture inside the console.
+		if (chatEntryBelow) {
+			chatEntryBelow = false;
+			window.history.back();
+			return;
+		}
+		if (!location.hash) return;
+		// Assigning '' leaves a bare "#" in the address bar; pushState gives
+		// the chat the clean URL the console loaded on.
+		window.history.pushState('', document.title, location.pathname + location.search);
+	}
+
+	function showPage(route, opts) {
+		var fromHash = !!(opts && opts.fromHash);
+		var page = pageForRoute(route);
+		// An unknown route is not an error (D-C4): a link from an older release,
+		// or a hash the console does not own, lands in the chat.
+		if (!page) { showChat({ fromHash: fromHash }); return; }
+		if (fromHash && openPage === page) return;
+
+		// Only a page opened FROM the chat sits directly above the chat entry.
+		// Page → page pushes over the page entry, and an entry the user reached
+		// by address, reload or Back/Forward is not ours to pop at all.
+		// Re-entering the page already open (the sidebar entry clicked again for
+		// a reload) pushes nothing, so it must not disown the entry underneath.
+		if (openPage !== page) chatEntryBelow = !fromHash && !openPage;
+
+		consolePages.forEach(function (other) {
+			if (other === page) return;
+			markNavCurrent(other.route, false);
+			if (other.el.hidden) return;
+			other.el.hidden = true;
+			if (other.onLeave) other.onLeave();
+		});
+
+		// The chat is HIDDEN, never reset (D-C5): a streaming reply keeps
+		// streaming and a half-typed message is still in the composer on return.
+		messagesContainer.style.display = 'none';
+		composerContainer.style.display = 'none';
+		page.el.hidden = false;
+		markNavCurrent(page.route, true);
+		openPage = page;
+		if (page.onEnter) page.onEnter();
+		if (page.title) page.title.focus();
+		if (!fromHash) setRoute('#' + page.route);
+	}
+
+	function showChat(opts) {
+		var fromHash = !!(opts && opts.fromHash);
+		// Chat navigation (a fresh chat, opening a conversation) leaves the page
+		// without yanking focus out of what the user is about to read.
+		var restoreFocus = !(opts && opts.focus === false);
+		if (!openPage) {
+			if (!fromHash) setRoute('');
+			return;
+		}
+
+		var leaving = openPage;
+		openPage = null;
+		// Back/Forward already moved us off the entry we pushed.
+		if (fromHash) chatEntryBelow = false;
+		leaving.el.hidden = true;
+		markNavCurrent(leaving.route, false);
+		if (leaving.onLeave) leaving.onLeave();
+		messagesContainer.style.display = '';
+		composerContainer.style.display = '';
+		if (!fromHash) setRoute('');
+		// Hiding the page takes its focused title out of the document, which drops
+		// focus on <body> and loses a keyboard user's place. The sidebar entry for
+		// the page being LEFT is that place, however the page was reached.
+		if (restoreFocus) {
+			var back = navItemForRoute(leaving.route);
+			if (back) back.focus();
+		}
+	}
+
+	function applyRoute() {
+		var route = (location.hash || '').replace(/^#/, '');
+		if (route) showPage(route, { fromHash: true });
+		else showChat({ fromHash: true });
+	}
+
+	window.addEventListener('hashchange', applyRoute);
+
+	// A sidebar page entry is a LINK, so an ordinary click is the BROWSER's
+	// navigation: it pushes the hash itself, and the hashchange that follows is
+	// indistinguishable from Back/Forward. showPage would be told fromHash and
+	// would never record the push as its own, so leaving pushed a second clean
+	// URL instead of popping — one stray entry per open/leave cycle, with Back
+	// re-opening the page just left. Taking the plain click here hands that push
+	// back to showPage, which is what setRoute('') pairs with.
+	//
+	// Only an UNMODIFIED LEFT click is ours. Ctrl/Cmd/Shift/Alt and the middle
+	// and right buttons belong to the browser — new tab, new window, the context
+	// menu — and these entries are real addresses that must keep opening that way.
+	function isPlainClick(e) {
+		return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
+	}
+
+	// Delegated from `document` so the registry stays the only list of pages:
+	// the route is read off the link's own href and honoured only when it names
+	// a registered page, which covers a page added later with no wiring of its
+	// own. An unknown or empty hash href is left to the browser.
+	document.addEventListener('click', function (e) {
+		if (e.defaultPrevented || !isPlainClick(e)) return;
+		var link = e.target && e.target.closest ? e.target.closest('.sidebar-nav-item[href^="#"]') : null;
+		if (!link) return;
+		var route = link.getAttribute('href').slice(1);
+		if (!route || !pageForRoute(route)) return;
+		e.preventDefault();
+		showPage(route);
+	});
+
+	// Capture phase: the chat row's ⋮ menu closes on Escape from a listener
+	// registered earlier on `document`, so by the bubble phase the menu is
+	// already gone and one Escape would both close it AND leave the page.
+	document.addEventListener('keydown', function (e) {
+		if (e.key !== 'Escape' || !openPage) return;
+		if (document.querySelector('.chat-menu')) return;
+		if (document.querySelector('.modal-overlay.visible')) return;
+		// Escape belongs to whatever the user is editing before it belongs to the
+		// page: the Documents inline "Move to project…" editor, the search field,
+		// any form control. Leaving would discard that state under them.
+		if (document.querySelector('.document-assign-row')) return;
+		var tag = e.target && e.target.tagName;
+		if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+		showChat();
+	}, true);
+
+	// Opening a conversation from the list leaves the page. One capture listener
+	// for every page, where each pane used to register its own.
+	if (conversationList) {
+		conversationList.addEventListener('click', function () { showChat({ focus: false }); }, true);
+	}
 
 	// New chat (shared with Projects P-B's "New chat in this project")
 	function resetToNewChat() {
 		if (conversationOn) endConversation();
-		leavePanes();
+		// Every path to a fresh chat leaves the open page — the sidebar button,
+		// a project row's "New chat", every Ask button.
+		showChat({ focus: false });
 		currentConversationId = null;
 		isReadOnly = false;
 		messages = [];
@@ -3751,11 +3923,8 @@ function t(key, fallback) {
 		const pane = document.getElementById('documentsPane');
 		if (!pane) return;
 
-		const openBtn = document.getElementById('navDocuments');
 		const statusEl = document.getElementById('documentsStatus');
 		const listEl = document.getElementById('documentsGrid');
-		const messagesEl = document.getElementById('messagesContainer');
-		const composerEl = document.getElementById('composerContainer');
 		const searchEl = document.getElementById('documentsSearch');
 		const projectFilterEl = document.getElementById('documentsProjectFilter');
 		const emptyEl = document.getElementById('documentsEmptyState');
@@ -3811,29 +3980,22 @@ function t(key, fallback) {
 			return searchEl ? searchEl.value.trim() : '';
 		}
 
-		var paneOpen = false;
-		function open() {
-			paneOpen = true;
-			var sched = document.getElementById('scheduledPane');
-			if (sched) sched.hidden = true; // one pane at a time
-			if (messagesEl) messagesEl.style.display = 'none';
-			if (composerEl) composerEl.style.display = 'none';
-			pane.hidden = false;
-			refreshProjectsCache().then(loadList);
-		}
-		function close() {
-			if (!paneOpen) return;
-			paneOpen = false;
-			pane.hidden = true;
-			if (messagesEl) messagesEl.style.display = '';
-			if (composerEl) composerEl.style.display = '';
-		}
+		// Documents on the shared page shell (D-C3): swapping the containers,
+		// hiding the other page and remembering which page is open all belong to
+		// showPage now — this page contributes its route, its section, its focus
+		// target and what it loads on entry.
+		consolePages.push({
+			route: 'documents',
+			el: pane,
+			title: document.getElementById('documentsTitle'),
+			onEnter: function () { refreshProjectsCache().then(loadList); }
+		});
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
 		openDocumentsForProject = function (projectId, excludeSlots) {
 			projectFilter = projectId || '';
 			projectExcludeSlots = !!excludeSlots && !!projectFilter;
-			open();
+			showPage('documents');
 		};
 
 		function setStatus(message, kind) {
@@ -4109,16 +4271,19 @@ function t(key, fallback) {
 		}
 
 		// A plain visit drops the bridge's slot exclusion, which has no control
-		// of its own to undo it. The project filter keeps its stickiness.
-		if (openBtn) openBtn.addEventListener('click', function () {
+		// of its own to undo it. The project filter keeps its stickiness. The
+		// sidebar entry is a link now, so this only clears the exclusion and lets
+		// the route do the opening.
+		var navDocumentsLink = document.getElementById('navDocuments');
+		if (navDocumentsLink) navDocumentsLink.addEventListener('click', function (e) {
+			// A modified click opens another tab and leaves this one where it is,
+			// so the exclusion it still shows must stay (see isPlainClick).
+			if (!isPlainClick(e)) return;
+			// The page shell takes this click and calls showPage itself — which
+			// re-enters, and so reloads, even when Documents is already open. This
+			// only has to drop the exclusion first, before that load reads it.
 			projectExcludeSlots = false;
-			open();
 		});
-		// Chat navigation leaves the page (the D-S7 pattern): resetToNewChat for
-		// every path to a fresh chat, capture phase for opening an existing one.
-		onLeavePane(close);
-		var convListB = document.getElementById('conversationList');
-		if (convListB) convListB.addEventListener('click', close, true);
 		if (projectFilterEl) {
 			projectFilterEl.addEventListener('change', function () {
 				projectFilter = projectFilterEl.value;
@@ -5031,13 +5196,10 @@ function t(key, fallback) {
 		var pane = document.getElementById('scheduledPane');
 		var modal = document.getElementById('scheduleModal');
 		if (!pane || !modal) return;
-		var navBtn = document.getElementById('navScheduled');
 		var grid = document.getElementById('taskCardGrid');
 		var paneEmpty = document.getElementById('scheduledEmpty');
 		var paneStatus = document.getElementById('scheduledPaneStatus');
 		var newTaskBtn = document.getElementById('taskCreateBtn');
-		var messagesEl = document.getElementById('messagesContainer');
-		var composerEl = document.getElementById('composerContainer');
 
 		var modalClose = document.getElementById('scheduleModalClose');
 		var closeBtn = document.getElementById('scheduleClose');
@@ -5390,27 +5552,15 @@ function t(key, fallback) {
 			paneEmpty.style.display = any ? 'none' : '';
 		}
 
-		// --- the pane swap (D-S7): Scheduled is a page, chat navigation leaves it
+		// Scheduled on the shared page shell (D-C3), where the container swap,
+		// the other page's hiding and the sidebar's current marker now live.
 
-		var paneOpen = false;
-
-		function showPane() {
-			paneOpen = true;
-			var docsPane = document.getElementById('documentsPane');
-			if (docsPane) docsPane.hidden = true; // one pane at a time
-			if (messagesEl) messagesEl.style.display = 'none';
-			if (composerEl) composerEl.style.display = 'none';
-			pane.hidden = false;
-			loadAll();
-		}
-
-		function hidePane() {
-			if (!paneOpen) return;
-			paneOpen = false;
-			pane.hidden = true;
-			if (messagesEl) messagesEl.style.display = '';
-			if (composerEl) composerEl.style.display = '';
-		}
+		consolePages.push({
+			route: 'scheduled',
+			el: pane,
+			title: document.getElementById('scheduledTitle'),
+			onEnter: loadAll
+		});
 
 		async function loadAll() {
 			if (loading) return;
@@ -5975,7 +6125,6 @@ function t(key, fallback) {
 					&& !window.confirm(t('taskDiscardForAsk',
 						'Leave this task and open a chat? What you have typed here is not kept.'))) return;
 				closeModal();
-				hidePane();
 				clearActiveProject();
 				resetToNewChat();
 				composerInput.value = t('scheduleResultsAskPrompt',
@@ -5998,7 +6147,6 @@ function t(key, fallback) {
 		onAssistantName(labelScheduledAsk);
 		if (askBtn) {
 			askBtn.addEventListener('click', function () {
-				hidePane();
 				clearActiveProject();
 				resetToNewChat();
 				composerInput.value = t('scheduledAskPrompt', 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.');
@@ -6007,17 +6155,12 @@ function t(key, fallback) {
 			});
 		}
 
-		if (navBtn) navBtn.addEventListener('click', showPane);
 		if (newTaskBtn) newTaskBtn.addEventListener('click', openCreator);
 		if (modalClose) modalClose.addEventListener('click', closeModal);
 		if (closeBtn) closeBtn.addEventListener('click', closeModal);
 		if (saveBtn) saveBtn.addEventListener('click', save);
 		modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
-		// Chat navigation leaves the page — see the Documents pane's note.
-		onLeavePane(hidePane);
-		var convList = document.getElementById('conversationList');
-		if (convList) convList.addEventListener('click', hidePane, true);
 	})();
 
 	// =============================================
@@ -6088,4 +6231,9 @@ function t(key, fallback) {
 
 	// Focus input on load
 	composerInput.focus();
+
+	// The address decides what the console opens on (D-C4), and it runs last so
+	// every page has registered — and after the composer's focus, so a reload on
+	// a page leaves focus on that page's title rather than the hidden composer.
+	applyRoute();
 })();

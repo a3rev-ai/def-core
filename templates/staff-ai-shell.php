@@ -64,6 +64,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<?php echo esc_html__( 'New chat', 'digital-employees' ); ?>
 				</button>
 			</div>
+			<!-- D-C7: an entry that opens a PAGE is a link to its route, so the
+			     browser's back button, a phone's back gesture and a reload behave as
+			     they do on any site, and the open page is marked aria-current="page".
+			     The four that still open a modal keep aria-haspopup="dialog" until
+			     C2-C4 move them — the sidebar never promises an address that is not
+			     there yet. -->
 			<nav class="sidebar-nav" aria-label="<?php echo esc_attr__( 'Staff AI sections', 'digital-employees' ); ?>">
 				<button type="button" class="sidebar-nav-item" id="navProjects" aria-haspopup="dialog">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -71,20 +77,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</svg>
 					<?php echo esc_html__( 'Projects', 'digital-employees' ); ?>
 				</button>
-				<button type="button" class="sidebar-nav-item" id="navDocuments" aria-haspopup="dialog">
+				<a class="sidebar-nav-item" id="navDocuments" href="#documents">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
 						<polyline points="14 2 14 8 20 8"></polyline>
 					</svg>
 					<?php echo esc_html__( 'Documents', 'digital-employees' ); ?>
-				</button>
-				<button type="button" class="sidebar-nav-item" id="navScheduled" aria-haspopup="dialog">
+				</a>
+				<a class="sidebar-nav-item" id="navScheduled" href="#scheduled">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<circle cx="12" cy="12" r="9"></circle>
 						<polyline points="12 7 12 12 15 14"></polyline>
 					</svg>
 					<?php echo esc_html__( 'Scheduled', 'digital-employees' ); ?>
-				</button>
+				</a>
 				<button type="button" class="sidebar-nav-item" id="navMemories" aria-haspopup="dialog">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
@@ -229,17 +235,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</header>
 
-			<!-- Scheduled tasks — full-pane landing (Scheduled Tasks Phase 3, D-S7).
-			     A page in the content area, not a fifth modal: the task list is a
-			     destination, the way the Claude scheduler treats it. JS swaps it with
-			     the chat containers; chat navigation swaps back. -->
-			<section class="scheduled-pane" id="scheduledPane" hidden>
-				<div class="scheduled-pane-head">
+			<!-- Scheduled tasks — a console PAGE on the shared .console-page shell
+			     (D-C3): a head with the title, one line of description and an actions
+			     slot, then a body that scrolls with the page. showPage()/showChat()
+			     swap it with the chat containers and drive #scheduled. -->
+			<section class="console-page" id="scheduledPane" hidden>
+				<div class="console-page-head">
 					<div>
-						<h1 class="scheduled-pane-title"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
-						<p class="scheduled-pane-sub"><?php echo esc_html__( 'Run tasks on a schedule or whenever you need them.', 'digital-employees' ); ?></p>
+						<h1 class="console-page-title" id="scheduledTitle" tabindex="-1"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Run tasks on a schedule or whenever you need them.', 'digital-employees' ); ?></p>
 					</div>
-					<div class="scheduled-pane-actions">
+					<div class="console-page-actions">
 						<button type="button" class="modal-btn modal-btn-secondary" id="scheduledAskAssistant"><?php echo esc_html__( 'Ask how Scheduled Tasks work', 'digital-employees' ); ?></button>
 						<button type="button" class="modal-btn modal-btn-primary" id="taskCreateBtn"><?php echo esc_html__( 'New task', 'digital-employees' ); ?></button>
 					</div>
@@ -251,16 +257,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="schedule-status" id="scheduledPaneStatus"></div>
 			</section>
 
-			<!-- My documents — full-pane landing (tweaks item 3, the D-S7 precedent):
-			     a destination page with document CARDS grouped by month, not a fifth
-			     modal. One search box matches document OR project names; the project
-			     filter and the per-card actions carry over from the old modal. -->
-			<section class="documents-pane" id="documentsPane" hidden>
-				<div class="documents-pane-head">
+			<!-- My documents — the same .console-page shell (D-C3): document CARDS
+			     grouped by month, one search box matching document OR project names,
+			     the project filter and the per-card actions. Its actions slot stays
+			     empty on purpose — the Ask entry belongs to the empty state below. -->
+			<section class="console-page console-page-compact" id="documentsPane" hidden>
+				<div class="console-page-head">
 					<div>
-						<h1 class="scheduled-pane-title"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></h1>
-						<p class="scheduled-pane-sub"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
+						<h1 class="console-page-title" id="documentsTitle" tabindex="-1"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
 					</div>
+					<div class="console-page-actions"></div>
 				</div>
 				<div class="documents-controls">
 					<input type="search" class="form-input documents-search" id="documentsSearch" aria-label="<?php echo esc_attr__( 'Search by document or project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'Search by document or project name…', 'digital-employees' ); ?>">
@@ -962,7 +969,121 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
 			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
-			documentsUndated: <?php echo wp_json_encode( __( 'Undated', 'digital-employees' ) ); ?>
+			documentsUndated: <?php echo wp_json_encode( __( 'Undated', 'digital-employees' ) ); ?>,
+			/* D-C10 (7.8.1): every t( 'key' ) the console uses has its entry here.
+			   A key that only ever had a JS fallback shipped English and no language
+			   file could carry it; tests/test-staff-ai-i18n-coverage.php now fails the
+			   build if one is added without an entry. The JS defaults stay as the
+			   fallback they are. */
+			chatOptions: <?php echo wp_json_encode( __( 'Chat options', 'digital-employees' ) ); ?>,
+			chatRename: <?php echo wp_json_encode( __( 'Rename', 'digital-employees' ) ); ?>,
+			chatRenamePrompt: <?php echo wp_json_encode( __( 'New chat name:', 'digital-employees' ) ); ?>,
+			chatRenameFailed: <?php echo wp_json_encode( __( 'Could not rename the chat.', 'digital-employees' ) ); ?>,
+			chatAddToProject: <?php echo wp_json_encode( __( 'Add to project…', 'digital-employees' ) ); ?>,
+			chatDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
+			chatConfirmDelete: <?php echo wp_json_encode( __( 'Delete this chat? It disappears from your list now and is permanently forgotten a month later.', 'digital-employees' ) ); ?>,
+			chatDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the chat.', 'digital-employees' ) ); ?>,
+			chatPickProject: <?php echo wp_json_encode( __( 'Move to project', 'digital-employees' ) ); ?>,
+			projectsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your projects.', 'digital-employees' ) ); ?>,
+			chatMoveFailed: <?php echo wp_json_encode( __( 'Could not move the chat.', 'digital-employees' ) ); ?>,
+			chatRemoveFromProject: <?php echo wp_json_encode( __( 'Remove from project', 'digital-employees' ) ); ?>,
+			chatNoProjects: <?php echo wp_json_encode( __( 'No projects yet — create one from the Projects panel.', 'digital-employees' ) ); ?>,
+			uploadTimeout: <?php echo wp_json_encode( __( 'Upload timed out. Please try again.', 'digital-employees' ) ); ?>,
+			analyzeFiles: <?php echo wp_json_encode( __( 'Please analyze the attached file(s).', 'digital-employees' ) ); ?>,
+			integrationsLoading: <?php echo wp_json_encode( __( 'Loading your connected accounts…', 'digital-employees' ) ); ?>,
+			integrationsNotConfigured: <?php echo wp_json_encode( __( 'Integrations aren’t set up for your team yet. Ask an administrator to connect apps.', 'digital-employees' ) ); ?>,
+			integrationsEmpty: <?php echo wp_json_encode( __( 'No connected apps yet. Ask an administrator to add integrations.', 'digital-employees' ) ); ?>,
+			integrationsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your connected accounts.', 'digital-employees' ) ); ?>,
+			primaryMailboxLabel: <?php echo wp_json_encode( __( 'Primary for chat:', 'digital-employees' ) ); ?>,
+			accountDisconnect: <?php echo wp_json_encode( __( 'Disconnect', 'digital-employees' ) ); ?>,
+			primaryMailboxClear: <?php echo wp_json_encode( __( 'Clear', 'digital-employees' ) ); ?>,
+			accountConnectAnother: <?php echo wp_json_encode( __( 'Connect another account', 'digital-employees' ) ); ?>,
+			integrationsStarting: <?php echo wp_json_encode( __( 'Starting the connection…', 'digital-employees' ) ); ?>,
+			integrationsFinish: <?php echo wp_json_encode( __( 'Finish connecting →', 'digital-employees' ) ); ?>,
+			integrationsAwaiting: <?php echo wp_json_encode( __( 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.', 'digital-employees' ) ); ?>,
+			integrationsNoLink: <?php echo wp_json_encode( __( 'Could not start the connection. Please try again.', 'digital-employees' ) ); ?>,
+			integrationsConnectFailed: <?php echo wp_json_encode( __( 'Could not start the connection.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the account's name, e.g. an email address. */ ?>
+			accountDisconnectConfirm: <?php echo wp_json_encode( __( 'Disconnect %s? This ends access to that account only — the app stays connected, and you can connect it again later.', 'digital-employees' ) ); ?>,
+			integrationsDisconnecting: <?php echo wp_json_encode( __( 'Disconnecting…', 'digital-employees' ) ); ?>,
+			accountDisconnectFailed: <?php echo wp_json_encode( __( 'That account could not be disconnected — it is unchanged.', 'digital-employees' ) ); ?>,
+			accountDisconnected: <?php echo wp_json_encode( __( 'Account disconnected.', 'digital-employees' ) ); ?>,
+			primaryMailboxSaving: <?php echo wp_json_encode( __( 'Saving your primary mailbox…', 'digital-employees' ) ); ?>,
+			primaryMailboxSaved: <?php echo wp_json_encode( __( 'Primary mailbox saved.', 'digital-employees' ) ); ?>,
+			primaryMailboxFailed: <?php echo wp_json_encode( __( 'Could not save your primary mailbox.', 'digital-employees' ) ); ?>,
+			primaryMailboxClearing: <?php echo wp_json_encode( __( 'Clearing…', 'digital-employees' ) ); ?>,
+			primaryMailboxCleared: <?php echo wp_json_encode( __( 'Primary cleared - chat uses the default account again.', 'digital-employees' ) ); ?>,
+			integrationsReady: <?php echo wp_json_encode( __( 'Ready', 'digital-employees' ) ); ?>,
+			integrationsConnected: <?php echo wp_json_encode( __( 'Connected', 'digital-employees' ) ); ?>,
+			integrationsConnect: <?php echo wp_json_encode( __( 'Connect', 'digital-employees' ) ); ?>,
+			integrationsDisconnect: <?php echo wp_json_encode( __( 'Disconnect', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the app’s name, e.g. Google Drive (used twice). */ ?>
+			integrationsDisconnectConfirm: <?php echo wp_json_encode( __( 'Disconnect %s? This ends your own access. Your team’s connection to %s stays, and you can connect again later.', 'digital-employees' ) ); ?>,
+			integrationsDisconnectPartial: <?php echo wp_json_encode( __( 'Some of your access could not be ended. Try again, or ask an administrator.', 'digital-employees' ) ); ?>,
+			integrationsNothingToEnd: <?php echo wp_json_encode( __( 'No live connection to this app was found under the name we have for it. If you still have access, remove it in your account settings for that app, or ask an administrator.', 'digital-employees' ) ); ?>,
+			integrationsDisconnected: <?php echo wp_json_encode( __( 'Disconnected. Ending access with the provider can take a moment.', 'digital-employees' ) ); ?>,
+			integrationsDisconnectFailed: <?php echo wp_json_encode( __( 'Could not disconnect that app.', 'digital-employees' ) ); ?>,
+			projectChipLabel: <?php echo wp_json_encode( __( 'Project: ', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the document's length in characters. */ ?>
+			documentViewerChars: <?php echo wp_json_encode( __( '%s characters', 'digital-employees' ) ); ?>,
+			documentViewerFailed: <?php echo wp_json_encode( __( 'Could not read the document.', 'digital-employees' ) ); ?>,
+			documentViewerTitle: <?php echo wp_json_encode( __( 'Document', 'digital-employees' ) ); ?>,
+			documentViewerLoading: <?php echo wp_json_encode( __( 'Loading…', 'digital-employees' ) ); ?>,
+			documentsAllProjects: <?php echo wp_json_encode( __( 'All documents', 'digital-employees' ) ); ?>,
+			projectsArchived: <?php echo wp_json_encode( __( 'Archived', 'digital-employees' ) ); ?>,
+			documentsOtherOnly: <?php echo wp_json_encode( __( 'Other documents only — the runsheet, session notes and instructions are on the project card.', 'digital-employees' ) ); ?>,
+			documentsView: <?php echo wp_json_encode( __( 'View', 'digital-employees' ) ); ?>,
+			documentsNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
+			documentsSlotNone: <?php echo wp_json_encode( __( 'Ordinary document', 'digital-employees' ) ); ?>,
+			documentsSlotInstructions: <?php echo wp_json_encode( __( 'Instructions', 'digital-employees' ) ); ?>,
+			documentsSlotRunsheet: <?php echo wp_json_encode( __( 'Runsheet', 'digital-employees' ) ); ?>,
+			documentsSlotSessionNotes: <?php echo wp_json_encode( __( 'Session notes', 'digital-employees' ) ); ?>,
+			save: <?php echo wp_json_encode( __( 'Save', 'digital-employees' ) ); ?>,
+			documentsMoveFailed: <?php echo wp_json_encode( __( 'Could not move the document.', 'digital-employees' ) ); ?>,
+			projectsTasksCheckFailed: <?php echo wp_json_encode( __( 'Could not check the tasks bound to this project.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %n: how many tasks; %p: the project name; %t: the task names. */ ?>
+			projectsBoundTasksDisable: <?php echo wp_json_encode( __( "%n scheduled task(s) run inside \"%p\": %t.\n\nDisable them? OK = disable them. Cancel = keep them running WITHOUT the project's documents.", 'digital-employees' ) ); ?>,
+			projectsBoundTasksUnbind: <?php echo wp_json_encode( __( 'Remove the project from those tasks? OK = they run on with no project. Cancel = leave them bound (they run without the archived project\'s documents until you change them).', 'digital-employees' ) ); ?>,
+			projectsLoading: <?php echo wp_json_encode( __( 'Loading your projects…', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			projectsEmpty: <?php echo wp_json_encode( __( 'No projects yet. Ask %s how Projects work (the button below), or create one by name.', 'digital-employees' ) ); ?>,
+			projectsActive: <?php echo wp_json_encode( __( 'Active', 'digital-employees' ) ); ?>,
+			projectsOpen: <?php echo wp_json_encode( __( 'Open Project', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the project name. */ ?>
+			projectsConfirmRestoreOpen: <?php echo wp_json_encode( __( 'Restore "%s" and open it? It moves back to your active projects.', 'digital-employees' ) ); ?>,
+			projectsManage: <?php echo wp_json_encode( __( 'Manage project', 'digital-employees' ) ); ?>,
+			projectsKnowledge: <?php echo wp_json_encode( __( 'Project knowledge', 'digital-employees' ) ); ?>,
+			projectsSlotsLoading: <?php echo wp_json_encode( __( 'Loading…', 'digital-employees' ) ); ?>,
+			projectsDocCountOne: <?php echo wp_json_encode( __( '1 document', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: how many documents. */ ?>
+			projectsDocCount: <?php echo wp_json_encode( __( '%s documents', 'digital-employees' ) ); ?>,
+			projectsSlotRunsheet: <?php echo wp_json_encode( __( 'Runsheet', 'digital-employees' ) ); ?>,
+			projectsSlotSessionNotes: <?php echo wp_json_encode( __( 'Session notes', 'digital-employees' ) ); ?>,
+			projectsSlotInstructions: <?php echo wp_json_encode( __( 'Instructions', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the document's version number. */ ?>
+			projectsSlotVersion: <?php echo wp_json_encode( __( 'v%s', 'digital-employees' ) ); ?>,
+			projectsSlotNotSet: <?php echo wp_json_encode( __( 'Not set — add', 'digital-employees' ) ); ?>,
+			projectsOtherDocs: <?php echo wp_json_encode( __( 'Other documents', 'digital-employees' ) ); ?>,
+			projectsFileCountOne: <?php echo wp_json_encode( __( '1 file', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: how many files. */ ?>
+			projectsFileCount: <?php echo wp_json_encode( __( '%s files', 'digital-employees' ) ); ?>,
+			projectsRename: <?php echo wp_json_encode( __( 'Rename', 'digital-employees' ) ); ?>,
+			projectsRestore: <?php echo wp_json_encode( __( 'Restore', 'digital-employees' ) ); ?>,
+			projectsArchive: <?php echo wp_json_encode( __( 'Archive', 'digital-employees' ) ); ?>,
+			projectsDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
+			projectsBusy: <?php echo wp_json_encode( __( 'One change at a time…', 'digital-employees' ) ); ?>,
+			projectsRenamePrompt: <?php echo wp_json_encode( __( 'New project name:', 'digital-employees' ) ); ?>,
+			projectsSaveFailed: <?php echo wp_json_encode( __( 'Could not save the project.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the project name. */ ?>
+			projectsConfirmDelete: <?php echo wp_json_encode( __( 'Delete "%s"? Its documents are NOT deleted — they stay in your library.', 'digital-employees' ) ); ?>,
+			projectsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the project.', 'digital-employees' ) ); ?>,
+			projectsCreateFailed: <?php echo wp_json_encode( __( 'Could not create the project.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the project name. */ ?>
+			taskProjectBadge: <?php echo wp_json_encode( __( 'Project: %s', 'digital-employees' ) ); ?>,
+			taskProjectUnknown: <?php echo wp_json_encode( __( '(project)', 'digital-employees' ) ); ?>,
+			taskNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
+			taskProjectArchived: <?php echo wp_json_encode( __( '(archived)', 'digital-employees' ) ); ?>,
+			scheduleNewTitle: <?php echo wp_json_encode( __( 'New Email Triage schedule', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

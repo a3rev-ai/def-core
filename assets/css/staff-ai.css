@@ -348,8 +348,14 @@ body {
 	border: none;
 	border-radius: 6px;
 	color: var(--text-heading);
+	/* Two of the six are links now (D-C7) and four are still buttons, and a
+	   button does not inherit the page's font while a link does. Stating both
+	   here is what keeps one menu in one typeface at one row height. */
+	font-family: inherit;
 	font-size: 14px;
+	line-height: 16px;
 	text-align: left;
+	text-decoration: none;
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -371,6 +377,18 @@ body {
 .sidebar-nav-item:focus-visible {
 	outline: 2px solid var(--border-hover);
 	outline-offset: -2px;
+}
+
+/* D-C7: the console has never shown "where am I". The open page's entry keeps
+   the hover tint whether or not the pointer is on it, so the state is legible
+   without relying on colour alone (aria-current="page" carries it to AT). */
+.sidebar-nav-item-current {
+	background: var(--hover-bg);
+	font-weight: 600;
+}
+
+.sidebar-nav-item-current svg {
+	opacity: 1;
 }
 
 .conversation-item {
@@ -2809,18 +2827,23 @@ html {
    the cards reuse .task-card, laid out as a responsive grid.
    ============================================= */
 
-.scheduled-pane {
+/* --- The console page shell (D-C3, 7.8.1) ------------------------------
+   One shell for every page the sidebar opens: header (title, one line of
+   description, an actions slot), then a body that scrolls with the page.
+   Documents and Scheduled adopted it first with no visual change — that is
+   the proof the shell is neutral before the four modals move onto it. */
+.console-page {
 	flex: 1;
 	overflow-y: auto;
 	padding: 28px 32px;
 	background: var(--bg-main);
 }
 
-.scheduled-pane[hidden] {
+.console-page[hidden] {
 	display: none;
 }
 
-.scheduled-pane-head {
+.console-page-head {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
@@ -2828,14 +2851,26 @@ html {
 	margin-bottom: 20px;
 }
 
-.scheduled-pane-title {
+/* A head sitting above a row of controls rather than the body itself. */
+.console-page-compact .console-page-head {
+	margin-bottom: 14px;
+}
+
+.console-page-title {
 	margin: 0 0 4px;
 	font-size: 22px;
 	font-weight: 700;
 	color: var(--text-heading);
 }
 
-.scheduled-pane-sub {
+/* The title takes focus on entry (D-C6) and is not in the tab order, so the
+   ring a UA may draw for that programmatic focus would name nothing the user
+   can act on. */
+.console-page-title:focus {
+	outline: none;
+}
+
+.console-page-desc {
 	margin: 0;
 	color: var(--text-secondary);
 	font-size: 14px;
@@ -2864,10 +2899,10 @@ html {
 }
 
 @media (max-width: 640px) {
-	.scheduled-pane {
+	.console-page {
 		padding: 20px 16px;
 	}
-	.scheduled-pane-head {
+	.console-page-head {
 		flex-direction: column;
 	}
 }
@@ -3255,8 +3290,7 @@ html {
 .chat-container,
 .chat-header,
 .composer-container,
-.scheduled-pane,
-.documents-pane {
+.console-page {
 	background: var(--bg-sidebar);
 }
 
@@ -3299,8 +3333,8 @@ html {
 	padding: 12px 20px 0;
 }
 
-/* Scheduled pane: room for the Ask button beside New task. */
-.scheduled-pane-actions {
+/* The header's actions slot: room for the Ask entry beside the primary action. */
+.console-page-actions {
 	display: flex;
 	gap: 10px;
 	align-items: center;
@@ -3308,18 +3342,13 @@ html {
 	flex-wrap: wrap;
 }
 
-/* My documents page (item 3). Reuses the scheduled pane's title/sub classes. */
-.documents-pane {
-	flex: 1;
-	overflow-y: auto;
-	padding: 28px 32px;
-}
-.documents-pane[hidden] {
+/* A page with nothing in the slot must not pay the head's 16px gap for it,
+   which on a phone (where the head stacks) would be visible space. */
+.console-page-actions:empty {
 	display: none;
 }
-.documents-pane-head {
-	margin-bottom: 14px;
-}
+
+/* My documents page (item 3) — the shell carries its frame and header now. */
 .documents-controls {
 	display: flex;
 	gap: 10px;
@@ -3333,7 +3362,7 @@ html {
 	width: auto;
 	margin: 0;
 }
-.documents-pane .documents-status {
+.console-page .documents-status {
 	margin-top: 10px;
 }
 .documents-grid {
@@ -3373,9 +3402,6 @@ html {
 }
 
 @media (max-width: 640px) {
-	.documents-pane {
-		padding: 20px 16px;
-	}
 	.documents-controls {
 		flex-direction: column;
 	}
