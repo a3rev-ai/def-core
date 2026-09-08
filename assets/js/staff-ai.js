@@ -835,7 +835,9 @@ function t(key, fallback) {
 		// Only a page opened FROM the chat sits directly above the chat entry.
 		// Page → page pushes over the page entry, and an entry the user reached
 		// by address, reload or Back/Forward is not ours to pop at all.
-		chatEntryBelow = !fromHash && !openPage;
+		// Re-entering the page already open (the sidebar entry clicked again for
+		// a reload) pushes nothing, so it must not disown the entry underneath.
+		if (openPage !== page) chatEntryBelow = !fromHash && !openPage;
 
 		consolePages.forEach(function (other) {
 			if (other === page) return;
@@ -893,6 +895,35 @@ function t(key, fallback) {
 	}
 
 	window.addEventListener('hashchange', applyRoute);
+
+	// A sidebar page entry is a LINK, so an ordinary click is the BROWSER's
+	// navigation: it pushes the hash itself, and the hashchange that follows is
+	// indistinguishable from Back/Forward. showPage would be told fromHash and
+	// would never record the push as its own, so leaving pushed a second clean
+	// URL instead of popping — one stray entry per open/leave cycle, with Back
+	// re-opening the page just left. Taking the plain click here hands that push
+	// back to showPage, which is what setRoute('') pairs with.
+	//
+	// Only an UNMODIFIED LEFT click is ours. Ctrl/Cmd/Shift/Alt and the middle
+	// and right buttons belong to the browser — new tab, new window, the context
+	// menu — and these entries are real addresses that must keep opening that way.
+	function isPlainClick(e) {
+		return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
+	}
+
+	// Delegated from `document` so the registry stays the only list of pages:
+	// the route is read off the link's own href and honoured only when it names
+	// a registered page, which covers a page added later with no wiring of its
+	// own. An unknown or empty hash href is left to the browser.
+	document.addEventListener('click', function (e) {
+		if (e.defaultPrevented || !isPlainClick(e)) return;
+		var link = e.target && e.target.closest ? e.target.closest('.sidebar-nav-item[href^="#"]') : null;
+		if (!link) return;
+		var route = link.getAttribute('href').slice(1);
+		if (!route || !pageForRoute(route)) return;
+		e.preventDefault();
+		showPage(route);
+	});
 
 	// Capture phase: the chat row's ⋮ menu closes on Escape from a listener
 	// registered earlier on `document`, so by the bubble phase the menu is
@@ -4244,11 +4275,14 @@ function t(key, fallback) {
 		// sidebar entry is a link now, so this only clears the exclusion and lets
 		// the route do the opening.
 		var navDocumentsLink = document.getElementById('navDocuments');
-		if (navDocumentsLink) navDocumentsLink.addEventListener('click', function () {
+		if (navDocumentsLink) navDocumentsLink.addEventListener('click', function (e) {
+			// A modified click opens another tab and leaves this one where it is,
+			// so the exclusion it still shows must stay (see isPlainClick).
+			if (!isPlainClick(e)) return;
+			// The page shell takes this click and calls showPage itself — which
+			// re-enters, and so reloads, even when Documents is already open. This
+			// only has to drop the exclusion first, before that load reads it.
 			projectExcludeSlots = false;
-			// Already on the route, so the link fires no hashchange: the reload
-			// that drops the exclusion has to be asked for here.
-			if (!pane.hidden) showPage('documents');
 		});
 		if (projectFilterEl) {
 			projectFilterEl.addEventListener('change', function () {
