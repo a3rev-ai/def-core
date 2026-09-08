@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.10
+Stable tag: 7.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.7.10 - 2026-09-07 =
+= 7.8.0 - 2026-09-08 =
 * Tweak - Staff AI: the Projects panel is now a workspace rather than a row of admin buttons. Every project is a card: its name and status, one clear Open Project button that starts a chat inside the project, and its Project knowledge - Runsheet, Session notes and Instructions open straight into the reader, and Other documents opens exactly what it counts - the project's files apart from those three. A slot you have not filled yet says so and takes you where you set it. Rename, Archive and Delete have moved into a single three-dot menu, with Delete separated below a divider so it cannot be hit on the way to Archive; an archived project offers Restore in its place, and keeps a quieter, unfilled Open Project that offers to restore the project first, since a chat can only run inside an active one. On a phone the card stacks - a full-width Open Project, a Manage project list that opens in place, and the knowledge rows at tap size. The explainer paragraph is gone: Ask how Projects work sits in the panel footer, in view however far the list is scrolled.
 
 = 7.7.9 - 2026-09-07 =

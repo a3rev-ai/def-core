@@ -3882,8 +3882,6 @@ function t(key, fallback) {
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				const data = await apiRequest('/documents' + (projectFilter ? sep + 'project_id=' + encodeURIComponent(projectFilter) : ''));
 				let docs = Array.isArray(data.documents) ? data.documents : [];
-				// "Other documents" (Projects P-D5): the project's documents apart
-				// from its runsheet / session notes / instructions.
 				if (projectExcludeSlots) {
 					docs = docs.filter(function (doc) { return !doc.slot; });
 				}
@@ -4162,11 +4160,7 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// One entry, in the footer (P-D5, 7.7.10): Ask Sue IS the help layer, and
-		// the footer keeps it in view however far the project list is scrolled —
-		// the intro button used to disappear behind the list, which is exactly
-		// where a confused user was looking. Kept as a querySelectorAll so a
-		// second Ask entry needs no JS change.
+		// One Ask entry, in the footer, so it stays in view however far the list scrolls (P-D5).
 		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
 		// One mutation at a time: the confirm and the /tasks round trip leave the
@@ -4262,10 +4256,7 @@ function t(key, fallback) {
 			}
 		}
 
-		// P-D5 (7.7.10): the project CARD. It reads top to bottom as a workspace —
-		// what project, what to do next, what is inside it, and last (and
-		// separated) how to manage it. One filled action per card; the
-		// low-frequency management lives behind the ⋯ menu.
+		// P-D5 (7.8.0): the project card — one filled action; management behind the ⋯ menu.
 		function renderCard(project) {
 			const archived = project.status === 'archived';
 			const card = document.createElement('article');
@@ -4299,8 +4290,6 @@ function t(key, fallback) {
 
 			const actions = document.createElement('div');
 			actions.className = 'project-card-actions';
-			// P-B: a fresh chat that opens INSIDE this project. An archived card
-			// keeps the entry but drops the fill.
 			const cardOpenBtn = document.createElement('button');
 			cardOpenBtn.type = 'button';
 			cardOpenBtn.className = 'modal-btn project-open-btn '
@@ -4341,8 +4330,7 @@ function t(key, fallback) {
 			// the other — never both.
 			card.appendChild(manageDisclosure(project));
 
-			// P-B / P-D2: the governing documents on the card itself, no click to
-			// reveal them (the canary found them hidden behind the name).
+			// P-B / P-D2: the governing documents on the card itself.
 			const knowledge = document.createElement('div');
 			knowledge.className = 'project-knowledge';
 			const knowledgeHead = document.createElement('p');
@@ -4388,7 +4376,6 @@ function t(key, fallback) {
 			 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
 				const d = slots[pair[0]];
 				if (d) {
-					// P-D3: a present slot reads in place, in the document viewer.
 					slotsEl.appendChild(slotButton(pair[1],
 						t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1)), false, function () {
 						if (openDocumentViewer) {
@@ -4431,9 +4418,7 @@ function t(key, fallback) {
 			return btn;
 		}
 
-		// D-P10: the existing Projects → My Documents bridge, pre-filtered.
-		// excludeSlots drops the three governing documents, so what the Other
-		// documents tile counts is exactly what opens.
+		// D-P10: the Projects → My Documents bridge, pre-filtered; excludeSlots drops the three governing documents.
 		function openProjectDocuments(project, excludeSlots) {
 			close();
 			if (openDocumentsForProject) { openDocumentsForProject(project.project_id, excludeSlots); }
@@ -4478,9 +4463,6 @@ function t(key, fallback) {
 			return sep;
 		}
 
-		// The ⋯ popover reuses the chat row's menu shell (.chat-menu), anchored in
-		// viewport space: the project list scrolls under it, so an in-card
-		// absolute menu would be clipped by the list's own overflow.
 		let manageMenuEl = null;
 		let manageMenuAnchor = null;
 
@@ -4528,7 +4510,9 @@ function t(key, fallback) {
 				// Focus returning to the ⋯ button is its own click arriving: leave the
 				// menu up so that click performs the normal toggle-close.
 				if (e.relatedTarget === anchor) return;
-				if (!menu.contains(e.relatedTarget)) { closeManageMenu(false); }
+				// Focus that left the document (Tab past the last item) comes back to the ⋯
+				// button; focus that landed on another control stays there.
+				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
 			});
 
 			menu.addEventListener('keydown', function (e) {
@@ -4542,7 +4526,7 @@ function t(key, fallback) {
 					e.preventDefault();
 					items[at <= 0 ? items.length - 1 : at - 1].focus();
 				} else if (e.key === 'Escape') {
-					// Stopped here so Escape closes the menu, not the panel behind it.
+					// Escape closes the menu; stopped so nothing above the menu sees it.
 					e.preventDefault();
 					e.stopPropagation();
 					closeManageMenu(true);
@@ -4557,8 +4541,6 @@ function t(key, fallback) {
 			if (first) { first.focus(); }
 		}
 
-		// Touch: the same actions expand in place under Open Project rather than
-		// hanging a popover off a small target.
 		let manageSheetSeq = 0;
 
 		function manageDisclosure(project) {
@@ -4601,6 +4583,7 @@ function t(key, fallback) {
 				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
 					method: 'PUT', body: JSON.stringify({ name: next.trim() })
 				});
+				if (activeProjectId === project.project_id) { project.name = next.trim(); setActiveProject(project); }
 				loadList();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');

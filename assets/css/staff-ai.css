@@ -2930,7 +2930,7 @@ html {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-/* Projects P-D5 (7.7.10): the project card — a workspace, not an admin row.
+/* Projects P-D5 (7.8.0): the project card — a workspace, not an admin row.
    Name and status, then the one filled Open Project, then the project
    knowledge, and the ⋯ management menu last. Tokens only: the shell borrows
    the document card's, the menu borrows the chat row's, so dark mode and the
