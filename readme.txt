@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.7.9
+Stable tag: 7.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.8.0 - 2026-09-08 =
+* Tweak - Staff AI: the Projects panel is now a workspace rather than a row of admin buttons. Every project is a card: its name and status, one clear Open Project button that starts a chat inside the project, and its Project knowledge - Runsheet, Session notes and Instructions open straight into the reader, and Other documents opens exactly what it counts - the project's files apart from those three. A slot you have not filled yet says so and takes you where you set it. Rename, Archive and Delete have moved into a single three-dot menu, with Delete separated below a divider so it cannot be hit on the way to Archive; an archived project offers Restore in its place, and keeps a quieter, unfilled Open Project that offers to restore the project first, since a chat can only run inside an active one. On a phone the card stacks - a full-width Open Project, a Manage project list that opens in place, and the knowledge rows at tap size. The explainer paragraph is gone: Ask how Projects work sits in the panel footer, in view however far the list is scrolled.
 
 = 7.7.9 - 2026-09-07 =
 * Update - Voice: the Customer Chat microphone now shows plainly what it is doing - solid and pulsing while it listens, solid while it transcribes, a stop mark while the employee answers (tap it to end). A long press on the microphone shows what the phone did with the voice, for support. On both Customer Chat and Staff AI a spoken question is now transcribed with the conversation as context, so a short "Hi, Bruce" stays in the conversation's language, and the employee restates what it will do only when there is something to do - plain conversation is answered once. Needs the platform release of the same day.

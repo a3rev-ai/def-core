@@ -2480,13 +2480,6 @@ html {
 /* =============================================
    My Documents modal (document library — slice 4)
    ============================================= */
-.documents-intro {
-	margin: 0 0 14px;
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.5;
-}
-
 /* Deltas over .form-input, which carries the border/focus/placeholder theme. */
 .documents-search {
 	margin: 0 0 12px;
@@ -2906,6 +2899,9 @@ html {
 }
 .projects-create .form-input {
 	flex: 1;
+	/* Without this an input's intrinsic size can push the row wider than a
+	   phone's viewport (flex items refuse to shrink past min-content). */
+	min-width: 0;
 }
 .projects-archived-toggle {
 	display: flex;
@@ -2934,20 +2930,274 @@ html {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.project-name-toggle {
+/* Projects P-D5 (7.8.0): the project card — a workspace, not an admin row.
+   Name and status, then the one filled Open Project, then the project
+   knowledge, and the ⋯ management menu last. Tokens only: the shell borrows
+   the document card's, the menu borrows the chat row's, so dark mode and the
+   focus treatment come along unchanged. */
+.projects-list {
+	gap: 10px;
+	/* The cards carry their own borders; a focus ring on a card's first
+	   control needs a pixel of room inside the scroller. */
+	padding: 2px;
+}
+.project-card {
+	background: var(--bg-main);
+	border: 1px solid var(--border-light);
+	border-radius: 10px;
+	overflow: hidden;
+}
+.project-card-archived {
+	background: var(--bg-sidebar);
+}
+.project-card-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 14px 12px;
+}
+.project-card-id {
+	min-width: 0;
+}
+.project-card-name {
+	margin: 0 0 6px;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.35;
+	color: var(--text-heading);
+	/* Wrap, never truncate — the name is the user's own words (the .document-name
+	   lesson: an ellipsis makes near-identical names indistinguishable). */
+	overflow-wrap: anywhere;
+}
+.project-card-sub {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--text-tertiary);
+}
+.project-pill {
+	padding: 2px 7px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.5;
+}
+.project-pill-active {
+	background: var(--banner-info-bg);
+	color: var(--banner-info-text);
+}
+.project-pill-archived {
+	background: var(--active-bg);
+	color: var(--text-secondary);
+}
+.project-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+/* The only filled control on the card. */
+.project-open-btn {
+	padding: 8px 16px;
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+.project-menu-btn {
+	flex: none;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--text-secondary);
+	font: inherit;
+	font-size: 11px;
+	line-height: 1;
+	letter-spacing: 1.5px;
+	padding: 10px 7px 10px 9px;
+	border-radius: 6px;
 	cursor: pointer;
 }
-.project-name-toggle:hover {
-	color: var(--accent-color, #1677ff);
+.project-menu-btn:hover {
+	background: var(--active-bg);
+	color: var(--text-heading);
 }
-.project-slot-detail {
-	padding: 4px 0 10px 12px;
-	border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+.project-open-btn:focus-visible,
+.project-menu-btn:focus-visible,
+.project-slot:focus-visible,
+.project-manage-btn:focus-visible,
+.project-manage-menu .chat-menu-item:focus-visible,
+.project-manage-sheet .chat-menu-item:focus-visible {
+	outline: 2px solid var(--border-hover);
+	outline-offset: -2px;
 }
-.project-slot-line {
+/* Delete sits under a divider so it cannot be hit on the way to Archive.
+   Only the project menus build one; the chat row menu has no separator. */
+.chat-menu-sep {
+	height: 1px;
+	margin: 4px 6px;
+	background: var(--border-light);
+}
+
+/* ——— project knowledge: the three governing documents, plus the way into
+   the rest of the library ——— */
+.project-knowledge {
+	border-top: 1px solid var(--border-light);
+	background: var(--bg-sidebar);
+	padding: 11px 14px 13px;
+}
+.project-knowledge-head {
+	margin: 0 0 9px;
 	font-size: 12px;
-	line-height: 20px;
-	color: var(--text-secondary, #666);
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+.project-slots {
+	display: grid;
+	/* Two up inside a 560px panel — the Artifact's narrow-container treatment. */
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	font-size: 12px;
+	color: var(--text-tertiary);
+}
+.project-slot {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 3px;
+	min-width: 0;
+	padding: 8px 10px;
+	background: var(--bg-main);
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+.project-slot:hover:not(:disabled) {
+	border-color: var(--border-hover);
+}
+/* A tile with nothing behind it must not send the user to an empty list. */
+.project-slot:disabled {
+	cursor: default;
+	opacity: 0.55;
+}
+.project-slot-name {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-heading);
+	overflow-wrap: anywhere;
+}
+/* An empty slot invites the document rather than hiding. */
+.project-slot-empty .project-slot-name {
+	font-weight: 400;
+	color: var(--text-secondary);
+}
+.project-slot-meta {
+	font-size: 11px;
+	color: var(--text-tertiary);
+}
+
+/* ——— touch: the management actions expand in place under Open Project
+   instead of hanging a popover off a small target. CSS shows the ⋯ popover or
+   this disclosure, never both. ——— */
+.project-manage {
+	display: none;
+}
+.project-manage-btn {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	min-height: 38px;
+	padding: 0 12px;
+	background: transparent;
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	font: inherit;
+	font-size: 13px;
+	color: var(--text-secondary);
+	cursor: pointer;
+}
+.project-manage-btn::after {
+	content: '';
+	width: 7px;
+	height: 7px;
+	margin-top: -4px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: rotate(45deg);
+	transition: transform 0.15s;
+}
+.project-manage-btn[aria-expanded="true"]::after {
+	margin-top: 3px;
+	transform: rotate(-135deg);
+}
+/* Deltas over the .chat-menu shell it reuses. */
+.project-manage-sheet {
+	position: static;
+	margin-top: 6px;
+	min-width: 0;
+	box-shadow: none;
+}
+.project-manage-sheet .chat-menu-item {
+	font-size: 14px;
+	padding: 11px 12px;
+}
+
+@media (max-width: 640px) {
+	/* One action per line; nothing squeezed into a horizontal row. */
+	.project-card-head {
+		flex-direction: column;
+		gap: 10px;
+		padding-bottom: 10px;
+	}
+	.project-card-actions {
+		width: 100%;
+	}
+	.project-open-btn {
+		flex: 1;
+		min-height: 38px;
+	}
+	.project-menu-btn {
+		display: none;
+	}
+	.project-manage {
+		display: block;
+		padding: 0 14px 12px;
+	}
+	/* The Artifact's mobile toolbar: the name field on its own line, then a
+	   full-width Create project. */
+	.projects-create {
+		flex-wrap: wrap;
+	}
+	.projects-create .form-input,
+	.projects-create .modal-btn {
+		flex: 1 1 100%;
+	}
+	/* The four slots become list rows with a chevron — same targets, at tap size. */
+	.project-slots {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 6px;
+	}
+	.project-slot {
+		flex-direction: row;
+		align-items: center;
+		gap: 10px;
+		min-height: 42px;
+	}
+	.project-slot-meta {
+		margin-left: auto;
+	}
+	.project-slot::after {
+		content: '›';
+		flex: none;
+		font-size: 15px;
+		line-height: 1;
+		color: var(--text-tertiary);
+	}
 }
 .document-assign-row {
 	display: flex;
@@ -2969,20 +3219,6 @@ html {
 	color: var(--text-secondary);
 }
 
-/* P-D2 (D-P14): the Projects panel's doorway — "Ask <assistant> how Projects work". */
-.projects-ask {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-	margin: 0 0 14px;
-}
-.projects-ask-hint {
-	font-size: 12px;
-	opacity: 0.75;
-	flex: 1 1 220px;
-}
-
 /* P-D3 (D-P14): read a document in place — text as text, never HTML. */
 .document-viewer-text {
 	white-space: pre-wrap;
@@ -2997,7 +3233,6 @@ html {
 	border: 1px solid var(--border-light);
 	border-radius: 6px;
 }
-.project-slot-open,
 .schedule-results-ask {
 	background: none;
 	border: 0;

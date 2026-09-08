@@ -522,7 +522,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 		     assistant maintaining the documents, P-C scheduled runs inside a project,
 		     P-D (D-P14) the doorway — the chat IS the onboarding: "Ask <assistant> how
 		     Projects work" opens a chat that walks the user through it and can create
-		     the project; every row shows its three documents without a click. -->
+		     the project. P-D5 (7.8.0): every project is a CARD - name and status,
+		     one filled Open Project, its governing documents in reach, and the
+		     low-frequency management actions behind a single three-dot menu. -->
 		<div class="modal-overlay" id="projectsModal">
 			<div class="modal" style="max-width: 560px;">
 				<div class="modal-header">
@@ -530,26 +532,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<button type="button" class="modal-close" id="projectsModalClose">&times;</button>
 				</div>
 				<div class="modal-body">
-					<p class="documents-intro"><?php echo esc_html__( 'A project is a folder of governing documents your assistant works from — instructions, a runsheet and session notes — so a piece of work can be picked up where it was left. Only you can see these.', 'digital-employees' ); ?></p>
-					<div class="projects-ask">
-						<button type="button" class="modal-btn modal-btn-primary projects-ask-btn" id="projectsAskAssistant"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
-						<span class="projects-ask-hint"><?php echo esc_html__( 'Opens a chat: your assistant walks you through creating and managing a project, and can create one for you.', 'digital-employees' ); ?></span>
-					</div>
 					<div class="projects-create">
 						<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
-						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create', 'digital-employees' ); ?></button>
+						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
 					</div>
 					<label class="projects-archived-toggle">
 						<input type="checkbox" id="projectsShowArchived">
 						<?php echo esc_html__( 'Show archived', 'digital-employees' ); ?>
 					</label>
 					<div class="documents-status" id="projectsStatus"></div>
-					<div class="documents-list" id="projectsList"></div>
+					<div class="documents-list projects-list" id="projectsList"></div>
 				</div>
 				<div class="modal-footer">
-					<!-- The second Ask entry (2026-09-03): the intro button scrolls out of
-					     sight behind a list of projects, which is exactly where a confused
-					     user is looking. -->
+					<!-- Ask Sue IS the help layer (P-D5, 7.8.0): the panel carries no
+					     explainer paragraph, and the one Ask entry lives in the footer,
+					     where it stays in view however far the project list is scrolled. -->
 					<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>

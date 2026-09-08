@@ -3761,17 +3761,28 @@ function t(key, fallback) {
 		const emptyEl = document.getElementById('documentsEmptyState');
 		const askBtn = document.getElementById('documentsAskAssistant');
 		let projectFilter = '';
+		// Set ONLY by the Projects panel's "Other documents" tile, cleared by
+		// every other entry point: the tile counts the project's documents minus
+		// its three governing slots, and must open exactly that list.
+		let projectExcludeSlots = false;
 		let loading = false;
 		let searchTimer = null;
 
 		async function refreshProjectsCache() {
+			// Archived projects are listed so a project-scoped view from the
+			// Projects panel keeps its filter; "Move to project" stays active-only.
+			let cacheOk = true;
 			try {
-				const data = await apiRequest('/projects');
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const data = await apiRequest('/projects' + sep + 'include_archived=true');
 				projectsCache = Array.isArray(data.projects) ? data.projects : [];
 			} catch (e) {
-				projectsCache = [];
+				// A failed fetch is not evidence the filtered project is gone: keep
+				// the cache and the filter, or the view silently widens to the
+				// whole library.
+				cacheOk = false;
 			}
-			if (projectFilterEl) {
+			if (cacheOk && projectFilterEl) {
 				const current = projectFilter;
 				projectFilterEl.innerHTML = '';
 				const all = document.createElement('option');
@@ -3781,11 +3792,18 @@ function t(key, fallback) {
 				projectsCache.forEach(function (p) {
 					const opt = document.createElement('option');
 					opt.value = p.project_id;
-					opt.textContent = p.name;
+					opt.textContent = p.status === 'archived'
+						? p.name + ' (' + t('projectsArchived', 'Archived') + ')'
+						: p.name;
 					projectFilterEl.appendChild(opt);
 				});
 				projectFilterEl.value = current;
-				if (projectFilterEl.value !== current) { projectFilter = ''; }
+				if (projectFilterEl.value !== current) { projectFilter = ''; projectExcludeSlots = false; }
+			} else if (projectFilterEl && projectFilterEl.value !== projectFilter) {
+				// The rebuild was skipped, so the control still names the project it
+				// showed last. Point it at the real filter — blank when the option is
+				// missing, which is silent rather than wrong.
+				projectFilterEl.value = projectFilter;
 			}
 		}
 
@@ -3812,8 +3830,9 @@ function t(key, fallback) {
 		}
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
-		openDocumentsForProject = function (projectId) {
+		openDocumentsForProject = function (projectId, excludeSlots) {
 			projectFilter = projectId || '';
+			projectExcludeSlots = !!excludeSlots && !!projectFilter;
 			open();
 		};
 
@@ -3863,6 +3882,9 @@ function t(key, fallback) {
 				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
 				const data = await apiRequest('/documents' + (projectFilter ? sep + 'project_id=' + encodeURIComponent(projectFilter) : ''));
 				let docs = Array.isArray(data.documents) ? data.documents : [];
+				if (projectExcludeSlots) {
+					docs = docs.filter(function (doc) { return !doc.slot; });
+				}
 				// One box searches BOTH names (client-side — the library is the
 				// caller's own; DEF pages 200 rows).
 				const q = term.toLowerCase();
@@ -3883,7 +3905,9 @@ function t(key, fallback) {
 					if (emptyEl && !term && !projectFilter) emptyEl.style.display = '';
 					return;
 				}
-				setStatus('', '');
+				setStatus(projectExcludeSlots
+					? t('documentsOtherOnly', 'Other documents only — the runsheet, session notes and instructions are on the project card.')
+					: '', 'muted');
 				renderGroups(docs);
 			} catch (e) {
 				setStatus((e && e.message) || t('documentsLoadFailed', 'Could not load your documents.'), 'error');
@@ -3926,6 +3950,7 @@ function t(key, fallback) {
 				chip.textContent = (doc.slot ? doc.slot + ' · ' : '') + doc.project_name;
 				chip.addEventListener('click', function () {
 					projectFilter = doc.project_id;
+					projectExcludeSlots = false;
 					if (projectFilterEl) { projectFilterEl.value = doc.project_id; }
 					loadList();
 				});
@@ -3936,7 +3961,7 @@ function t(key, fallback) {
 			const action = document.createElement('div');
 			action.className = 'document-action';
 
-			if (projectsCache.length) {
+			if (projectsCache.some(function (p) { return p.status === 'active'; })) {
 				const move = document.createElement('button');
 				move.type = 'button';
 				move.className = 'document-btn';
@@ -4083,7 +4108,12 @@ function t(key, fallback) {
 			});
 		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
+		// A plain visit drops the bridge's slot exclusion, which has no control
+		// of its own to undo it. The project filter keeps its stickiness.
+		if (openBtn) openBtn.addEventListener('click', function () {
+			projectExcludeSlots = false;
+			open();
+		});
 		// Chat navigation leaves the page (the D-S7 pattern): resetToNewChat for
 		// every path to a fresh chat, capture phase for opening an existing one.
 		onLeavePane(close);
@@ -4092,6 +4122,7 @@ function t(key, fallback) {
 		if (projectFilterEl) {
 			projectFilterEl.addEventListener('change', function () {
 				projectFilter = projectFilterEl.value;
+				projectExcludeSlots = false;
 				loadList();
 			});
 		}
@@ -4129,17 +4160,19 @@ function t(key, fallback) {
 		const nameEl = document.getElementById('projectsNewName');
 		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// Two of them (2026-09-03): the intro one a first-time reader meets, and
-		// the footer one that stays in view once the list has been scrolled — a
-		// confused user was not finding the intro button under their projects.
+		// One Ask entry, in the footer, so it stays in view however far the list scrolls (P-D5).
 		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
+		// One mutation at a time: the confirm and the /tasks round trip leave the
+		// control live, and two Archives answered differently would conflict.
+		let mutating = false;
 
 		function open() {
 			modal.classList.add('visible');
 			loadList();
 		}
 		function close() {
+			closeManageMenu(false);
 			modal.classList.remove('visible');
 		}
 
@@ -4198,6 +4231,8 @@ function t(key, fallback) {
 
 		async function loadList() {
 			if (loading) return;
+			// The rebuild detaches every card the open menu is anchored to.
+			closeManageMenu(false);
 			loading = true;
 			setStatus(t('projectsLoading', 'Loading your projects…'), 'muted');
 			listEl.innerHTML = '';
@@ -4208,12 +4243,12 @@ function t(key, fallback) {
 				const projects = Array.isArray(data.projects) ? data.projects : [];
 				projectsCache = projects;
 				if (projects.length === 0) {
-					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (either Ask button), or create one by name.')
+					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (the button below), or create one by name.')
 						.replace('%s', function () { return assistantName || t('projectsYourAssistant', 'your assistant'); }), 'muted');
 					return;
 				}
 				setStatus('', '');
-				projects.forEach(function (p) { listEl.appendChild(renderRow(p)); });
+				projects.forEach(function (p) { listEl.appendChild(renderCard(p)); });
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsLoadFailed', 'Could not load your projects.'), 'error');
 			} finally {
@@ -4221,160 +4256,375 @@ function t(key, fallback) {
 			}
 		}
 
-		function renderRow(project) {
-			const wrap = document.createElement('div');
-			const row = document.createElement('div');
-			row.className = 'document-row';
-			wrap.appendChild(row);
+		// P-D5 (7.8.0): the project card — one filled action; management behind the ⋯ menu.
+		function renderCard(project) {
+			const archived = project.status === 'archived';
+			const card = document.createElement('article');
+			card.className = 'project-card' + (archived ? ' project-card-archived' : '');
 
-			const info = document.createElement('div');
-			info.className = 'document-info';
-			const name = document.createElement('span');
-			name.className = 'document-name project-name-toggle';
+			const head = document.createElement('div');
+			head.className = 'project-card-head';
+			card.appendChild(head);
+
+			const ident = document.createElement('div');
+			ident.className = 'project-card-id';
+			const name = document.createElement('h3');
+			name.className = 'project-card-name';
 			name.textContent = project.name;
-			info.appendChild(name);
-			const meta = document.createElement('span');
-			meta.className = 'document-meta';
-			meta.textContent = (project.status === 'archived'
-				? t('projectsArchived', 'Archived')
-				: t('projectsActive', 'Active')) + ' · ' + formatTime(project.created_at);
-			info.appendChild(meta);
-			row.appendChild(info);
+			ident.appendChild(name);
 
-			// P-B / P-D2: the three governing documents, shown on every row without
-			// a click (P-D2 — the canary found them hidden behind the name); the
-			// name click folds/unfolds them. The assistant creates and maintains
-			// them from chat; a new project arrives with seeded runsheet +
-			// instructions.
-			const detail = document.createElement('div');
-			detail.className = 'project-slot-detail';
-			wrap.appendChild(detail);
-			name.addEventListener('click', function () {
-				detail.style.display = (detail.style.display === 'none') ? '' : 'none';
-			});
-			(async function loadSlots() {
-				detail.textContent = t('projectsSlotsLoading', 'Loading…');
-				try {
-					const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-					const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
-					const docs = Array.isArray(data.documents) ? data.documents : [];
-					detail.textContent = '';
-					const slots = { runsheet: null, session_notes: null, instructions: null };
-					let others = 0;
-					docs.forEach(function (d) {
-						if (d.slot && Object.prototype.hasOwnProperty.call(slots, d.slot)) { slots[d.slot] = d; }
-						else { others++; }
-					});
-					[['runsheet', t('projectsSlotRunsheet', 'Runsheet')],
-					 ['session_notes', t('projectsSlotSessionNotes', 'Session notes')],
-					 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
-						const line = document.createElement('div');
-						line.className = 'project-slot-line';
-						const d = slots[pair[0]];
-						if (d && openDocumentViewer) {
-							// P-D3: a present slot reads in place — the label is a button.
-							const openBtn = document.createElement('button');
-							openBtn.type = 'button';
-							openBtn.className = 'project-slot-open';
-							openBtn.textContent = pair[1] + ': ' + t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1));
-							openBtn.addEventListener('click', function () {
-								openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
-							});
-							line.appendChild(openBtn);
-						} else {
-							line.textContent = pair[1] + ': ' + (d
-								? t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1))
-								: t('projectsSlotMissing', 'not created yet'));
-						}
-						detail.appendChild(line);
-					});
-					if (others > 0) {
-						const more = document.createElement('div');
-						more.className = 'project-slot-line';
-						more.textContent = t('projectsOtherDocs', 'Other documents: ') + others;
-						detail.appendChild(more);
-					}
-				} catch (e) {
-					detail.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
+			const sub = document.createElement('div');
+			sub.className = 'project-card-sub';
+			const pill = document.createElement('span');
+			pill.className = 'project-pill ' + (archived ? 'project-pill-archived' : 'project-pill-active');
+			pill.textContent = archived ? t('projectsArchived', 'Archived') : t('projectsActive', 'Active');
+			sub.appendChild(pill);
+			// Filled in by loadSlots, which is already counting the project's documents.
+			const countEl = document.createElement('span');
+			sub.appendChild(countEl);
+			const createdEl = document.createElement('span');
+			createdEl.textContent = formatTime(project.created_at);
+			sub.appendChild(createdEl);
+			ident.appendChild(sub);
+			head.appendChild(ident);
+
+			const actions = document.createElement('div');
+			actions.className = 'project-card-actions';
+			const cardOpenBtn = document.createElement('button');
+			cardOpenBtn.type = 'button';
+			cardOpenBtn.className = 'modal-btn project-open-btn '
+				+ (archived ? 'modal-btn-secondary' : 'modal-btn-primary');
+			cardOpenBtn.textContent = t('projectsOpen', 'Open Project');
+			cardOpenBtn.addEventListener('click', async function () {
+				// DEF binds a thread only to an ACTIVE project, so an archived one is
+				// restored first and the chat opens only if that write lands.
+				if (project.status === 'archived') {
+					var ask = t('projectsConfirmRestoreOpen',
+						'Restore "%s" and open it? It moves back to your active projects.')
+						.replace('%s', function () { return project.name; });
+					if (!window.confirm(ask)) return;
+					var restored = await setArchived(project, false);
+					if (!restored) return;
 				}
-			})();
-
-			const action = document.createElement('div');
-			action.className = 'document-action';
-
-			// P-B: a fresh chat that opens INSIDE this project — DEF seeds the
-			// thread's binding at mint and Sue loads the governing documents.
-			if (project.status !== 'archived') {
-				const chatBtn = document.createElement('button');
-				chatBtn.type = 'button';
-				chatBtn.className = 'document-btn';
-				chatBtn.textContent = t('projectsNewChat', 'New chat');
-				chatBtn.addEventListener('click', function () {
-					close();
-					setActiveProject(project);
-					resetToNewChat();
-				});
-				action.appendChild(chatBtn);
-			}
-
-			const docsBtn = document.createElement('button');
-			docsBtn.type = 'button';
-			docsBtn.className = 'document-btn';
-			docsBtn.textContent = t('projectsDocuments', 'Documents');
-			docsBtn.addEventListener('click', function () {
 				close();
-				if (openDocumentsForProject) { openDocumentsForProject(project.project_id); }
+				setActiveProject(project);
+				resetToNewChat();
 			});
-			action.appendChild(docsBtn);
+			actions.appendChild(cardOpenBtn);
 
-			const renameBtn = document.createElement('button');
-			renameBtn.type = 'button';
-			renameBtn.className = 'document-btn';
-			renameBtn.textContent = t('projectsRename', 'Rename');
-			renameBtn.addEventListener('click', async function () {
+			const menuBtn = document.createElement('button');
+			menuBtn.type = 'button';
+			menuBtn.className = 'project-menu-btn';
+			menuBtn.setAttribute('aria-haspopup', 'menu');
+			menuBtn.setAttribute('aria-expanded', 'false');
+			menuBtn.setAttribute('aria-label', t('projectsManage', 'Manage project'));
+			menuBtn.textContent = '•••';
+			menuBtn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				toggleManageMenu(project, menuBtn);
+			});
+			actions.appendChild(menuBtn);
+			head.appendChild(actions);
+
+			// The same actions, expanded in place, for touch. CSS shows one or
+			// the other — never both.
+			card.appendChild(manageDisclosure(project));
+
+			// P-B / P-D2: the governing documents on the card itself.
+			const knowledge = document.createElement('div');
+			knowledge.className = 'project-knowledge';
+			const knowledgeHead = document.createElement('p');
+			knowledgeHead.className = 'project-knowledge-head';
+			knowledgeHead.textContent = t('projectsKnowledge', 'Project knowledge');
+			knowledge.appendChild(knowledgeHead);
+			const slotsEl = document.createElement('div');
+			slotsEl.className = 'project-slots';
+			slotsEl.textContent = t('projectsSlotsLoading', 'Loading…');
+			knowledge.appendChild(slotsEl);
+			card.appendChild(knowledge);
+
+			loadSlots(project, slotsEl, countEl);
+			return card;
+		}
+
+		// The three governing slots plus a count of everything else. "Other
+		// documents" is the way into the rest of the project's library (D-P10),
+		// which is why the card carries no second Documents button.
+		async function loadSlots(project, slotsEl, countEl) {
+			let docs = [];
+			try {
+				const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				const data = await apiRequest('/documents' + sep + 'project_id=' + encodeURIComponent(project.project_id));
+				docs = Array.isArray(data.documents) ? data.documents : [];
+			} catch (e) {
+				slotsEl.textContent = (e && e.message) || t('documentsLoadFailed', 'Could not load your documents.');
+				return;
+			}
+			const slots = { runsheet: null, session_notes: null, instructions: null };
+			let others = 0;
+			docs.forEach(function (d) {
+				if (d.slot && Object.prototype.hasOwnProperty.call(slots, d.slot)) { slots[d.slot] = d; }
+				else { others++; }
+			});
+			countEl.textContent = docs.length === 1
+				? t('projectsDocCountOne', '1 document')
+				: t('projectsDocCount', '%s documents').replace('%s', String(docs.length));
+
+			slotsEl.textContent = '';
+			[['runsheet', t('projectsSlotRunsheet', 'Runsheet')],
+			 ['session_notes', t('projectsSlotSessionNotes', 'Session notes')],
+			 ['instructions', t('projectsSlotInstructions', 'Instructions')]].forEach(function (pair) {
+				const d = slots[pair[0]];
+				if (d) {
+					slotsEl.appendChild(slotButton(pair[1],
+						t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1)), false, function () {
+						if (openDocumentViewer) {
+							openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
+						} else {
+							openProjectDocuments(project);
+						}
+					}));
+				} else {
+					// An empty slot invites the document rather than hiding: My
+					// Documents, filtered to this project, is where a document is
+					// given its slot (Move to project…) — no new flow, no new route.
+					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Not set — add'), true, function () {
+						openProjectDocuments(project);
+					}));
+				}
+			});
+			slotsEl.appendChild(slotButton(t('projectsOtherDocs', 'Other documents'),
+				others === 1
+					? t('projectsFileCountOne', '1 file')
+					: t('projectsFileCount', '%s files').replace('%s', String(others)),
+				others === 0, function () { openProjectDocuments(project, true); },
+				others === 0));
+		}
+
+		function slotButton(label, meta, empty, onPick, disabled) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.disabled = !!disabled;
+			btn.className = 'project-slot' + (empty ? ' project-slot-empty' : '');
+			const name = document.createElement('span');
+			name.className = 'project-slot-name';
+			name.textContent = label;
+			btn.appendChild(name);
+			const metaEl = document.createElement('span');
+			metaEl.className = 'project-slot-meta';
+			metaEl.textContent = meta;
+			btn.appendChild(metaEl);
+			btn.addEventListener('click', onPick);
+			return btn;
+		}
+
+		// D-P10: the Projects → My Documents bridge, pre-filtered; excludeSlots drops the three governing documents.
+		function openProjectDocuments(project, excludeSlots) {
+			close();
+			if (openDocumentsForProject) { openDocumentsForProject(project.project_id, excludeSlots); }
+		}
+
+		// ——— management: Rename | Archive (Restore) | — | Delete ———
+		// One list, rendered two ways: the ⋯ popover on a pointer, the in-place
+		// sheet on touch. Delete sits under the divider, in red, so it cannot be
+		// hit on the way to Archive.
+		function manageActions(project) {
+			const archived = project.status === 'archived';
+			return [
+				{ label: t('projectsRename', 'Rename'), onPick: function () { renameProject(project); } },
+				{
+					label: archived ? t('projectsRestore', 'Restore') : t('projectsArchive', 'Archive'),
+					onPick: function () { setArchived(project, !archived); }
+				},
+				{ separator: true },
+				{ label: t('projectsDelete', 'Delete'), danger: true, onPick: function () { deleteProject(project); } }
+			];
+		}
+
+		function manageMenuItem(item, closeOnPick) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'chat-menu-item' + (item.danger ? ' chat-menu-item-danger' : '');
+			btn.setAttribute('role', 'menuitem');
+			btn.textContent = item.label;
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				// Focus the trigger before the dialog: the cancel paths re-render nothing.
+				if (closeOnPick) { closeManageMenu(true); }
+				item.onPick();
+			});
+			return btn;
+		}
+
+		function manageMenuSeparator() {
+			const sep = document.createElement('div');
+			sep.className = 'chat-menu-sep';
+			sep.setAttribute('role', 'separator');
+			return sep;
+		}
+
+		let manageMenuEl = null;
+		let manageMenuAnchor = null;
+
+		function closeManageMenu(restoreFocus) {
+			if (!manageMenuEl) return;
+			const menu = manageMenuEl;
+			const anchor = manageMenuAnchor;
+			manageMenuEl = null;
+			manageMenuAnchor = null;
+			// Move focus to the trigger before the menu leaves the DOM, so the
+			// focused node is never the one being removed: Escape must put a
+			// keyboard user back on the ⋯ button, not at the top of the page.
+			if (anchor) {
+				anchor.setAttribute('aria-expanded', 'false');
+				if (restoreFocus) { anchor.focus(); }
+			}
+			menu.remove();
+		}
+
+		function toggleManageMenu(project, anchor) {
+			const wasOpen = manageMenuAnchor === anchor;
+			closeManageMenu(false);
+			if (wasOpen) return;
+
+			const menu = document.createElement('div');
+			menu.className = 'chat-menu project-manage-menu';
+			menu.setAttribute('role', 'menu');
+			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
+			menu.addEventListener('click', function (e) { e.stopPropagation(); });
+
+			const rect = anchor.getBoundingClientRect();
+			menu.style.top = Math.round(rect.bottom + 4) + 'px';
+			menu.style.right = Math.max(8, Math.round(window.innerWidth - rect.right)) + 'px';
+
+			manageActions(project).forEach(function (item) {
+				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
+			});
+
+			// Safari focuses no button on mousedown: the focused item would blur to
+			// <body>, focusout would tear the menu down mid-click, and the item would
+			// never fire. Preventing the default keeps focus put; the click still runs.
+			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+			menu.addEventListener('focusout', function (e) {
+				// Focus returning to the ⋯ button is its own click arriving: leave the
+				// menu up so that click performs the normal toggle-close.
+				if (e.relatedTarget === anchor) return;
+				// Focus that left the document (Tab past the last item) comes back to the ⋯
+				// button; focus that landed on another control stays there.
+				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
+			});
+
+			menu.addEventListener('keydown', function (e) {
+				const items = Array.prototype.slice.call(menu.querySelectorAll('.chat-menu-item'));
+				if (!items.length) return;
+				const at = items.indexOf(document.activeElement);
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					items[at === -1 ? 0 : (at + 1) % items.length].focus();
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					items[at <= 0 ? items.length - 1 : at - 1].focus();
+				} else if (e.key === 'Escape') {
+					// Escape closes the menu; stopped so nothing above the menu sees it.
+					e.preventDefault();
+					e.stopPropagation();
+					closeManageMenu(true);
+				}
+			});
+
+			document.body.appendChild(menu);
+			manageMenuEl = menu;
+			manageMenuAnchor = anchor;
+			anchor.setAttribute('aria-expanded', 'true');
+			const first = menu.querySelector('.chat-menu-item');
+			if (first) { first.focus(); }
+		}
+
+		let manageSheetSeq = 0;
+
+		function manageDisclosure(project) {
+			const wrap = document.createElement('div');
+			wrap.className = 'project-manage';
+
+			const sheet = document.createElement('div');
+			sheet.className = 'chat-menu project-manage-sheet';
+			sheet.setAttribute('role', 'menu');
+			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
+			sheet.hidden = true;
+			manageActions(project).forEach(function (item) {
+				sheet.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, false));
+			});
+
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'project-manage-btn';
+			btn.setAttribute('aria-expanded', 'false');
+			btn.setAttribute('aria-controls', sheet.id);
+			btn.textContent = t('projectsManage', 'Manage project');
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				const opening = sheet.hidden;
+				sheet.hidden = !opening;
+				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(sheet);
+			return wrap;
+		}
+
+		async function renameProject(project) {
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return; }
+			mutating = true;
+			try {
 				const next = window.prompt(t('projectsRenamePrompt', 'New project name:'), project.name);
 				if (next === null || !next.trim() || next.trim() === project.name) return;
-				try {
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
-						method: 'PUT', body: JSON.stringify({ name: next.trim() })
-					});
-					loadList();
-				} catch (e) {
-					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
-				}
-			});
-			action.appendChild(renameBtn);
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+					method: 'PUT', body: JSON.stringify({ name: next.trim() })
+				});
+				if (activeProjectId === project.project_id) { project.name = next.trim(); setActiveProject(project); }
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+			} finally {
+				mutating = false;
+			}
+		}
 
-			const archBtn = document.createElement('button');
-			archBtn.type = 'button';
-			archBtn.className = 'document-btn';
-			const archived = project.status === 'archived';
-			archBtn.textContent = archived ? t('projectsUnarchive', 'Unarchive') : t('projectsArchive', 'Archive');
-			archBtn.addEventListener('click', async function () {
-				try {
-					var body = { status: archived ? 'active' : 'archived' };
-					if (!archived) {
-						// P-C (D-P9): decide at the button. Surface the bound tasks and
-						// ask - disable, unbind, or keep them running without the project.
-						var directive = await boundTasksDirective(project, false);
-						if (directive === null) return;
-						body.bound_tasks = directive;
-					}
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
-						method: 'PUT', body: JSON.stringify(body)
-					});
-					loadList();
-				} catch (e) {
-					setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+		// Returns true only when the write landed, so Open Project can chain a restore.
+		async function setArchived(project, archive) {
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return false; }
+			mutating = true;
+			try {
+				var body = { status: archive ? 'archived' : 'active' };
+				if (archive) {
+					// P-C (D-P9): decide at the button. Surface the bound tasks and
+					// ask - disable, unbind, or keep them running without the project.
+					var directive = await boundTasksDirective(project, false);
+					if (directive === null) return false;
+					body.bound_tasks = directive;
 				}
-			});
-			action.appendChild(archBtn);
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id), {
+					method: 'PUT', body: JSON.stringify(body)
+				});
+				project.status = body.status;
+				// The chip would otherwise point at a project that can no longer run a chat.
+				if (archive && activeProjectId === project.project_id) { clearActiveProject(); }
+				loadList();
+				return true;
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsSaveFailed', 'Could not save the project.'), 'error');
+				return false;
+			} finally {
+				mutating = false;
+			}
+		}
 
-			const delBtn = document.createElement('button');
-			delBtn.type = 'button';
-			delBtn.className = 'document-btn document-btn-delete';
-			delBtn.textContent = t('projectsDelete', 'Delete');
-			delBtn.addEventListener('click', async function () {
+		async function deleteProject(project) {
+			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return; }
+			mutating = true;
+			try {
 				const msg = t('projectsConfirmDelete', 'Delete "%s"? Its documents are NOT deleted — they stay in your library.')
 					.replace('%s', function () { return project.name; });
 				if (!window.confirm(msg)) return;
@@ -4382,21 +4632,16 @@ function t(key, fallback) {
 				// disable the tasks too rather than let them run on, unbound.
 				var directive = await boundTasksDirective(project, true);
 				if (directive === null) return;
-				delBtn.disabled = true;
-				try {
-					var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
-					await apiRequest('/projects/' + encodeURIComponent(project.project_id)
-						+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
-					loadList();
-				} catch (e) {
-					delBtn.disabled = false;
-					setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
-				}
-			});
-			action.appendChild(delBtn);
-
-			row.appendChild(action);
-			return wrap;
+				var sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+				await apiRequest('/projects/' + encodeURIComponent(project.project_id)
+					+ (directive === 'disable' ? sep + 'bound_tasks=disable' : ''), { method: 'DELETE' });
+				if (activeProjectId === project.project_id) { clearActiveProject(); }
+				loadList();
+			} catch (e) {
+				setStatus((e && e.message) || t('projectsDeleteFailed', 'Could not delete the project.'), 'error');
+			} finally {
+				mutating = false;
+			}
 		}
 
 		async function createProject() {
@@ -4424,6 +4669,16 @@ function t(key, fallback) {
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
 		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+
+		// The ⋯ popover is fixed at the anchor's rect, so anything that moves the
+		// card out from under it must close it (the chat row menu's rule).
+		document.addEventListener('click', function () { closeManageMenu(false); });
+		document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeManageMenu(false); });
+		if (listEl) listEl.addEventListener('scroll', function () { closeManageMenu(false); });
+		// Capture: #projectsModal is the fixed overlay and never scrolls itself —
+		// the inner .modal does, and scroll events do not bubble.
+		modal.addEventListener('scroll', function () { closeManageMenu(false); }, true);
+		window.addEventListener('resize', function () { closeManageMenu(false); });
 	})();
 
 	(function initMemories() {
