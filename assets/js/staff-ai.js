@@ -4339,8 +4339,10 @@ function t(key, fallback) {
 			el: pane,
 			title: document.getElementById('projectsTitle'),
 			onEnter: loadList,
-			// The ⋯ menu is anchored inside a card that is about to be hidden.
-			onLeave: function () { closeManageMenu(false); }
+			// Both renderings are anchored inside a card that is about to be hidden. An
+			// expanded sheet left behind stays a .chat-menu:not([hidden]) in the hidden
+			// page, and the shell's Escape guard would stand aside for it on every page.
+			onLeave: function () { closeManageMenu(false); closeManageSheets(); }
 		});
 
 		// P-D2 (D-P14): the chat IS the onboarding. The button starts a fresh chat
@@ -4356,9 +4358,6 @@ function t(key, fallback) {
 		onAssistantName(labelAsk);
 		askBtns.forEach(function (btn) {
 			btn.addEventListener('click', function () {
-				// resetToNewChat() leaves the open page for us (the shell's rule:
-				// every path to a fresh chat calls showChat), so there is nothing
-				// of the panel's own left to close.
 				clearActiveProject();
 				resetToNewChat();
 				composerInput.value = t('projectsAskPrompt',
@@ -4587,9 +4586,7 @@ function t(key, fallback) {
 		}
 
 		// D-P10: the Projects → My Documents bridge, pre-filtered; excludeSlots
-		// drops the three governing documents. A page → page move now
-		// (openDocumentsForProject calls showPage), so there is no panel to close
-		// first and Back from Documents returns here.
+		// drops the three governing documents.
 		function openProjectDocuments(project, excludeSlots) {
 			if (openDocumentsForProject) { openDocumentsForProject(project.project_id, excludeSlots); }
 		}
@@ -4663,12 +4660,7 @@ function t(key, fallback) {
 			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
 			menu.addEventListener('click', function (e) { e.stopPropagation(); });
 
-			// C2: the menu hangs off the CARD, not off a viewport rectangle. In the
-			// modal it was position:fixed with top/right measured from the ⋯
-			// button, because the list scrolled under a menu the page could not
-			// move; on a page the card scrolls with everything else, so the menu
-			// is an absolutely positioned child of the card's own actions row and
-			// there is no measurement to keep in step (and none to go stale).
+			// The menu hangs off the card and scrolls with it — no measured position.
 			manageActions(project).forEach(function (item) {
 				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
 			});
@@ -4705,9 +4697,8 @@ function t(key, fallback) {
 				}
 			});
 
-			// .project-card-actions is the positioned parent (CSS); the ⋯ button is
-			// its last child, so the menu's right edge lands on the button's, as
-			// the measured version placed it.
+			// .project-card-actions is the positioned parent (CSS) and the ⋯ button its
+			// last child, so the menu's right edge lands on the button's.
 			(anchor.parentNode || document.body).appendChild(menu);
 			manageMenuEl = menu;
 			manageMenuAnchor = anchor;
@@ -4850,15 +4841,13 @@ function t(key, fallback) {
 		}
 
 		function openCreate() {
-			if (!createModal) return;
-			if (nameEl) { nameEl.value = ''; }
+			nameEl.value = '';
 			setCreateStatus('', '');
 			createModal.classList.add('visible');
-			if (nameEl) { nameEl.focus(); }
+			nameEl.focus();
 		}
 
 		function closeCreate() {
-			if (!createModal) return;
 			createModal.classList.remove('visible');
 			// The page is still underneath; put the keyboard back on the control
 			// that opened the dialog rather than dropping focus on <body>.
@@ -4866,9 +4855,9 @@ function t(key, fallback) {
 		}
 
 		async function createProject() {
-			const name = nameEl ? nameEl.value.trim() : '';
+			const name = nameEl.value.trim();
 			if (!name) return;
-			if (createConfirmBtn) { createConfirmBtn.disabled = true; }
+			createConfirmBtn.disabled = true;
 			try {
 				await apiRequest('/projects', { method: 'POST', body: JSON.stringify({ name: name }) });
 				closeCreate();
@@ -4876,21 +4865,28 @@ function t(key, fallback) {
 			} catch (e) {
 				setCreateStatus((e && e.message) || t('projectsCreateFailed', 'Could not create the project.'), 'error');
 			} finally {
-				if (createConfirmBtn) { createConfirmBtn.disabled = false; }
+				createConfirmBtn.disabled = false;
 			}
 		}
 
 		if (createOpenBtn) createOpenBtn.addEventListener('click', openCreate);
-		if (createConfirmBtn) createConfirmBtn.addEventListener('click', createProject);
+		createConfirmBtn.addEventListener('click', createProject);
 		if (createCancelBtn) createCancelBtn.addEventListener('click', closeCreate);
 		if (createCloseBtn) createCloseBtn.addEventListener('click', closeCreate);
-		if (nameEl) nameEl.addEventListener('keydown', function (e) {
+		nameEl.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter') { e.preventDefault(); createProject(); }
-			// Escape belongs to the dialog before it belongs to the page — and the
-			// shell already stands aside for a .modal-overlay.visible.
-			if (e.key === 'Escape') { e.preventDefault(); closeCreate(); }
 		});
-		if (createModal) createModal.addEventListener('click', function (e) {
+		// Escape belongs to the dialog before it belongs to the page, from whichever
+		// control holds focus — the name field, Cancel or Create. Bound on the dialog
+		// so every one of them bubbles to it; the shell's own guard already stands
+		// aside while a .modal-overlay.visible is up, so the page stays open behind.
+		createModal.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			e.preventDefault();
+			e.stopPropagation();
+			closeCreate();
+		});
+		createModal.addEventListener('click', function (e) {
 			if (e.target === createModal) closeCreate();
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
@@ -4909,6 +4905,10 @@ function t(key, fallback) {
 			closeManageSheets();
 		});
 	})();
+
+	// =============================================
+	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
+	// =============================================
 
 	(function initMemories() {
 		const modal = document.getElementById('memoriesModal');

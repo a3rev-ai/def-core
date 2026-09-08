@@ -2960,10 +2960,7 @@ html {
    the document card's, the menu borrows the chat row's, so dark mode and the
    focus treatment come along unchanged. */
 .projects-list {
-	/* C2: the page's own body. It used to borrow .documents-list, whose
-	   max-height:55vh + overflow-y kept the newest cards inside a fixed,
-	   vertically centred modal; a page scrolls with the page (D-C3), and an
-	   inner scroller would be a second scrollbar under the ⋯ menu. */
+	/* The page's own body: it scrolls with the page (D-C3), never inside itself. */
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -2975,9 +2972,8 @@ html {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
 	border-radius: 10px;
-	/* No overflow:hidden — the ⋯ menu is a child of the card now and would be
-	   clipped by it. The knowledge block is the last child, so it rounds its own
-	   bottom corners (9px = the 10px outer radius less the 1px border). */
+	/* No overflow:hidden — it would clip the ⋯ menu, a child of the card; the last
+	   child rounds its own bottom corners instead (9px = 10px less the 1px border). */
 }
 .project-card > :last-child {
 	border-bottom-left-radius: 9px;
@@ -3339,9 +3335,15 @@ html {
 }
 
 /* Create project (D-C2): the dialog's status line answers under the name field
-   rather than above it, where the page's own line sits behind the overlay. */
-#projectCreateStatus {
+   rather than above it, where the page's own line sits behind the overlay. It
+   collapses when it has nothing to say — .documents-status reserves 18px for a
+   line the dialog only sometimes shows. */
+.documents-status-dialog {
 	margin: 8px 0 0;
+}
+.documents-status-dialog:empty {
+	margin-top: 0;
+	min-height: 0;
 }
 
 /* The header's actions slot: room for the Ask entry beside the primary action. */

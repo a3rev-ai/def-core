@@ -564,7 +564,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="modal-body">
 					<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
-					<div class="documents-status" id="projectCreateStatus"></div>
+					<div class="documents-status documents-status-dialog" id="projectCreateStatus"></div>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="projectCreateCancel"><?php echo esc_html__( 'Cancel', 'digital-employees' ); ?></button>
