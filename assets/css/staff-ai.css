@@ -2927,17 +2927,6 @@ html {
 .document-project-chip:hover {
 	border-color: var(--accent-color, #1677ff);
 }
-.projects-create {
-	display: flex;
-	gap: 8px;
-	margin-bottom: 8px;
-}
-.projects-create .form-input {
-	flex: 1;
-	/* Without this an input's intrinsic size can push the row wider than a
-	   phone's viewport (flex items refuse to shrink past min-content). */
-	min-width: 0;
-}
 .projects-archived-toggle {
 	display: flex;
 	align-items: center;
@@ -2971,16 +2960,28 @@ html {
    the document card's, the menu borrows the chat row's, so dark mode and the
    focus treatment come along unchanged. */
 .projects-list {
+	/* C2: the page's own body. It used to borrow .documents-list, whose
+	   max-height:55vh + overflow-y kept the newest cards inside a fixed,
+	   vertically centred modal; a page scrolls with the page (D-C3), and an
+	   inner scroller would be a second scrollbar under the ⋯ menu. */
+	display: flex;
+	flex-direction: column;
 	gap: 10px;
 	/* The cards carry their own borders; a focus ring on a card's first
-	   control needs a pixel of room inside the scroller. */
+	   control needs a pixel of room. */
 	padding: 2px;
 }
 .project-card {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
 	border-radius: 10px;
-	overflow: hidden;
+	/* No overflow:hidden — the ⋯ menu is a child of the card now and would be
+	   clipped by it. The knowledge block is the last child, so it rounds its own
+	   bottom corners (9px = the 10px outer radius less the 1px border). */
+}
+.project-card > :last-child {
+	border-bottom-left-radius: 9px;
+	border-bottom-right-radius: 9px;
 }
 .project-card-archived {
 	background: var(--bg-sidebar);
@@ -3033,6 +3034,19 @@ html {
 	align-items: center;
 	gap: 6px;
 	flex-shrink: 0;
+	/* C2: the positioned parent of the ⋯ menu. */
+	position: relative;
+}
+/* The ⋯ menu drops from the button inside the page's normal flow — the
+   .chat-menu shell's position:fixed and its measured top/right belonged to a
+   modal whose list scrolled under it. Same place on screen, nothing to
+   recompute on scroll or resize. Hidden on touch, where the in-place sheet
+   below takes over. */
+.project-manage-menu {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 4px;
 }
 /* The only filled control on the card. */
 .project-open-btn {
@@ -3203,15 +3217,6 @@ html {
 		display: block;
 		padding: 0 14px 12px;
 	}
-	/* The Artifact's mobile toolbar: the name field on its own line, then a
-	   full-width Create project. */
-	.projects-create {
-		flex-wrap: wrap;
-	}
-	.projects-create .form-input,
-	.projects-create .modal-btn {
-		flex: 1 1 100%;
-	}
 	/* The four slots become list rows with a chevron — same targets, at tap size. */
 	.project-slots {
 		grid-template-columns: minmax(0, 1fr);
@@ -3331,6 +3336,12 @@ html {
 }
 .welcome-tip {
 	padding: 12px 20px 0;
+}
+
+/* Create project (D-C2): the dialog's status line answers under the name field
+   rather than above it, where the page's own line sits behind the overlay. */
+#projectCreateStatus {
+	margin: 8px 0 0;
 }
 
 /* The header's actions slot: room for the Ask entry beside the primary action. */
