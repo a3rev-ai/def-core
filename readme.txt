@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.0
+Stable tag: 7.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.8.1 - 2026-09-08 =
+* Update - Staff AI: the console's Documents and Scheduled entries now open pages with their own address. The browser's back button, a phone's back gesture and a reload behave as they do on any site - a link straight to Scheduled opens Scheduled - and the sidebar shows which page is open. Nothing on either page moved. The chat is hidden while a page is open, never reset: a reply that is streaming keeps streaming, and a half-typed message is still in the box when you come back. Escape returns you to the chat. Projects, Memories, Usage and Connections still open as before; they follow in later releases. Site admins: 98 console texts that could only ever ship in English are now translatable.
 
 = 7.8.0 - 2026-09-08 =
 * Tweak - Staff AI: the Projects panel is now a workspace rather than a row of admin buttons. Every project is a card: its name and status, one clear Open Project button that starts a chat inside the project, and its Project knowledge - Runsheet, Session notes and Instructions open straight into the reader, and Other documents opens exactly what it counts - the project's files apart from those three. A slot you have not filled yet says so and takes you where you set it. Rename, Archive and Delete have moved into a single three-dot menu, with Delete separated below a divider so it cannot be hit on the way to Archive; an archived project offers Restore in its place, and keeps a quieter, unfilled Open Project that offers to restore the project first, since a chat can only run inside an active one. On a phone the card stacks - a full-width Open Project, a Manage project list that opens in place, and the knowledge rows at tap size. The explainer paragraph is gone: Ask how Projects work sits in the panel footer, in view however far the list is scrolled.
