@@ -67,16 +67,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<!-- D-C7: an entry that opens a PAGE is a link to its route, so the
 			     browser's back button, a phone's back gesture and a reload behave as
 			     they do on any site, and the open page is marked aria-current="page".
-			     The four that still open a modal keep aria-haspopup="dialog" until
-			     C2-C4 move them — the sidebar never promises an address that is not
+			     The three that still open a modal keep aria-haspopup="dialog" until
+			     C3 moves them — the sidebar never promises an address that is not
 			     there yet. -->
 			<nav class="sidebar-nav" aria-label="<?php echo esc_attr__( 'Staff AI sections', 'digital-employees' ); ?>">
-				<button type="button" class="sidebar-nav-item" id="navProjects" aria-haspopup="dialog">
+				<a class="sidebar-nav-item" id="navProjects" href="#projects">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
 					</svg>
 					<?php echo esc_html__( 'Projects', 'digital-employees' ); ?>
-				</button>
+				</a>
 				<a class="sidebar-nav-item" id="navDocuments" href="#documents">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -234,6 +234,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</div>
 				</div>
 			</header>
+
+			<!-- Projects — the same .console-page shell (D-C3, C2). The 7.8.0 card
+			     workspace, body for body, out of the box it used to sit in: the
+			     archived toggle, the status line and the card list are unchanged, the
+			     modal's overlay, × and Refresh/Close are gone (a page loads on entry),
+			     and the head carries the Ask entry and Create project. Projects P-D5's
+			     rule holds — Ask Sue IS the help layer, so the page carries no
+			     explainer paragraph.
+			     (docs/projects-runsheet.md in the DEF repo: P-A the container, P-B chat
+			     entry, P-C scheduled runs inside a project, P-D the doorway.) -->
+			<section class="console-page console-page-compact" id="projectsPane" hidden>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="projectsTitle" tabindex="-1"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Folders your assistant works from, each with its own governing documents.', 'digital-employees' ); ?></p>
+					</div>
+					<!-- The 7.8.0 create row, in the shell's actions slot: a name field and
+					     the button beside the Ask entry. Enter in the field creates too. -->
+					<div class="console-page-actions">
+						<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
+						<input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
+						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
+					</div>
+				</div>
+				<label class="projects-archived-toggle">
+					<input type="checkbox" id="projectsShowArchived">
+					<?php echo esc_html__( 'Show archived', 'digital-employees' ); ?>
+				</label>
+				<div class="documents-status" id="projectsStatus"></div>
+				<div class="projects-list" id="projectsList"></div>
+			</section>
 
 			<!-- Scheduled tasks — a console PAGE on the shared .console-page shell
 			     (D-C3): a head with the title, one line of description and an actions
@@ -521,42 +552,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-footer">
 					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
-		<!-- Projects (docs/projects-runsheet.md in the DEF repo). Governing-document
-		     folders the assistant works from: P-A the container, P-B chat entry + the
-		     assistant maintaining the documents, P-C scheduled runs inside a project,
-		     P-D (D-P14) the doorway — the chat IS the onboarding: "Ask <assistant> how
-		     Projects work" opens a chat that walks the user through it and can create
-		     the project. P-D5 (7.8.0): every project is a CARD - name and status,
-		     one filled Open Project, its governing documents in reach, and the
-		     low-frequency management actions behind a single three-dot menu. -->
-		<div class="modal-overlay" id="projectsModal">
-			<div class="modal" style="max-width: 560px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="projectsModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<div class="projects-create">
-						<input type="text" class="form-input" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
-						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
-					</div>
-					<label class="projects-archived-toggle">
-						<input type="checkbox" id="projectsShowArchived">
-						<?php echo esc_html__( 'Show archived', 'digital-employees' ); ?>
-					</label>
-					<div class="documents-status" id="projectsStatus"></div>
-					<div class="documents-list projects-list" id="projectsList"></div>
-				</div>
-				<div class="modal-footer">
-					<!-- Ask Sue IS the help layer (P-D5, 7.8.0): the panel carries no
-					     explainer paragraph, and the one Ask entry lives in the footer,
-					     where it stays in view however far the project list is scrolled. -->
-					<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="projectsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="projectsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
 				</div>
 			</div>
 		</div>
@@ -987,7 +982,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			projectsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your projects.', 'digital-employees' ) ); ?>,
 			chatMoveFailed: <?php echo wp_json_encode( __( 'Could not move the chat.', 'digital-employees' ) ); ?>,
 			chatRemoveFromProject: <?php echo wp_json_encode( __( 'Remove from project', 'digital-employees' ) ); ?>,
-			chatNoProjects: <?php echo wp_json_encode( __( 'No projects yet — create one from the Projects panel.', 'digital-employees' ) ); ?>,
+			chatNoProjects: <?php echo wp_json_encode( __( 'No projects yet — create one from the Projects page.', 'digital-employees' ) ); ?>,
 			uploadTimeout: <?php echo wp_json_encode( __( 'Upload timed out. Please try again.', 'digital-employees' ) ); ?>,
 			analyzeFiles: <?php echo wp_json_encode( __( 'Please analyze the attached file(s).', 'digital-employees' ) ); ?>,
 			integrationsLoading: <?php echo wp_json_encode( __( 'Loading your connected accounts…', 'digital-employees' ) ); ?>,
@@ -1046,7 +1041,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			projectsBoundTasksUnbind: <?php echo wp_json_encode( __( 'Remove the project from those tasks? OK = they run on with no project. Cancel = leave them bound (they run without the archived project\'s documents until you change them).', 'digital-employees' ) ); ?>,
 			projectsLoading: <?php echo wp_json_encode( __( 'Loading your projects…', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
-			projectsEmpty: <?php echo wp_json_encode( __( 'No projects yet. Ask %s how Projects work (the button below), or create one by name.', 'digital-employees' ) ); ?>,
+			projectsEmpty: <?php echo wp_json_encode( __( 'No projects yet. Ask %s how Projects work, or use Create project above.', 'digital-employees' ) ); ?>,
 			projectsActive: <?php echo wp_json_encode( __( 'Active', 'digital-employees' ) ); ?>,
 			projectsOpen: <?php echo wp_json_encode( __( 'Open Project', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the project name. */ ?>

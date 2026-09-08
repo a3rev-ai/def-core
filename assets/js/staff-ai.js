@@ -709,7 +709,7 @@ function t(key, fallback) {
 		if (!shown) {
 			const none = document.createElement('div');
 			none.className = 'chat-menu-empty';
-			none.textContent = t('chatNoProjects', 'No projects yet — create one from the Projects panel.');
+			none.textContent = t('chatNoProjects', 'No projects yet — create one from the Projects page.');
 			menu.appendChild(none);
 		}
 	}
@@ -930,7 +930,10 @@ function t(key, fallback) {
 	// already gone and one Escape would both close it AND leave the page.
 	document.addEventListener('keydown', function (e) {
 		if (e.key !== 'Escape' || !openPage) return;
-		if (document.querySelector('.chat-menu')) return;
+		// :not([hidden]) — the Projects card's touch sheet is a .chat-menu that
+		// lives in the page hidden, one per card. Matching it would mean Escape
+		// could never leave Projects at all.
+		if (document.querySelector('.chat-menu:not([hidden])')) return;
 		if (document.querySelector('.modal-overlay.visible')) return;
 		// Escape belongs to whatever the user is editing before it belongs to the
 		// page: the Documents inline "Move to project…" editor, the search field,
@@ -4309,37 +4312,38 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
-	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
+	// PROJECTS PAGE (the 7.8.0 card workspace on the console shell — C2)
 	// =============================================
 
 	(function initProjects() {
-		const modal = document.getElementById('projectsModal');
-		if (!modal) return;
+		const pane = document.getElementById('projectsPane');
+		if (!pane) return;
 
-		const openBtn = document.getElementById('navProjects');
-		const modalClose = document.getElementById('projectsModalClose');
-		const closeBtn = document.getElementById('projectsClose');
-		const refreshBtn = document.getElementById('projectsRefresh');
 		const statusEl = document.getElementById('projectsStatus');
 		const listEl = document.getElementById('projectsList');
-		const nameEl = document.getElementById('projectsNewName');
-		const createBtn = document.getElementById('projectsCreateBtn');
 		const archivedEl = document.getElementById('projectsShowArchived');
-		// One Ask entry, in the footer, so it stays in view however far the list scrolls (P-D5).
-		const askBtns = Array.prototype.slice.call(modal.querySelectorAll('.projects-ask-btn'));
+		// One Ask entry, in the page head beside Create project, where it stays in
+		// view however far the card list scrolls (P-D5's rule, the shell's slot).
+		const askBtns = Array.prototype.slice.call(pane.querySelectorAll('.projects-ask-btn'));
 		let loading = false;
 		// One mutation at a time: the confirm and the /tasks round trip leave the
 		// control live, and two Archives answered differently would conflict.
 		let mutating = false;
 
-		function open() {
-			modal.classList.add('visible');
-			loadList();
-		}
-		function close() {
-			closeManageMenu(false);
-			modal.classList.remove('visible');
-		}
+		// Projects on the shared page shell (D-C3/D-C4): the container swap, the
+		// other page's hiding, the sidebar's current marker, focus and #projects
+		// all belong to showPage now. The modal's Refresh is gone with it — a page
+		// loads on entry, and re-entering (the sidebar entry clicked again) reloads.
+		consolePages.push({
+			route: 'projects',
+			el: pane,
+			title: document.getElementById('projectsTitle'),
+			onEnter: loadList,
+			// Both renderings are anchored inside a card that is about to be hidden. An
+			// expanded sheet left behind stays a .chat-menu:not([hidden]) in the hidden
+			// page, and the shell's Escape guard would stand aside for it on every page.
+			onLeave: function () { closeManageMenu(false); closeManageSheets(); }
+		});
 
 		// P-D2 (D-P14): the chat IS the onboarding. The button starts a fresh chat
 		// (outside any project) with a fixed first message; the assistant explains
@@ -4354,7 +4358,6 @@ function t(key, fallback) {
 		onAssistantName(labelAsk);
 		askBtns.forEach(function (btn) {
 			btn.addEventListener('click', function () {
-				close();
 				clearActiveProject();
 				resetToNewChat();
 				composerInput.value = t('projectsAskPrompt',
@@ -4408,7 +4411,7 @@ function t(key, fallback) {
 				const projects = Array.isArray(data.projects) ? data.projects : [];
 				projectsCache = projects;
 				if (projects.length === 0) {
-					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work (the button below), or create one by name.')
+					setStatus(t('projectsEmpty', 'No projects yet. Ask %s how Projects work, or use Create project above.')
 						.replace('%s', function () { return assistantName || t('projectsYourAssistant', 'your assistant'); }), 'muted');
 					return;
 				}
@@ -4471,7 +4474,6 @@ function t(key, fallback) {
 					var restored = await setArchived(project, false);
 					if (!restored) return;
 				}
-				close();
 				setActiveProject(project);
 				resetToNewChat();
 			});
@@ -4583,9 +4585,9 @@ function t(key, fallback) {
 			return btn;
 		}
 
-		// D-P10: the Projects → My Documents bridge, pre-filtered; excludeSlots drops the three governing documents.
+		// D-P10: the Projects → My Documents bridge, pre-filtered; excludeSlots
+		// drops the three governing documents.
 		function openProjectDocuments(project, excludeSlots) {
-			close();
 			if (openDocumentsForProject) { openDocumentsForProject(project.project_id, excludeSlots); }
 		}
 
@@ -4658,10 +4660,7 @@ function t(key, fallback) {
 			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
 			menu.addEventListener('click', function (e) { e.stopPropagation(); });
 
-			const rect = anchor.getBoundingClientRect();
-			menu.style.top = Math.round(rect.bottom + 4) + 'px';
-			menu.style.right = Math.max(8, Math.round(window.innerWidth - rect.right)) + 'px';
-
+			// The menu hangs off the card and scrolls with it — no measured position.
 			manageActions(project).forEach(function (item) {
 				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
 			});
@@ -4698,7 +4697,9 @@ function t(key, fallback) {
 				}
 			});
 
-			document.body.appendChild(menu);
+			// .project-card-actions is the positioned parent (CSS) and the ⋯ button its
+			// last child, so the menu's right edge lands on the button's.
+			(anchor.parentNode || document.body).appendChild(menu);
 			manageMenuEl = menu;
 			manageMenuAnchor = anchor;
 			anchor.setAttribute('aria-expanded', 'true');
@@ -4707,6 +4708,18 @@ function t(key, fallback) {
 		}
 
 		let manageSheetSeq = 0;
+
+		// The sheet is the touch rendering of the same menu, so it answers Escape
+		// the same way. It stays in the DOM hidden, which is why the shell's
+		// "stand aside for an open menu" test reads :not([hidden]).
+		function closeManageSheets() {
+			var open = listEl ? listEl.querySelectorAll('.project-manage-sheet:not([hidden])') : [];
+			Array.prototype.forEach.call(open, function (sheet) {
+				sheet.hidden = true;
+				var btn = sheet.parentNode && sheet.parentNode.querySelector('.project-manage-btn');
+				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+			});
+		}
 
 		function manageDisclosure(project) {
 			const wrap = document.createElement('div');
@@ -4809,14 +4822,23 @@ function t(key, fallback) {
 			}
 		}
 
+		// ——— Create project: the 7.8.0 create row, in the page head's actions slot.
+		// One name field and one button — not a decision you return from, so not a
+		// dialog (D-C2). It answers through the page's own status line. ———
+		const createBtn = document.getElementById('projectsCreateBtn');
+		const nameEl = document.getElementById('projectsNewName');
+
 		async function createProject() {
-			const name = nameEl ? nameEl.value.trim() : '';
+			const name = nameEl.value.trim();
 			if (!name) return;
 			createBtn.disabled = true;
 			try {
 				await apiRequest('/projects', { method: 'POST', body: JSON.stringify({ name: name }) });
 				nameEl.value = '';
 				loadList();
+				// The field is where the next project starts: keep the keyboard there
+				// rather than on the button that has just emptied it.
+				nameEl.focus();
 			} catch (e) {
 				setStatus((e && e.message) || t('projectsCreateFailed', 'Could not create the project.'), 'error');
 			} finally {
@@ -4824,27 +4846,30 @@ function t(key, fallback) {
 			}
 		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
-		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
-		if (createBtn) createBtn.addEventListener('click', createProject);
-		if (nameEl) nameEl.addEventListener('keydown', function (e) {
+		createBtn.addEventListener('click', createProject);
+		nameEl.addEventListener('keydown', function (e) {
 			if (e.key === 'Enter') { e.preventDefault(); createProject(); }
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 
-		// The ⋯ popover is fixed at the anchor's rect, so anything that moves the
-		// card out from under it must close it (the chat row menu's rule).
+		// A click anywhere else closes the open menu, the way the chat row's does.
+		// The scroll and resize listeners the fixed anchoring needed are gone with
+		// it: the menu moves with its card now.
 		document.addEventListener('click', function () { closeManageMenu(false); });
-		document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeManageMenu(false); });
-		if (listEl) listEl.addEventListener('scroll', function () { closeManageMenu(false); });
-		// Capture: #projectsModal is the fixed overlay and never scrolls itself —
-		// the inner .modal does, and scroll events do not bubble.
-		modal.addEventListener('scroll', function () { closeManageMenu(false); }, true);
-		window.addEventListener('resize', function () { closeManageMenu(false); });
+		// C1's rule, both renderings: Escape closes the menu, and only a second
+		// Escape leaves the page. The shell's own handler runs first (capture) and
+		// stands aside while a .chat-menu is on screen — the popover and the
+		// expanded sheet are both .chat-menu — so this one gets the first press.
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			closeManageMenu(false);
+			closeManageSheets();
+		});
 	})();
+
+	// =============================================
+	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
+	// =============================================
 
 	(function initMemories() {
 		const modal = document.getElementById('memoriesModal');

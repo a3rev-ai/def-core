@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.1
+Stable tag: 7.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.8.2 - 2026-09-08 =
+* Update - Staff AI: Projects is now a page in the console, like Documents and Scheduled, instead of a box over your chat. It has its own address, so the browser's back button, a phone's back gesture and a reload behave as they do on any site, and the sidebar shows when you are on it. The project cards are exactly as they were, with room to grow down the page; you still name a new project and create it from the top of the page, beside Ask how Projects work. Opening a project's documents now moves you to My documents and the back button brings you straight back to Projects. Your chat is hidden while Projects is open, never reset: a reply that is streaming keeps streaming, and a half-typed message is still in the box when you return. Memories, Usage and Connections still open as before; they follow in the next release.
 
 = 7.8.1 - 2026-09-08 =
 * Update - Staff AI: the console's Documents and Scheduled entries now open pages with their own address. The browser's back button, a phone's back gesture and a reload behave as they do on any site - a link straight to Scheduled opens Scheduled - and the sidebar shows which page is open. Nothing on either page moved. The chat is hidden while a page is open, never reset: a reply that is streaming keeps streaming, and a half-typed message is still in the box when you come back. Escape returns you to the chat. Projects, Memories, Usage and Connections still open as before; they follow in later releases. Site admins: 98 console texts that could only ever ship in English are now translatable.

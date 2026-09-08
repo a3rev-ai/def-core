@@ -2905,6 +2905,11 @@ html {
 	.console-page-head {
 		flex-direction: column;
 	}
+	/* The head has stacked, so the slot is full width: give the name field a
+	   line of its own rather than a 200px stub beside a wrapped button. */
+	.projects-create-name {
+		flex-basis: 100%;
+	}
 }
 
 /* --- Projects P-A (the container) ------------------------------------- */
@@ -2926,17 +2931,6 @@ html {
 }
 .document-project-chip:hover {
 	border-color: var(--accent-color, #1677ff);
-}
-.projects-create {
-	display: flex;
-	gap: 8px;
-	margin-bottom: 8px;
-}
-.projects-create .form-input {
-	flex: 1;
-	/* Without this an input's intrinsic size can push the row wider than a
-	   phone's viewport (flex items refuse to shrink past min-content). */
-	min-width: 0;
 }
 .projects-archived-toggle {
 	display: flex;
@@ -2971,16 +2965,24 @@ html {
    the document card's, the menu borrows the chat row's, so dark mode and the
    focus treatment come along unchanged. */
 .projects-list {
+	/* The page's own body: it scrolls with the page (D-C3), never inside itself. */
+	display: flex;
+	flex-direction: column;
 	gap: 10px;
 	/* The cards carry their own borders; a focus ring on a card's first
-	   control needs a pixel of room inside the scroller. */
+	   control needs a pixel of room. */
 	padding: 2px;
 }
 .project-card {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
 	border-radius: 10px;
-	overflow: hidden;
+	/* No overflow:hidden — it would clip the ⋯ menu, a child of the card; the last
+	   child rounds its own bottom corners instead (9px = 10px less the 1px border). */
+}
+.project-card > :last-child {
+	border-bottom-left-radius: 9px;
+	border-bottom-right-radius: 9px;
 }
 .project-card-archived {
 	background: var(--bg-sidebar);
@@ -3033,6 +3035,19 @@ html {
 	align-items: center;
 	gap: 6px;
 	flex-shrink: 0;
+	/* C2: the positioned parent of the ⋯ menu. */
+	position: relative;
+}
+/* The ⋯ menu drops from the button inside the page's normal flow — the
+   .chat-menu shell's position:fixed and its measured top/right belonged to a
+   modal whose list scrolled under it. Same place on screen, nothing to
+   recompute on scroll or resize. Hidden on touch, where the in-place sheet
+   below takes over. */
+.project-manage-menu {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 4px;
 }
 /* The only filled control on the card. */
 .project-open-btn {
@@ -3203,15 +3218,6 @@ html {
 		display: block;
 		padding: 0 14px 12px;
 	}
-	/* The Artifact's mobile toolbar: the name field on its own line, then a
-	   full-width Create project. */
-	.projects-create {
-		flex-wrap: wrap;
-	}
-	.projects-create .form-input,
-	.projects-create .modal-btn {
-		flex: 1 1 100%;
-	}
 	/* The four slots become list rows with a chevron — same targets, at tap size. */
 	.project-slots {
 		grid-template-columns: minmax(0, 1fr);
@@ -3346,6 +3352,15 @@ html {
    which on a phone (where the head stacks) would be visible space. */
 .console-page-actions:empty {
 	display: none;
+}
+
+/* The Projects create row in that slot: the name field takes a fixed share and
+   gives it up first, so the two buttons keep their own width. min-width:0
+   because a flex item otherwise refuses to shrink past an input's intrinsic
+   size and would push the head wider than a phone's viewport. */
+.projects-create-name {
+	flex: 0 1 200px;
+	min-width: 0;
 }
 
 /* My documents page (item 3) — the shell carries its frame and header now. */
