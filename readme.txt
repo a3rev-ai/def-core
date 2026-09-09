@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.11.0
+Stable tag: 7.8.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.11.0 - 2026-09-09 =
+= 7.8.7 - 2026-09-09 =
 * Feature - Voice, hands-free: say "stop" - or "Sue, stop", or "that's all" - and the conversation ends there. The employee stops answering, the microphone closes, and the words you used to end it are not put to the employee as a question. Typing beside your phone no longer keeps the microphone listening: a keystroke, a cup set down or a door closing is heard as the knock it is rather than as a word, so it no longer holds the turn open and your pause still sends. The same in the Staff AI console and in Customer Chat, wherever the employee's Voice is on. Site admins: the phrases that end a conversation are translatable.
 
 = 7.8.4 - 2026-09-09 =

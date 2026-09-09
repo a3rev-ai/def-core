@@ -37,7 +37,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
 | `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
 | `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
-| `harness-voice.js` | Hands-free voice (v7.11.0): the speech detector against a fake microphone, and the spoken stop on both surfaces |
+| `harness-voice.js` | Hands-free voice (v7.8.7): the speech detector against a fake microphone, and the spoken stop on both surfaces |
 
 ## Bite checks
 

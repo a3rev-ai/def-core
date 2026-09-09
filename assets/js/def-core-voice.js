@@ -178,7 +178,7 @@ window.DefVoice = (function () {
 			}
 		}
 
-		// Loud is not spoken (7.9.0). A keystroke beside the phone is a transient: it
+		// Loud is not spoken (7.8.7). A keystroke beside the phone is a transient: it
 		// spikes a read's peak far above that read's own RMS, while a spoken word fills
 		// the read at a peak near its RMS — which is what "typing kept the mic listening"
 		// was missing (Steve's hands-free canary).
