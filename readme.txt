@@ -120,6 +120,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
+= 7.8.8 - 2026-09-09 =
+* Fix - Staff AI Connections: the Finish connecting link now waits for you. Connecting an app opens a link you click to approve access in another tab - and switching to that tab and back was itself enough to make the link disappear, because coming back refreshes the list. The link now stays on its row until the app is actually connected, or until you dismiss it with the small x beside it, so a glance at the consent screen, a phone switching apps or an interrupted approval no longer sends you back to Connect to start again. Connecting a second mailbox on an app you already use behaves the same way. Returning from the approval tab still refreshes the list, so an app you did finish connecting shows Connected the moment you are back.
+
 = 7.8.4 - 2026-09-09 =
 * Fix - Chat: when your employee works through a task in several steps, what she says along the way ("Checking that now.") shows in the working line under the reply instead of stacking up inside it. The reply you are left with is the one she finishes with - the same words your chat history and every other device already show - and it is read aloud once instead of after every step. Both the website chat and the Staff AI console. Needs the platform release of the same day.
 

@@ -1017,6 +1017,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			accountConnectAnother: <?php echo wp_json_encode( __( 'Connect another account', 'digital-employees' ) ); ?>,
 			integrationsStarting: <?php echo wp_json_encode( __( 'Starting the connection…', 'digital-employees' ) ); ?>,
 			integrationsFinish: <?php echo wp_json_encode( __( 'Finish connecting →', 'digital-employees' ) ); ?>,
+			integrationsFinishDismiss: <?php echo wp_json_encode( __( 'Dismiss “Finish connecting”', 'digital-employees' ) ); ?>,
 			integrationsAwaiting: <?php echo wp_json_encode( __( 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.', 'digital-employees' ) ); ?>,
 			integrationsNoLink: <?php echo wp_json_encode( __( 'Could not start the connection. Please try again.', 'digital-employees' ) ); ?>,
 			integrationsConnectFailed: <?php echo wp_json_encode( __( 'Could not start the connection.', 'digital-employees' ) ); ?>,
