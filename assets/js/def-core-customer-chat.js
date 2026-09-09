@@ -2247,6 +2247,10 @@
 
 		// Progressive text rendering state.
 		var streamBuffer = '';
+		// Where the current loop step's slice of streamBuffer begins — moved
+		// forward only by `step_superseded` (DEF #1159), which cuts the slice
+		// above it out of the bubble.
+		var stepStart = 0;
 		// Set when a tool runs, so the next text_delta knows it begins a NEW
 		// segment. The model often speaks before a tool call and again after
 		// it ("...right now." then "Done — I've flagged this"); both arrive as
@@ -2378,6 +2382,28 @@
 						drainNextWord();
 					}
 					break;
+				case 'step_superseded':
+					// The loop has left this round, so its text was a lead-in and not
+					// the answer (DEF #1159): move that slice out of the bubble into
+					// the working line, leaving the bubble holding the final round —
+					// what the server persists. A CUT MARKER, so the next delta (a
+					// cap-hit summary carries this same step) starts a slice that stays.
+					var lead = streamBuffer.slice(stepStart).trim();
+					streamBuffer = streamBuffer.slice(0, stepStart);
+					displayedLen = Math.min(displayedLen, streamBuffer.length);
+					if (streamEl) {
+						streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
+					}
+					if (lead && streamEl) {
+						if (!thinkingStatusEl) {
+							thinkingStatusEl = el('div', 'cc-tool-status');
+							thinkingStatusEl.innerHTML = '<span class="cc-spinner" part="spinner"></span><span class="cc-tool-label" part="tool-label"></span>';
+							els.messages.appendChild(thinkingStatusEl);
+						}
+						thinkingStatusEl.querySelector('.cc-tool-label').textContent = lead;
+						scrollToBottom();
+					}
+					break;
 				case 'done':
 					streamTerminated = true;
 					hideThinking(thinkingEl);
@@ -2420,6 +2446,7 @@
 
 					var wasStreamed = !!streamEl;
 					streamBuffer = '';
+					stepStart = 0;
 					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;
@@ -2509,6 +2536,7 @@
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 					}
 					streamBuffer = '';
+					stepStart = 0;
 					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;

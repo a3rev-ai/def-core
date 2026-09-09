@@ -22,14 +22,15 @@ const path = require('path');
 
 const REPO = path.resolve(__dirname, '..', '..');
 const JS_PATH = path.join(REPO, 'assets/js/staff-ai.js');
+const CC_PATH = path.join(REPO, 'assets/js/def-core-customer-chat.js');
 
-function slice(label, startMatch, endMatch, needs, envVar) {
+function slice(label, startMatch, endMatch, needs, envVar, file) {
 	if (envVar && process.env[envVar]) {
 		return fs.readFileSync(path.resolve(process.env[envVar]), 'utf8');
 	}
-	const src = fs.readFileSync(JS_PATH, 'utf8').split(/\r?\n/);
+	const src = fs.readFileSync(file || JS_PATH, 'utf8').split(/\r?\n/);
 	const start = src.findIndex(startMatch);
-	const end = src.findIndex(endMatch);
+	const end = src.findIndex((l, i) => i > start && endMatch(l));
 	if (start < 0 || end < 0 || end <= start) {
 		throw new Error(label + ': MARKERS NOT FOUND (start=' + start + ' end=' + end + ')');
 	}
@@ -83,6 +84,27 @@ function integrations() {
 		l => l.includes('// MY DOCUMENTS PANEL (document library'),
 		['consolePages.push', 'function loadList', 'function renderRow', 'function connect', 'pageOpen'],
 		'INTEGRATIONS');
+}
+
+// The SSE stream handlers of both widgets — the streaming state, the renderer
+// and the event switch (V-S7b: `step_superseded` moves a superseded round out
+// of the bubble).
+function staffAiStream() {
+	return slice('staff-ai stream',
+		l => l.includes('// Progressive markdown rendering state.'),
+		l => l.includes('// Read SSE chunks'),
+		['function renderStreamChunk', 'async function processEventQueue',
+			"evt.type === 'step_superseded'", 'var stepStart'],
+		'STAFFSTREAM');
+}
+
+function customerChatStream() {
+	return slice('customer-chat stream',
+		l => l.includes('// Progressive text rendering state.'),
+		l => l.includes('fetch(config.chatStreamUrl, {'),
+		['function drainNextWord', 'function handleSSEEvent',
+			"case 'step_superseded':", 'var stepStart'],
+		'CCSTREAM', CC_PATH);
 }
 
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
@@ -145,5 +167,6 @@ function templateNav() {
 		'nav.sidebar-nav');
 }
 
-module.exports = { REPO, JS_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, templateSource, templatePage, templateNav };
+module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
+	usage, integrations, staffAiStream, customerChatStream,
+	templateSource, templatePage, templateNav };

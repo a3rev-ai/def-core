@@ -2579,6 +2579,10 @@ function t(key, fallback) {
 
 			// Progressive markdown rendering state.
 			var streamBuffer = '';
+			// Where the current loop step's slice of streamBuffer begins — moved
+			// forward only by `step_superseded` (DEF #1159), which cuts the slice
+			// above it out of the bubble.
+			var stepStart = 0;
 			var streamEl = null;
 			var wordDrainTimer = null;
 			var lastRenderedLen = 0;
@@ -2714,6 +2718,26 @@ function t(key, fallback) {
 								renderStreamChunk();
 							}
 						}
+					} else if (evt.type === 'step_superseded') {
+						// The loop has left this round, so its text was a lead-in and not
+						// the answer (DEF #1159): move that slice out of the bubble into
+						// the working line, leaving the bubble holding the final round —
+						// what the server persists. A CUT MARKER, so the next delta (a
+						// cap-hit summary carries this same step) starts a slice that stays.
+						var lead = streamBuffer.slice(stepStart).trim();
+						streamBuffer = streamBuffer.slice(0, stepStart);
+						lastRenderedLen = streamBuffer.length;
+						if (streamEl) streamEl.innerHTML = renderMarkdown(streamBuffer);
+						var supMsg = lead && streamEl && streamEl.closest('.message');
+						if (supMsg) {
+							if (!thinkingStatusEl) {
+								thinkingStatusEl = document.createElement('div');
+								thinkingStatusEl.className = 'tool-status';
+								thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
+								supMsg.parentNode.insertBefore(thinkingStatusEl, supMsg.nextSibling);
+							}
+							thinkingStatusEl.querySelector('.tool-label').textContent = lead;
+						}
 					} else if (evt.type === 'done') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
@@ -2781,6 +2805,7 @@ function t(key, fallback) {
 						}
 
 						streamBuffer = '';
+						stepStart = 0;
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
@@ -2842,6 +2867,7 @@ function t(key, fallback) {
 							renderMessages();
 						}
 						streamBuffer = '';
+						stepStart = 0;
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
