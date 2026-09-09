@@ -1093,6 +1093,7 @@ final class DEF_Core {
 			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
 			'uploadReadFailed'     => __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ),
 			'fileTypeNotSupported' => __( 'File type not supported', 'digital-employees' ),
+			'attachAfterFirstMessage' => __( 'Send your first message, then attach the image.', 'digital-employees' ),
 			'offlineTitle'         => __( 'Chat is currently unavailable', 'digital-employees' ),
 			'offlineMessage'       => __( 'This feature is being set up. Please check back soon.', 'digital-employees' ),
 			'privacyPolicy'        => __( 'Privacy Policy', 'digital-employees' ),
