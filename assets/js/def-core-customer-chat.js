@@ -2247,6 +2247,10 @@
 
 		// Progressive text rendering state.
 		var streamBuffer = '';
+		// Where the current loop step's slice of streamBuffer begins —
+		// advanced by a step-0 notice (which the reply's rounds never
+		// supersede) or by a cut (DEF #1159).
+		var stepStart = 0;
 		// Set when a tool runs, so the next text_delta knows it begins a NEW
 		// segment. The model often speaks before a tool call and again after
 		// it ("...right now." then "Done — I've flagged this"); both arrive as
@@ -2358,9 +2362,11 @@
 					}
 					break;
 				case 'text_delta':
+					// Clears a superseded round's working line as the next round starts,
+					// not only the thinking row before the first (V-S7b).
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (!streamEl) {
 						hideThinking(thinkingEl);
-							if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
 						var contentEl = el('div', 'def-cc-message-content');
 						msgEl.appendChild(contentEl);
@@ -2374,8 +2380,29 @@
 						}
 					}
 					streamBuffer += evt.text;
+					// A budget/billing notice streams at step 0 ahead of the reply: no
+					// round of the reply supersedes it, so it sits below the cut.
+					if (evt.step === 0) stepStart = streamBuffer.length;
 					if (!wordDrainTimer) {
 						drainNextWord();
+					}
+					break;
+				case 'step_superseded':
+					// A superseded round's text moves to the working line (DEF #1159).
+					var lead = streamBuffer.slice(stepStart).trim();
+					streamBuffer = streamBuffer.slice(0, stepStart);
+					displayedLen = Math.min(displayedLen, streamBuffer.length);
+					if (streamEl) {
+						streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
+					}
+					if (lead && streamEl) {
+						if (!thinkingStatusEl) {
+							thinkingStatusEl = el('div', 'cc-tool-status');
+							thinkingStatusEl.innerHTML = '<span class="cc-spinner" part="spinner"></span><span class="cc-tool-label" part="tool-label"></span>';
+							els.messages.appendChild(thinkingStatusEl);
+						}
+						thinkingStatusEl.querySelector('.cc-tool-label').textContent = lead;
+						scrollToBottom();
 					}
 					break;
 				case 'done':
@@ -2420,6 +2447,7 @@
 
 					var wasStreamed = !!streamEl;
 					streamBuffer = '';
+					stepStart = 0;
 					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;
@@ -2509,6 +2537,7 @@
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 					}
 					streamBuffer = '';
+					stepStart = 0;
 					segmentBreakPending = false;
 					streamEl = null;
 					wordDrainTimer = null;

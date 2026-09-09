@@ -1,7 +1,9 @@
 # Browser harnesses — the console's page shell
 
 These are the D-C5 checks from `docs/staff-ai-console-pages-runsheet.md` (DEF repo),
-kept in the repo so the numbers a PR reports can be re-run by anyone. Each harness
+kept in the repo so the numbers a PR reports can be re-run by anyone (`harness-v-s7b.js`
+is V-S7b from `docs/staff-ai-voice-runsheet.md`, and slices Customer Chat's JS the same
+way). Each harness
 slices the **shipped** `assets/js/staff-ai.js` by the comment markers the code already
 carries (`tests/browser/extract.js`), runs those exact lines inside jsdom against a DOM
 that mirrors `templates/staff-ai-shell.php`, and drives them through real events —
@@ -34,6 +36,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c1.js` | The shell itself (v7.8.1): routes, history, focus, Escape, the delegated sidebar click |
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
 | `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
+| `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
 
 ## Bite checks
 
@@ -46,6 +49,7 @@ that regression actually fail:
 BLOCK=/tmp/old-shell.js       node tests/browser/harness-c1.js   # the page shell
 PROJECTS=/tmp/old-projects.js node tests/browser/harness-c2.js   # initProjects
 MEMORIES=… USAGE=… INTEGRATIONS=… node tests/browser/harness-c3.js
+STAFFSTREAM=/tmp/old-staff.js CCSTREAM=/tmp/old-cc.js node tests/browser/harness-v-s7b.js
 ```
 
 The env var names match the extractor names in `extract.js`.

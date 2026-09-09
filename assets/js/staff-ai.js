@@ -2579,6 +2579,10 @@ function t(key, fallback) {
 
 			// Progressive markdown rendering state.
 			var streamBuffer = '';
+			// Where the current loop step's slice of streamBuffer begins —
+			// advanced by a step-0 notice (which the reply's rounds never
+			// supersede) or by a cut (DEF #1159).
+			var stepStart = 0;
 			var streamEl = null;
 			var wordDrainTimer = null;
 			var lastRenderedLen = 0;
@@ -2705,7 +2709,9 @@ function t(key, fallback) {
 						if (streamEl) {
 							streamBuffer += evt.text;
 							// A budget/billing notice streams at step 0 ahead of the reply: shown,
-							// never read — the device voice reads the reply's own words.
+							// never read — the device voice reads the reply's own words. No round
+							// of the reply supersedes it, so it sits below the cut.
+							if (evt.step === 0) stepStart = streamBuffer.length;
 							if (spokenTurn && evt.step !== 0) {
 								readbackBuffer += evt.text;
 								readBackSoFar(false);
@@ -2713,6 +2719,22 @@ function t(key, fallback) {
 							if (!wordDrainTimer) {
 								renderStreamChunk();
 							}
+						}
+					} else if (evt.type === 'step_superseded') {
+						// A superseded round's text moves to the working line (DEF #1159).
+						var lead = streamBuffer.slice(stepStart).trim();
+						streamBuffer = streamBuffer.slice(0, stepStart);
+						lastRenderedLen = streamBuffer.length;
+						if (streamEl) streamEl.innerHTML = renderMarkdown(streamBuffer);
+						var supMsg = lead && streamEl && streamEl.closest('.message');
+						if (supMsg) {
+							if (!thinkingStatusEl) {
+								thinkingStatusEl = document.createElement('div');
+								thinkingStatusEl.className = 'tool-status';
+								thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
+								supMsg.parentNode.insertBefore(thinkingStatusEl, supMsg.nextSibling);
+							}
+							thinkingStatusEl.querySelector('.tool-label').textContent = lead;
 						}
 					} else if (evt.type === 'done') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
@@ -2781,6 +2803,7 @@ function t(key, fallback) {
 						}
 
 						streamBuffer = '';
+						stepStart = 0;
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
@@ -2842,6 +2865,7 @@ function t(key, fallback) {
 							renderMessages();
 						}
 						streamBuffer = '';
+						stepStart = 0;
 						streamEl = null;
 						wordDrainTimer = null;
 						lastRenderedLen = 0;
