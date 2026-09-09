@@ -13,7 +13,7 @@
  * a function out of the block is a hard error here and not a silent pass.
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
- * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED) naming a file
+ * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED) naming a file
  * to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
@@ -106,6 +106,17 @@ function customerChatStream() {
 		'CCSTREAM', CC_PATH);
 }
 
+// initScheduled, the Scheduled page and its creator/editor modal (row 9: the
+// `once` cadence, the date field, the card's two one-off badges).
+function scheduled() {
+	return slice('initScheduled',
+		l => l.includes('// SCHEDULED TASKS (Phase 3)'),
+		l => l.includes('// UPLOAD EVENT HANDLERS'),
+		['consolePages.push', 'function scheduleBadgeText', 'function onceDate',
+			'function applyCadenceRows', 'function fillTaskForm', 'function saveTask'],
+		'SCHEDULED');
+}
+
 // ── Customer Chat (U-1b) ────────────────────────────────────────────────
 
 // The attach gate: the control's visibility, the thread setter every
@@ -153,7 +164,19 @@ function phpToHtml(chunk, label) {
 	const attrEsc = v => htmlEsc(v).replace(/"/g, '&quot;');
 	const unquote = v => v.replace(/\\(['\\])/g, '$1');
 	const ECHO = /<\?php\s+echo\s+esc_(html|attr)__\(\s*'((?:\\.|[^'\\])*)'\s*,\s*'digital-employees'\s*\);\s*\?>/g;
-	const out = chunk.replace(ECHO, (m, kind, str) => (kind === 'attr' ? attrEsc : htmlEsc)(unquote(str)));
+	// One interpolated string in the creator: printf( esc_html__( '…%s' ),
+	// esc_html( $expr ) ). The value is the reader's own session, so the fixture
+	// names a stand-in; the SHIPPED sentence around it is what matters here.
+	const PRINTF = /<\?php\s*(?:\/\*[\s\S]*?\*\/\s*)?printf\(\s*esc_html__\(\s*'((?:\\.|[^'\\])*)'\s*,\s*'digital-employees'\s*\)\s*,\s*esc_html\([^)]*\)\s*\);\s*\?>/g;
+	// A block that carries only a comment renders nothing. The body is spelled
+	// "anything that is not the terminator" rather than lazily: a lazy run can
+	// still be pushed PAST its own `*/` to satisfy the `?>` that follows, which
+	// would swallow a real echo sitting between the two.
+	const COMMENT = /<\?php\s*\/\*(?:(?!\*\/)[\s\S])*\*\/\s*\?>/g;
+	const out = chunk
+		.replace(PRINTF, (m, str) => htmlEsc(unquote(str)).replace('%s', 'you@example.test'))
+		.replace(COMMENT, '')
+		.replace(ECHO, (m, kind, str) => (kind === 'attr' ? attrEsc : htmlEsc)(unquote(str)));
 	const left = out.match(/<\?php[\s\S]*?\?>/);
 	if (left) throw new Error(label + ': unhandled PHP in the sliced markup — ' + left[0].slice(0, 80));
 	return out;
@@ -192,7 +215,13 @@ function templateNav() {
 		'nav.sidebar-nav');
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects,
-	memories, usage, integrations, staffAiStream, customerChatStream,
+// A .modal-overlay by id, e.g. 'scheduleModal' — the creator/editor's markup.
+function templateModal(id) {
+	return phpToHtml(element(templateSource(), 'div',
+		l => l.includes('id="' + id + '"'), 'div#' + id), 'div#' + id);
+}
+
+module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
+	usage, integrations, staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource,
-	templateSource, templatePage, templateNav };
+	templateSource, templatePage, templateNav, templateModal };

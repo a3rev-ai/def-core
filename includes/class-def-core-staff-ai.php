@@ -3410,7 +3410,7 @@ final class DEF_Core_Staff_AI
 			}
 		}
 		$cadence = ( isset( $row['cadence'] ) && is_string( $row['cadence'] )
-			&& in_array( $row['cadence'], array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly' ), true ) )
+			&& in_array( $row['cadence'], array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly', 'once' ), true ) )
 			? $row['cadence'] : 'daily';
 		$weekday = ( isset( $row['send_weekday'] ) && is_int( $row['send_weekday'] )
 			&& $row['send_weekday'] >= 0 && $row['send_weekday'] <= 6 )
@@ -3427,6 +3427,8 @@ final class DEF_Core_Staff_AI
 			'enabled'           => ! empty( $row['enabled'] ),
 			'cadence'           => $cadence,
 			'send_weekday'      => $weekday,
+			// Row 9 (§14j): the date a `once` runs, KEPT after it has run.
+			'send_date_local'   => self::iso_date( $row['send_date_local'] ?? null ),
 			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
@@ -3436,6 +3438,25 @@ final class DEF_Core_Staff_AI
 			'project_id'        => ( isset( $row['project_id'] ) && is_string( $row['project_id'] ) ) ? $row['project_id'] : null,
 			'last_run'          => self::allowlist_last_run( $row['last_run'] ?? null ),
 		);
+	}
+
+	/**
+	 * A real calendar date as YYYY-MM-DD, or null.
+	 *
+	 * The round-trip is what refuses 2026-13-45: createFromFormat rolls an
+	 * out-of-range part forward rather than failing, exactly what DEF's
+	 * date.fromisoformat refuses.
+	 *
+	 * @param mixed $value Candidate date.
+	 * @return string|null
+	 */
+	private static function iso_date( $value ): ?string
+	{
+		if ( ! is_string( $value ) || '' === $value ) {
+			return null;
+		}
+		$parsed = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value );
+		return ( $parsed && $parsed->format( 'Y-m-d' ) === $value ) ? $value : null;
 	}
 
 	/**
@@ -3454,6 +3475,7 @@ final class DEF_Core_Staff_AI
 		$enabled      = $request->get_param( 'enabled' );
 		$cadence      = $request->get_param( 'cadence' );
 		$weekday      = $request->get_param( 'send_weekday' );
+		$send_date    = $request->get_param( 'send_date_local' );
 		$hour         = $request->get_param( 'send_hour_local' );
 		$minute       = $request->get_param( 'send_minute_local' );
 		$timezone     = $request->get_param( 'timezone' );
@@ -3488,8 +3510,20 @@ final class DEF_Core_Staff_AI
 			$problems[] = __( 'The model must be a model id of at most 64 characters.', 'digital-employees' );
 		}
 		if ( ! is_string( $cadence )
-			|| ! in_array( $cadence, array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly' ), true ) ) {
-			$problems[] = __( 'The frequency must be one of: manual, hourly, daily, weekdays, weekly.', 'digital-employees' );
+			|| ! in_array( $cadence, array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly', 'once' ), true ) ) {
+			$problems[] = __( 'The frequency must be one of: manual, hourly, daily, weekdays, weekly, once.', 'digital-employees' );
+		}
+		// Row 9 (§14j), mirroring DEF's door. Whether the datetime is still in
+		// the FUTURE stays DEF's call - one clock, not two - and its refusal
+		// reaches the user through task_save_error().
+		$raw_date  = ( is_string( $send_date ) && '' !== $send_date ) ? $send_date : null;
+		$send_date = self::iso_date( $raw_date );
+		if ( null !== $raw_date && null === $send_date ) {
+			$problems[] = __( 'The date must be a real date, written as YYYY-MM-DD.', 'digital-employees' );
+		} elseif ( 'once' === $cadence && null === $raw_date ) {
+			$problems[] = __( 'A task that runs once needs the date it runs.', 'digital-employees' );
+		} elseif ( null !== $raw_date && ! in_array( $cadence, array( 'once', 'manual' ), true ) ) {
+			$problems[] = __( 'A date belongs to a task that runs once - a repeating task has none.', 'digital-employees' );
 		}
 		if ( ! is_int( $weekday ) || $weekday < 0 || $weekday > 6 ) {
 			$problems[] = __( 'The weekday must be a whole number from 0 (Monday) to 6 (Sunday).', 'digital-employees' );
@@ -3538,7 +3572,7 @@ final class DEF_Core_Staff_AI
 				array( 'status' => 400 )
 			);
 		}
-		return array(
+		$clean = array(
 			'name'              => trim( $name ),
 			'instruction'       => trim( $instruction ),
 			'enabled'           => $enabled,
@@ -3551,6 +3585,14 @@ final class DEF_Core_Staff_AI
 			'model'             => $model,
 			'project_id'        => $project_id,
 		);
+		// ABSENT, never null: on a PUT, DEF keeps the stored date of a fired
+		// `once` when this key is missing and clears it for every other cadence,
+		// which is exactly the two behaviours the form wants. A null would wipe
+		// the "Ran once at" stamp of a task somebody merely renamed.
+		if ( null !== $send_date ) {
+			$clean['send_date_local'] = $send_date;
+		}
+		return $clean;
 	}
 
 	/**
@@ -3588,6 +3630,29 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * A task save's refusal in plain copy - DEF's own words when it has them.
+	 *
+	 * @param \WP_Error $result The proxied error.
+	 * @return \WP_Error Plain-sentence error.
+	 */
+	private static function task_save_error( \WP_Error $result ): \WP_Error
+	{
+		// DEF's 422 is the user's own mistake, named: "a once task must be
+		// scheduled in the future" is permanent and fixable, and the generic
+		// fallback below tells them to try again in a moment - a retry prompt
+		// for something no retry mends. The message rides inside
+		// backend_request's wrapped error string (the triage_save_error
+		// precedent); every other code keeps the fallback.
+		$fallback = __( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' );
+		if ( 'staff_ai_http_422' === $result->get_error_code()
+			&& preg_match( '/\(HTTP 422\): (.+)$/s', (string) $result->get_error_message(), $m )
+			&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
+			$fallback = trim( $m[1] );
+		}
+		return self::plain_backend_error( $result, $fallback );
+	}
+
+	/**
 	 * REST handler: create one free-text task for the current user.
 	 *
 	 * Proxies DEF POST /api/staff-ai/tasks. Ownership - and the delivery
@@ -3605,10 +3670,7 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request( 'POST', '/api/staff-ai/tasks', $payload );
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
-				$result,
-				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
-			);
+			return self::task_save_error( $result );
 		}
 		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
 		return new \WP_REST_Response(
@@ -3641,10 +3703,7 @@ final class DEF_Core_Staff_AI
 			$payload
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
-				$result,
-				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
-			);
+			return self::task_save_error( $result );
 		}
 		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
 		return new \WP_REST_Response(
