@@ -3393,28 +3393,23 @@ function t(key, fallback) {
 	// Each user connects their OWN aggregator account so a tool acts AS them.
 	// =============================================
 	(function initIntegrations() {
-		const modal = document.getElementById('integrationsModal');
-		if (!modal) return;
+		const pane = document.getElementById('connectionsPane');
+		if (!pane) return;
 
-		const openBtn = document.getElementById('navConnections');
-		const modalClose = document.getElementById('integrationsModalClose');
-		const closeBtn = document.getElementById('integrationsClose');
-		const refreshBtn = document.getElementById('integrationsRefresh');
 		const statusEl = document.getElementById('integrationsStatus');
 		const listEl = document.getElementById('integrationsList');
+		const askBtn = document.getElementById('connectionsAskAssistant');
 		let loading = false;
 		// True only while an authorize POST is in flight, so the window-focus re-check can't
 		// rebuild the list mid-connect — that would detach the row node and drop the "Finish
 		// connecting" link the user still needs. See connect() and the focus handler below.
 		let posting = false;
-
-		function open() {
-			modal.classList.add('visible');
-			loadList();
-		}
-		function close() {
-			modal.classList.remove('visible');
-		}
+		// The page is showing. The OAuth round trip leaves and returns to this
+		// window, so the re-check below is armed by onEnter and DISARMED by
+		// onLeave — the C2 lesson: a page owns what it started, and what it
+		// started here is a listener that would otherwise keep firing loads at a
+		// page nobody is looking at.
+		let pageOpen = false;
 
 		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
 		function prettyName(category, serverId) {
@@ -3790,17 +3785,42 @@ function t(key, fallback) {
 			}
 		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
-		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+		// Connections on the shared page shell (C3, D-C3/D-C4). The modal's
+		// Refresh is gone — a page loads on entry, and the focus re-check below
+		// already reloads on the one return that matters. Connect, Disconnect,
+		// the primary-for-chat pin and Connect another account are all PER ROW
+		// and stay there: which app to connect is the choice a row makes, so
+		// there is no page-level connect action for the header slot.
+		consolePages.push({
+			route: 'connections',
+			el: pane,
+			title: document.getElementById('connectionsTitle'),
+			onEnter: function () { pageOpen = true; loadList(); },
+			onLeave: function () { pageOpen = false; setStatus('', ''); }
+		});
 
-		// Re-check status when the user returns from the OAuth consent tab (modal open only).
+		function labelAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('connectionsAskNamed', 'Ask %s how Connections work').replace('%s', function () { return assistantName; })
+				: t('connectionsAsk', 'Ask how Connections work');
+		}
+		onAssistantName(labelAsk);
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('connectionsAskPrompt', 'Walk me through connecting my own accounts — what connecting one lets you do on my behalf, what a primary mailbox is for, and how I disconnect one later.');
+				updateSendButton();
+				sendMessage();
+			});
+		}
+
+		// Re-check status when the user returns from the OAuth consent tab (page open only).
 		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
 		// connect() call is about to populate with the "Finish connecting" link.
 		window.addEventListener('focus', function () {
-			if (modal.classList.contains('visible') && !loading && !posting) loadList();
+			if (pageOpen && !loading && !posting) loadList();
 		});
 	})();
 
@@ -4868,19 +4888,16 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
-	// MEMORIES PANEL (what the assistant remembers — privacy slice B)
+	// MEMORIES PAGE (what the assistant remembers — privacy slice B)
 	// =============================================
 
 	(function initMemories() {
-		const modal = document.getElementById('memoriesModal');
-		if (!modal) return;
+		const pane = document.getElementById('memoriesPane');
+		if (!pane) return;
 
-		const openBtn = document.getElementById('navMemories');
-		const modalClose = document.getElementById('memoriesModalClose');
-		const closeBtn = document.getElementById('memoriesClose');
-		const refreshBtn = document.getElementById('memoriesRefresh');
 		const statusEl = document.getElementById('memoriesStatus');
 		const listEl = document.getElementById('memoriesList');
+		const askBtn = document.getElementById('memoriesAskAssistant');
 		let loading = false;
 
 		// Plain-language names for DEF's categories. An unknown category falls
@@ -4893,17 +4910,45 @@ function t(key, fallback) {
 			context: t('memoryCategoryContext', 'Background')
 		};
 
-		function open() {
-			modal.classList.add('visible');
-			loadList();
-		}
-		function close() {
-			modal.classList.remove('visible');
-		}
-
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
 			statusEl.className = 'memories-status' + (message ? ' memories-status-' + (kind || 'muted') : '');
+		}
+
+		// Memories on the shared page shell (C3, D-C3/D-C4). The modal's Refresh
+		// is gone: a page loads on entry, and re-entering (the sidebar entry
+		// clicked again) reloads. The page opens no menu and no sheet — Delete is
+		// a row's own button behind a native confirm, which blocks the thread, so
+		// there is nothing for Escape to unwind here. What onLeave DOES owe the
+		// reader is the status line: an outcome from before they left must not be
+		// the thing that greets them on return.
+		consolePages.push({
+			route: 'memories',
+			el: pane,
+			title: document.getElementById('memoriesTitle'),
+			onEnter: loadList,
+			onLeave: function () { setStatus('', ''); }
+		});
+
+		// The Ask entry (D-C3): Sue IS the help layer, so the page carries no
+		// explainer. The modal's second intro paragraph — what deleting does and
+		// how a fact comes back — went with it; the per-row confirm already says
+		// that at the moment it matters, and this asks for the rest.
+		function labelAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('memoriesAskNamed', 'Ask %s how Memories work').replace('%s', function () { return assistantName; })
+				: t('memoriesAsk', 'Ask how Memories work');
+		}
+		onAssistantName(labelAsk);
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('memoriesAskPrompt', 'What do you remember about me, how do you decide what to note, and how do I stop something coming back after I delete it?');
+				updateSendButton();
+				sendMessage();
+			});
 		}
 
 		async function loadList() {
@@ -4979,12 +5024,6 @@ function t(key, fallback) {
 				setStatus((e && e.message) || t('memoriesDeleteFailed', 'Could not delete that memory.'), 'error');
 			}
 		}
-
-		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
-		if (refreshBtn) refreshBtn.addEventListener('click', loadList);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 
 	// =============================================
@@ -4992,30 +5031,51 @@ function t(key, fallback) {
 	// one bar showing what is eating it, and the exact per-model numbers.
 	// =============================================
 	(function initUsage() {
-		const modal = document.getElementById('usageModal');
-		if (!modal) return;
+		const pane = document.getElementById('usagePane');
+		if (!pane) return;
 
-		const openBtn = document.getElementById('navUsage');
-		const modalClose = document.getElementById('usageModalClose');
-		const closeBtn = document.getElementById('usageClose');
 		const refreshBtn = document.getElementById('usageRefresh');
+		const askBtn = document.getElementById('usageAskAssistant');
 		const resetsEl = document.getElementById('usageResets');
 		const statusEl = document.getElementById('usageStatus');
 		const barsEl = document.getElementById('usageBars');
 		const listEl = document.getElementById('usageList');
 		let loading = false;
 
-		function open() {
-			modal.classList.add('visible');
-			loadUsage();
-		}
-		function close() {
-			modal.classList.remove('visible');
-		}
-
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
 			statusEl.className = 'usage-status' + (message ? ' usage-status-' + (kind || 'muted') : '');
+		}
+
+		// Usage on the shared page shell (C3, D-C3/D-C4) — and the ONE page of the
+		// three that keeps its Refresh. Its numbers move while you read them: a
+		// reply streaming in the chat behind this page is spending the very budget
+		// the bar is drawing, so re-reading without leaving is the whole gesture.
+		// Memories and Connections change only when you change them, which a
+		// reload on entry already covers.
+		consolePages.push({
+			route: 'usage',
+			el: pane,
+			title: document.getElementById('usageTitle'),
+			onEnter: loadUsage,
+			onLeave: function () { setStatus('', ''); }
+		});
+
+		function labelAsk() {
+			if (!askBtn) return;
+			askBtn.textContent = assistantName
+				? t('usageAskNamed', 'Ask %s how Usage works').replace('%s', function () { return assistantName; })
+				: t('usageAsk', 'Ask how Usage works');
+		}
+		onAssistantName(labelAsk);
+		if (askBtn) {
+			askBtn.addEventListener('click', function () {
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t('usageAskPrompt', 'Explain my weekly limits — what counts toward the budget, what the two bars are telling me, and how I can get more done inside it.');
+				updateSendButton();
+				sendMessage();
+			});
 		}
 
 		function formatTokens(n) {
@@ -5203,11 +5263,7 @@ function t(key, fallback) {
 			}
 		}
 
-		if (openBtn) openBtn.addEventListener('click', open);
-		if (modalClose) modalClose.addEventListener('click', close);
-		if (closeBtn) closeBtn.addEventListener('click', close);
 		if (refreshBtn) refreshBtn.addEventListener('click', loadUsage);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
 	})();
 
 	// =============================================

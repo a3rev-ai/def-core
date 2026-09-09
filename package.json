@@ -10,12 +10,14 @@
     "smoke": "bash tests/smoke/smoke-test.sh",
     "smoke:wp60": "WP_VERSION=6.0 bash tests/smoke/smoke-test.sh",
     "test:unit": "php tests/run.php",
+    "test:browser": "node tests/browser/run.js",
     "test:phpunit": "wp-env run tests-cli --env-cwd=wp-content/plugins/def-core -- vendor/bin/phpunit --no-coverage",
     "test:phpunit:wc": "wp-env run tests-cli --env-cwd=wp-content/plugins/def-core -- vendor/bin/phpunit --no-coverage --group woocommerce",
     "lint:phpcs": "wp-env run tests-cli --env-cwd=wp-content/plugins/def-core -- vendor/bin/phpcs || true",
     "lint:phpstan": "wp-env run tests-cli --env-cwd=wp-content/plugins/def-core -- vendor/bin/phpstan analyse --no-progress --memory-limit=1G || true"
   },
   "devDependencies": {
-    "@wordpress/env": "^10.0.0"
+    "@wordpress/env": "^10.0.0",
+    "jsdom": "^29.1.1"
   }
 }
