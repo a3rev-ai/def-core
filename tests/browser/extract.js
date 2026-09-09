@@ -93,8 +93,7 @@ function staffAiStream() {
 	return slice('staff-ai stream',
 		l => l.includes('// Progressive markdown rendering state.'),
 		l => l.includes('// Read SSE chunks'),
-		['function renderStreamChunk', 'async function processEventQueue',
-			"evt.type === 'step_superseded'", 'var stepStart'],
+		['function renderStreamChunk', 'async function processEventQueue'],
 		'STAFFSTREAM');
 }
 
@@ -102,8 +101,7 @@ function customerChatStream() {
 	return slice('customer-chat stream',
 		l => l.includes('// Progressive text rendering state.'),
 		l => l.includes('fetch(config.chatStreamUrl, {'),
-		['function drainNextWord', 'function handleSSEEvent',
-			"case 'step_superseded':", 'var stepStart'],
+		['function drainNextWord', 'function handleSSEEvent'],
 		'CCSTREAM', CC_PATH);
 }
 

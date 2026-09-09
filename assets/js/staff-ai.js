@@ -2579,9 +2579,9 @@ function t(key, fallback) {
 
 			// Progressive markdown rendering state.
 			var streamBuffer = '';
-			// Where the current loop step's slice of streamBuffer begins — moved
-			// forward only by `step_superseded` (DEF #1159), which cuts the slice
-			// above it out of the bubble.
+			// Where the current loop step's slice of streamBuffer begins —
+			// advanced by a step-0 notice (which the reply's rounds never
+			// supersede) or by a cut (DEF #1159).
 			var stepStart = 0;
 			var streamEl = null;
 			var wordDrainTimer = null;
@@ -2709,7 +2709,9 @@ function t(key, fallback) {
 						if (streamEl) {
 							streamBuffer += evt.text;
 							// A budget/billing notice streams at step 0 ahead of the reply: shown,
-							// never read — the device voice reads the reply's own words.
+							// never read — the device voice reads the reply's own words. No round
+							// of the reply supersedes it, so it sits below the cut.
+							if (evt.step === 0) stepStart = streamBuffer.length;
 							if (spokenTurn && evt.step !== 0) {
 								readbackBuffer += evt.text;
 								readBackSoFar(false);
@@ -2719,11 +2721,7 @@ function t(key, fallback) {
 							}
 						}
 					} else if (evt.type === 'step_superseded') {
-						// The loop has left this round, so its text was a lead-in and not
-						// the answer (DEF #1159): move that slice out of the bubble into
-						// the working line, leaving the bubble holding the final round —
-						// what the server persists. A CUT MARKER, so the next delta (a
-						// cap-hit summary carries this same step) starts a slice that stays.
+						// A superseded round's text moves to the working line (DEF #1159).
 						var lead = streamBuffer.slice(stepStart).trim();
 						streamBuffer = streamBuffer.slice(0, stepStart);
 						lastRenderedLen = streamBuffer.length;

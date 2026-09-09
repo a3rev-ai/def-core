@@ -2247,9 +2247,9 @@
 
 		// Progressive text rendering state.
 		var streamBuffer = '';
-		// Where the current loop step's slice of streamBuffer begins — moved
-		// forward only by `step_superseded` (DEF #1159), which cuts the slice
-		// above it out of the bubble.
+		// Where the current loop step's slice of streamBuffer begins —
+		// advanced by a step-0 notice (which the reply's rounds never
+		// supersede) or by a cut (DEF #1159).
 		var stepStart = 0;
 		// Set when a tool runs, so the next text_delta knows it begins a NEW
 		// segment. The model often speaks before a tool call and again after
@@ -2362,9 +2362,11 @@
 					}
 					break;
 				case 'text_delta':
+					// Clears a superseded round's working line as the next round starts,
+					// not only the thinking row before the first (V-S7b).
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 					if (!streamEl) {
 						hideThinking(thinkingEl);
-							if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						var msgEl = el('div', 'def-cc-message def-cc-message--assistant def-cc-message--streaming');
 						var contentEl = el('div', 'def-cc-message-content');
 						msgEl.appendChild(contentEl);
@@ -2378,16 +2380,15 @@
 						}
 					}
 					streamBuffer += evt.text;
+					// A budget/billing notice streams at step 0 ahead of the reply: no
+					// round of the reply supersedes it, so it sits below the cut.
+					if (evt.step === 0) stepStart = streamBuffer.length;
 					if (!wordDrainTimer) {
 						drainNextWord();
 					}
 					break;
 				case 'step_superseded':
-					// The loop has left this round, so its text was a lead-in and not
-					// the answer (DEF #1159): move that slice out of the bubble into
-					// the working line, leaving the bubble holding the final round —
-					// what the server persists. A CUT MARKER, so the next delta (a
-					// cap-hit summary carries this same step) starts a slice that stays.
+					// A superseded round's text moves to the working line (DEF #1159).
 					var lead = streamBuffer.slice(stepStart).trim();
 					streamBuffer = streamBuffer.slice(0, stepStart);
 					displayedLen = Math.min(displayedLen, streamBuffer.length);
