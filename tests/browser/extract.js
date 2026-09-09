@@ -11,7 +11,8 @@
  * Every extractor asserts the names it expects to find, so a rename that moves
  * a function out of the block is a hard error here and not a silent pass.
  *
- * Each also honours an override env var (BLOCK, PROJECTS, …) naming a file
+ * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
+ * INTEGRATIONS) naming a file
  * to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
@@ -59,4 +60,29 @@ function projects() {
 		'PROJECTS');
 }
 
-module.exports = { REPO, JS_PATH, slice, pageShell, projects };
+// The C3 trio, each from its own marker to the block that follows it.
+function memories() {
+	return slice('initMemories',
+		l => l.startsWith('	(function initMemories() {'),
+		l => l.includes('// USAGE (Usage & Budgets D-U7)'),
+		['consolePages.push', 'function loadList', 'function removeMemory', 'memoriesAskPrompt'],
+		'MEMORIES');
+}
+
+function usage() {
+	return slice('initUsage',
+		l => l.startsWith('	(function initUsage() {'),
+		l => l.includes('// SCHEDULED TASKS (Phase 3)'),
+		['consolePages.push', 'function loadUsage', 'function render', 'usageRefresh'],
+		'USAGE');
+}
+
+function integrations() {
+	return slice('initIntegrations',
+		l => l.startsWith('	(function initIntegrations() {'),
+		l => l.includes('// MY DOCUMENTS PANEL (document library'),
+		['consolePages.push', 'function loadList', 'function renderRow', 'function connect', 'pageOpen'],
+		'INTEGRATIONS');
+}
+
+module.exports = { REPO, JS_PATH, slice, pageShell, projects, memories, usage, integrations };

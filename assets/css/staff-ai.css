@@ -2354,15 +2354,10 @@ html {
 }
 
 /* =============================================
-   Connected Accounts modal (per-user integrations — Slice 2)
+   Connected accounts — the #connectionsPane page (per-user integrations,
+   Slice 2; on the console page shell since C3/v7.8.3). The intro paragraph
+   is the page header's description line now, so .integrations-intro is gone.
    ============================================= */
-.integrations-intro {
-	margin: 0 0 14px;
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.5;
-}
-
 .integrations-status {
 	font-size: 13px;
 	margin-bottom: 10px;
@@ -2609,17 +2604,7 @@ html {
 	color: var(--banner-error-text);
 }
 
-/* =============================================
-   Memories modal (what the assistant remembers — privacy slice B)
-   ============================================= */
-.memories-intro {
-	margin: 0 0 12px;
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.5;
-}
-
-/* Usage panel (Usage & Budgets D-U7) */
+/* Weekly limits — the #usagePane page (Usage & Budgets D-U7) */
 .usage-resets {
 	font-size: 13px;
 	color: var(--text-secondary);
@@ -2682,10 +2667,9 @@ html {
 .usage-list {
 	display: flex;
 	flex-direction: column;
-	/* Capped like the memories list: the modal is fixed + vertically centered,
-	   so without this the last rows scroll off-viewport. */
-	max-height: 40vh;
-	overflow-y: auto;
+	/* No max-height: the modal was fixed and vertically centred, so it capped
+	   its list and scrolled inside itself; a page scrolls with the page (the
+	   .documents-list call C2 made for the same reason). */
 	margin-top: 20px;
 }
 
@@ -2713,6 +2697,12 @@ html {
 	color: var(--text-tertiary);
 }
 
+/* =============================================
+   Memories — the #memoriesPane page (what the assistant remembers, privacy
+   slice B; on the console page shell since C3/v7.8.3). The intro paragraph is
+   the page header's description line now, so .memories-intro is gone.
+   ============================================= */
+
 .memories-status {
 	font-size: 13px;
 	margin-bottom: 10px;
@@ -2731,10 +2721,6 @@ html {
 .memories-list {
 	display: flex;
 	flex-direction: column;
-	/* Capped like the document list: the modal is fixed + vertically centered,
-	   so without this the last rows scroll off-viewport. */
-	max-height: 55vh;
-	overflow-y: auto;
 }
 
 .memory-row {

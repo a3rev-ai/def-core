@@ -33,6 +33,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `extract.js` | The marker slicer — one exported extractor per block, each asserting the names it expects |
 | `harness-c1.js` | The shell itself (v7.8.1): routes, history, focus, Escape, the delegated sidebar click |
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
+| `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
 
 ## Bite checks
 
@@ -44,6 +45,7 @@ that regression actually fail:
 ```sh
 BLOCK=/tmp/old-shell.js       node tests/browser/harness-c1.js   # the page shell
 PROJECTS=/tmp/old-projects.js node tests/browser/harness-c2.js   # initProjects
+MEMORIES=… USAGE=… INTEGRATIONS=… node tests/browser/harness-c3.js
 ```
 
 The env var names match the extractor names in `extract.js`.

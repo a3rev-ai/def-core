@@ -67,9 +67,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<!-- D-C7: an entry that opens a PAGE is a link to its route, so the
 			     browser's back button, a phone's back gesture and a reload behave as
 			     they do on any site, and the open page is marked aria-current="page".
-			     The three that still open a modal keep aria-haspopup="dialog" until
-			     C3 moves them — the sidebar never promises an address that is not
-			     there yet. -->
+			     With C3 all SIX entries are links, and not one of them still
+			     declares itself the opener of a dialog — the sidebar is what it
+			     looks like, a set of places. -->
 			<nav class="sidebar-nav" aria-label="<?php echo esc_attr__( 'Staff AI sections', 'digital-employees' ); ?>">
 				<a class="sidebar-nav-item" id="navProjects" href="#projects">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -91,27 +91,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</svg>
 					<?php echo esc_html__( 'Scheduled', 'digital-employees' ); ?>
 				</a>
-				<button type="button" class="sidebar-nav-item" id="navMemories" aria-haspopup="dialog">
+				<a class="sidebar-nav-item" id="navMemories" href="#memories">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
 					</svg>
 					<?php echo esc_html__( 'Memories', 'digital-employees' ); ?>
-				</button>
-				<button type="button" class="sidebar-nav-item" id="navUsage" aria-haspopup="dialog">
+				</a>
+				<a class="sidebar-nav-item" id="navUsage" href="#usage">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<line x1="18" y1="20" x2="18" y2="10"></line>
 						<line x1="12" y1="20" x2="12" y2="4"></line>
 						<line x1="6" y1="20" x2="6" y2="14"></line>
 					</svg>
 					<?php echo esc_html__( 'Usage', 'digital-employees' ); ?>
-				</button>
-				<button type="button" class="sidebar-nav-item" id="navConnections" aria-haspopup="dialog">
+				</a>
+				<a class="sidebar-nav-item" id="navConnections" href="#connections">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
 						<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
 					</svg>
 					<?php echo esc_html__( 'Connections', 'digital-employees' ); ?>
-				</button>
+				</a>
 			</nav>
 			<nav class="conversation-list" id="conversationList" aria-label="<?php echo esc_attr__( 'Conversations', 'digital-employees' ); ?>">
 				<div class="conversation-list-placeholder" id="conversationPlaceholder">
@@ -314,6 +314,72 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="documents-empty" id="documentsEmptyState" style="display:none;">
 					<button type="button" class="modal-btn modal-btn-primary" id="documentsAskAssistant"><?php echo esc_html__( 'Ask your assistant to create a document', 'digital-employees' ); ?></button>
 				</div>
+			</section>
+
+			<!-- Memories — the Memories modal's body on the shared .console-page shell
+			     (C3, D-C2/D-C3): the status line and the row list are the modal's,
+			     unchanged. The overlay, the ×, and the footer's Refresh and Close are
+			     gone — a page loads on entry (onEnter), and re-entering reloads. The
+			     modal's first intro paragraph IS the header's one description line
+			     now; its second (what deleting does) was help text, and the per-row
+			     confirm already says it at the moment it matters. No primary action:
+			     Delete belongs to a row, with its confirm, exactly as before. -->
+			<section class="console-page" id="memoriesPane" hidden>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="memoriesTitle" tabindex="-1"><?php echo esc_html__( 'Memories', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Things Staff AI has noted from your conversations so you do not have to repeat yourself. Only you can see these — no administrator can read them.', 'digital-employees' ); ?></p>
+					</div>
+					<div class="console-page-actions">
+						<button type="button" class="modal-btn modal-btn-secondary" id="memoriesAskAssistant"><?php echo esc_html__( 'Ask how Memories work', 'digital-employees' ); ?></button>
+					</div>
+				</div>
+				<div class="memories-status" id="memoriesStatus"></div>
+				<div class="memories-list" id="memoriesList"></div>
+			</section>
+
+			<!-- Weekly limits — the Usage modal's body on the shell (C3). Usage is the
+			     ONE page of the three that keeps Refresh: its numbers move while you
+			     read them (a reply streaming in the tab behind is spending the very
+			     budget the bar is drawing), so re-reading without leaving the page is
+			     the whole gesture. Memories and Connections change only when you
+			     change them, and re-entering reloads. -->
+			<section class="console-page" id="usagePane" hidden>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="usageTitle" tabindex="-1"><?php echo esc_html__( 'Weekly limits', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'What you have used this week, and which models are using it.', 'digital-employees' ); ?></p>
+					</div>
+					<div class="console-page-actions">
+						<button type="button" class="modal-btn modal-btn-secondary" id="usageAskAssistant"><?php echo esc_html__( 'Ask how Usage works', 'digital-employees' ); ?></button>
+						<button type="button" class="modal-btn modal-btn-secondary" id="usageRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+					</div>
+				</div>
+				<p class="usage-resets" id="usageResets"></p>
+				<div class="usage-status" id="usageStatus"></div>
+				<div class="usage-bars" id="usageBars"></div>
+				<div class="usage-list" id="usageList"></div>
+			</section>
+
+			<!-- Connected accounts — the Connections modal's body on the shell (C3).
+			     The status line and the app rows are the modal's, unchanged; the
+			     intro paragraph is the header's description line. Connect, Disconnect,
+			     the primary-for-chat pin and Connect another account are all PER ROW
+			     and stay there — there is no page-level connect action to put in the
+			     slot, because which app to connect is the choice a row makes. Its
+			     confirms are unchanged. -->
+			<section class="console-page" id="connectionsPane" hidden>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="connectionsTitle" tabindex="-1"><?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Connect your own accounts so actions (like sending a message) go out as you — not a shared account.', 'digital-employees' ); ?></p>
+					</div>
+					<div class="console-page-actions">
+						<button type="button" class="modal-btn modal-btn-secondary" id="connectionsAskAssistant"><?php echo esc_html__( 'Ask how Connections work', 'digital-employees' ); ?></button>
+					</div>
+				</div>
+				<div class="integrations-status" id="integrationsStatus"></div>
+				<div class="integrations-list" id="integrationsList"></div>
 			</section>
 
 			<div class="messages-container" id="messagesContainer">
@@ -537,25 +603,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</div>
 		</div>
-		<!-- Connected Accounts Modal (per-user integrations — Slice 2) -->
-		<div class="modal-overlay" id="integrationsModal">
-			<div class="modal" style="max-width: 520px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="integrationsModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<p class="integrations-intro"><?php echo esc_html__( 'Connect your own accounts so actions (like sending a message) go out as you — not a shared account.', 'digital-employees' ); ?></p>
-					<div class="integrations-status" id="integrationsStatus"></div>
-					<div class="integrations-list" id="integrationsList"></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="integrationsClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
 		<!-- The My Documents modal became the #documentsPane page (tweaks item 3, 2026-09-02). -->
+		<!-- Connections, Memories and Usage became the #connectionsPane, #memoriesPane
+		     and #usagePane pages (C3, v7.8.3). -->
 		<!-- Document viewer (Projects P-D3, D-P14): read a document in place. The text
 		     is set via textContent into a <pre> — never HTML (a project document is
 		     untrusted content, D-P7). Reached from a document row's View and from a
@@ -574,44 +624,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="modal-footer">
 					<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
 					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerCloseBtn"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
-		<!-- Memories Modal (what the assistant remembers about you — privacy slice B) -->
-		<div class="modal-overlay" id="memoriesModal">
-			<div class="modal" style="max-width: 560px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'What Staff AI remembers about you', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="memoriesModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<p class="memories-intro"><?php echo esc_html__( 'Things Staff AI has noted from your conversations so you do not have to repeat yourself. Only you can see these — no administrator can read them.', 'digital-employees' ); ?></p>
-					<p class="memories-intro"><?php echo esc_html__( 'Deleting one removes it now. If the conversation it came from is still here it can be noted again — clear that conversation to stop it coming back.', 'digital-employees' ); ?></p>
-					<div class="memories-status" id="memoriesStatus"></div>
-					<div class="memories-list" id="memoriesList"></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="modal-btn modal-btn-secondary" id="memoriesRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="memoriesClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
-		<!-- Usage Modal (your week's token use — Usage & Budgets D-U7) -->
-		<div class="modal-overlay" id="usageModal">
-			<div class="modal" style="max-width: 560px;">
-				<div class="modal-header">
-					<span class="modal-title"><?php echo esc_html__( 'Weekly limits', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="usageModalClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<p class="usage-resets" id="usageResets"></p>
-					<div class="usage-status" id="usageStatus"></div>
-					<div class="usage-bars" id="usageBars"></div>
-					<div class="usage-list" id="usageList"></div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="modal-btn modal-btn-secondary" id="usageRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
-					<button type="button" class="modal-btn modal-btn-secondary" id="usageClose"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
 				</div>
 			</div>
 		</div>
@@ -873,6 +885,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			memoriesDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
 			memoriesConfirmDelete: <?php /* translators: %s: the remembered fact. */ echo wp_json_encode( __( 'Delete "%s"? It is removed now, but can be noted again from conversations you still have.', 'digital-employees' ) ); ?>,
 			memoriesDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete that memory.', 'digital-employees' ) ); ?>,
+			memoriesAsk: <?php echo wp_json_encode( __( 'Ask how Memories work', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name. */ ?>
+			memoriesAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Memories work', 'digital-employees' ) ); ?>,
+			memoriesAskPrompt: <?php echo wp_json_encode( __( 'What do you remember about me, how do you decide what to note, and how do I stop something coming back after I delete it?', 'digital-employees' ) ); ?>,
 			memoryCategoryRole: <?php echo wp_json_encode( __( 'Your role', 'digital-employees' ) ); ?>,
 			memoryCategoryPreferences: <?php echo wp_json_encode( __( 'Preference', 'digital-employees' ) ); ?>,
 			memoryCategoryProjects: <?php echo wp_json_encode( __( 'Project', 'digital-employees' ) ); ?>,
@@ -888,6 +904,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			usageOfBudget: <?php /* translators: %s: percentage of the weekly budget used. */ echo wp_json_encode( __( '%s of your weekly budget', 'digital-employees' ) ); ?>,
 			usageShareOfUsage: <?php /* translators: %s: percentage of this week's tokens spent on one model. */ echo wp_json_encode( __( '%s of your usage', 'digital-employees' ) ); ?>,
 			usageTokens: <?php /* translators: %s: formatted token count. */ echo wp_json_encode( __( '%s tokens', 'digital-employees' ) ); ?>,
+			usageAsk: <?php echo wp_json_encode( __( 'Ask how Usage works', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name. */ ?>
+			usageAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Usage works', 'digital-employees' ) ); ?>,
+			usageAskPrompt: <?php echo wp_json_encode( __( 'Explain my weekly limits — what counts toward the budget, what the two bars are telling me, and how I can get more done inside it.', 'digital-employees' ) ); ?>,
 			scheduleLoading: <?php echo wp_json_encode( __( 'Loading your schedule…', 'digital-employees' ) ); ?>,
 			scheduleLoadFailed: <?php echo wp_json_encode( __( 'Could not load your triage schedule. Nothing has changed - try again in a moment.', 'digital-employees' ) ); ?>,
 			scheduleSaving: <?php echo wp_json_encode( __( 'Saving…', 'digital-employees' ) ); ?>,
@@ -1018,6 +1038,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			integrationsNothingToEnd: <?php echo wp_json_encode( __( 'No live connection to this app was found under the name we have for it. If you still have access, remove it in your account settings for that app, or ask an administrator.', 'digital-employees' ) ); ?>,
 			integrationsDisconnected: <?php echo wp_json_encode( __( 'Disconnected. Ending access with the provider can take a moment.', 'digital-employees' ) ); ?>,
 			integrationsDisconnectFailed: <?php echo wp_json_encode( __( 'Could not disconnect that app.', 'digital-employees' ) ); ?>,
+			connectionsAsk: <?php echo wp_json_encode( __( 'Ask how Connections work', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name. */ ?>
+			connectionsAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Connections work', 'digital-employees' ) ); ?>,
+			connectionsAskPrompt: <?php echo wp_json_encode( __( 'Walk me through connecting my own accounts — what connecting one lets you do on my behalf, what a primary mailbox is for, and how I disconnect one later.', 'digital-employees' ) ); ?>,
 			projectChipLabel: <?php echo wp_json_encode( __( 'Project: ', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the document's length in characters. */ ?>
 			documentViewerChars: <?php echo wp_json_encode( __( '%s characters', 'digital-employees' ) ); ?>,
