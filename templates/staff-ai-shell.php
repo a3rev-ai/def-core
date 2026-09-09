@@ -872,6 +872,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			voiceNeedsStreaming: <?php echo wp_json_encode( __( 'Voice needs a browser that can stream replies.', 'digital-employees' ) ); ?>,
 			tapToSpeakAgain: <?php echo wp_json_encode( __( 'Tap the mic to speak again.', 'digital-employees' ) ); ?>,
 			micClosedIdle: <?php echo wp_json_encode( __( 'The mic closed — tap it to speak again.', 'digital-employees' ) ); ?>,
+			voiceStopPhrases: <?php /* translators: comma-separated phrases that END a hands-free conversation when spoken alone; the assistant's name may lead any of them ("Sue, stop"). */ echo wp_json_encode( __( "stop, that's all, thanks that's all", 'digital-employees' ) ); ?>,
+			voiceStopped: <?php echo wp_json_encode( __( 'Conversation ended.', 'digital-employees' ) ); ?>,
 			voiceLogEmpty: <?php echo wp_json_encode( __( 'No voice events yet.', 'digital-employees' ) ); ?>,
 			voicePlaybackFailed: <?php echo wp_json_encode( __( "Couldn't play %s's voice on this device (%e).", 'digital-employees' ) ); ?>,
 			spoken: <?php echo wp_json_encode( __( 'Spoken', 'digital-employees' ) ); ?>,

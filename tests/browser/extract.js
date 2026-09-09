@@ -13,7 +13,7 @@
  * a function out of the block is a hard error here and not a silent pass.
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
- * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED) naming a file
+ * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE, CHAT_VOICE, CHAT_STRINGS) naming a file
  * to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
@@ -24,6 +24,7 @@ const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
 const JS_PATH = path.join(REPO, 'assets/js/staff-ai.js');
 const CC_PATH = path.join(REPO, 'assets/js/def-core-customer-chat.js');
+const VOICE_PATH = path.join(REPO, 'assets/js/def-core-voice.js');
 
 function slice(label, startMatch, endMatch, needs, envVar, file) {
 	if (envVar && process.env[envVar]) {
@@ -104,6 +105,35 @@ function customerChatStream() {
 		l => l.includes('fetch(config.chatStreamUrl, {'),
 		['function drainNextWord', 'function handleSSEEvent'],
 		'CCSTREAM', CC_PATH);
+}
+
+// The console's voice block: the recorder wiring, endConversation, and the
+// spoken-stop rule (V-S6b).
+function voice() {
+	return slice('voice',
+		l => l.includes('// VOICE (7.7.1)'),
+		l => l.startsWith('\tasync function sendMessage() {'),
+		['function handleSpokenStop', 'function endConversation', 'function dropUnfilledTranscript'],
+		'VOICE');
+}
+
+// Customer Chat's voice section, out of the widget's own file.
+function chatVoice() {
+	return slice('customer chat voice',
+		l => l.includes('6b. VOICE'),
+		l => l.startsWith('\tfunction sendMessageSync('),
+		['function endOnSpokenStop', 'function endConversation', 'function dropUnfilledTranscript'],
+		'CHAT_VOICE', CC_PATH);
+}
+
+// The widget's shipped English strings — the i18n map a phrase set has to live
+// in for a translator to ever see it.
+function chatStrings() {
+	return slice('customer chat strings',
+		l => l.includes('var DEFAULT_STRINGS = {'),
+		l => l.includes('var SANITIZE_CONFIG = {'),
+		['voiceStopPhrases', 'micStart'],
+		'CHAT_STRINGS', CC_PATH);
 }
 
 // initScheduled, the Scheduled page and its creator/editor modal (row 9: the
@@ -221,7 +251,7 @@ function templateModal(id) {
 		l => l.includes('id="' + id + '"'), 'div#' + id), 'div#' + id);
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
 	usage, integrations, staffAiStream, customerChatStream, scheduled,
-	attachGate, uploadStaged, customerChatSource,
+	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

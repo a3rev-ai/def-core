@@ -39,6 +39,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
 | `harness-cc-uploads.js` | The Customer Chat attach gate (U-1b, v7.8.5): no upload before the conversation exists |
 | `harness-so3.js` | The `once` cadence on the Scheduled page (v7.8.6): the creator's date field and the card's two one-off badges |
+| `harness-voice.js` | Hands-free voice (v7.8.7): the speech detector against a fake microphone, and the spoken stop on both surfaces |
 
 ## Bite checks
 
@@ -54,6 +55,7 @@ MEMORIES=… USAGE=… INTEGRATIONS=… node tests/browser/harness-c3.js
 STAFFSTREAM=/tmp/old-staff.js CCSTREAM=/tmp/old-cc.js node tests/browser/harness-v-s7b.js
 ATTACH_GATE=/tmp/old-gate.js  node tests/browser/harness-cc-uploads.js  # the attach gate
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-so3.js   # initScheduled
+VOICE_MODULE=/tmp/old-voice.js node tests/browser/harness-voice.js   # the shared recorder
 ```
 
 The env var names match the extractor names in `extract.js`.
