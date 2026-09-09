@@ -2355,8 +2355,7 @@ html {
 
 /* =============================================
    Connected accounts — the #connectionsPane page (per-user integrations,
-   Slice 2; on the console page shell since C3/v7.8.3). The intro paragraph
-   is the page header's description line now, so .integrations-intro is gone.
+   Slice 2; on the console page shell since C3/v7.8.3)
    ============================================= */
 .integrations-status {
 	font-size: 13px;
@@ -2667,9 +2666,6 @@ html {
 .usage-list {
 	display: flex;
 	flex-direction: column;
-	/* No max-height: the modal was fixed and vertically centred, so it capped
-	   its list and scrolled inside itself; a page scrolls with the page (the
-	   .documents-list call C2 made for the same reason). */
 	margin-top: 20px;
 }
 
@@ -2699,10 +2695,8 @@ html {
 
 /* =============================================
    Memories — the #memoriesPane page (what the assistant remembers, privacy
-   slice B; on the console page shell since C3/v7.8.3). The intro paragraph is
-   the page header's description line now, so .memories-intro is gone.
+   slice B; on the console page shell since C3/v7.8.3)
    ============================================= */
-
 .memories-status {
 	font-size: 13px;
 	margin-bottom: 10px;

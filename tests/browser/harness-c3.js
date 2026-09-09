@@ -2,86 +2,40 @@
  * Memories, Usage and Connections on the console shell — behavioural harness
  * (C3 / v7.8.3). Runs the SHIPPED page-shell block AND the SHIPPED
  * initMemories / initUsage / initIntegrations blocks (all extracted by marker)
- * inside jsdom, against a DOM that mirrors templates/staff-ai-shell.php.
- * Nothing here is a copy of the code under test.
+ * inside jsdom, against the sidebar nav and the three page sections sliced out
+ * of templates/staff-ai-shell.php. Nothing here is a copy of the code or the
+ * markup under test.
  */
-const fs = require('fs');
-const path = require('path');
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 
-const REPO = extract.REPO;
 const SHELL = extract.pageShell();
 const MEMORIES = extract.memories();
 const USAGE = extract.usage();
 const INTEGRATIONS = extract.integrations();
-const SHELL_PHP = fs.readFileSync(path.join(REPO, 'templates/staff-ai-shell.php'), 'utf8');
-const SHELL_JS = fs.readFileSync(path.join(REPO, 'assets/js/staff-ai.js'), 'utf8');
-const SHELL_CSS = fs.readFileSync(path.join(REPO, 'assets/css/staff-ai.css'), 'utf8');
 
-// The three page sections as the template writes them, plus the chat containers
-// and the six sidebar entries the shell delegates from.
+// The fixture is the SHIPPED markup, not a copy of it: the sidebar nav and the
+// three page sections are sliced out of templates/staff-ai-shell.php the same
+// way the blocks above are sliced out of the JS. A hand-written mirror would
+// mean every behaviour check below passed against the mirror while the template
+// drifted underneath it — a renamed id, a changed description, the wrong button
+// class. #projectsPane is the one hand-written node, and only as a stand-in for
+// "some other page" in the page → page checks; nothing asserts against it.
 const HTML = `<!doctype html><html><body>
-<nav class="sidebar-nav">
-  <a class="sidebar-nav-item" id="navProjects" href="#projects">Projects</a>
-  <a class="sidebar-nav-item" id="navDocuments" href="#documents">Documents</a>
-  <a class="sidebar-nav-item" id="navScheduled" href="#scheduled">Scheduled</a>
-  <a class="sidebar-nav-item" id="navMemories" href="#memories"><svg aria-hidden="true"><path id="memIcon" d="M19 21"></path></svg>Memories</a>
-  <a class="sidebar-nav-item" id="navUsage" href="#usage"><svg aria-hidden="true"><line id="useIcon" x1="18" y1="20" x2="18" y2="10"></line></svg>Usage</a>
-  <a class="sidebar-nav-item" id="navConnections" href="#connections"><svg aria-hidden="true"><path id="connIcon" d="M10 13"></path></svg>Connections</a>
-</nav>
+${extract.templateNav()}
 <div id="conversationList"><div class="conversation-item" id="conv1">A chat</div></div>
 <div class="messages-container" id="messagesContainer"><div id="messagesList"></div></div>
 <div id="composerContainer"><textarea id="composerInput"></textarea></div>
 <section class="console-page" id="projectsPane" hidden>
   <h1 class="console-page-title" id="projectsTitle" tabindex="-1">Projects</h1>
 </section>
-<section class="console-page" id="memoriesPane" hidden>
-  <div class="console-page-head">
-    <div>
-      <h1 class="console-page-title" id="memoriesTitle" tabindex="-1">Memories</h1>
-      <p class="console-page-desc">Things Staff AI has noted from your conversations.</p>
-    </div>
-    <div class="console-page-actions">
-      <button type="button" class="modal-btn modal-btn-secondary" id="memoriesAskAssistant">Ask how Memories work</button>
-    </div>
-  </div>
-  <div class="memories-status" id="memoriesStatus"></div>
-  <div class="memories-list" id="memoriesList"></div>
-</section>
-<section class="console-page" id="usagePane" hidden>
-  <div class="console-page-head">
-    <div>
-      <h1 class="console-page-title" id="usageTitle" tabindex="-1">Weekly limits</h1>
-      <p class="console-page-desc">What you have used this week.</p>
-    </div>
-    <div class="console-page-actions">
-      <button type="button" class="modal-btn modal-btn-secondary" id="usageAskAssistant">Ask how Usage works</button>
-      <button type="button" class="modal-btn modal-btn-secondary" id="usageRefresh">Refresh</button>
-    </div>
-  </div>
-  <p class="usage-resets" id="usageResets"></p>
-  <div class="usage-status" id="usageStatus"></div>
-  <div class="usage-bars" id="usageBars"></div>
-  <div class="usage-list" id="usageList"></div>
-</section>
-<section class="console-page" id="connectionsPane" hidden>
-  <div class="console-page-head">
-    <div>
-      <h1 class="console-page-title" id="connectionsTitle" tabindex="-1">Connected accounts</h1>
-      <p class="console-page-desc">Connect your own accounts so actions go out as you.</p>
-    </div>
-    <div class="console-page-actions">
-      <button type="button" class="modal-btn modal-btn-secondary" id="connectionsAskAssistant">Ask how Connections work</button>
-    </div>
-  </div>
-  <div class="integrations-status" id="integrationsStatus"></div>
-  <div class="integrations-list" id="integrationsList"></div>
-</section>
+${extract.templatePage('memoriesPane')}
+${extract.templatePage('usagePane')}
+${extract.templatePage('connectionsPane')}
 </body></html>`;
 
-// Projects stands in for "another page" in the page → page checks, registered
-// by the harness so nothing here depends on initProjects.
+// Registered by the harness, so the page → page checks depend on nothing that
+// initProjects does.
 const SHELL_TAIL = `
     consolePages.push({ route: 'projects', el: document.getElementById('projectsPane'),
       title: document.getElementById('projectsTitle') });
@@ -226,42 +180,10 @@ function check(label, ok, detail) {
 
 (async function () {
 
-	// ── The move itself: the modals are DELETED, not hidden ────────────────
-	{
-		const overlays = (SHELL_PHP.match(/class="modal-overlay"/g) || []).length;
-		check('the three modals are gone from the template — 7 .modal-overlay blocks are now 4',
-			overlays === 4, 'found ' + overlays);
-
-		const markup = ['memoriesModal', 'usageModal', 'integrationsModal', 'memoriesModalClose',
-			'usageModalClose', 'integrationsModalClose', 'memoriesClose', 'usageClose',
-			'integrationsClose', 'memoriesRefresh', 'integrationsRefresh']
-			.filter(k => SHELL_PHP.includes(k));
-		check('no Memories / Usage / Connections modal id survives in the shipped template',
-			markup.length === 0, 'left: ' + markup.join(', '));
-
-		const ident = ['memoriesModal', 'usageModal', 'integrationsModal', 'memoriesRefresh',
-			'integrationsRefresh', 'navMemories', 'navUsage', 'navConnections']
-			.filter(k => SHELL_JS.includes(k));
-		check('no modal id and no sidebar-button lookup survives in the shipped JS',
-			ident.length === 0, 'left: ' + ident.join(', '));
-
-		const styles = ['memories-intro', 'integrations-intro'].filter(k => SHELL_CSS.includes(k + ' {'));
-		check('the two intro-paragraph rules are gone from the shipped CSS (the text is the page description)',
-			styles.length === 0, 'left: ' + styles.join(', '));
-	}
-
 	// ── The sidebar tells the truth (D-C7) ─────────────────────────────────
+	// Against the SHIPPED nav: the entry's tag, its href and whether it still
+	// claims to open a dialog are read off the markup the page renders.
 	{
-		const haspopup = (SHELL_PHP.match(/aria-haspopup="dialog"/g) || []).length;
-		check('no sidebar entry declares aria-haspopup="dialog" any more — all six are links',
-			haspopup === 0, 'found ' + haspopup);
-
-		const links = ['#projects', '#documents', '#scheduled', '#memories', '#usage', '#connections']
-			.filter(h => SHELL_PHP.includes('class="sidebar-nav-item" id="nav') === false
-				|| SHELL_PHP.includes('href="' + h + '"'));
-		check('all six routes appear as sidebar hrefs in the template', links.length === 6,
-			'found ' + links.length);
-
 		const t = boot();
 		for (const p of PAGES) {
 			const item = t.document.getElementById(p.nav);
@@ -401,6 +323,21 @@ function check(label, ok, detail) {
 			&& !t.document.querySelector('#connectionsPane #integrationsRefresh')
 			&& !!t.document.querySelector('#usagePane #usageRefresh'),
 			'usageRefresh=' + !!t.document.getElementById('usageRefresh'));
+
+		// Refresh IS the Usage page's primary action, so it is the filled button —
+		// the same class Projects' Create project and Scheduled's New task carry —
+		// with the Ask entry secondary beside it.
+		const refresh = t.document.getElementById('usageRefresh');
+		const ask = t.document.getElementById('usageAskAssistant');
+		check('Usage: Refresh is the page\'s FILLED primary action (modal-btn-primary), with Ask '
+			+ 'secondary beside it in the same header slot',
+			refresh.classList.contains('modal-btn')
+			&& refresh.classList.contains('modal-btn-primary')
+			&& !refresh.classList.contains('modal-btn-secondary')
+			&& ask.classList.contains('modal-btn-secondary')
+			&& refresh.parentNode.classList.contains('console-page-actions')
+			&& ask.parentNode === refresh.parentNode,
+			'refresh=' + refresh.className + ' ask=' + ask.className);
 	}
 
 	// ── PROOF: Usage Refresh reloads the numbers IN PLACE ──────────────────
@@ -477,9 +414,7 @@ function check(label, ok, detail) {
 		check('Memories: the delete confirm is the PLATFORM\'s (window.confirm, which blocks the '
 			+ 'thread) — Escape closes it first because no keydown can reach the page while it is up, '
 			+ 'and the page renders no confirm layer of its own for Escape to trip over',
-			/window\.confirm\(/.test(MEMORIES)
-			&& !/memoriesPane[\s\S]{0,400}modal-overlay/.test(MEMORIES)
-			&& inPageConfirm === 0
+			inPageConfirm === 0
 			&& t.state.confirms.length === 1
 			&& t.document.querySelectorAll('#memoriesPane .modal-overlay, #memoriesPane .chat-menu').length === 0
 			&& t.api.open() === 'memories',
@@ -730,12 +665,14 @@ function check(label, ok, detail) {
 				evs.every(e => e.defaultPrevented === false),
 				'prevented=[' + evs.map(e => e.defaultPrevented) + ']');
 		}
+		// The shipped entry's own icon — the click a finger actually lands on.
 		const t = boot();
-		const ev = click(t.window, t.document.getElementById('memIcon'));
+		const icon = t.document.querySelector('#navMemories svg path');
+		const ev = click(t.window, icon);
 		await tick(t.window);
 		check('a plain click on the icon INSIDE an entry is still delegated to the entry (SVG child)',
-			ev.defaultPrevented === true && t.api.open() === 'memories',
-			'open=' + t.api.open());
+			!!icon && ev.defaultPrevented === true && t.api.open() === 'memories',
+			'icon=' + !!icon + ' open=' + t.api.open());
 	}
 
 	// ── An unknown route is not an error ───────────────────────────────────

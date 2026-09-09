@@ -342,8 +342,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     ONE page of the three that keeps Refresh: its numbers move while you
 			     read them (a reply streaming in the tab behind is spending the very
 			     budget the bar is drawing), so re-reading without leaving the page is
-			     the whole gesture. Memories and Connections change only when you
-			     change them, and re-entering reloads. -->
+			     the whole gesture. That makes it the page's primary action, and it is
+			     filled like Projects' Create project and Scheduled's New task, with
+			     the Ask entry secondary beside it. Memories and Connections change
+			     only when you change them, and re-entering reloads. -->
 			<section class="console-page" id="usagePane" hidden>
 				<div class="console-page-head">
 					<div>
@@ -352,7 +354,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</div>
 					<div class="console-page-actions">
 						<button type="button" class="modal-btn modal-btn-secondary" id="usageAskAssistant"><?php echo esc_html__( 'Ask how Usage works', 'digital-employees' ); ?></button>
-						<button type="button" class="modal-btn modal-btn-secondary" id="usageRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
+						<button type="button" class="modal-btn modal-btn-primary" id="usageRefresh"><?php echo esc_html__( 'Refresh', 'digital-employees' ); ?></button>
 					</div>
 				</div>
 				<p class="usage-resets" id="usageResets"></p>

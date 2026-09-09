@@ -85,4 +85,65 @@ function integrations() {
 		'INTEGRATIONS');
 }
 
-module.exports = { REPO, JS_PATH, slice, pageShell, projects, memories, usage, integrations };
+// ── The shipped TEMPLATE, sliced the same way ───────────────────────────
+// A harness that hand-writes its own copy of a <section> tests the copy: the
+// page can be renamed, lose an id, change a description or take the wrong
+// button class and every behaviour check still passes. These pull the real
+// markup out of templates/staff-ai-shell.php and hand it to jsdom, so the
+// behaviour checks run against what ships.
+
+const TEMPLATE_PATH = path.join(REPO, 'templates/staff-ai-shell.php');
+
+function templateSource() {
+	return fs.readFileSync(TEMPLATE_PATH, 'utf8');
+}
+
+// The two WordPress escapers the console's markup uses, so a sliced string
+// reaches the DOM the way the page renders it. Anything else inside <?php … ?>
+// is a hard error rather than raw PHP smuggled into the fixture.
+function phpToHtml(chunk, label) {
+	const htmlEsc = v => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	const attrEsc = v => htmlEsc(v).replace(/"/g, '&quot;');
+	const unquote = v => v.replace(/\\(['\\])/g, '$1');
+	const ECHO = /<\?php\s+echo\s+esc_(html|attr)__\(\s*'((?:\\.|[^'\\])*)'\s*,\s*'digital-employees'\s*\);\s*\?>/g;
+	const out = chunk.replace(ECHO, (m, kind, str) => (kind === 'attr' ? attrEsc : htmlEsc)(unquote(str)));
+	const left = out.match(/<\?php[\s\S]*?\?>/);
+	if (left) throw new Error(label + ': unhandled PHP in the sliced markup — ' + left[0].slice(0, 80));
+	return out;
+}
+
+// Slice one balanced element by its opening tag, counting nesting so a child of
+// the same kind added later cannot truncate the slice.
+function element(src, tag, openMatch, label) {
+	const lines = src.split(/\r?\n/);
+	const start = lines.findIndex(openMatch);
+	if (start < 0) throw new Error(label + ': OPENING TAG NOT FOUND');
+	const open = new RegExp('<' + tag + '[\\s>]', 'g');
+	const close = new RegExp('</' + tag + '>', 'g');
+	let depth = 0;
+	for (let i = start; i < lines.length; i++) {
+		depth += (lines[i].match(open) || []).length;
+		depth -= (lines[i].match(close) || []).length;
+		if (depth === 0) return lines.slice(start, i + 1).join('\n');
+	}
+	throw new Error(label + ': UNBALANCED <' + tag + '>');
+}
+
+// The console page section with this id, e.g. 'memoriesPane'.
+function templatePage(id) {
+	const chunk = element(templateSource(), 'section',
+		l => l.includes('id="' + id + '"'), 'section#' + id);
+	if (!/class="console-page/.test(chunk)) throw new Error('section#' + id + ': not a .console-page');
+	return phpToHtml(chunk, 'section#' + id);
+}
+
+// The sidebar nav, so the entries the shell delegates from are the shipped ones
+// — their tag, their href, and whether they still claim to open a dialog.
+function templateNav() {
+	return phpToHtml(
+		element(templateSource(), 'nav', l => l.includes('class="sidebar-nav"'), 'nav.sidebar-nav'),
+		'nav.sidebar-nav');
+}
+
+module.exports = { REPO, JS_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
+	usage, integrations, templateSource, templatePage, templateNav };
