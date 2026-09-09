@@ -37,6 +37,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
 | `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
 | `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
+| `harness-so3.js` | The `once` cadence on the Scheduled page (v7.10.0): the creator's date field and the card's two one-off badges |
 
 ## Bite checks
 
@@ -50,6 +51,7 @@ BLOCK=/tmp/old-shell.js       node tests/browser/harness-c1.js   # the page shel
 PROJECTS=/tmp/old-projects.js node tests/browser/harness-c2.js   # initProjects
 MEMORIES=… USAGE=… INTEGRATIONS=… node tests/browser/harness-c3.js
 STAFFSTREAM=/tmp/old-staff.js CCSTREAM=/tmp/old-cc.js node tests/browser/harness-v-s7b.js
+SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-so3.js   # initScheduled
 ```
 
 The env var names match the extractor names in `extract.js`.

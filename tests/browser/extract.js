@@ -105,6 +105,17 @@ function customerChatStream() {
 		'CCSTREAM', CC_PATH);
 }
 
+// initScheduled, the Scheduled page and its creator/editor modal (row 9: the
+// `once` cadence, the date field, the card's two one-off badges).
+function scheduled() {
+	return slice('initScheduled',
+		l => l.includes('// SCHEDULED TASKS (Phase 3)'),
+		l => l.includes('// UPLOAD EVENT HANDLERS'),
+		['consolePages.push', 'function scheduleBadgeText', 'function onceDate',
+			'function applyCadenceRows', 'function fillTaskForm', 'function saveTask'],
+		'SCHEDULED');
+}
+
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
 // A harness that hand-writes its own copy of a <section> tests the copy: the
 // page can be renamed, lose an id, change a description or take the wrong
@@ -126,7 +137,16 @@ function phpToHtml(chunk, label) {
 	const attrEsc = v => htmlEsc(v).replace(/"/g, '&quot;');
 	const unquote = v => v.replace(/\\(['\\])/g, '$1');
 	const ECHO = /<\?php\s+echo\s+esc_(html|attr)__\(\s*'((?:\\.|[^'\\])*)'\s*,\s*'digital-employees'\s*\);\s*\?>/g;
-	const out = chunk.replace(ECHO, (m, kind, str) => (kind === 'attr' ? attrEsc : htmlEsc)(unquote(str)));
+	// One interpolated string in the creator: printf( esc_html__( '…%s' ),
+	// esc_html( $expr ) ). The value is the reader's own session, so the fixture
+	// names a stand-in; the SHIPPED sentence around it is what matters here.
+	const PRINTF = /<\?php\s*(?:\/\*[\s\S]*?\*\/\s*)?printf\(\s*esc_html__\(\s*'((?:\\.|[^'\\])*)'\s*,\s*'digital-employees'\s*\)\s*,\s*esc_html\([^)]*\)\s*\);\s*\?>/g;
+	// A block that carries only a comment renders nothing.
+	const COMMENT = /<\?php\s*\/\*[\s\S]*?\*\/\s*\?>/g;
+	const out = chunk
+		.replace(PRINTF, (m, str) => htmlEsc(unquote(str)).replace('%s', 'you@example.test'))
+		.replace(COMMENT, '')
+		.replace(ECHO, (m, kind, str) => (kind === 'attr' ? attrEsc : htmlEsc)(unquote(str)));
 	const left = out.match(/<\?php[\s\S]*?\?>/);
 	if (left) throw new Error(label + ': unhandled PHP in the sliced markup — ' + left[0].slice(0, 80));
 	return out;
@@ -165,6 +185,12 @@ function templateNav() {
 		'nav.sidebar-nav');
 }
 
+// A .modal-overlay by id, e.g. 'scheduleModal' — the creator/editor's markup.
+function templateModal(id) {
+	return phpToHtml(element(templateSource(), 'div',
+		l => l.includes('id="' + id + '"'), 'div#' + id), 'div#' + id);
+}
+
 module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, staffAiStream, customerChatStream,
-	templateSource, templatePage, templateNav };
+	usage, integrations, staffAiStream, customerChatStream, scheduled,
+	templateSource, templatePage, templateNav, templateModal };

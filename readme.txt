@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.4
+Stable tag: 7.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.10.0 - 2026-09-09 =
+* Feature - Staff AI: a scheduled task can now run ONCE, at a date and time you name, instead of repeating for ever. Pick Once in the task's Frequency and a date appears beside the send time and timezone you already choose - "remind me on Thursday" is now a task you create and forget, not a weekly one you have to remember to delete. After it has run, its card says "Ran once at" with the date and time it went, and it does not run again: the task stays in your list with its run history, and its Run now button still works whenever you want it again by hand. Put it back on a repeating frequency and the date goes with the change. A date in the past is refused rather than quietly moved to the next one. Needs the platform release of the same day.
 
 = 7.8.4 - 2026-09-09 =
 * Fix - Chat: when your employee works through a task in several steps, what she says along the way ("Checking that now.") shows in the working line under the reply instead of stacking up inside it. The reply you are left with is the one she finishes with - the same words your chat history and every other device already show - and it is read aloud once instead of after every step. Both the website chat and the Staff AI console. Needs the platform release of the same day.

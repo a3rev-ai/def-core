@@ -5326,6 +5326,9 @@ function t(key, fallback) {
 		var taskWeekdayEl = document.getElementById('taskWeekday');
 		var taskWeekdayRow = document.getElementById('taskWeekdayRow');
 		var taskCadenceHint = document.getElementById('taskCadenceHint');
+		var taskDateRow = document.getElementById('taskDateRow');
+		var taskDateEl = document.getElementById('taskDate');
+		var taskDateLabel = document.getElementById('taskDateLabel');
 		var taskTimeRow = document.getElementById('taskTimeRow');
 		var taskTzRow = document.getElementById('taskTzRow');
 		var taskTimeEl = document.getElementById('taskTime');
@@ -5358,6 +5361,7 @@ function t(key, fallback) {
 		var editingTriage = null;    // the setup under edit, null = creating
 		var tasks = [];              // the user's free-text tasks
 		var editingTaskId = null;    // task id under edit, null = creating
+		var editingTaskDate = '';    // its stored one-off date (row 9), '' = none
 		// Which chat apps the user has actually CONNECTED (has_grant per
 		// toolkit, the D-C2b predicate). The "Deliver to" list is DERIVED from
 		// this rather than enumerated (runsheet §14b): a checkbox for an app
@@ -5456,11 +5460,28 @@ function t(key, fallback) {
 				[], { weekday: 'long', timeZone: 'UTC' });
 		}
 
+		function onceDate(s) {
+			// The stored date is a plain YYYY-MM-DD in the task's OWN zone. Split
+			// into parts rather than handed to Date(string), which reads an ISO
+			// date as UTC midnight and renders the day BEFORE west of Greenwich.
+			var p = String(s.send_date_local || '').split('-');
+			if (p.length !== 3) return String(s.send_date_local || '');
+			return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString();
+		}
+
 		function scheduleBadgeText(s) {
 			// v6.1.0: the badge follows the cadence. Absent (the triage schedule,
 			// or a pre-6.1.0 task row) reads as daily - exactly what those are.
 			switch (s.cadence) {
-				case 'manual': return t('taskManualOnly', 'Runs when you press Run now');
+				// Row 9 (§14j): a fired one-off is `manual` and KEEPS its date, so
+				// the badge stops claiming a schedule and states what it did.
+				case 'manual': return s.send_date_local
+					? t('taskRanOnceAt', 'Ran once at %1$s %2$s')
+						.replace('%1$s', onceDate(s)).replace('%2$s', cadenceTime(s))
+					: t('taskManualOnly', 'Runs when you press Run now');
+				case 'once': return t('taskOnceAt', 'Once on %1$s at %2$s (%3$s)')
+					.replace('%1$s', onceDate(s)).replace('%2$s', cadenceTime(s))
+					.replace('%3$s', s.timezone || 'UTC');
 				case 'hourly': return t('taskEveryHour', 'Every hour at ~:%s')
 					.replace('%s', pad(s.send_minute_local || 0));
 				case 'weekdays': return t('taskWeekdaysAt', 'Weekdays at ~%s').replace('%s', cadenceTime(s));
@@ -5749,6 +5770,15 @@ function t(key, fallback) {
 			if (taskWeekdayRow) taskWeekdayRow.style.display = cadence === 'weekly' ? '' : 'none';
 			if (taskTimeRow) taskTimeRow.style.display = cadence === 'manual' ? 'none' : '';
 			if (taskTzRow) taskTzRow.style.display = cadence === 'manual' ? 'none' : '';
+			// Row 9: Once picks its date here. A task that has already run is
+			// `manual` carrying that date - shown, read-only, as the fact it is;
+			// editing it into a second fire is not a thing a one-off does.
+			var ranOnce = cadence === 'manual' && !!editingTaskDate;
+			if (taskDateRow) taskDateRow.style.display = (cadence === 'once' || ranOnce) ? '' : 'none';
+			if (taskDateEl) taskDateEl.readOnly = ranOnce;
+			if (taskDateLabel) taskDateLabel.textContent = ranOnce
+				? t('taskRanOnceLabel', 'Ran once at')
+				: t('taskDateLabel', 'Date');
 			// The toggle stays VISIBLE for Manual (hiding it would trap an
 			// already-disabled task), but "on its schedule" would be a false
 			// label - and unticking it silently removes Run now (D-S6).
@@ -5761,7 +5791,8 @@ function t(key, fallback) {
 					manual: t('taskHintManual', 'This task never runs on a schedule. Use its Run now button whenever you want it.'),
 					hourly: t('taskHintHourly', "Runs every hour, at the send time's minutes past the hour."),
 					weekdays: t('taskHintWeekdays', 'Runs Monday to Friday at the send time.'),
-					weekly: t('taskHintWeekly', 'Runs once a week, on the day you choose.')
+					weekly: t('taskHintWeekly', 'Runs once a week, on the day you choose.'),
+					once: t('taskHintOnce', 'Runs once, at the date and time you choose, and then stops.')
 				};
 				taskCadenceHint.textContent = hints[cadence] || '';
 				taskCadenceHint.style.display = hints[cadence] ? '' : 'none';
@@ -5773,6 +5804,10 @@ function t(key, fallback) {
 			instructionEl.value = task ? (task.instruction || '') : '';
 			taskEnabledEl.checked = task ? !!task.enabled : true;
 			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
+			// Before applyCadenceRows below: the stored date decides whether the
+			// date row shows at all, and under which label.
+			editingTaskDate = (task && task.send_date_local) || '';
+			if (taskDateEl) taskDateEl.value = editingTaskDate;
 			if (taskModelEl) {
 				var wantModel = (task && task.model) || '';
 				// Keep-options belong to the task they were added FOR - drop any
@@ -6003,13 +6038,14 @@ function t(key, fallback) {
 			var dests = Object.keys(taskDestEls).filter(function (k) { return taskDestEls[k] && taskDestEls[k].checked; });
 			if (!dests.length) { setStatus(taskStatusEl, t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error'); return; }
 			var parts = (taskTimeEl.value || '07:00').split(':');
+			var cadence = (taskCadenceEl && taskCadenceEl.value) || 'daily';
 			// FULL-REPLACE contract, same as the triage form: always the complete
 			// object - a partial body has documented defaults DEF-side.
 			var payload = {
 				name: name,
 				instruction: instruction,
 				enabled: !!taskEnabledEl.checked,
-				cadence: (taskCadenceEl && taskCadenceEl.value) || 'daily',
+				cadence: cadence,
 				model: (taskModelEl && taskModelEl.value) || '',
 				send_weekday: taskWeekdayEl ? (parseInt(taskWeekdayEl.value, 10) || 0) : 0,
 				send_hour_local: parseInt(parts[0], 10) || 0,
@@ -6019,6 +6055,13 @@ function t(key, fallback) {
 				// P-C: '' = no project (DEF stores NULL). Full-replace, like the rest.
 				project_id: (taskProjectEl && taskProjectEl.value) || null
 			};
+			// Row 9, the one field that is NOT full-replace: Once carries its
+			// date, a fired one-off sends its kept date back (belt and braces -
+			// DEF keeps it either way), and a repeat cadence sends none, which is
+			// how DEF is told to clear it. Switching away from a one-off means
+			// the date is gone, and the backend refuses a repeat that carries one.
+			if (cadence === 'once') payload.send_date_local = (taskDateEl && taskDateEl.value) || '';
+			else if (cadence === 'manual' && editingTaskDate) payload.send_date_local = editingTaskDate;
 			saveBtn.disabled = true;
 			setStatus(taskStatusEl, t('scheduleSaving', 'Saving…'));
 			try {

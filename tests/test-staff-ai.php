@@ -1298,9 +1298,9 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'project_id', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'project_id', 'send_date_local', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$keys,
-	'exactly the thirteen task fields (P-C added project_id) - owner_email and any future extras stay out'
+	'exactly the fourteen task fields (row 9 added send_date_local) - owner_email and any future extras stay out'
 );
 assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
 assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
@@ -1931,6 +1931,63 @@ $GLOBALS['_def_test_get_body'] = '{"detail":"Usage unavailable"}';
 $err = DEF_Core_Staff_AI::rest_get_usage();
 assert_true( is_wp_error( $err ), 'a DEF 503 surfaces as an error, not an empty week' );
 $GLOBALS['_def_test_get_code'] = 200;
+
+// ── TS-20. The `once` cadence (row 9 / S-O3) ────────────────────────────
+// This door mirrors DEF's so an older backend never sees a shape it refuses,
+// and so a mistake reads as one plain sentence instead of a proxied 422.
+echo "\n[TS-20] the once cadence: the date rides the body, and the shapes DEF refuses\n";
+
+function def_test_task_body( array $over ) {
+	$req  = new WP_REST_Request( 'POST', '/staff-ai/tasks' );
+	$base = array(
+		'name'              => 'Reminder',
+		'instruction'       => 'Remind me',
+		'enabled'           => true,
+		'cadence'           => 'daily',
+		'send_weekday'      => 0,
+		'send_hour_local'   => 9,
+		'send_minute_local' => 0,
+		'timezone'          => 'Australia/Brisbane',
+		'destinations'      => array( 'email' ),
+	);
+	foreach ( array_merge( $base, $over ) as $key => $value ) {
+		$req->set_param( $key, $value );
+	}
+	$GLOBALS['_def_test_last_request'] = array();
+	$GLOBALS['_def_test_request_body'] = json_encode( array(
+		'success' => true,
+		'task'    => array( 'id' => 't1', 'cadence' => 'once', 'send_date_local' => '2026-12-24' ),
+	) );
+	$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+	unset( $GLOBALS['_def_test_request_body'] );
+	return array( $resp, json_decode( $GLOBALS['_def_test_last_request']['body'] ?? 'null', true ) );
+}
+
+list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'once', 'send_date_local' => '2026-12-24' ) );
+assert_true( ! is_wp_error( $resp ), 'once with a date is accepted' );
+assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'the date rides the body to DEF' );
+assert_equals( 'once', ( is_object( $resp ) ? $resp->get_data()['task']['cadence'] : '' ), 'once survives the allowlist' );
+assert_equals( '2026-12-24', ( is_object( $resp ) ? $resp->get_data()['task']['send_date_local'] : '' ), 'so does the date the card renders' );
+
+list( $resp ) = def_test_task_body( array( 'cadence' => 'once' ) );
+assert_true( is_wp_error( $resp ), 'once WITHOUT a date is refused here, not at DEF' );
+
+list( $resp ) = def_test_task_body( array( 'cadence' => 'once', 'send_date_local' => '2026-13-45' ) );
+assert_true( is_wp_error( $resp ), 'a date that is not a real date is refused' );
+
+list( $resp ) = def_test_task_body( array( 'cadence' => 'weekly', 'send_date_local' => '2026-12-24' ) );
+assert_true( is_wp_error( $resp ), 'a repeating cadence carrying a date is refused, never coerced' );
+
+// A fired one-off IS `manual` carrying its date - the pairing must pass.
+list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'manual', 'send_date_local' => '2026-12-24' ) );
+assert_true( ! is_wp_error( $resp ), 'manual may carry the date of the run it already did' );
+assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'and sends it back, so a rename cannot wipe the stamp' );
+
+// ABSENT, never null: DEF keeps a manual task's stored date only when the key
+// is missing, and clears it for every other cadence. Both rules need this.
+list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'weekly' ) );
+assert_true( ! is_wp_error( $resp ), 'a repeating cadence with no date is untouched by row 9' );
+assert_true( ! array_key_exists( 'send_date_local', $sent ), 'no date supplied = the key is absent, not null' );
 
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

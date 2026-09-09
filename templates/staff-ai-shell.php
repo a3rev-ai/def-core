@@ -672,6 +672,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<option value="daily" selected><?php echo esc_html__( 'Daily', 'digital-employees' ); ?></option>
 								<option value="weekdays"><?php echo esc_html__( 'Weekdays - Monday to Friday', 'digital-employees' ); ?></option>
 								<option value="weekly"><?php echo esc_html__( 'Weekly', 'digital-employees' ); ?></option>
+								<option value="once"><?php echo esc_html__( 'Once - at a date and time I choose', 'digital-employees' ); ?></option>
 							</select>
 							<p class="form-hint" id="taskCadenceHint" style="display:none;"></p>
 						</div>
@@ -705,6 +706,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<option value="5"><?php echo esc_html__( 'Saturday', 'digital-employees' ); ?></option>
 								<option value="6"><?php echo esc_html__( 'Sunday', 'digital-employees' ); ?></option>
 							</select>
+						</div>
+						<!-- Row 9 (§14j): the ONE date a `once` task runs. Shown for Once,
+						     and again read-only once it has run - a fired one-off is
+						     `manual` and keeps its date as the "Ran once at" fact. -->
+						<div class="form-group" id="taskDateRow" style="display:none;">
+							<label class="form-label" for="taskDate" id="taskDateLabel"><?php echo esc_html__( 'Date', 'digital-employees' ); ?></label>
+							<input type="date" class="form-input" id="taskDate">
 						</div>
 						<div class="form-group" id="taskTimeRow">
 							<label class="form-label" for="taskTime"><?php echo esc_html__( 'Send time', 'digital-employees' ); ?></label>
@@ -931,6 +939,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 			/* translators: %1$s is a weekday name, %2$s is a time of day */
 			taskWeeklyAt: <?php echo wp_json_encode( __( 'Every %1$s at ~%2$s', 'digital-employees' ) ); ?>,
 			taskManualOnly: <?php echo wp_json_encode( __( 'Runs when you press Run now', 'digital-employees' ) ); ?>,
+			/* translators: %1$s is a date, %2$s is a time of day, %3$s is a timezone name */
+			taskOnceAt: <?php echo wp_json_encode( __( 'Once on %1$s at %2$s (%3$s)', 'digital-employees' ) ); ?>,
+			/* translators: %1$s is a date, %2$s is a time of day */
+			taskRanOnceAt: <?php echo wp_json_encode( __( 'Ran once at %1$s %2$s', 'digital-employees' ) ); ?>,
+			taskHintOnce: <?php echo wp_json_encode( __( 'Runs once, at the date and time you choose, and then stops.', 'digital-employees' ) ); ?>,
+			taskDateLabel: <?php echo wp_json_encode( __( 'Date', 'digital-employees' ) ); ?>,
+			taskRanOnceLabel: <?php echo wp_json_encode( __( 'Ran once at', 'digital-employees' ) ); ?>,
 			taskHintManual: <?php echo wp_json_encode( __( 'This task never runs on a schedule. Use its Run now button whenever you want it.', 'digital-employees' ) ); ?>,
 			taskEnabledLabel: <?php echo wp_json_encode( __( 'Run this task on its schedule', 'digital-employees' ) ); ?>,
 			taskEnabledManualLabel: <?php echo wp_json_encode( __( 'Task is active - Run now only works while this is on', 'digital-employees' ) ); ?>,
