@@ -3426,8 +3426,7 @@ function t(key, fallback) {
 		let loading = false;
 		// True only while an authorize POST is in flight, so the window-focus re-check can't
 		// rebuild the list mid-connect — that would detach the very row node connect() is about
-		// to write the link into. It covers the POST and nothing after it; what keeps the link
-		// alive once it is rendered is pendingConsent below.
+		// to write the link into.
 		let posting = false;
 		// The page is showing. The OAuth round trip leaves and returns to this
 		// window, so the re-check below is armed by onEnter and DISARMED by
@@ -3436,17 +3435,11 @@ function t(key, fallback) {
 		// page nobody is looking at.
 		let pageOpen = false;
 
-		// The consent link the user is on their way back to click, held as STATE rather
-		// than as a node. `posting` above covers the POST only: it goes false the moment
-		// the link is rendered, and every window focus event after that rebuilt the list
-		// and threw the link away — switching to the consent tab and back IS a focus
-		// event, so the one gesture the link exists for was the gesture that destroyed it.
-		// The rebuild itself stays, because returning from consent is exactly when the row
-		// must be re-read; what changes is that the rebuild re-renders the link from here.
-		// Two exits, and only two: the reload finds the account connected, or the user
-		// dismisses it. Keyed by kind + server id — 'connect' for a row with no account
-		// yet, 'another' for a second account on a row that already has one, because one
-		// row wants each of them at different points in its life.
+		// The consent link as STATE, so a rebuild re-renders it instead of destroying it:
+		// `posting` goes false when the link is rendered, and the focus event that returns
+		// from the consent tab rebuilt the list and threw it away. Two exits, and only two —
+		// the reload finds the account connected, or the user dismisses it. Keyed kind:id,
+		// 'connect' for a row with no account yet, 'another' for a second account on one.
 		const pendingConsent = new Map();
 		function consentKey(kind, serverId) { return kind + ':' + String(serverId || ''); }
 		function getPending(kind, serverId) { return pendingConsent.get(consentKey(kind, serverId)) || null; }
@@ -3454,20 +3447,15 @@ function t(key, fallback) {
 			pendingConsent.set(consentKey(kind, serverId), { url: url, seen: seen || 0 });
 		}
 		function clearPending(kind, serverId) { pendingConsent.delete(consentKey(kind, serverId)); }
+		function pendingServerId(key) { return key.slice(key.indexOf(':') + 1); }
 
-		// The sentence that goes with the link. It was written out twice; a carried-across
-		// link needs it a third and fourth time (restore it after a rebuild, retire it when
-		// the last link goes), and four copies of one string is three too many.
+		// The sentence that goes with the link, wanted in four places.
 		function awaitingText() {
 			return t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.');
 		}
 
-		// The link itself, built exactly as connect() built it inline before it became
-		// state: https only, a new tab, rel="noopener noreferrer". The URL is minted per
-		// user by that user's own POST and is only ever carried through here — never
-		// re-derived, never moved between rows. The scheme test is repeated inside because
-		// a re-render is a second chance to render a bad URL and must pass the same gate
-		// the first render passed; it returns null rather than an anchor when it fails.
+		// The link as connect() built it inline: https only, a new tab, noopener. Gated here
+		// too — a re-render is a second chance to render a bad URL — returning null if it fails.
 		function consentLink(url, kind, serverId) {
 			if (!/^https:\/\//i.test(url)) return null;
 			const frag = document.createDocumentFragment();
@@ -3478,9 +3466,6 @@ function t(key, fallback) {
 			link.rel = 'noopener noreferrer';
 			link.textContent = t('integrationsFinish', 'Finish connecting →');
 			frag.appendChild(link);
-			// The user's own way out, and the only one besides finishing: a consent tab
-			// closed without approving would otherwise leave a link sitting on the row for
-			// the life of the page, since a rebuild no longer clears it.
 			const dismiss = document.createElement('button');
 			dismiss.type = 'button';
 			dismiss.className = 'integration-btn integration-btn-link integration-btn-dismiss';
@@ -3489,7 +3474,7 @@ function t(key, fallback) {
 			dismiss.setAttribute('aria-label', t('integrationsFinishDismiss', 'Dismiss “Finish connecting”'));
 			dismiss.addEventListener('click', function () {
 				clearPending(kind, serverId);
-				loadList();   // re-render from the truth, with the link gone
+				loadList();
 			});
 			frag.appendChild(dismiss);
 			return frag;
@@ -3526,18 +3511,14 @@ function t(key, fallback) {
 				}
 				setStatus('', '');
 				apps.forEach(function (app) { listEl.appendChild(renderRow(app)); });
-				// An app the administrator removed takes its pending link with it: there is no
-				// row left to carry it, and keeping it would mean a stale consent URL rendered
-				// on the row if the app ever came back.
-				const live = apps.map(function (app) { return consentKey('connect', app.server_id); });
+				// An app that is gone takes its pending link of EITHER kind with it: no row is
+				// left to carry one, and no × to dismiss it.
+				const live = apps.map(function (app) { return String(app.server_id || ''); });
 				pendingConsent.forEach(function (v, k) {
-					if (k.indexOf('connect:') === 0 && live.indexOf(k) < 0) pendingConsent.delete(k);
+					if (live.indexOf(pendingServerId(k)) < 0) pendingConsent.delete(k);
 				});
-				// A rebuild that carried a link across carries the sentence under it too — a
-				// link with its instruction blanked is half of what the user left behind. Set
-				// here, synchronously, and not from the picker's async pass: disconnect() and
-				// setPrimary() speak their outcome after awaiting this, and an async write would
-				// land on top of it.
+				// Restore the sentence with the link. Synchronously, not from the picker's async
+				// pass: disconnect() and setPrimary() speak their outcome after awaiting this.
 				if (pendingConsent.size) setStatus(awaitingText(), 'muted');
 				// Slice 4-A (v6.6.0): decorate the mail rows with the chat
 				// primary picker. Fire-and-forget - a failed read renders no
@@ -3573,6 +3554,17 @@ function t(key, fallback) {
 				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit],
 					row.dataset.serverId || ''));
 			});
+			// A row whose LAST account was disconnected gets no picker, so its pending
+			// Connect-another link has nowhere to render and no × to dismiss it — and the
+			// sweep in loadList cannot see it, because the app itself is still live. Only
+			// reached on a successful read, so a failed fetch reclaims nothing.
+			pendingConsent.forEach(function (v, k) {
+				if (k.indexOf('another:') !== 0) return;
+				var row = listEl.querySelector(
+					'.integration-row[data-server-id="' + CSS.escape(pendingServerId(k)) + '"]');
+				if (!row || !row.querySelector('.integration-primary')) pendingConsent.delete(k);
+			});
+			if (!pendingConsent.size && statusEl.textContent === awaitingText()) setStatus('', '');
 		}
 
 		function renderPrimaryPicker(toolkit, accounts, serverId) {
@@ -3623,18 +3615,14 @@ function t(key, fallback) {
 			// Slice 4-B: connect a SECOND account on this mail app. The sign-in
 			// window that opens is where you choose which account - sign in as it.
 			if (serverId) {
-				// The same rule as a row's Connect, with a different "connected" test: this
-				// app was already authorized before the gesture began, so what finishing adds
-				// is an ACCOUNT. The signal is this toolkit's account list having grown past
-				// what it held when the link was minted — the reload finding it connected,
-				// said in the only terms a second account can be said in.
+				// The app was already authorized before the gesture, so "connected" here means
+				// the account list grew past what it held when the link was minted.
 				var waiting = getPending('another', serverId);
 				if (waiting && accounts.length > waiting.seen) {
 					clearPending('another', serverId);
 					waiting = null;
-					// Retire the instruction with the last link it belonged to, and only if it
-					// is still the thing on screen: an outcome set by disconnect() or setPrimary()
-					// after their own reload is not ours to blank.
+					// Only if it is still the thing on screen — an outcome from disconnect() or
+					// setPrimary() is not ours to blank.
 					if (!pendingConsent.size && statusEl.textContent === awaitingText()) setStatus('', '');
 				}
 				var carried = waiting ? consentLink(waiting.url, 'another', serverId) : null;
@@ -3659,8 +3647,7 @@ function t(key, fallback) {
 			// click (a real user gesture - popup blockers), finish in the new
 			// tab; the window-focus handler re-checks on return. The link mints
 			// even though an account is connected - that is the whole gesture.
-			// `seen` is how many accounts this toolkit held when the gesture began:
-			// the link is done when the list comes back holding more.
+			// `seen` is this toolkit's account count when the gesture began.
 			btn.disabled = true;
 			setStatus(t('integrationsStarting', 'Starting the connection…'), 'muted');
 			posting = true;
@@ -3818,11 +3805,8 @@ function t(key, fallback) {
 				action.appendChild(dis);
 			}
 
-			// The pending consent link survives this rebuild — the race this whole change
-			// exists for. An app that came back connected has finished the round trip, so
-			// the link retires here and the row shows its badge alone; otherwise the link
-			// goes back exactly where connect() put it, alone in the action cell, still the
-			// thing to click.
+			// Connected retires the link; otherwise it goes back where connect() put it —
+			// alone in the action cell.
 			const pending = getPending('connect', app.server_id);
 			if (pending) {
 				if (app.authorized || app.no_auth) {
@@ -3897,11 +3881,7 @@ function t(key, fallback) {
 				const link = /^https:\/\//i.test(url) ? consentLink(url, 'connect', serverId) : null;
 				if (link) {
 					// Render the consent URL as an explicit link the user clicks (a real user
-					// gesture — avoids popup blockers). DEF already host-checked it. They finish
-					// in the new tab; the window-focus handler re-checks status on return — and
-					// remembering it here is what makes that return survivable, because the
-					// rebuild the return fires puts this same link back until the account reads
-					// connected.
+					// gesture — avoids popup blockers). DEF already host-checked it.
 					setPending('connect', serverId, url);
 					action.innerHTML = '';
 					action.appendChild(link);
@@ -3950,10 +3930,8 @@ function t(key, fallback) {
 
 		// Re-check status when the user returns from the OAuth consent tab (page open only).
 		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
-		// connect() call is about to populate with the "Finish connecting" link. Once that link
-		// is rendered the rebuild is WELCOME — it is how a finished consent becomes a Connected
-		// badge — and pendingConsent carries the link across it for every return where consent
-		// has not finished: the user who switched to the consent tab to read it and came back.
+		// connect() call is about to populate with the "Finish connecting" link. The rebuild
+		// after that is wanted: pendingConsent is what makes it safe.
 		window.addEventListener('focus', function () {
 			if (pageOpen && !loading && !posting) loadList();
 		});

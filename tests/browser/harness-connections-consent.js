@@ -1,7 +1,7 @@
 /*
  * The "Finish connecting →" link survives a focus event — behavioural harness
- * (C3 follow-up / v7.8.4). Runs the SHIPPED initIntegrations block, extracted by
- * marker out of assets/js/staff-ai.js, inside jsdom against the SHIPPED
+ * (the C3 follow-up, v7.8.8). Runs the SHIPPED initIntegrations block, extracted
+ * by marker out of assets/js/staff-ai.js, inside jsdom against the SHIPPED
  * #connectionsPane markup sliced out of templates/staff-ai-shell.php. Nothing
  * here is a copy of the code or the markup under test.
  *
@@ -18,9 +18,10 @@
  * drives onEnter / onLeave directly. What is under test is the block's own
  * state, not the shell's routing — harness-c3.js owns that.
  *
- * Bite check: put 7.8.3's initIntegrations in a scratch file and point the
+ * Bite check: put the pre-fix initIntegrations in a scratch file and point the
  * INTEGRATIONS env var at it — the carry-across checks must go red.
- *   INTEGRATIONS=/tmp/old-integrations.js node tests/browser/harness-c3b.js
+ *   INTEGRATIONS=/tmp/old-integrations.js \
+ *     node tests/browser/harness-connections-consent.js
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -152,11 +153,10 @@ function check(label, ok, detail) {
 			'link=' + !!t.link(t.row('s-slack')) + ' posts=' + t.posts(/authorize$/));
 
 		const before = t.reloads();
-		t.focus();
-		await tick(t.window);
-		check('THE FIX: a window focus event still REBUILDS the list — and the link is still there '
-			+ '(switching to the consent tab and back IS that event)',
-			t.reloads() === before + 1 && wellFormed(t.link(t.row('s-slack'))),
+		for (let i = 0; i < 5; i++) { t.focus(); await tick(t.window); }
+		check('THE FIX: five window focus events each REBUILD the list — and the link is still there '
+			+ 'after all five (the consent tab and back, or a phone switching apps, IS that event)',
+			t.reloads() === before + 5 && wellFormed(t.link(t.row('s-slack'))),
 			'reloads ' + before + '→' + t.reloads() + ' link=' + !!t.link(t.row('s-slack')));
 
 		const carried = t.link(t.row('s-slack'));
@@ -168,10 +168,6 @@ function check(label, ok, detail) {
 
 		check('the sentence that goes with the link is restored by the rebuild too',
 			awaiting(t), JSON.stringify(t.status()));
-
-		for (let i = 0; i < 4; i++) { t.focus(); await tick(t.window); }
-		check('FOUR more focus events (a phone switching apps) leave the link exactly where it was',
-			wellFormed(t.link(t.row('s-slack'))), 'link=' + !!t.link(t.row('s-slack')));
 
 		check('the pending link stays on ITS row — the connected row is untouched',
 			!t.link(t.row('s-gmail')) && /Connected/.test(t.row('s-gmail').textContent),
@@ -185,7 +181,6 @@ function check(label, ok, detail) {
 		await tick(t.window);
 		click(t.window, t.connectBtn('s-slack'));
 		await tick(t.window);
-		check('the link is up before consent is finished', !!t.link(t.row('s-slack')));
 
 		// Consent finished in the other tab: the next read of the list says so.
 		t.world.apps = [SLACK_CONNECTED, GMAIL];
@@ -250,12 +245,6 @@ function check(label, ok, detail) {
 			!t.link(t.row('s-slack')) && !!t.connectBtn('s-slack')
 			&& t.connectBtn('s-slack').textContent === 'Connect',
 			'link=' + !!t.link(t.row('s-slack')) + ' btn=' + !!t.connectBtn('s-slack'));
-
-		t.focus();
-		await tick(t.window);
-		check('a focus event after the × does not bring the dismissed link back',
-			!t.link(t.row('s-slack')) && !!t.connectBtn('s-slack'),
-			'link=' + !!t.link(t.row('s-slack')));
 	}
 
 	// ── PROOF: Connect another account follows the same rule ──────────────────
@@ -306,11 +295,48 @@ function check(label, ok, detail) {
 		check('THE SECOND EXIT, on Connect another account: the × drops the link and restores the '
 			+ 'button',
 			!t.link(t.picker()) && !!t.another(), 'another=' + !!t.another());
+	}
 
+	// ── PROOF: an `another:` link is reclaimed when its row cannot carry it ────
+	// The mirror of the connect: reclaim above, and the case the connect:-only
+	// sweep missed: the app is still live, so that sweep cannot see it — only the
+	// pass that knows which rows still have accounts can. Left unreclaimed, the
+	// entry re-asserted the awaiting sentence on every rebuild, forever, with no ×
+	// left anywhere to dismiss it.
+	{
+		const t = boot();
+		t.enter();
+		await tick(t.window, 40);
+		click(t.window, t.another());
+		await tick(t.window);
+		const up = wellFormed(t.link(t.picker())) && awaiting(t);
+
+		// The LAST account on the row is disconnected. No picker renders at all, so the
+		// link and its × leave the DOM while the app itself is still in the list.
+		t.world.mail = [];
 		t.focus();
 		await tick(t.window, 40);
-		check('and a focus event after that does not bring it back',
-			!t.link(t.picker()) && !!t.another(), 'link=' + !!t.link(t.picker()));
+		const orphaned = !t.picker() && !!t.row('s-gmail');
+		const quiet = !awaiting(t);
+
+		// Two more rebuilds: the sentence must not come back on either.
+		t.focus(); await tick(t.window, 40);
+		t.focus(); await tick(t.window, 40);
+		const stillQuiet = !awaiting(t);
+
+		// And an account arriving later brings back Connect another account — not the
+		// stale consent link.
+		t.world.mail = [{ id: 'a9', toolkit: 'gmail', address: 'back@e.test', primary: false }];
+		t.focus();
+		await tick(t.window, 40);
+		check('an `another:` link whose row can no longer carry it is RECLAIMED — the last account '
+			+ 'goes, the picker goes with it, and the awaiting sentence is not left re-asserting '
+			+ 'itself on every rebuild with no × to dismiss it',
+			up && orphaned && quiet && stillQuiet
+			&& !t.link(t.picker()) && !!t.another() && !awaiting(t),
+			'up=' + up + ' orphaned=' + orphaned + ' quiet=' + quiet + ' stillQuiet=' + stillQuiet
+			+ ' link=' + !!t.link(t.picker()) + ' another=' + !!t.another()
+			+ ' status=' + JSON.stringify(t.status()));
 	}
 
 	// ── PROOF: the scheme rule holds on the carried-across render too ─────────

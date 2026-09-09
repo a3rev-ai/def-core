@@ -2470,10 +2470,7 @@ html {
 	color: var(--text-heading);
 }
 
-/* The × that retires a pending "Finish connecting" link (v7.8.4). The link now outlives a
-   rebuild, so it needs a way out that is not "finish the connection"; understated beside the
-   filled link it belongs to, and a real target under a thumb — the phone is where the tab
-   switch that made the link disappear happens most. */
+/* The × that dismisses a pending "Finish connecting" link — understated beside it, thumb-sized. */
 .integration-btn-dismiss {
 	min-width: 28px;
 	min-height: 28px;
