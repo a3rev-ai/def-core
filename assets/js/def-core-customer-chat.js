@@ -51,6 +51,7 @@
 		uploadFailed: 'Upload failed. Please try again.',
 		uploadReadFailed: 'Could not read the file. Please remove it, re-select it and try again.',
 		fileTypeNotSupported: 'File type not supported',
+		attachAfterFirstMessage: 'Send your first message, then attach the image.',
 		offlineTitle: 'Chat is currently unavailable',
 		offlineMessage: 'This feature is being set up. Please check back soon.',
 		connectionError: 'Unable to connect. Please try again.',
@@ -630,15 +631,14 @@
 			if (!uploadEligible) return;
 			var items = (e.clipboardData || {}).items;
 			if (!items) return;
-			var hasFile = false;
+			var pasted = [];
 			for (var i = 0; i < items.length; i++) {
-				if (items[i].kind === 'file') {
-					hasFile = true;
-					var file = items[i].getAsFile();
-					if (file) stageFile(file);
-				}
+				var pastedFile = items[i].kind === 'file' && items[i].getAsFile();
+				if (pastedFile) pasted.push(pastedFile);
 			}
-			if (hasFile) e.preventDefault();
+			if (!pasted.length) return;
+			e.preventDefault();
+			stageAttachedFiles(pasted);
 		});
 
 		els.input = input;
@@ -704,11 +704,7 @@
 			dragCounter = 0;
 			if (els.dropOverlay) setState(els.dropOverlay, 'visible', false);
 			if (!uploadEligible || isComposerDisabled) return;
-			var files = e.dataTransfer && e.dataTransfer.files;
-			if (!files) return;
-			for (var i = 0; i < files.length; i++) {
-				stageFile(files[i]);
-			}
+			stageAttachedFiles(e.dataTransfer && e.dataTransfer.files);
 		});
 
 		panel.appendChild(composer);
@@ -2678,7 +2674,7 @@
 
 		// Store thread ID.
 		if (data.thread_id) {
-			threadId = data.thread_id;
+			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
 				// Fresh thread started — clear the cleared-session marker so it
@@ -2750,7 +2746,7 @@
 
 		// Store thread ID.
 		if (data.thread_id) {
-			threadId = data.thread_id;
+			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
 				// Fresh thread started — clear the cleared-session marker. See
@@ -3648,11 +3644,12 @@
 		}
 		renderStagedAttachments();
 
-		var conversationId = threadId || '_anonymous';
-
+		// The attach gate means threadId is always set by the time a file is
+		// staged (U-1b) — the anonymous placeholder conversation is gone from
+		// this channel, so a retry of a green-ticked id carries the same thread.
 		return Promise.all(
 			filesToUpload.map(function (staged) {
-				return uploadSingleFile(staged, conversationId);
+				return uploadSingleFile(staged, threadId);
 			})
 		).then(function (results) {
 			var anyFailed = false;
@@ -3876,12 +3873,45 @@
 			});
 	}
 
+	// ── The attach gate (U-1b) ────────────────────────────────────
+	// Every anonymous visitor of a tenant carries the one identity, so an
+	// upload made before the conversation exists cannot be bound to anyone.
+	// From the second message it is bound to the thread, and is exactly as
+	// private as the thread. So: no attach control until the thread exists,
+	// and the staged-upload path always carries a real thread id.
+
 	function setUploadEligible(eligible) {
 		uploadEligible = eligible;
+		refreshAttachControl();
+	}
+
+	// Every assignment to threadId past its declaration goes through here, so
+	// the control can never outlive the conversation it uploads into.
+	function setThreadId(id) {
+		threadId = id || null;
+		refreshAttachControl();
+	}
+
+	function refreshAttachControl() {
 		if (els.attachBtn) {
-			els.attachBtn.style.display = eligible ? '' : 'none';
+			els.attachBtn.style.display =
+				uploadEligible && threadId ? '' : 'none';
 		}
 	}
+
+	// Drag-drop and paste have no button to hide, so turn one is refused here
+	// with the one line — once per attempt, however many files it carried.
+	function stageAttachedFiles(files) {
+		if (!files || !files.length) return;
+		if (!threadId) {
+			appendMessage('assistant', t('attachAfterFirstMessage'));
+			return;
+		}
+		for (var i = 0; i < files.length; i++) {
+			stageFile(files[i]);
+		}
+	}
+	// ── end attach gate ───────────────────────────────────────────
 
 	// ─── 10. THREAD MANAGEMENT ────────────────────────────────────
 
@@ -4089,7 +4119,7 @@
 		}
 		if (!picked) return;
 
-		threadId = picked.id;
+		setThreadId(picked.id);
 		isContinuing = true;
 		try { localStorage.setItem(THREAD_KEY, threadId); } catch (e) {}
 		loadThreadMessages(threadId);
@@ -4152,7 +4182,7 @@
 			localStorage.removeItem('def:session_cookie');
 			localStorage.setItem('def:cleared_session', '1');
 		} catch (e) {}
-		threadId = null;
+		setThreadId(null);
 		isContinuing = false;
 		currentEscalationSubject = '';
 		currentEscalationReason = '';
@@ -4502,7 +4532,7 @@
 		// Load existing thread from localStorage FIRST (clearConversation needs threadId).
 		loadLocalThreads();
 		try {
-			threadId = localStorage.getItem(THREAD_KEY) || null;
+			setThreadId(localStorage.getItem(THREAD_KEY));
 		} catch (e) {}
 
 		// Detect WordPress auth state change (login/logout outside widget).
@@ -4592,7 +4622,7 @@
 		contextToken = null;
 		contextPayload = null;
 		refreshPromise = null;
-		threadId = null;
+		setThreadId(null);
 		isContinuing = false;
 		isComposerDisabled = false;
 		stagedFiles = [];
