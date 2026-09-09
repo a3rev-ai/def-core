@@ -684,7 +684,9 @@
 		// Drag & drop event listeners (drag counter pattern for nested elements).
 		composer.addEventListener('dragenter', function (e) {
 			e.preventDefault();
-			if (!uploadEligible || isComposerDisabled) return;
+			// No "Drop files here" before the thread exists (U-1b) — the drop
+			// itself is guarded separately and still answers with the notice.
+			if (!uploadEligible || isComposerDisabled || !threadId) return;
 			dragCounter++;
 			if (els.dropOverlay) setState(els.dropOverlay, 'visible', true);
 		});
@@ -3432,12 +3434,7 @@
 	}
 
 	function handleFileSelect(e) {
-		var files = e.target.files;
-		if (!files || files.length === 0) return;
-
-		for (var i = 0; i < files.length; i++) {
-			stageFile(files[i]);
-		}
+		stageAttachedFiles(e.target.files);
 	}
 
 	function validateFilePreflight(file) {
@@ -3644,9 +3641,7 @@
 		}
 		renderStagedAttachments();
 
-		// The attach gate means threadId is always set by the time a file is
-		// staged (U-1b) — the anonymous placeholder conversation is gone from
-		// this channel, so a retry of a green-ticked id carries the same thread.
+		// The gate (U-1b) means threadId is always set here — no placeholder.
 		return Promise.all(
 			filesToUpload.map(function (staged) {
 				return uploadSingleFile(staged, threadId);
@@ -3876,9 +3871,6 @@
 	// ── The attach gate (U-1b) ────────────────────────────────────
 	// Every anonymous visitor of a tenant carries the one identity, so an
 	// upload made before the conversation exists cannot be bound to anyone.
-	// From the second message it is bound to the thread, and is exactly as
-	// private as the thread. So: no attach control until the thread exists,
-	// and the staged-upload path always carries a real thread id.
 
 	function setUploadEligible(eligible) {
 		uploadEligible = eligible;

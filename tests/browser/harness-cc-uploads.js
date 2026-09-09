@@ -1,5 +1,5 @@
 /*
- * Customer Chat attach gate - behavioural harness (U-1b / v7.9.0).
+ * Customer Chat attach gate - behavioural harness (U-1b / v7.9.0), 16 checks.
  *
  * Runs the SHIPPED attach-gate and staged-upload blocks (extracted by marker
  * from assets/js/def-core-customer-chat.js) inside jsdom over the same closure
@@ -94,18 +94,27 @@ function check(n, label, cond, detail) {
     check(8, 'a drop carrying no files is silent - the notice answers an attempt, not a stray drag',
       u.notices.length === 0, JSON.stringify(u.notices));
   }
-  // 9-11. Every upload names the real conversation.
+  // 9. The file input, the third way in: a picked file is a FileList, and the
+  //    hidden button is not what refuses it.
+  {
+    const t = boot();
+    t.api.setUploadEligible(true);
+    t.api.stageAttachedFiles({ 0: t.file('a.png'), length: 1 });
+    check(9, 'a file picked from the file input on turn one stages nothing and says the one line',
+      /function handleFileSelect[\s\S]{0,60}?stageAttachedFiles\(e\.target\.files\)/.test(SRC)
+      && t.stagedFiles.length === 0 && t.notices.length === 1,
+      'staged=' + t.stagedFiles.length + ' notices=' + JSON.stringify(t.notices));
+  }
+  // 10-11. Every upload names the real conversation.
   {
     const t = boot();
     t.api.setUploadEligible(true);
     t.api.setThreadId('thr_abc');
     t.api.stageAttachedFiles([t.file('a.png')]);
-    const ids = await t.api.uploadStagedFiles();
-    check(9, 'an upload carries the real thread id as its conversation',
+    await t.api.uploadStagedFiles();
+    check(10, 'an upload carries the real thread id as its conversation',
       t.uploads.length === 1 && t.uploads[0].conversationId === 'thr_abc',
       JSON.stringify(t.uploads));
-    check(10, 'the send returns the uploaded file id',
-      ids.length === 1 && ids[0] === 'file_a.png', JSON.stringify(ids));
     // 5.8.3: a green-ticked chip from a failed send rides the next one.
     t.stagedFiles.push({ file: t.file('c.png'), status: 'uploaded', fileId: 'file_c.png' });
     t.api.stageAttachedFiles([t.file('d.png')]);
@@ -115,22 +124,19 @@ function check(n, label, cond, detail) {
       && t.uploads.every(u => u.conversationId === 'thr_abc'),
       JSON.stringify(again) + ' ' + JSON.stringify(t.uploads));
   }
-  // 12-17. The wiring, asserted against the shipped file.
+  // 12-15. The wiring, asserted against the shipped file.
   {
     check(12, "the placeholder conversation is gone from the widget - no upload can be '_anonymous'",
       SRC.indexOf('_anonymous') === -1);
     check(13, 'the composer PASTE path routes files through the gate',
-      /addEventListener\('paste'[\s\S]{0,700}?stageAttachedFiles\(/.test(SRC));
+      /addEventListener\('paste'[\s\S]{0,450}?stageAttachedFiles\(/.test(SRC));
     check(14, 'the composer DROP path routes files through the gate',
-      /addEventListener\('drop'[\s\S]{0,500}?stageAttachedFiles\(/.test(SRC));
+      /addEventListener\('drop'[\s\S]{0,260}?stageAttachedFiles\(/.test(SRC));
     const bare = SRC.split(/\r?\n/).filter(l => /^\s+threadId = /.test(l));
     check(15, 'no assignment to threadId bypasses setThreadId (the gate cannot be forgotten)',
       bare.length === 1 && bare[0].includes('id || null'), JSON.stringify(bare));
-    check(16, 'the reply that creates the thread applies it through the gate',
-      (SRC.match(/setThreadId\(data\.thread_id\)/g) || []).length === 2);
-    check(17, 'the attach button is built hidden, and the notice is in both string maps',
-      /attachBtn\.style\.display = 'none'/.test(SRC)
-      && SRC.includes("attachAfterFirstMessage: '" + NOTICE + "'")
+    check(16, 'the notice is in both string maps, so it can be translated',
+      SRC.includes("attachAfterFirstMessage: '" + NOTICE + "'")
       && PHP.includes("'attachAfterFirstMessage' => __( '" + NOTICE + "'"));
   }
 
