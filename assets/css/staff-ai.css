@@ -2470,6 +2470,16 @@ html {
 	color: var(--text-heading);
 }
 
+/* The × that dismisses a pending "Finish connecting" link — understated beside it, thumb-sized. */
+.integration-btn-dismiss {
+	min-width: 28px;
+	min-height: 28px;
+	padding: 4px 8px;
+	font-size: 16px;
+	line-height: 1;
+	text-decoration: none;
+}
+
 /* Disconnect (C2). Understated — the user is usually on this row for another reason —
    but visibly destructive at rest, not only on hover: on touch there is no hover, and a
    control that ends access must never look like an ordinary link. Full weight on hover. */

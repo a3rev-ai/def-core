@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.8.8 - 2026/09/09 =
+* Fix - Staff AI Connections: the Finish connecting link now waits for you. Connecting an app opens a link you click to approve access in another tab - and switching to that tab and back was itself enough to make the link disappear, because coming back refreshes the list. The link now stays on its row until the app is actually connected, or until you dismiss it with the small x beside it, so a glance at the consent screen, a phone switching apps or an interrupted approval no longer sends you back to Connect to start again. Connecting a second mailbox on an app you already use behaves the same way. Returning from the approval tab still refreshes the list, so an app you did finish connecting shows Connected the moment you are back.
+
 = 7.8.7 - 2026/09/09 =
 * Feature - Voice, hands-free: say "stop" - or "Sue, stop", or "that's all" - and the conversation ends there. The employee stops answering, the microphone closes, and the words you used to end it are not put to the employee as a question. Typing beside your phone no longer keeps the microphone listening: a keystroke, a cup set down or a door closing is heard as the knock it is rather than as a word, so it no longer holds the turn open and your pause still sends. The same in the Staff AI console and in Customer Chat, wherever the employee's Voice is on. Site admins: the phrases that end a conversation are translatable.
 

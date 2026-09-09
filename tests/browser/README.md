@@ -40,6 +40,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-cc-uploads.js` | The Customer Chat attach gate (U-1b, v7.8.5): no upload before the conversation exists |
 | `harness-so3.js` | The `once` cadence on the Scheduled page (v7.8.6): the creator's date field and the card's two one-off badges |
 | `harness-voice.js` | Hands-free voice (v7.8.7): the speech detector against a fake microphone, and the spoken stop on both surfaces |
+| `harness-connections-consent.js` | Connections (v7.8.8): the pending Finish-connecting / Connect-another link survives the focus rebuild until the account connects, the row loses its picker, or the user dismisses it |
 
 ## Bite checks
 
@@ -56,6 +57,7 @@ STAFFSTREAM=/tmp/old-staff.js CCSTREAM=/tmp/old-cc.js node tests/browser/harness
 ATTACH_GATE=/tmp/old-gate.js  node tests/browser/harness-cc-uploads.js  # the attach gate
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-so3.js   # initScheduled
 VOICE_MODULE=/tmp/old-voice.js node tests/browser/harness-voice.js   # the shared recorder
+INTEGRATIONS=/tmp/old-integrations.js node tests/browser/harness-connections-consent.js   # initIntegrations
 ```
 
 The env var names match the extractor names in `extract.js`.

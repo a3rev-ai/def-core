@@ -3444,8 +3444,8 @@ function t(key, fallback) {
 		const askBtn = document.getElementById('connectionsAskAssistant');
 		let loading = false;
 		// True only while an authorize POST is in flight, so the window-focus re-check can't
-		// rebuild the list mid-connect — that would detach the row node and drop the "Finish
-		// connecting" link the user still needs. See connect() and the focus handler below.
+		// rebuild the list mid-connect — that would detach the very row node connect() is about
+		// to write the link into.
 		let posting = false;
 		// The page is showing. The OAuth round trip leaves and returns to this
 		// window, so the re-check below is armed by onEnter and DISARMED by
@@ -3453,6 +3453,51 @@ function t(key, fallback) {
 		// started here is a listener that would otherwise keep firing loads at a
 		// page nobody is looking at.
 		let pageOpen = false;
+
+		// The consent link as STATE, so a rebuild re-renders it instead of destroying it:
+		// `posting` goes false when the link is rendered, and the focus event that returns
+		// from the consent tab rebuilt the list and threw it away. Two exits, and only two —
+		// the reload finds the account connected, or the user dismisses it. Keyed kind:id,
+		// 'connect' for a row with no account yet, 'another' for a second account on one.
+		const pendingConsent = new Map();
+		function consentKey(kind, serverId) { return kind + ':' + String(serverId || ''); }
+		function getPending(kind, serverId) { return pendingConsent.get(consentKey(kind, serverId)) || null; }
+		function setPending(kind, serverId, url, seen) {
+			pendingConsent.set(consentKey(kind, serverId), { url: url, seen: seen || 0 });
+		}
+		function clearPending(kind, serverId) { pendingConsent.delete(consentKey(kind, serverId)); }
+		function pendingServerId(key) { return key.slice(key.indexOf(':') + 1); }
+
+		// The sentence that goes with the link, wanted in four places.
+		function awaitingText() {
+			return t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.');
+		}
+
+		// The link as connect() built it inline: https only, a new tab, noopener. Gated here
+		// too — a re-render is a second chance to render a bad URL — returning null if it fails.
+		function consentLink(url, kind, serverId) {
+			if (!/^https:\/\//i.test(url)) return null;
+			const frag = document.createDocumentFragment();
+			const link = document.createElement('a');
+			link.className = 'integration-btn integration-btn-primary';
+			link.href = url;
+			link.target = '_blank';
+			link.rel = 'noopener noreferrer';
+			link.textContent = t('integrationsFinish', 'Finish connecting →');
+			frag.appendChild(link);
+			const dismiss = document.createElement('button');
+			dismiss.type = 'button';
+			dismiss.className = 'integration-btn integration-btn-link integration-btn-dismiss';
+			dismiss.textContent = '×';
+			dismiss.title = t('integrationsFinishDismiss', 'Dismiss “Finish connecting”');
+			dismiss.setAttribute('aria-label', t('integrationsFinishDismiss', 'Dismiss “Finish connecting”'));
+			dismiss.addEventListener('click', function () {
+				clearPending(kind, serverId);
+				loadList();
+			});
+			frag.appendChild(dismiss);
+			return frag;
+		}
 
 		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
 		function prettyName(category, serverId) {
@@ -3485,6 +3530,15 @@ function t(key, fallback) {
 				}
 				setStatus('', '');
 				apps.forEach(function (app) { listEl.appendChild(renderRow(app)); });
+				// An app that is gone takes its pending link of EITHER kind with it: no row is
+				// left to carry one, and no × to dismiss it.
+				const live = apps.map(function (app) { return String(app.server_id || ''); });
+				pendingConsent.forEach(function (v, k) {
+					if (live.indexOf(pendingServerId(k)) < 0) pendingConsent.delete(k);
+				});
+				// Restore the sentence with the link. Synchronously, not from the picker's async
+				// pass: disconnect() and setPrimary() speak their outcome after awaiting this.
+				if (pendingConsent.size) setStatus(awaitingText(), 'muted');
 				// Slice 4-A (v6.6.0): decorate the mail rows with the chat
 				// primary picker. Fire-and-forget - a failed read renders no
 				// picker and costs nothing else.
@@ -3519,6 +3573,17 @@ function t(key, fallback) {
 				row.appendChild(renderPrimaryPicker(toolkit, byToolkit[toolkit],
 					row.dataset.serverId || ''));
 			});
+			// A row whose LAST account was disconnected gets no picker, so its pending
+			// Connect-another link has nowhere to render and no × to dismiss it — and the
+			// sweep in loadList cannot see it, because the app itself is still live. Only
+			// reached on a successful read, so a failed fetch reclaims nothing.
+			pendingConsent.forEach(function (v, k) {
+				if (k.indexOf('another:') !== 0) return;
+				var row = listEl.querySelector(
+					'.integration-row[data-server-id="' + CSS.escape(pendingServerId(k)) + '"]');
+				if (!row || !row.querySelector('.integration-primary')) pendingConsent.delete(k);
+			});
+			if (!pendingConsent.size && statusEl.textContent === awaitingText()) setStatus('', '');
 		}
 
 		function renderPrimaryPicker(toolkit, accounts, serverId) {
@@ -3569,23 +3634,39 @@ function t(key, fallback) {
 			// Slice 4-B: connect a SECOND account on this mail app. The sign-in
 			// window that opens is where you choose which account - sign in as it.
 			if (serverId) {
-				var another = document.createElement('button');
-				another.type = 'button';
-				another.className = 'integration-btn integration-btn-link';
-				another.textContent = t('accountConnectAnother', 'Connect another account');
-				another.addEventListener('click', function () {
-					connectAnother(serverId, another);
-				});
-				wrap.appendChild(another);
+				// The app was already authorized before the gesture, so "connected" here means
+				// the account list grew past what it held when the link was minted.
+				var waiting = getPending('another', serverId);
+				if (waiting && accounts.length > waiting.seen) {
+					clearPending('another', serverId);
+					waiting = null;
+					// Only if it is still the thing on screen — an outcome from disconnect() or
+					// setPrimary() is not ours to blank.
+					if (!pendingConsent.size && statusEl.textContent === awaitingText()) setStatus('', '');
+				}
+				var carried = waiting ? consentLink(waiting.url, 'another', serverId) : null;
+				if (carried) {
+					wrap.appendChild(carried);
+				} else {
+					var another = document.createElement('button');
+					another.type = 'button';
+					another.className = 'integration-btn integration-btn-link';
+					another.textContent = t('accountConnectAnother', 'Connect another account');
+					another.addEventListener('click', function () {
+						connectAnother(serverId, another, accounts.length);
+					});
+					wrap.appendChild(another);
+				}
 			}
 			return wrap;
 		}
 
-		async function connectAnother(serverId, btn) {
+		async function connectAnother(serverId, btn, seen) {
 			// Mirrors connect(): mint the consent link, render it as an explicit
 			// click (a real user gesture - popup blockers), finish in the new
 			// tab; the window-focus handler re-checks on return. The link mints
 			// even though an account is connected - that is the whole gesture.
+			// `seen` is this toolkit's account count when the gesture began.
 			btn.disabled = true;
 			setStatus(t('integrationsStarting', 'Starting the connection…'), 'muted');
 			posting = true;
@@ -3593,15 +3674,11 @@ function t(key, fallback) {
 				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/connect-another', { method: 'POST' });
 				posting = false;
 				const url = (typeof res.redirect_url === 'string') ? res.redirect_url : '';
-				if (/^https:\/\//i.test(url)) {
-					const link = document.createElement('a');
-					link.className = 'integration-btn integration-btn-primary';
-					link.href = url;
-					link.target = '_blank';
-					link.rel = 'noopener noreferrer';
-					link.textContent = t('integrationsFinish', 'Finish connecting →');
+				const link = /^https:\/\//i.test(url) ? consentLink(url, 'another', serverId) : null;
+				if (link) {
+					setPending('another', serverId, url, seen);
 					btn.replaceWith(link);
-					setStatus(t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.'), 'muted');
+					setStatus(awaitingText(), 'muted');
 				} else {
 					btn.disabled = false;
 					setStatus(t('integrationsNoLink', 'Could not start the connection. Please try again.'), 'error');
@@ -3747,6 +3824,21 @@ function t(key, fallback) {
 				action.appendChild(dis);
 			}
 
+			// Connected retires the link; otherwise it goes back where connect() put it —
+			// alone in the action cell.
+			const pending = getPending('connect', app.server_id);
+			if (pending) {
+				if (app.authorized || app.no_auth) {
+					clearPending('connect', app.server_id);
+				} else {
+					const carried = consentLink(pending.url, 'connect', app.server_id);
+					if (carried) {
+						action.innerHTML = '';
+						action.appendChild(carried);
+					}
+				}
+			}
+
 			row.appendChild(action);
 			return row;
 		}
@@ -3800,23 +3892,19 @@ function t(key, fallback) {
 				const res = await apiRequest('/user/integrations/' + encodeURIComponent(serverId) + '/authorize', { method: 'POST' });
 				posting = false;
 				if (res.status === 'authorized') {
+					clearPending('connect', serverId);
 					loadList();  // already linked — the rebuilt row shows the Connected badge
 					return;
 				}
 				const url = (typeof res.redirect_url === 'string') ? res.redirect_url : '';
-				if (/^https:\/\//i.test(url)) {
+				const link = /^https:\/\//i.test(url) ? consentLink(url, 'connect', serverId) : null;
+				if (link) {
 					// Render the consent URL as an explicit link the user clicks (a real user
-					// gesture — avoids popup blockers). DEF already host-checked it. They finish
-					// in the new tab; the window-focus handler re-checks status on return.
+					// gesture — avoids popup blockers). DEF already host-checked it.
+					setPending('connect', serverId, url);
 					action.innerHTML = '';
-					const link = document.createElement('a');
-					link.className = 'integration-btn integration-btn-primary';
-					link.href = url;
-					link.target = '_blank';
-					link.rel = 'noopener noreferrer';
-					link.textContent = t('integrationsFinish', 'Finish connecting →');
 					action.appendChild(link);
-					setStatus(t('integrationsAwaiting', 'Click “Finish connecting”, approve access in the new tab, then return here — I’ll refresh automatically.'), 'muted');
+					setStatus(awaitingText(), 'muted');
 				} else {
 					buttons.forEach(function (b) { b.disabled = false; });
 					setStatus(t('integrationsNoLink', 'Could not start the connection. Please try again.'), 'error');
@@ -3861,7 +3949,8 @@ function t(key, fallback) {
 
 		// Re-check status when the user returns from the OAuth consent tab (page open only).
 		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
-		// connect() call is about to populate with the "Finish connecting" link.
+		// connect() call is about to populate with the "Finish connecting" link. The rebuild
+		// after that is wanted: pendingConsent is what makes it safe.
 		window.addEventListener('focus', function () {
 			if (pageOpen && !loading && !posting) loadList();
 		});
