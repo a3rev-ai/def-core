@@ -13,6 +13,10 @@
  * lived or at the staging sinks those sites feed. (Site-pinning cannot
  * cover every conceivable new site — the caps gates own the class.)
  *
+ * 7.8.5 (U-1b): the customer picker/paste/drop loop moved into the shared
+ * `stageAttachedFiles`, so the picker anchor moved with it. The one refusal
+ * that path may carry is the missing thread, and it says so out loud.
+ *
  * Runs standalone (no WordPress bootstrap) — JS and template pins are source
  * scans, the instrument available to this suite for browser-side code.
  *
@@ -90,10 +94,17 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
-		'/function handleFileSelect\(e\)\s*\{\s*\n\s*var files = e\.target\.files;\s*\n\s*if \(!files \|\| files\.length === 0\) return;\s*\n\s*\n\s*for \(var i = 0; i < files\.length; i\+\+\) \{\s*\n\s*stageFile\(files\[i\]\);/',
+		'/function handleFileSelect\(e\) \{\s*\n\s*stageAttachedFiles\(e\.target\.files\);\s*\n\s*\}/',
 		$customer_js
 	),
-	'block anchor: handleFileSelect stages EVERY selected file — no silent break in the loop'
+	'block anchor: handleFileSelect hands the WHOLE FileList to the shared staging path — no count gate of its own'
+);
+assert_test(
+	1 === preg_match(
+		'/function stageAttachedFiles\(files\) \{\s*\n\s*if \(!files \|\| !files\.length\) return;\s*\n\s*if \(!threadId\) \{[\s\S]{0,200}?\}\s*\n\s*for \(var i = 0; i < files\.length; i\+\+\) \{\s*\n\s*stageFile\(files\[i\]\);/',
+		$customer_js
+	),
+	'block anchor: stageAttachedFiles refuses only the missing thread (U-1b, out loud) then stages EVERY file — no silent count break'
 );
 assert_test(
 	1 === preg_match(

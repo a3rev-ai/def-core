@@ -1,4 +1,4 @@
-# Browser harnesses — the console's page shell
+# Browser harnesses — the console's page shell, and the Customer Chat widget
 
 These are the D-C5 checks from `docs/staff-ai-console-pages-runsheet.md` (DEF repo),
 kept in the repo so the numbers a PR reports can be re-run by anyone (`harness-v-s7b.js`
@@ -37,6 +37,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
 | `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
 | `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
+| `harness-cc-uploads.js` | The Customer Chat attach gate (U-1b, v7.8.5): no upload before the conversation exists |
 | `harness-so3.js` | The `once` cadence on the Scheduled page (v7.8.6): the creator's date field and the card's two one-off badges |
 
 ## Bite checks
@@ -51,6 +52,7 @@ BLOCK=/tmp/old-shell.js       node tests/browser/harness-c1.js   # the page shel
 PROJECTS=/tmp/old-projects.js node tests/browser/harness-c2.js   # initProjects
 MEMORIES=… USAGE=… INTEGRATIONS=… node tests/browser/harness-c3.js
 STAFFSTREAM=/tmp/old-staff.js CCSTREAM=/tmp/old-cc.js node tests/browser/harness-v-s7b.js
+ATTACH_GATE=/tmp/old-gate.js  node tests/browser/harness-cc-uploads.js  # the attach gate
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-so3.js   # initScheduled
 ```
 

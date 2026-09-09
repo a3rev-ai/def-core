@@ -1,6 +1,7 @@
 /*
- * Pull a block out of the SHIPPED assets/js/staff-ai.js by marker, so a harness
- * exercises the real code text rather than a copy that can drift.
+ * Pull a block out of a SHIPPED widget script (assets/js/staff-ai.js, or the
+ * customer-chat widget) by marker, so a harness exercises the real code text
+ * rather than a copy that can drift.
  *
  * The console's JS is one long IIFE over a shared closure — it cannot be
  * `require`d, and there is no build step to hook. Slicing the file by the
@@ -12,7 +13,7 @@
  * a function out of the block is a hard error here and not a silent pass.
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
- * INTEGRATIONS, SCHEDULED) naming a file
+ * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED) naming a file
  * to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
@@ -116,6 +117,32 @@ function scheduled() {
 		'SCHEDULED');
 }
 
+// ── Customer Chat (U-1b) ────────────────────────────────────────────────
+
+// The attach gate: the control's visibility, the thread setter every
+// assignment goes through, and the drop/paste path that has no button to hide.
+function attachGate() {
+	return slice('attach gate',
+		l => l.includes('── The attach gate (U-1b)'),
+		l => l.includes('── end attach gate'),
+		['function setUploadEligible', 'function setThreadId',
+			'function refreshAttachControl', 'function stageAttachedFiles'],
+		'ATTACH_GATE', CC_PATH);
+}
+
+// The staged-upload path, which is what actually names the conversation.
+function uploadStaged() {
+	return slice('uploadStagedFiles',
+		l => l.startsWith('\tfunction uploadStagedFiles() {'),
+		l => l.includes('// Server copy renders ONLY for known-safe refusal codes'),
+		['function uploadedFileIds', 'uploadSingleFile('],
+		'UPLOAD_STAGED', CC_PATH);
+}
+
+function customerChatSource() {
+	return fs.readFileSync(CC_PATH, 'utf8');
+}
+
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
 // A harness that hand-writes its own copy of a <section> tests the copy: the
 // page can be renamed, lose an id, change a description or take the wrong
@@ -196,4 +223,5 @@ function templateModal(id) {
 
 module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
 	usage, integrations, staffAiStream, customerChatStream, scheduled,
+	attachGate, uploadStaged, customerChatSource,
 	templateSource, templatePage, templateNav, templateModal };
