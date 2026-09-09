@@ -3427,8 +3427,7 @@ final class DEF_Core_Staff_AI
 			'enabled'           => ! empty( $row['enabled'] ),
 			'cadence'           => $cadence,
 			'send_weekday'      => $weekday,
-			// Row 9 (§14j): the date a `once` task runs, KEPT after it has run
-			// (the row reads `manual` from then on) so the card can say when.
+			// Row 9 (§14j): the date a `once` runs, KEPT after it has run.
 			'send_date_local'   => self::iso_date( $row['send_date_local'] ?? null ),
 			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
@@ -3514,11 +3513,9 @@ final class DEF_Core_Staff_AI
 			|| ! in_array( $cadence, array( 'manual', 'hourly', 'daily', 'weekdays', 'weekly', 'once' ), true ) ) {
 			$problems[] = __( 'The frequency must be one of: manual, hourly, daily, weekdays, weekly, once.', 'digital-employees' );
 		}
-		// Row 9 (§14j), mirroring DEF's door: `once` runs at ONE date, with the
-		// time and zone every cadence already uses. A repeat cadence carrying a
-		// date is refused rather than coerced; `manual` may carry one, because
-		// that is what a `once` becomes after it has run. Whether the datetime
-		// is still in the future is DEF's call - one clock, not two.
+		// Row 9 (§14j), mirroring DEF's door. Whether the datetime is still in
+		// the FUTURE stays DEF's call - one clock, not two - and its refusal
+		// reaches the user through task_save_error().
 		$raw_date  = ( is_string( $send_date ) && '' !== $send_date ) ? $send_date : null;
 		$send_date = self::iso_date( $raw_date );
 		if ( null !== $raw_date && null === $send_date ) {
@@ -3633,6 +3630,29 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * A task save's refusal in plain copy - DEF's own words when it has them.
+	 *
+	 * @param \WP_Error $result The proxied error.
+	 * @return \WP_Error Plain-sentence error.
+	 */
+	private static function task_save_error( \WP_Error $result ): \WP_Error
+	{
+		// DEF's 422 is the user's own mistake, named: "a once task must be
+		// scheduled in the future" is permanent and fixable, and the generic
+		// fallback below tells them to try again in a moment - a retry prompt
+		// for something no retry mends. The message rides inside
+		// backend_request's wrapped error string (the triage_save_error
+		// precedent); every other code keeps the fallback.
+		$fallback = __( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' );
+		if ( 'staff_ai_http_422' === $result->get_error_code()
+			&& preg_match( '/\(HTTP 422\): (.+)$/s', (string) $result->get_error_message(), $m )
+			&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
+			$fallback = trim( $m[1] );
+		}
+		return self::plain_backend_error( $result, $fallback );
+	}
+
+	/**
 	 * REST handler: create one free-text task for the current user.
 	 *
 	 * Proxies DEF POST /api/staff-ai/tasks. Ownership - and the delivery
@@ -3650,10 +3670,7 @@ final class DEF_Core_Staff_AI
 		}
 		$result = self::backend_request( 'POST', '/api/staff-ai/tasks', $payload );
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
-				$result,
-				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
-			);
+			return self::task_save_error( $result );
 		}
 		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
 		return new \WP_REST_Response(
@@ -3686,10 +3703,7 @@ final class DEF_Core_Staff_AI
 			$payload
 		);
 		if ( is_wp_error( $result ) ) {
-			return self::plain_backend_error(
-				$result,
-				__( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' )
-			);
+			return self::task_save_error( $result );
 		}
 		$row = ( isset( $result['task'] ) && is_array( $result['task'] ) ) ? $result['task'] : array();
 		return new \WP_REST_Response(

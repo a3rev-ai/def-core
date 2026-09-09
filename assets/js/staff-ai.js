@@ -5362,6 +5362,7 @@ function t(key, fallback) {
 		var tasks = [];              // the user's free-text tasks
 		var editingTaskId = null;    // task id under edit, null = creating
 		var editingTaskDate = '';    // its stored one-off date (row 9), '' = none
+		var editingTaskRanOnce = false;  // ...and whether that date is a RUN it did
 		// Which chat apps the user has actually CONNECTED (has_grant per
 		// toolkit, the D-C2b predicate). The "Deliver to" list is DERIVED from
 		// this rather than enumerated (runsheet §14b): a checkbox for an app
@@ -5376,6 +5377,11 @@ function t(key, fallback) {
 		}
 
 		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
+
+		function todayLocal() {
+			var d = new Date();
+			return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+		}
 
 		function fillTimezones(selectEl, selected) {
 			var zones = [];
@@ -5460,6 +5466,15 @@ function t(key, fallback) {
 				[], { weekday: 'long', timeZone: 'UTC' });
 		}
 
+		function hasRunOnce(row) {
+			// The stamp is a TRIO, not a date: DEF flips a FIRED one-off to
+			// `manual` and keeps its date, and the run is what put it there. A
+			// pending once a user switches to Manual by hand is manual with a
+			// date and NO run - and DEF keeps a manual's stored date on an
+			// absent key, so the date alone would claim a run that never was.
+			return row.cadence === 'manual' && !!row.send_date_local && !!row.last_run;
+		}
+
 		function onceDate(s) {
 			// The stored date is a plain YYYY-MM-DD in the task's OWN zone. Split
 			// into parts rather than handed to Date(string), which reads an ISO
@@ -5475,7 +5490,7 @@ function t(key, fallback) {
 			switch (s.cadence) {
 				// Row 9 (§14j): a fired one-off is `manual` and KEEPS its date, so
 				// the badge stops claiming a schedule and states what it did.
-				case 'manual': return s.send_date_local
+				case 'manual': return hasRunOnce(s)
 					? t('taskRanOnceAt', 'Ran once at %1$s %2$s')
 						.replace('%1$s', onceDate(s)).replace('%2$s', cadenceTime(s))
 					: t('taskManualOnly', 'Runs when you press Run now');
@@ -5770,15 +5785,23 @@ function t(key, fallback) {
 			if (taskWeekdayRow) taskWeekdayRow.style.display = cadence === 'weekly' ? '' : 'none';
 			if (taskTimeRow) taskTimeRow.style.display = cadence === 'manual' ? 'none' : '';
 			if (taskTzRow) taskTzRow.style.display = cadence === 'manual' ? 'none' : '';
-			// Row 9: Once picks its date here. A task that has already run is
-			// `manual` carrying that date - shown, read-only, as the fact it is;
-			// editing it into a second fire is not a thing a one-off does.
-			var ranOnce = cadence === 'manual' && !!editingTaskDate;
+			// Row 9: Once picks its date; a task that HAS RUN shows the same field
+			// read-only, as the fact it is - editing it into a second fire is not
+			// a thing a one-off does. Read from the loaded task, never from the
+			// select: choosing Manual on a PENDING once is a downgrade, not a run.
+			var ranOnce = cadence === 'manual' && editingTaskRanOnce;
 			if (taskDateRow) taskDateRow.style.display = (cadence === 'once' || ranOnce) ? '' : 'none';
 			if (taskDateEl) taskDateEl.readOnly = ranOnce;
 			if (taskDateLabel) taskDateLabel.textContent = ranOnce
 				? t('taskRanOnceLabel', 'Ran once at')
 				: t('taskDateLabel', 'Date');
+			// DEF refuses a one-off in the past, so the picker does not offer one.
+			// Today in the READER's zone - the clock the date is written in - and
+			// set here, not in the template, which a CDN can serve for a year.
+			// No floor on the read-only stamp: a date that ran is past by nature.
+			if (taskDateEl) {
+				if (ranOnce) { taskDateEl.removeAttribute('min'); } else { taskDateEl.min = todayLocal(); }
+			}
 			// The toggle stays VISIBLE for Manual (hiding it would trap an
 			// already-disabled task), but "on its schedule" would be a false
 			// label - and unticking it silently removes Run now (D-S6).
@@ -5804,9 +5827,10 @@ function t(key, fallback) {
 			instructionEl.value = task ? (task.instruction || '') : '';
 			taskEnabledEl.checked = task ? !!task.enabled : true;
 			if (taskCadenceEl) taskCadenceEl.value = (task && task.cadence) || 'daily';
-			// Before applyCadenceRows below: the stored date decides whether the
-			// date row shows at all, and under which label.
+			// Before applyCadenceRows below: these two decide whether the date row
+			// shows at all, and under which label.
 			editingTaskDate = (task && task.send_date_local) || '';
+			editingTaskRanOnce = !!task && hasRunOnce(task);
 			if (taskDateEl) taskDateEl.value = editingTaskDate;
 			if (taskModelEl) {
 				var wantModel = (task && task.model) || '';
@@ -6037,8 +6061,9 @@ function t(key, fallback) {
 			if (!instruction) { setStatus(taskStatusEl, t('taskNeedInstruction', 'Tell Staff AI what the task should do.'), 'error'); return; }
 			var dests = Object.keys(taskDestEls).filter(function (k) { return taskDestEls[k] && taskDestEls[k].checked; });
 			if (!dests.length) { setStatus(taskStatusEl, t('scheduleNeedDestination', 'Pick at least one destination for your digest.'), 'error'); return; }
-			var parts = (taskTimeEl.value || '07:00').split(':');
 			var cadence = (taskCadenceEl && taskCadenceEl.value) || 'daily';
+			if (cadence === 'once' && !(taskDateEl && taskDateEl.value)) { setStatus(taskStatusEl, t('taskNeedDate', 'Pick the date this task runs.'), 'error'); return; }
+			var parts = (taskTimeEl.value || '07:00').split(':');
 			// FULL-REPLACE contract, same as the triage form: always the complete
 			// object - a partial body has documented defaults DEF-side.
 			var payload = {
@@ -6055,12 +6080,9 @@ function t(key, fallback) {
 				// P-C: '' = no project (DEF stores NULL). Full-replace, like the rest.
 				project_id: (taskProjectEl && taskProjectEl.value) || null
 			};
-			// Row 9, the one field that is NOT full-replace: Once carries its
-			// date, a fired one-off sends its kept date back (belt and braces -
-			// DEF keeps it either way), and a repeat cadence sends none, which is
-			// how DEF is told to clear it. Switching away from a one-off means
-			// the date is gone, and the backend refuses a repeat that carries one.
-			if (cadence === 'once') payload.send_date_local = (taskDateEl && taskDateEl.value) || '';
+			// Row 9, the one field that is NOT full-replace: sending none is how
+			// DEF is told to clear the date, which is what a repeat means.
+			if (cadence === 'once') payload.send_date_local = taskDateEl.value;
 			else if (cadence === 'manual' && editingTaskDate) payload.send_date_local = editingTaskDate;
 			saveBtn.disabled = true;
 			setStatus(taskStatusEl, t('scheduleSaving', 'Saving…'));

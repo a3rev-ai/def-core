@@ -10,7 +10,7 @@
  * renders the day BEFORE for exactly these readers. Under TZ=UTC or Brisbane
  * that bug is invisible.
  *
- * 12 checks.
+ * 17 checks.
  */
 process.env.TZ = 'America/New_York';
 const { JSDOM } = require('jsdom');
@@ -29,8 +29,14 @@ const EXPECTED_DATE = new Date(2026, 11, 24).toLocaleDateString();
 
 const ONCE = { id: 't-once', name: 'Christmas eve note', instruction: 'Write it', enabled: true,
 	cadence: 'once', send_date_local: '2026-12-24', send_weekday: 0, send_hour_local: 9,
-	send_minute_local: 30, timezone: 'Australia/Brisbane', destinations: ['email'], model: '' };
-const RAN = Object.assign({}, ONCE, { id: 't-ran', name: 'Went off already', cadence: 'manual' });
+	send_minute_local: 30, timezone: 'Australia/Brisbane', destinations: ['email'], model: '',
+	last_run: null };
+// What DEF stores after the one-off FIRES: manual, the date kept, and a run.
+const RAN = Object.assign({}, ONCE, { id: 't-ran', name: 'Went off already', cadence: 'manual',
+	last_run: { status: 'succeeded', at: '2026-12-24T09:30:00+10:00' } });
+// ...and what it stores when a user merely DOWNGRADES a pending one by hand:
+// manual, the date kept (DEF cannot be told to drop it), and no run at all.
+const SWITCHED = Object.assign({}, ONCE, { id: 't-switched', name: 'Downgraded', cadence: 'manual' });
 const PLAIN = Object.assign({}, ONCE, { id: 't-plain', name: 'By hand', cadence: 'manual',
 	send_date_local: null });
 
@@ -39,10 +45,12 @@ function boot(tasks) {
 	const window = dom.window, document = window.document;
 	const requests = [];
 	const consolePages = [];
+	// Mutable, so a check can put back the row DEF would have STORED and reload.
+	const rows = (tasks || []).slice();
 	async function apiRequest(url, init) {
 		const method = (init && init.method) || 'GET';
 		requests.push({ url: url, method: method, body: init && init.body });
-		if (/^\/tasks$/.test(url)) return { tasks: tasks || [] };
+		if (/^\/tasks$/.test(url)) return { tasks: rows };
 		if (/^\/triage-schedules/.test(url)) return { schedules: [] };
 		if (/^\/projects/.test(url)) return { projects: [] };
 		if (/^\/user\/integrations$/.test(url)) return { apps: [] };
@@ -52,6 +60,7 @@ function boot(tasks) {
 	const outer = [window, document, consolePages,
 		function (key, def) { return def; },          // t
 		apiRequest, '/wp-json/def/v1/staff-ai',       // apiBase
+		'you@example.test',                           // userEmail
 		'Sue',                                        // assistantName
 		function (fn) { fn(); },                      // onAssistantName
 		function () {},                               // clearActiveProject
@@ -60,12 +69,12 @@ function boot(tasks) {
 		function () {},                               // updateSendButton
 		function () {}];                              // sendMessage
 	const names = ['window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase',
-		'assistantName', 'onAssistantName', 'clearActiveProject', 'resetToNewChat',
+		'userEmail', 'assistantName', 'onAssistantName', 'clearActiveProject', 'resetToNewChat',
 		'composerInput', 'updateSendButton', 'sendMessage'];
 	new window.Function(...names, SCHEDULED)(...outer);
 	const $ = (id) => document.getElementById(id);
 	return {
-		window, document, requests, $,
+		window, document, requests, rows, $,
 		load: () => consolePages[0].onEnter(),
 		cards: () => Array.prototype.slice.call(document.querySelectorAll('.task-card')),
 		badge: (i) => document.querySelectorAll('.task-card')[i].querySelector('.task-badge').textContent,
@@ -110,6 +119,20 @@ function check(label, ok, detail) {
 			&& !t.shown('taskWeekdayRow') && t.$('taskDate').readOnly === false,
 			'date=' + t.shown('taskDateRow') + ' weekday=' + t.shown('taskWeekdayRow'));
 
+		const today = new Date();
+		const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0')
+			+ '-' + String(today.getDate()).padStart(2, '0');
+		check('the picker will not offer a date DEF would refuse — its floor is today, in the reader\'s zone',
+			t.$('taskDate').getAttribute('min') === iso, 'min=' + t.$('taskDate').getAttribute('min'));
+
+		t.$('taskName').value = 'Christmas eve note';
+		t.$('taskInstruction').value = 'Write it';
+		t.click(t.$('scheduleSave'));
+		await tick(t.window);
+		check('Once with the date left empty is refused here, and nothing is sent',
+			t.$('taskStatus').textContent === 'Pick the date this task runs.'
+			&& t.sentTask() === null, t.$('taskStatus').textContent);
+
 		t.$('taskCadence').value = 'weekly';
 		t.change(t.$('taskCadence'));
 		check('switching back to a repeat takes the date field away again',
@@ -118,8 +141,6 @@ function check(label, ok, detail) {
 		// Create one: the picked date rides the body under the cadence.
 		t.$('taskCadence').value = 'once';
 		t.change(t.$('taskCadence'));
-		t.$('taskName').value = 'Christmas eve note';
-		t.$('taskInstruction').value = 'Write it';
 		t.$('taskDate').value = '2026-12-24';
 		t.click(t.$('scheduleSave'));
 		await tick(t.window);
@@ -131,10 +152,10 @@ function check(label, ok, detail) {
 
 	// ── The card says which of the two it is ───────────────────────────────
 	{
-		const t = boot([ONCE, RAN, PLAIN]);
+		const t = boot([ONCE, RAN, PLAIN, SWITCHED]);
 		await t.load();
 		await tick(t.window);
-		check('three cards render', t.cards().length === 3, 'cards=' + t.cards().length);
+		check('four cards render', t.cards().length === 4, 'cards=' + t.cards().length);
 		check('a PENDING once reads "Once on <date> at <time> (<zone>)", in the reader\'s own date format',
 			t.badge(0).indexOf('Once on ' + EXPECTED_DATE + ' at ') === 0
 			&& t.badge(0).indexOf('(Australia/Brisbane)') !== -1,
@@ -143,6 +164,8 @@ function check(label, ok, detail) {
 			t.badge(1).indexOf('Ran once at ' + EXPECTED_DATE + ' ') === 0, t.badge(1));
 		check('a manual task with NO date reads exactly as it always did',
 			t.badge(2) === 'Runs when you press Run now', t.badge(2));
+		check('a once DOWNGRADED to Manual by hand — a kept date, but no run — claims no run',
+			t.badge(3) === 'Runs when you press Run now', t.badge(3));
 	}
 
 	// ── Editing a fired once ───────────────────────────────────────────────
@@ -177,6 +200,27 @@ function check(label, ok, detail) {
 		const sent = t.sentTask();
 		check('switching it to a repeat sends NO date — which is how DEF is told to clear it',
 			sent.cadence === 'weekly' && !('send_date_local' in sent), JSON.stringify(sent));
+	}
+
+	// ── A PENDING once downgraded to Manual is not a task that ran ─────────
+	{
+		const t = boot([ONCE]);
+		await t.load();
+		await tick(t.window);
+		t.click(t.cards()[0].querySelector('.task-card-icon[title="Edit"]'));
+		await tick(t.window);
+		t.$('taskCadence').value = 'manual';
+		t.change(t.$('taskCadence'));
+		check('picking Manual on a PENDING once stamps nothing — the date row stays shut',
+			!t.shown('taskDateRow'), 'label=' + t.$('taskDateLabel').textContent);
+		t.click(t.$('scheduleSave'));
+		await tick(t.window);
+		// What DEF stores for that save: manual, the date kept, still no run.
+		t.rows[0] = SWITCHED;
+		await t.load();
+		await tick(t.window);
+		check('and its card says Run now, never "Ran once at" a date it has not reached',
+			t.badge(0) === 'Runs when you press Run now', t.badge(0));
 	}
 
 	console.log('S-O3 — the once cadence on the Scheduled page');

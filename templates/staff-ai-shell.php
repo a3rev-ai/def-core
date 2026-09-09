@@ -707,9 +707,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<option value="6"><?php echo esc_html__( 'Sunday', 'digital-employees' ); ?></option>
 							</select>
 						</div>
-						<!-- Row 9 (§14j): the ONE date a `once` task runs. Shown for Once,
-						     and again read-only once it has run - a fired one-off is
-						     `manual` and keeps its date as the "Ran once at" fact. -->
+						<!-- Row 9 (§14j): the ONE date a `once` task runs. The JS shows it,
+						     floors it at today and turns it read-only once it has run. -->
 						<div class="form-group" id="taskDateRow" style="display:none;">
 							<label class="form-label" for="taskDate" id="taskDateLabel"><?php echo esc_html__( 'Date', 'digital-employees' ); ?></label>
 							<input type="date" class="form-input" id="taskDate">
@@ -944,6 +943,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			/* translators: %1$s is a date, %2$s is a time of day */
 			taskRanOnceAt: <?php echo wp_json_encode( __( 'Ran once at %1$s %2$s', 'digital-employees' ) ); ?>,
 			taskHintOnce: <?php echo wp_json_encode( __( 'Runs once, at the date and time you choose, and then stops.', 'digital-employees' ) ); ?>,
+			taskNeedDate: <?php echo wp_json_encode( __( 'Pick the date this task runs.', 'digital-employees' ) ); ?>,
 			taskDateLabel: <?php echo wp_json_encode( __( 'Date', 'digital-employees' ) ); ?>,
 			taskRanOnceLabel: <?php echo wp_json_encode( __( 'Ran once at', 'digital-employees' ) ); ?>,
 			taskHintManual: <?php echo wp_json_encode( __( 'This task never runs on a schedule. Use its Run now button whenever you want it.', 'digital-employees' ) ); ?>,

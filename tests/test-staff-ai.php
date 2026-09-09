@@ -1937,7 +1937,7 @@ $GLOBALS['_def_test_get_code'] = 200;
 // and so a mistake reads as one plain sentence instead of a proxied 422.
 echo "\n[TS-20] the once cadence: the date rides the body, and the shapes DEF refuses\n";
 
-function def_test_task_body( array $over ) {
+function def_test_task_body( array $over, ?int $code = null, string $detail = '' ) {
 	$req  = new WP_REST_Request( 'POST', '/staff-ai/tasks' );
 	$base = array(
 		'name'              => 'Reminder',
@@ -1954,18 +1954,20 @@ function def_test_task_body( array $over ) {
 		$req->set_param( $key, $value );
 	}
 	$GLOBALS['_def_test_last_request'] = array();
-	$GLOBALS['_def_test_request_body'] = json_encode( array(
-		'success' => true,
-		'task'    => array( 'id' => 't1', 'cadence' => 'once', 'send_date_local' => '2026-12-24' ),
-	) );
+	$GLOBALS['_def_test_request_code'] = $code ?? 200;
+	$GLOBALS['_def_test_request_body'] = ( null === $code )
+		? json_encode( array(
+			'success' => true,
+			'task'    => array( 'id' => 't1', 'cadence' => 'once', 'send_date_local' => '2026-12-24' ),
+		) )
+		: json_encode( array( 'detail' => $detail ) );
 	$resp = DEF_Core_Staff_AI::rest_create_task( $req );
-	unset( $GLOBALS['_def_test_request_body'] );
+	unset( $GLOBALS['_def_test_request_body'], $GLOBALS['_def_test_request_code'] );
 	return array( $resp, json_decode( $GLOBALS['_def_test_last_request']['body'] ?? 'null', true ) );
 }
 
 list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'once', 'send_date_local' => '2026-12-24' ) );
-assert_true( ! is_wp_error( $resp ), 'once with a date is accepted' );
-assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'the date rides the body to DEF' );
+assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'once with a date is accepted, and the date rides the body to DEF' );
 assert_equals( 'once', ( is_object( $resp ) ? $resp->get_data()['task']['cadence'] : '' ), 'once survives the allowlist' );
 assert_equals( '2026-12-24', ( is_object( $resp ) ? $resp->get_data()['task']['send_date_local'] : '' ), 'so does the date the card renders' );
 
@@ -1980,14 +1982,28 @@ assert_true( is_wp_error( $resp ), 'a repeating cadence carrying a date is refus
 
 // A fired one-off IS `manual` carrying its date - the pairing must pass.
 list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'manual', 'send_date_local' => '2026-12-24' ) );
-assert_true( ! is_wp_error( $resp ), 'manual may carry the date of the run it already did' );
-assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'and sends it back, so a rename cannot wipe the stamp' );
+assert_equals( '2026-12-24', $sent['send_date_local'] ?? '', 'manual may carry the date of the run it did, and sends it back, so a rename cannot wipe the stamp' );
 
 // ABSENT, never null: DEF keeps a manual task's stored date only when the key
 // is missing, and clears it for every other cadence. Both rules need this.
 list( $resp, $sent ) = def_test_task_body( array( 'cadence' => 'weekly' ) );
 assert_true( ! is_wp_error( $resp ), 'a repeating cadence with no date is untouched by row 9' );
 assert_true( ! array_key_exists( 'send_date_local', $sent ), 'no date supplied = the key is absent, not null' );
+
+// DEF's own 422 is the user's mistake NAMED - "in the future" is permanent and
+// fixable, and the generic fallback would tell them to try again in a moment.
+$once = array( 'cadence' => 'once', 'send_date_local' => '2026-12-24' );
+list( $resp ) = def_test_task_body( $once, 422, 'a once task must be scheduled in the future' );
+assert_equals(
+	'a once task must be scheduled in the future',
+	is_wp_error( $resp ) ? $resp->get_error_message() : '',
+	"DEF's 422 reaches the user verbatim, not as a retry prompt"
+);
+list( $resp ) = def_test_task_body( $once, 400, 'https://def-api.internal/api/staff-ai/tasks' );
+assert_true(
+	is_wp_error( $resp ) && false !== strpos( $resp->get_error_message(), 'try again in a moment' ),
+	'every other refusal keeps the fallback - only the 422 is a sentence for the user'
+);
 
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
