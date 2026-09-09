@@ -22,27 +22,50 @@ const CHAT_VOICE = extract.chatVoice();
 const STRINGS = new Function(extract.chatStrings() + '; return DEFAULT_STRINGS;')();
 
 // ── The fake microphone ─────────────────────────────────────────────────
-// Every read of the analyser hands back one window of audio. A spoken vowel
-// fills the window, its peak close to its RMS. A keystroke is a few
-// milliseconds of transient — loud enough that the old energy-only rule
-// counted it as speech (its window RMS is 0.033, over the 0.02 floor) while
-// peaking 30× that RMS.
-function speechWave(buf) {
-	for (let i = 0; i < buf.length; i++) buf[i] = 0.09 * Math.sin(i / 7);
+// Every read of the analyser hands back one window of audio, so a check plays
+// a sound rather than asserting on the rule's arithmetic. `crestOf` is what
+// keeps these honest: a pure tone would clear the crest gate however tight it
+// were set, so the voiced wave is a pitch-pulse train and its crest is asserted
+// to sit in the 3–5 band real voiced speech occupies.
+function voicedWave(buf) {   // ~220 Hz glottal pulses, crest ≈ 4.3, RMS 0.058
+	for (let i = 0; i < buf.length; i++) {
+		const t = i % 200;
+		buf[i] = 0.5 * Math.exp(-t / 12) * Math.sin(2 * Math.PI * t / 40);
+	}
 }
-function clickWave(buf) {
+function plosiveWave(buf) {   // the burst of a /b/ or /t/ over quiet voicing: crest ≈ 15
+	buf.fill(0);
+	for (let i = 0; i < 30; i++) buf[i] = 0.6 * Math.exp(-i / 6) * (i % 2 ? -1 : 1);
+	for (let i = 30; i < buf.length; i++) buf[i] = 0.03 * Math.sin(i / 7);
+}
+function clickWave(buf) {   // a keystroke beside the phone: RMS 0.066 (over the floor), crest ≈ 15
 	buf.fill(0);
 	for (let i = 0; i < 40; i++) buf[i] = Math.exp(-i / 8) * (i % 2 ? -1 : 1);
+}
+function silentWave(buf) { buf.fill(0); }
+
+function crestOf(wave) {
+	const buf = new Float32Array(1024);
+	wave(buf);
+	let sum = 0, peak = 0;
+	for (const v of buf) { sum += v * v; peak = Math.max(peak, Math.abs(v)); }
+	const rms = Math.sqrt(sum / buf.length);
+	return { rms, crest: peak / rms };
 }
 
 function boot(wave, bodyHtml) {
 	const dom = new JSDOM('<!doctype html><html><body>' + (bodyHtml || '') + '</body></html>',
 		{ url: 'https://e.test/', runScripts: 'outside-only' });
 	const window = dom.window;
-	let current = wave;
+	let current = wave, script = null, reads = 0;
 	const analyser = {
 		fftSize: 1024,
-		getFloatTimeDomainData(buf) { current(buf); },
+		getFloatTimeDomainData(buf) {
+			// Scripted playback is per READ, not per millisecond: an utterance is the
+			// reads the detector actually takes, whatever the host's timer jitter.
+			(script ? (script[reads] || silentWave) : current)(buf);
+			reads++;
+		},
 	};
 	window.AudioContext = function () {
 		this.state = 'running';
@@ -62,7 +85,12 @@ function boot(wave, bodyHtml) {
 	};
 	window.MediaRecorder.isTypeSupported = () => true;
 	window.eval(MODULE);
-	return { window, DefVoice: window.DefVoice, say: w => { current = w; } };
+	return {
+		window, DefVoice: window.DefVoice,
+		say: w => { script = null; current = w; },
+		play: list => { script = list; reads = 0; },
+		reads: () => reads,
+	};
 }
 
 const wait = (w, ms) => new Promise(r => w.setTimeout(r, ms));
@@ -80,7 +108,7 @@ const CONSOLE_TAIL = `
 	};`;
 
 function bootConsole(spoken) {
-	const { window } = boot(speechWave, CONSOLE_HTML);
+	const { window } = boot(voicedWave, CONSOLE_HTML);
 	const document = window.document;
 	const calls = [];
 	const messages = [
@@ -115,7 +143,7 @@ const CHAT_TAIL = `
 	};`;
 
 function bootChat() {
-	const { window } = boot(speechWave, CHAT_HTML);
+	const { window } = boot(voicedWave, CHAT_HTML);
 	const document = window.document;
 	const calls = [];
 	const els = {
@@ -155,85 +183,103 @@ function check(n, label, cond, detail) {
 		check(1, 'a keystroke burst does NOT register as speech', !!done && done.spoke === false,
 			'spoke=' + (done && done.spoke));
 	}
-	// 2. a spoken word does
+	// 2. voiced speech at a REAL crest — not a tone that would clear any gate
 	{
-		const t = boot(speechWave);
+		const t = boot(voicedWave);
+		const v = crestOf(voicedWave);
 		const rec = t.DefVoice.createRecorder({});
 		await rec.start();
-		await wait(t.window, 500);
+		await wait(t.window, 400);
 		const done = await rec.stop();
-		check(2, 'a spoken word DOES register as speech', !!done && done.spoke === true,
-			'spoke=' + (done && done.spoke));
+		check(2, 'voiced speech at the crest real speech runs (3–5, not a tone) DOES register',
+			v.crest > 3 && v.crest < 5 && v.rms > 0.02 && !!done && done.spoke === true,
+			'crest=' + v.crest.toFixed(2) + ' rms=' + v.rms.toFixed(3) + ' spoke=' + (done && done.spoke));
 	}
-	// 3. Steve's canary: typing after speaking must not hold the mic open
+	// 3. a one-word answer — four reads, one of them the word's own plosive burst.
+	//    This is what SPEECH_SAMPLES is pinned by: at three, "book it" is heard as
+	//    nothing and the conversation ends on "Nothing was heard".
 	{
-		const t = boot(speechWave);
+		const t = boot(silentWave);
+		const rec = t.DefVoice.createRecorder({});
+		await rec.start();
+		t.play([voicedWave, plosiveWave, voicedWave, voicedWave]);
+		await wait(t.window, 600);
+		const done = await rec.stop();
+		check(3, 'a one-word answer (~450 ms, a plosive inside it) still registers as speech',
+			!!done && done.spoke === true, 'spoke=' + (done && done.spoke) + ' reads=' + t.reads());
+	}
+	// 4. Steve's canary: typing after speaking must not hold the mic open
+	{
+		const t = boot(voicedWave);
 		let silenced = 0;
 		const rec = t.DefVoice.createRecorder({ onSilence: () => { silenced++; } });
 		await rec.start();
 		await wait(t.window, 500);
 		t.say(clickWave);
 		await wait(t.window, 2200);
-		check(3, 'typing after a spoken turn does NOT keep the mic listening (the pause still sends)',
+		check(4, 'typing after a spoken turn does NOT keep the mic listening (the pause still sends)',
 			silenced === 1, 'onSilence fired ' + silenced + ' time(s)');
 		await rec.stop();
 	}
-	// 4. what counts as a stop phrase
+	// 5. what counts as a stop phrase
 	{
-		const { DefVoice } = boot(speechWave);
+		const { DefVoice } = boot(voicedWave);
 		const set = STRINGS.voiceStopPhrases;
 		const is = text => DefVoice.isStopPhrase(text, set, 'Sue');
 		const cases = [
 			['Stop.', true], ['stop', true], ['Sue, stop!', true], ['SUE STOP', true],
+			['Stop, Sue', true], ["Thanks Sue, that's all", true],   // the name leads, trails or sits inside
 			["That's all.", true], ['thats all', true], ['Thanks, that’s all.', true],
 			['stop the newsletter', false], ['Can you stop that', false], ['', false],
 			['Joe, stop', false],   // another employee's name is not the one being spoken to
 		];
 		const wrong = cases.filter(c => is(c[0]) !== c[1]).map(c => JSON.stringify(c[0]));
-		check(4, 'a whole-transcript stop phrase matches past case, punctuation and the name; a request does not',
-			wrong.length === 0, 'misjudged ' + wrong.join(', '));
+		// A translated set may be punctuated in its own script.
+		const cjk = DefVoice.isStopPhrase('停止', 'ストップ、停止', 'Sue');
+		check(5, 'a whole-transcript stop phrase matches past case, punctuation and the name; a request does not',
+			wrong.length === 0 && cjk === true, 'misjudged ' + wrong.join(', ') + ' cjk=' + cjk);
 	}
-	// 5. the console: the stop ends the session and renders no turn
+	// 6. the console: the stop ends the session and renders no turn
 	{
 		const t = bootConsole();
 		const stopped = t.api.handleSpokenStop('Sue, stop.');
 		const s = t.api.state();
-		check(5, 'console — a spoken stop ends the session, aborts the turn and leaves no bubble behind',
+		check(6, 'console — a spoken stop ends the session, aborts the turn and leaves no bubble behind',
 			stopped === true && t.messages.length === 0 && s.on === false && s.mic === 'idle' &&
 			t.calls.includes('abort') && t.calls.includes('info:Conversation ended.'),
 			'stopped=' + stopped + ' messages=' + t.messages.length + ' state=' + JSON.stringify(s) +
 			' calls=[' + t.calls + ']');
 	}
-	// 6. the console: anything else is a turn, exactly as before
+	// 7. the console: anything else is a turn, exactly as before
 	{
 		const t = bootConsole();
 		const stopped = t.api.handleSpokenStop('Stop the newsletter going out on Friday.');
-		check(6, 'console — a non-stop transcript proceeds as a turn',
+		check(7, 'console — a non-stop transcript proceeds as a turn',
 			stopped === false && t.messages.length === 2 && t.api.state().on === true &&
 			!t.calls.includes('abort'), 'stopped=' + stopped + ' calls=[' + t.calls + ']');
 	}
-	// 7. the console: a turn that was TYPED is not ended by the word on screen
+	// 8. the console: a turn that was TYPED is not ended by the word on screen
 	{
 		const t = bootConsole(false);
 		const stopped = t.api.handleSpokenStop('stop');
-		check(7, 'console — the stop rule fires on a SPOKEN turn only',
+		check(8, 'console — the stop rule fires on a SPOKEN turn only',
 			stopped === false && t.messages.length === 2 && !t.calls.includes('abort'),
 			'stopped=' + stopped + ' calls=[' + t.calls + ']');
 	}
-	// 8. the widget: the same phrase, out of its own shipped strings map
+	// 9. the widget: the same phrase, out of its own shipped strings map
 	{
 		const t = bootChat();
 		const stopped = t.api.endOnSpokenStop("Joe, that's all.", null);
-		check(8, 'widget — a stop phrase from the shipped strings map ends the session and drops the bubble',
+		check(9, 'widget — a stop phrase from the shipped strings map ends the session and drops the bubble',
 			stopped === true && t.api.state().on === false && !t.document.getElementById('bubble') &&
 			t.calls.includes('composer:on') && t.calls.includes('said:Conversation ended.'),
 			'stopped=' + stopped + ' state=' + JSON.stringify(t.api.state()) + ' calls=[' + t.calls + ']');
 	}
-	// 9. the widget: anything else proceeds
+	// 10. the widget: anything else proceeds
 	{
 		const t = bootChat();
 		const stopped = t.api.endOnSpokenStop('Do you stop deliveries in January?', null);
-		check(9, 'widget — a non-stop transcript proceeds as a turn',
+		check(10, 'widget — a non-stop transcript proceeds as a turn',
 			stopped === false && t.api.state().on === true && !!t.document.getElementById('bubble'),
 			'stopped=' + stopped + ' calls=[' + t.calls + ']');
 	}

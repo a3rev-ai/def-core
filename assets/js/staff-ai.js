@@ -2189,11 +2189,8 @@ function t(key, fallback) {
 		if (message) showInfo(message);
 	}
 
-	// A spoken STOP (V-S6b): "stop", "Sue, stop", "that's all". The client learns
-	// what was said only when the transcript arrives — the turn is already in
-	// flight — so the stop aborts the stream: the reply is discarded unrendered and
-	// the phrase never becomes a turn on screen. DEF wrote the spoken turn to the
-	// thread before it answered; a reload shows it there.
+	// A spoken STOP (V-S6b). The transcript arrives with the turn already in flight, so
+	// the stop aborts the stream: nothing is rendered, and DEF keeps what it recorded.
 	function handleSpokenStop(text) {
 		if (!spokenTurn || !DefVoice.isStopPhrase(text, t('voiceStopPhrases', "stop, that's all, thanks that's all"), assistantName)) return false;
 		voiceStopped = true;

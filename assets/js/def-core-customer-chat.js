@@ -2117,11 +2117,8 @@
 		if (message) appendMessage('assistant', message);
 	}
 
-	// A spoken STOP (V-S6b): "stop", "Joe, stop", "that's all". The widget learns what
-	// was said only when the transcript arrives — the turn is already in flight — so
-	// the conversation ends here and the caller aborts the stream: the reply is
-	// discarded unrendered and the phrase never becomes a turn on screen. DEF wrote
-	// the spoken turn to the thread before it answered.
+	// A spoken STOP (V-S6b). The transcript arrives with the turn already in flight, so
+	// the conversation ends here and the caller aborts the stream; nothing is rendered.
 	function endOnSpokenStop(text, thinkingEl) {
 		if (!spokenTurn || !window.DefVoice.isStopPhrase(text, t('voiceStopPhrases'), config.assistantName)) return false;
 		hideThinking(thinkingEl);

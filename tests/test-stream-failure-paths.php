@@ -119,6 +119,16 @@ assert_test(
 	1 === preg_match( '/response\.status === 429 && detail && typeof detail\.retry_after === \'number\'/', $staff_js ),
 	'staff: apiRequest renders the server copy and appends the retry window on 429'
 );
+// The two halves of a spoken stop that sit outside the browser harness's slice
+// (V-S6b): without either, the discarded reply comes back on screen.
+assert_test(
+	1 === preg_match( '/if \(voiceStopped\) \{ eventQueue\.length = 0; break; \}/', $staff_js ),
+	'staff: a spoken stop empties the event queue — a done event already parsed cannot render the discarded reply'
+);
+assert_test(
+	1 === preg_match( '/catch \(err\) \{[\s\S]{0,200}?if \(voiceStopped\) \{ voiceStopped = false; return; \}/', $staff_js ),
+	'staff: the aborted spoken turn returns from the catch — it is never recovered onto the thread'
+);
 
 // ── 3. The XSS pair — quote-escaping utility + property-assigned tooltip ────
 
