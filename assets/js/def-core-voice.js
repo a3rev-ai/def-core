@@ -16,8 +16,9 @@ window.DefVoice = (function () {
 	// at all ends the conversation rather than listening to an empty room.
 	var SILENCE_MS = 1800;
 	var IDLE_MS = 10000;
-	var SPEECH_RMS = 0.02;   // a voice at phone distance sits well above; room tone below
-	var SPEECH_SAMPLES = 2;  // two loud 100 ms reads before it counts as speech (a hand shift is one)
+	var SPEECH_RMS = 0.02;      // a voice at phone distance sits well above; room tone below
+	var SPEECH_SAMPLES = 2;     // two speech-shaped 100 ms reads before it counts (a hand shift is one)
+	var SPEECH_CREST_MAX = 6;   // peak ÷ RMS within one read: voiced speech runs 3–5, a click spikes past 8
 	// Safari (iPhone) records audio/mp4; Chrome (Android/desktop) webm+opus.
 	var MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
 	// A 46-byte silent WAV. Playing it INSIDE the mic-tap gesture is what lets
@@ -177,17 +178,26 @@ window.DefVoice = (function () {
 			}
 		}
 
-		function rms() {
+		// Loud is not spoken (7.8.7). A keystroke beside the phone is a transient: it
+		// spikes a read's peak far above that read's own RMS, while a spoken word fills
+		// the read at a peak near its RMS — which is what "typing kept the mic listening"
+		// was missing (Steve's hands-free canary).
+		function isSpeech() {
 			analyser.getFloatTimeDomainData(samples);
-			var sum = 0;
-			for (var i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
-			return Math.sqrt(sum / samples.length);
+			var sum = 0, peak = 0, v;
+			for (var i = 0; i < samples.length; i++) {
+				v = samples[i];
+				sum += v * v;
+				if (v > peak) peak = v; else if (-v > peak) peak = -v;
+			}
+			var rms = Math.sqrt(sum / samples.length);
+			return rms > SPEECH_RMS && peak < rms * SPEECH_CREST_MAX;
 		}
 
 		function watch() {
 			if (!detecting()) return;
 			var now = Date.now();
-			if (rms() > SPEECH_RMS) {
+			if (isSpeech()) {
 				// Speech is sustained; a phone shifting in the hand is one loud sample.
 				loudRun += 1;
 				if (loudRun >= SPEECH_SAMPLES) { spokeAt = now; quietSince = 0; }
@@ -469,9 +479,34 @@ window.DefVoice = (function () {
 		return raw.length;
 	}
 
+	// Bare words: what was said, without the case and punctuation the transcriber
+	// chose. An apostrophe holds a word together (however it was typed), anything
+	// else separates — so "That's all." and "thats all" reduce to the same thing.
+	function bareWords(text) {
+		return String(text || '').toLowerCase().replace(/['‘’ʼ]/g, '')
+			.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+	}
+
+	// A spoken stop (V-S6b). `phrases` is one i18n string of phrases, so the ones a
+	// language actually says are a translation and not a code change (its separator
+	// may be a CJK comma). The employee's own name can sit anywhere among them —
+	// "Sue, stop", "Stop, Sue", "Thanks Sue, that's all" — so it is dropped as a word.
+	// The WHOLE transcript must be the phrase: "stop the newsletter" is an instruction.
+	function isStopPhrase(transcript, phrases, name) {
+		var said = bareWords(transcript);
+		if (!said) return false;
+		var who = bareWords(name).split(' ')[0];
+		if (who) said = said.split(' ').filter(function (word) { return word !== who; }).join(' ');
+		return String(phrases || '').split(/[,、，]/).some(function (phrase) {
+			var want = bareWords(phrase);
+			return !!want && want === said;
+		});
+	}
+
 	return {
 		supported: supported,
 		micAllowedBySite: micAllowedBySite,
+		isStopPhrase: isStopPhrase,
 		createRecorder: createRecorder,
 		createSpeaker: createSpeaker,
 		toBase64: toBase64,

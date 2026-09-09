@@ -22,6 +22,8 @@
 		micFailed: "The microphone couldn't start (%e).",
 		tapToSpeakAgain: 'Tap the mic to speak again.',
 		micClosedIdle: 'The mic closed \u2014 tap it to speak again.',
+		voiceStopPhrases: "stop, that's all, thanks that's all",
+		voiceStopped: 'Conversation ended.',
 		nothingHeard: 'Nothing was heard. Try again a little closer to the microphone.',
 		transcribeFailed: 'That recording could not be transcribed. Please try again.',
 		listening: "Listening\u2026 pause when you're done, or tap to send",
@@ -51,6 +53,7 @@
 		uploadFailed: 'Upload failed. Please try again.',
 		uploadReadFailed: 'Could not read the file. Please remove it, re-select it and try again.',
 		fileTypeNotSupported: 'File type not supported',
+		attachAfterFirstMessage: 'Send your first message, then attach the image.',
 		offlineTitle: 'Chat is currently unavailable',
 		offlineMessage: 'This feature is being set up. Please check back soon.',
 		connectionError: 'Unable to connect. Please try again.',
@@ -630,15 +633,14 @@
 			if (!uploadEligible) return;
 			var items = (e.clipboardData || {}).items;
 			if (!items) return;
-			var hasFile = false;
+			var pasted = [];
 			for (var i = 0; i < items.length; i++) {
-				if (items[i].kind === 'file') {
-					hasFile = true;
-					var file = items[i].getAsFile();
-					if (file) stageFile(file);
-				}
+				var pastedFile = items[i].kind === 'file' && items[i].getAsFile();
+				if (pastedFile) pasted.push(pastedFile);
 			}
-			if (hasFile) e.preventDefault();
+			if (!pasted.length) return;
+			e.preventDefault();
+			stageAttachedFiles(pasted);
 		});
 
 		els.input = input;
@@ -684,7 +686,9 @@
 		// Drag & drop event listeners (drag counter pattern for nested elements).
 		composer.addEventListener('dragenter', function (e) {
 			e.preventDefault();
-			if (!uploadEligible || isComposerDisabled) return;
+			// No "Drop files here" before the thread exists (U-1b) — the drop
+			// itself is guarded separately and still answers with the notice.
+			if (!uploadEligible || isComposerDisabled || !threadId) return;
 			dragCounter++;
 			if (els.dropOverlay) setState(els.dropOverlay, 'visible', true);
 		});
@@ -704,11 +708,7 @@
 			dragCounter = 0;
 			if (els.dropOverlay) setState(els.dropOverlay, 'visible', false);
 			if (!uploadEligible || isComposerDisabled) return;
-			var files = e.dataTransfer && e.dataTransfer.files;
-			if (!files) return;
-			for (var i = 0; i < files.length; i++) {
-				stageFile(files[i]);
-			}
+			stageAttachedFiles(e.dataTransfer && e.dataTransfer.files);
 		});
 
 		panel.appendChild(composer);
@@ -2115,6 +2115,17 @@
 		if (message) appendMessage('assistant', message);
 	}
 
+	// A spoken STOP (V-S6b). The transcript arrives with the turn already in flight, so
+	// the conversation ends here and the caller aborts the stream; nothing is rendered.
+	function endOnSpokenStop(text, thinkingEl) {
+		if (!spokenTurn || !window.DefVoice.isStopPhrase(text, t('voiceStopPhrases'), config.assistantName)) return false;
+		hideThinking(thinkingEl);
+		dropUnfilledTranscript();
+		endConversation(t('voiceStopped'));
+		setComposerDisabled(false);
+		return true;
+	}
+
 	// A spoken turn the server never answered with a transcript (a refusal before the
 	// stream, a dead connection) must not leave "Transcribing…" in the chat.
 	function dropUnfilledTranscript() {
@@ -2489,6 +2500,12 @@
 					// The server heard the recording (7.7.8): the bubble gets its words,
 					// before any text streams; the thread history records them as the turn.
 					text = evt.text || '';
+					if (endOnSpokenStop(text, thinkingEl)) {
+						streamTerminated = true;
+						eventQueue.length = 0;
+						controller.abort();
+						return;
+					}
 					if (transcribingEl) {
 						if (transcribingEl.firstChild && transcribingEl.firstChild.nodeType === 3) transcribingEl.firstChild.nodeValue = text;
 						else transcribingEl.insertBefore(document.createTextNode(text), transcribingEl.firstChild);
@@ -2678,7 +2695,7 @@
 
 		// Store thread ID.
 		if (data.thread_id) {
-			threadId = data.thread_id;
+			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
 				// Fresh thread started — clear the cleared-session marker so it
@@ -2750,7 +2767,7 @@
 
 		// Store thread ID.
 		if (data.thread_id) {
-			threadId = data.thread_id;
+			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
 				// Fresh thread started — clear the cleared-session marker. See
@@ -3436,12 +3453,7 @@
 	}
 
 	function handleFileSelect(e) {
-		var files = e.target.files;
-		if (!files || files.length === 0) return;
-
-		for (var i = 0; i < files.length; i++) {
-			stageFile(files[i]);
-		}
+		stageAttachedFiles(e.target.files);
 	}
 
 	function validateFilePreflight(file) {
@@ -3648,11 +3660,10 @@
 		}
 		renderStagedAttachments();
 
-		var conversationId = threadId || '_anonymous';
-
+		// The gate (U-1b) means threadId is always set here — no placeholder.
 		return Promise.all(
 			filesToUpload.map(function (staged) {
-				return uploadSingleFile(staged, conversationId);
+				return uploadSingleFile(staged, threadId);
 			})
 		).then(function (results) {
 			var anyFailed = false;
@@ -3876,12 +3887,42 @@
 			});
 	}
 
+	// ── The attach gate (U-1b) ────────────────────────────────────
+	// Every anonymous visitor of a tenant carries the one identity, so an
+	// upload made before the conversation exists cannot be bound to anyone.
+
 	function setUploadEligible(eligible) {
 		uploadEligible = eligible;
+		refreshAttachControl();
+	}
+
+	// Every assignment to threadId past its declaration goes through here, so
+	// the control can never outlive the conversation it uploads into.
+	function setThreadId(id) {
+		threadId = id || null;
+		refreshAttachControl();
+	}
+
+	function refreshAttachControl() {
 		if (els.attachBtn) {
-			els.attachBtn.style.display = eligible ? '' : 'none';
+			els.attachBtn.style.display =
+				uploadEligible && threadId ? '' : 'none';
 		}
 	}
+
+	// Drag-drop and paste have no button to hide, so turn one is refused here
+	// with the one line — once per attempt, however many files it carried.
+	function stageAttachedFiles(files) {
+		if (!files || !files.length) return;
+		if (!threadId) {
+			appendMessage('assistant', t('attachAfterFirstMessage'));
+			return;
+		}
+		for (var i = 0; i < files.length; i++) {
+			stageFile(files[i]);
+		}
+	}
+	// ── end attach gate ───────────────────────────────────────────
 
 	// ─── 10. THREAD MANAGEMENT ────────────────────────────────────
 
@@ -4089,7 +4130,7 @@
 		}
 		if (!picked) return;
 
-		threadId = picked.id;
+		setThreadId(picked.id);
 		isContinuing = true;
 		try { localStorage.setItem(THREAD_KEY, threadId); } catch (e) {}
 		loadThreadMessages(threadId);
@@ -4152,7 +4193,7 @@
 			localStorage.removeItem('def:session_cookie');
 			localStorage.setItem('def:cleared_session', '1');
 		} catch (e) {}
-		threadId = null;
+		setThreadId(null);
 		isContinuing = false;
 		currentEscalationSubject = '';
 		currentEscalationReason = '';
@@ -4502,7 +4543,7 @@
 		// Load existing thread from localStorage FIRST (clearConversation needs threadId).
 		loadLocalThreads();
 		try {
-			threadId = localStorage.getItem(THREAD_KEY) || null;
+			setThreadId(localStorage.getItem(THREAD_KEY));
 		} catch (e) {}
 
 		// Detect WordPress auth state change (login/logout outside widget).
@@ -4592,7 +4633,7 @@
 		contextToken = null;
 		contextPayload = null;
 		refreshPromise = null;
-		threadId = null;
+		setThreadId(null);
 		isContinuing = false;
 		isComposerDisabled = false;
 		stagedFiles = [];

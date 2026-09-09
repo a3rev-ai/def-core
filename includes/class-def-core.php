@@ -1093,6 +1093,7 @@ final class DEF_Core {
 			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
 			'uploadReadFailed'     => __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ),
 			'fileTypeNotSupported' => __( 'File type not supported', 'digital-employees' ),
+			'attachAfterFirstMessage' => __( 'Send your first message, then attach the image.', 'digital-employees' ),
 			'offlineTitle'         => __( 'Chat is currently unavailable', 'digital-employees' ),
 			'offlineMessage'       => __( 'This feature is being set up. Please check back soon.', 'digital-employees' ),
 			'privacyPolicy'        => __( 'Privacy Policy', 'digital-employees' ),
@@ -1113,6 +1114,9 @@ final class DEF_Core {
 			'micFailed'            => __( "The microphone couldn't start (%e).", 'digital-employees' ),
 			'tapToSpeakAgain'      => __( 'Tap the mic to speak again.', 'digital-employees' ),
 			'micClosedIdle'        => __( 'The mic closed — tap it to speak again.', 'digital-employees' ),
+			/* translators: comma-separated phrases that END a hands-free conversation when spoken alone; the employee's name may lead any of them ("Joe, stop"). */
+			'voiceStopPhrases'     => __( "stop, that's all, thanks that's all", 'digital-employees' ),
+			'voiceStopped'         => __( 'Conversation ended.', 'digital-employees' ),
 			'nothingHeard'         => __( 'Nothing was heard. Try again a little closer to the microphone.', 'digital-employees' ),
 			'transcribeFailed'     => __( 'That recording could not be transcribed. Please try again.', 'digital-employees' ),
 			'listening'            => __( "Listening… pause when you're done, or tap to send", 'digital-employees' ),
