@@ -1113,6 +1113,9 @@ final class DEF_Core {
 			'micFailed'            => __( "The microphone couldn't start (%e).", 'digital-employees' ),
 			'tapToSpeakAgain'      => __( 'Tap the mic to speak again.', 'digital-employees' ),
 			'micClosedIdle'        => __( 'The mic closed — tap it to speak again.', 'digital-employees' ),
+			/* translators: comma-separated phrases that END a hands-free conversation when spoken alone; the employee's name may lead any of them ("Joe, stop"). */
+			'voiceStopPhrases'     => __( "stop, that's all, thanks that's all", 'digital-employees' ),
+			'voiceStopped'         => __( 'Conversation ended.', 'digital-employees' ),
 			'nothingHeard'         => __( 'Nothing was heard. Try again a little closer to the microphone.', 'digital-employees' ),
 			'transcribeFailed'     => __( 'That recording could not be transcribed. Please try again.', 'digital-employees' ),
 			'listening'            => __( "Listening… pause when you're done, or tap to send", 'digital-employees' ),

@@ -2041,6 +2041,7 @@ function t(key, fallback) {
 	var speaker = null;
 	var conversationOn = false;     // the hands-free loop, until the pill is tapped or the room stays quiet
 	var spokenTurn = false;         // the turn in flight was spoken → read it back
+	var voiceStopped = false;       // the turn was aborted by a spoken stop: nothing of it is recovered
 	var openingSpoken = null;       // the opening sentence already read during streaming (device voice)
 	var readbackBuffer = '';        // the reply's own words as streamed — notices (step 0) excluded
 	var readbackCut = 0;            // how much of readbackBuffer the device voice has been given
@@ -2186,6 +2187,22 @@ function t(key, fallback) {
 		setMicState('idle');
 		restorePlaceholder();
 		if (message) showInfo(message);
+	}
+
+	// A spoken STOP (V-S6b): "stop", "Sue, stop", "that's all". The client learns
+	// what was said only when the transcript arrives — the turn is already in
+	// flight — so the stop aborts the stream: the reply is discarded unrendered and
+	// the phrase never becomes a turn on screen. DEF wrote the spoken turn to the
+	// thread before it answered; a reload shows it there.
+	function handleSpokenStop(text) {
+		if (!spokenTurn || !DefVoice.isStopPhrase(text, t('voiceStopPhrases', "stop, that's all, thanks that's all"), assistantName)) return false;
+		voiceStopped = true;
+		dropUnfilledTranscript();
+		removeTypingMessage();
+		renderMessages();
+		if (_streamAbort) _streamAbort.abort();
+		endConversation(t('voiceStopped', 'Conversation ended.'));
+		return true;
 	}
 
 	// A spoken turn the server never answered with a transcript (a refusal before
@@ -2522,6 +2539,7 @@ function t(key, fallback) {
 
 			_streamAbort = new AbortController();
 			_turnReachedServer = false;
+			voiceStopped = false;
 			_eventsSeen = 0;
 			var response = await fetch(chatStreamUrl, {
 				method: 'POST',
@@ -2650,6 +2668,7 @@ function t(key, fallback) {
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
+					if (voiceStopped) { eventQueue.length = 0; break; }   // the user said stop: nothing more of this turn is shown
 					// Every event names its thread (DEF #1118), so a brand-new chat knows where
 					// its reply lives from the first chunk — what recoverTurn() reloads if the
 					// stream dies before `done` (7.6.9).
@@ -2821,6 +2840,7 @@ function t(key, fallback) {
 					} else if (evt.type === 'transcript') {
 						// The server heard the recording (7.7.1): the bubble gets its words.
 						// Before any text streams, so a full re-render wipes nothing.
+						if (handleSpokenStop(evt.text)) break;
 						for (var ti = messages.length - 1; ti >= 0; ti--) {
 							if (messages[ti].role === 'user' && messages[ti].transcribing) {
 								messages[ti].content = evt.text || '';
@@ -2906,6 +2926,8 @@ function t(key, fallback) {
 		try {
 			await attemptStream();
 		} catch (err) {
+			// The user said stop: the turn is discarded, never recovered onto the thread view.
+			if (voiceStopped) { voiceStopped = false; return; }
 			console.error('[Staff AI] Streaming error:', err);
 			spokenTurn = false;
 			if (conversationOn) endConversation();

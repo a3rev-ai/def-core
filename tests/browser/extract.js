@@ -23,6 +23,7 @@ const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
 const JS_PATH = path.join(REPO, 'assets/js/staff-ai.js');
 const CC_PATH = path.join(REPO, 'assets/js/def-core-customer-chat.js');
+const VOICE_PATH = path.join(REPO, 'assets/js/def-core-voice.js');
 
 function slice(label, startMatch, endMatch, needs, envVar, file) {
 	if (envVar && process.env[envVar]) {
@@ -105,6 +106,35 @@ function customerChatStream() {
 		'CCSTREAM', CC_PATH);
 }
 
+// The console's voice block: the recorder wiring, endConversation, and the
+// spoken-stop rule (V-S6b).
+function voice() {
+	return slice('voice',
+		l => l.includes('// VOICE (7.7.1)'),
+		l => l.startsWith('\tasync function sendMessage() {'),
+		['function handleSpokenStop', 'function endConversation', 'function dropUnfilledTranscript'],
+		'VOICE');
+}
+
+// Customer Chat's voice section, out of the widget's own file.
+function chatVoice() {
+	return slice('customer chat voice',
+		l => l.includes('6b. VOICE'),
+		l => l.startsWith('\tfunction sendMessageSync('),
+		['function endOnSpokenStop', 'function endConversation', 'function dropUnfilledTranscript'],
+		'CHAT_VOICE', CC_PATH);
+}
+
+// The widget's shipped English strings — the i18n map a phrase set has to live
+// in for a translator to ever see it.
+function chatStrings() {
+	return slice('customer chat strings',
+		l => l.includes('var DEFAULT_STRINGS = {'),
+		l => l.includes('var SANITIZE_CONFIG = {'),
+		['voiceStopPhrases', 'micStart'],
+		'CHAT_STRINGS', CC_PATH);
+}
+
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
 // A harness that hand-writes its own copy of a <section> tests the copy: the
 // page can be renamed, lose an id, change a description or take the wrong
@@ -165,6 +195,6 @@ function templateNav() {
 		'nav.sidebar-nav');
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, staffAiStream, customerChatStream,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects,
+	memories, usage, integrations, staffAiStream, customerChatStream, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav };

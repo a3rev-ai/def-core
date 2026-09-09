@@ -49,8 +49,8 @@ $core_php    = file_get_contents( $root . '/includes/class-def-core.php' );
 // ── 1. Customer pump completion — unconditional, honest, localized ──────────
 
 assert_test(
-	2 === preg_match_all( '/streamTerminated = true;/', $customer_js, $m ),
-	'customer: BOTH terminal events (done, error) mark the stream terminated'
+	3 === preg_match_all( '/streamTerminated = true;/', $customer_js, $m ),
+	'customer: EVERY terminal path (done, error, a spoken stop) marks the stream terminated'
 );
 assert_test(
 	1 === preg_match(

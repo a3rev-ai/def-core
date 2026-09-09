@@ -22,6 +22,8 @@
 		micFailed: "The microphone couldn't start (%e).",
 		tapToSpeakAgain: 'Tap the mic to speak again.',
 		micClosedIdle: 'The mic closed \u2014 tap it to speak again.',
+		voiceStopPhrases: "stop, that's all, thanks that's all",
+		voiceStopped: 'Conversation ended.',
 		nothingHeard: 'Nothing was heard. Try again a little closer to the microphone.',
 		transcribeFailed: 'That recording could not be transcribed. Please try again.',
 		listening: "Listening\u2026 pause when you're done, or tap to send",
@@ -2115,6 +2117,20 @@
 		if (message) appendMessage('assistant', message);
 	}
 
+	// A spoken STOP (V-S6b): "stop", "Joe, stop", "that's all". The widget learns what
+	// was said only when the transcript arrives — the turn is already in flight — so
+	// the conversation ends here and the caller aborts the stream: the reply is
+	// discarded unrendered and the phrase never becomes a turn on screen. DEF wrote
+	// the spoken turn to the thread before it answered.
+	function endOnSpokenStop(text, thinkingEl) {
+		if (!spokenTurn || !window.DefVoice.isStopPhrase(text, t('voiceStopPhrases'), config.assistantName)) return false;
+		hideThinking(thinkingEl);
+		dropUnfilledTranscript();
+		endConversation(t('voiceStopped'));
+		setComposerDisabled(false);
+		return true;
+	}
+
 	// A spoken turn the server never answered with a transcript (a refusal before the
 	// stream, a dead connection) must not leave "Transcribing…" in the chat.
 	function dropUnfilledTranscript() {
@@ -2489,6 +2505,12 @@
 					// The server heard the recording (7.7.8): the bubble gets its words,
 					// before any text streams; the thread history records them as the turn.
 					text = evt.text || '';
+					if (endOnSpokenStop(text, thinkingEl)) {
+						streamTerminated = true;
+						eventQueue.length = 0;
+						controller.abort();
+						return;
+					}
 					if (transcribingEl) {
 						if (transcribingEl.firstChild && transcribingEl.firstChild.nodeType === 3) transcribingEl.firstChild.nodeValue = text;
 						else transcribingEl.insertBefore(document.createTextNode(text), transcribingEl.firstChild);

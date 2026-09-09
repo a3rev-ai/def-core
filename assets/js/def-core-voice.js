@@ -16,8 +16,9 @@ window.DefVoice = (function () {
 	// at all ends the conversation rather than listening to an empty room.
 	var SILENCE_MS = 1800;
 	var IDLE_MS = 10000;
-	var SPEECH_RMS = 0.02;   // a voice at phone distance sits well above; room tone below
-	var SPEECH_SAMPLES = 2;  // two loud 100 ms reads before it counts as speech (a hand shift is one)
+	var SPEECH_RMS = 0.02;      // a voice at phone distance sits well above; room tone below
+	var SPEECH_SAMPLES = 3;     // three speech-shaped 100 ms reads before it counts (~300 ms — a word)
+	var SPEECH_CREST_MAX = 6;   // peak ÷ RMS within one read: a held vowel sits near 3–5, a click spikes past 8
 	// Safari (iPhone) records audio/mp4; Chrome (Android/desktop) webm+opus.
 	var MIME_CANDIDATES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
 	// A 46-byte silent WAV. Playing it INSIDE the mic-tap gesture is what lets
@@ -157,7 +158,9 @@ window.DefVoice = (function () {
 			if (analyser) return;
 			try {
 				analyser = audioCtx.createAnalyser();
-				analyser.fftSize = 1024;
+				// ~85 ms of audio — most of the 100 ms between reads, so a keystroke's
+				// few milliseconds no longer fill the read it lands in.
+				analyser.fftSize = 4096;
 				samples = new Float32Array(analyser.fftSize);
 			} catch (e) {
 				analyser = null;   // no silence detection: the tap still sends
@@ -177,18 +180,30 @@ window.DefVoice = (function () {
 			}
 		}
 
-		function rms() {
+		// One read of the analyser's window: how much energy, and how peaky it is.
+		function level() {
 			analyser.getFloatTimeDomainData(samples);
-			var sum = 0;
-			for (var i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
-			return Math.sqrt(sum / samples.length);
+			var sum = 0, peak = 0, v;
+			for (var i = 0; i < samples.length; i++) {
+				v = samples[i];
+				sum += v * v;
+				if (v > peak) peak = v; else if (-v > peak) peak = -v;
+			}
+			return { rms: Math.sqrt(sum / samples.length), peak: peak };
+		}
+
+		// Loud is not spoken (7.9.0). A keystroke beside the phone is a transient: it
+		// spikes one read's peak far above that read's own RMS, and the reads around it
+		// are quiet. A spoken word fills read after read at a peak near its RMS — which
+		// is what "typing kept the mic listening" was missing (Steve's hands-free canary).
+		function speechShaped(read) {
+			return read.rms > SPEECH_RMS && read.peak < read.rms * SPEECH_CREST_MAX;
 		}
 
 		function watch() {
 			if (!detecting()) return;
 			var now = Date.now();
-			if (rms() > SPEECH_RMS) {
-				// Speech is sustained; a phone shifting in the hand is one loud sample.
+			if (speechShaped(level())) {
 				loudRun += 1;
 				if (loudRun >= SPEECH_SAMPLES) { spokeAt = now; quietSince = 0; }
 				return;
@@ -469,9 +484,33 @@ window.DefVoice = (function () {
 		return raw.length;
 	}
 
+	// Bare words: what was said, without the case and punctuation the transcriber
+	// chose. An apostrophe holds a word together (however it was typed), anything
+	// else separates — so "That's all." and "thats all" reduce to the same thing.
+	function bareWords(text) {
+		return String(text || '').toLowerCase().replace(/['‘’ʼ]/g, '')
+			.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+	}
+
+	// A spoken stop (V-S6b). `phrases` is one comma-separated i18n string, so the
+	// phrases a language actually says are a translation and not a code change; the
+	// employee's own name may lead any of them ("Sue, stop"). The WHOLE transcript
+	// must be the phrase — "stop the newsletter" is an instruction, not a goodbye.
+	function isStopPhrase(transcript, phrases, name) {
+		var said = bareWords(transcript);
+		if (!said) return false;
+		var who = bareWords(name).split(' ')[0];
+		if (who && said.indexOf(who + ' ') === 0) said = said.slice(who.length + 1);
+		return String(phrases || '').split(',').some(function (phrase) {
+			var want = bareWords(phrase);
+			return !!want && want === said;
+		});
+	}
+
 	return {
 		supported: supported,
 		micAllowedBySite: micAllowedBySite,
+		isStopPhrase: isStopPhrase,
 		createRecorder: createRecorder,
 		createSpeaker: createSpeaker,
 		toBase64: toBase64,
