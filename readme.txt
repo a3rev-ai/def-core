@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.4
+Stable tag: 7.8.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.8.5 - 2026-09-09 =
+* Update - Customer Chat: you can now attach an image from your second message. The paperclip appears once your first message has started the conversation, because an attachment belongs to the conversation it is sent in - that is what makes it exactly as private as the conversation itself, reachable by the visitor who sent it and nobody else. Before that first message there is no conversation to belong to, so there is no paperclip; drop or paste a file then and the chat says so in one line. Everything else about attachments is unchanged - the same file types and size limits, the same green tick when a file is ready, the same re-send of a file that already uploaded, and files stay with the conversation on every later message.
 
 = 7.8.4 - 2026-09-09 =
 * Fix - Chat: when your employee works through a task in several steps, what she says along the way ("Checking that now.") shows in the working line under the reply instead of stacking up inside it. The reply you are left with is the one she finishes with - the same words your chat history and every other device already show - and it is read aloud once instead of after every step. Both the website chat and the Staff AI console. Needs the platform release of the same day.
