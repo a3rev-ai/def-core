@@ -1,5 +1,5 @@
 /*
- * Customer Chat attach gate - behavioural harness (U-1b / v7.9.0), 16 checks.
+ * Customer Chat attach gate - behavioural harness (U-1b / v7.8.5), 16 checks.
  *
  * Runs the SHIPPED attach-gate and staged-upload blocks (extracted by marker
  * from assets/js/def-core-customer-chat.js) inside jsdom over the same closure

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.0
+Stable tag: 7.8.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 7.9.0 - 2026-09-09 =
+= 7.8.5 - 2026-09-09 =
 * Update - Customer Chat: you can now attach an image from your second message. The paperclip appears once your first message has started the conversation, because an attachment belongs to the conversation it is sent in - that is what makes it exactly as private as the conversation itself, reachable by the visitor who sent it and nobody else. Before that first message there is no conversation to belong to, so there is no paperclip; drop or paste a file then and the chat says so in one line. Everything else about attachments is unchanged - the same file types and size limits, the same green tick when a file is ready, the same re-send of a file that already uploaded, and files stay with the conversation on every later message.
 
 = 7.8.4 - 2026-09-09 =

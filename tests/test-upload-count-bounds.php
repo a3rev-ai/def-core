@@ -13,7 +13,7 @@
  * lived or at the staging sinks those sites feed. (Site-pinning cannot
  * cover every conceivable new site — the caps gates own the class.)
  *
- * 7.9.0 (U-1b): the customer picker/paste/drop loop moved into the shared
+ * 7.8.5 (U-1b): the customer picker/paste/drop loop moved into the shared
  * `stageAttachedFiles`, so the picker anchor moved with it. The one refusal
  * that path may carry is the missing thread, and it says so out loud.
  *
