@@ -793,9 +793,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 		apiBase: <?php echo wp_json_encode( $api_base ); ?>,
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
 		siteTimezone: <?php echo wp_json_encode( wp_timezone_string() ); ?>,
-		// C3b: the version this page was SERVED with. The installed app keeps a page
-		// process alive for days, so this is the version it is actually RUNNING — it is
-		// compared against the manifest's live one to notice a release it has missed.
+		// C3b: the version this page was SERVED with — for the installed app, which keeps
+		// a page process alive for days, that is the version it is actually RUNNING.
 		version: <?php echo wp_json_encode( DEF_CORE_VERSION ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
