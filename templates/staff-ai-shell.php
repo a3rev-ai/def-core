@@ -793,6 +793,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 		apiBase: <?php echo wp_json_encode( $api_base ); ?>,
 		nonce: <?php echo wp_json_encode( $nonce ); ?>,
 		siteTimezone: <?php echo wp_json_encode( wp_timezone_string() ); ?>,
+		// C3b: the version this page was SERVED with. The installed app keeps a page
+		// process alive for days, so this is the version it is actually RUNNING — it is
+		// compared against the manifest's live one to notice a release it has missed.
+		version: <?php echo wp_json_encode( DEF_CORE_VERSION ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
 		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
@@ -1122,7 +1126,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskProjectUnknown: <?php echo wp_json_encode( __( '(project)', 'digital-employees' ) ); ?>,
 			taskNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
 			taskProjectArchived: <?php echo wp_json_encode( __( '(archived)', 'digital-employees' ) ); ?>,
-			scheduleNewTitle: <?php echo wp_json_encode( __( 'New Email Triage schedule', 'digital-employees' ) ); ?>
+			scheduleNewTitle: <?php echo wp_json_encode( __( 'New Email Triage schedule', 'digital-employees' ) ); ?>,
+			updatedTo: <?php echo wp_json_encode( __( 'Updated to %s', 'digital-employees' ) ); ?>
 		}
 	};
 	</script>

@@ -5625,6 +5625,11 @@ final class DEF_Core_Staff_AI
 			'background_color' => '#ffffff',
 			'theme_color'      => '#6366f1',
 			'icons'            => $icons,
+			// C3b: the installed app reads this to notice a release it is not running.
+			// A non-standard member, which browsers ignore — and this response already
+			// sends nocache_headers() below, so the check always sees the live version.
+			// It is the ONE cheap GET the shell already had a reason to make.
+			'version'          => DEF_CORE_VERSION,
 		);
 
 		nocache_headers();

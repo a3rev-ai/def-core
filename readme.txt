@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.9
+Stable tag: 7.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.0 - 2026-09-11 =
+* Feature - Staff AI on your phone: the app you added to your home screen now keeps itself up to date. It stays open for days without ever reloading, so it could go on running an old version long after a release had landed - a fix you had been told about could be missing on the phone while the same page in the browser already had it. The app now looks for a new release when you open it and when you come back to it, and takes it at a quiet moment: never while a reply is streaming, never over a message you are part way through typing, and never in the middle of a hands-free conversation, so it can never lose your words. When it has updated it says so in one line. Nothing to press, and no more force-quitting the app from the app switcher to get the latest version.
 
 = 7.8.9 - 2026-09-11 =
 * Update - Voice, hands-free: to end a conversation by voice, say the employee's name with it - "Sue, stop", "Stop, Sue", "Thanks, that's all, Sue". Saying "stop" on its own no longer ends it, and that is the point: "stop" is a word people say in the middle of a sentence, and on its own it is a single short word for the microphone to catch, so it was being missed and answered as a question instead. Naming your employee makes it unmistakable, and it is the same habit as a phone assistant. Site admins: the phrases stay translatable, but the name is now required in every language, so a bare translated phrase no longer ends the conversation on its own. Needs the platform release of the same day.

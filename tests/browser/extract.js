@@ -88,6 +88,17 @@ function integrations() {
 		'INTEGRATIONS');
 }
 
+// C3b: the installed app's release check — the version compare, the quiet-moment
+// rule, the after-the-reload notice, and the visibilitychange listener driving them.
+function release() {
+	return slice('release check',
+		l => l.includes('── C3b: the installed app keeps up with the release'),
+		l => l.includes('// Render messages'),
+		['function quietEnough', 'function takeUpdateWhenQuiet', 'function checkForNewRelease',
+			"addEventListener('visibilitychange'"],
+		'RELEASE');
+}
+
 // The SSE stream handlers of both widgets — the streaming state, the renderer
 // and the event switch (V-S7b: `step_superseded` moves a superseded round out
 // of the bubble).
@@ -252,6 +263,6 @@ function templateModal(id) {
 }
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, staffAiStream, customerChatStream, scheduled,
+	usage, integrations, release, staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

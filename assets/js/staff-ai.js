@@ -1143,12 +1143,76 @@ function t(key, fallback) {
 		return false;
 	}
 
+	// ── C3b: the installed app keeps up with the release ──────────────────────
+	// The home-screen app keeps its page process alive for DAYS and never
+	// re-navigates, so it runs whatever it loaded first — on 2026-09-09 a voice
+	// canary failed on the installed app while the same page in Safari passed. The
+	// service worker is network-first and caches nothing; the live page IS the stale
+	// copy, so there is no cache to clear. The app has to notice and reload itself.
+	var _updateSeen = null;        // the newer version we are waiting for a quiet moment to take
+	var _updateChecking = false;   // one GET in flight at a time — a foreground asks once
+
+	function quietEnough() {
+		// The C1 canary rules: never over a streaming reply, never over a half-typed
+		// message, and never mid-sentence in a hands-free conversation. A reload at the
+		// wrong moment loses the user's words, which is worse than running old code.
+		// The composer's own text is the half-typed test. `dirtyInput` is NOT — it
+		// means "typed since the last reply" and stays true over an emptied composer,
+		// which would hold an update back for the rest of the session.
+		return !_isStreaming && !isLoading && !conversationOn &&
+			!(composerInput && composerInput.value.trim());
+	}
+
+	function takeUpdateWhenQuiet() {
+		if (!_updateSeen) return;
+		if (!quietEnough()) return;   // re-checked on the next foreground / turn end
+		try { sessionStorage.setItem('def:updatedTo', _updateSeen); } catch (e) {}
+		location.reload();
+	}
+
+	function checkForNewRelease() {
+		var running = StaffAIConfig && StaffAIConfig.version;
+		if (!running || _updateSeen || _updateChecking) return;   // already know, or asked
+		_updateChecking = true;
+		fetch(StaffAIConfig.homeUrl + 'staff-ai/manifest.json', { cache: 'no-store' })
+			.then(function (r) { return r.ok ? r.json() : null; })
+			.then(function (m) {
+				// Only a DIFFERENT version is news. Not "greater than" — a rollback is a
+				// release the app should also pick up, and comparing dotted versions in
+				// the client is a bug waiting to happen.
+				if (m && m.version && m.version !== running) {
+					_updateSeen = m.version;
+					takeUpdateWhenQuiet();
+				}
+			})
+			.catch(function () {})          // offline is not an error worth showing
+			.finally(function () { _updateChecking = false; });
+	}
+
+	// The notice, after the reload has happened. The info banner is the console's
+	// one-line notice and clears itself on the next New chat — nothing else at boot
+	// touches it.
+	try {
+		var _updatedTo = sessionStorage.getItem('def:updatedTo');
+		if (_updatedTo) {
+			sessionStorage.removeItem('def:updatedTo');
+			showInfo(t('updatedTo', 'Updated to %s').replace('%s', _updatedTo));
+		}
+	} catch (e) {}
+
+	checkForNewRelease();   // on launch
+
 	// A locked phone can leave the reader hanging rather than failing it. On resume, give
 	// the live stream a moment; if nothing arrives, abort it so the catch above recovers.
 	document.addEventListener('visibilitychange', function() {
 		// Hands-free is a foreground interaction: a pocketed phone must not keep
 		// listening (7.7.1) — the mic is released the moment the page hides.
 		if (document.visibilityState === 'hidden' && conversationOn) endConversation();
+		if (document.visibilityState === 'visible') {
+			// Coming back is the moment a stale app is most likely to be stale, and the
+			// moment it is most likely to be quiet.
+			if (_updateSeen) takeUpdateWhenQuiet(); else checkForNewRelease();
+		}
 		if (document.visibilityState !== 'visible' || !_isStreaming || !_streamAbort) return;
 		var seen = _eventsSeen, controller = _streamAbort;
 		setTimeout(function() {
@@ -2834,6 +2898,9 @@ function t(key, fallback) {
 						dirtyInput = false;
 						loadConversations();
 						updateReadOnlyState();
+						// C3b: a release that landed mid-reply is taken now the turn is
+						// over — the other moment a stale app is quiet enough to reload.
+						takeUpdateWhenQuiet();
 					} else if (evt.type === 'transcript') {
 						// The server heard the recording (7.7.1): the bubble gets its words.
 						// Before any text streams, so a full re-render wipes nothing.
