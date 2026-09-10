@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.8.8
+Stable tag: 7.8.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.8.9 - 2026-09-11 =
+* Update - Voice, hands-free: to end a conversation by voice, say the employee's name with it - "Sue, stop", "Stop, Sue", "Thanks, that's all, Sue". Saying "stop" on its own no longer ends it, and that is the point: "stop" is a word people say in the middle of a sentence, and on its own it is a single short word for the microphone to catch, so it was being missed and answered as a question instead. Naming your employee makes it unmistakable, and it is the same habit as a phone assistant. Site admins: the phrases stay translatable, but the name is now required in every language, so a bare translated phrase no longer ends the conversation on its own. Needs the platform release of the same day.
 
 = 7.8.8 - 2026-09-09 =
 * Fix - Staff AI Connections: the Finish connecting link now waits for you. Connecting an app opens a link you click to approve access in another tab - and switching to that tab and back was itself enough to make the link disappear, because coming back refreshes the list. The link now stays on its row until the app is actually connected, or until you dismiss it with the small x beside it, so a glance at the consent screen, a phone switching apps or an interrupted approval no longer sends you back to Connect to start again. Connecting a second mailbox on an app you already use behaves the same way. Returning from the approval tab still refreshes the list, so an app you did finish connecting shows Connected the moment you are back.
