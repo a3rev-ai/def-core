@@ -1156,17 +1156,36 @@ function t(key, fallback) {
 		// The C1 canary rules: never over a streaming reply, never over a half-typed
 		// message, and never mid-sentence in a hands-free conversation. A reload at the
 		// wrong moment loses the user's words, which is worse than running old code.
-		// The composer's own text is the half-typed test. `dirtyInput` is NOT — it
-		// means "typed since the last reply" and stays true over an emptied composer,
-		// which would hold an update back for the rest of the session.
-		return !_isStreaming && !isLoading && !conversationOn &&
-			!(composerInput && composerInput.value.trim());
+		// The composer's own contents are the half-typed test — text OR a staged file,
+		// the pair `updateSendButton` already keys on. `dirtyInput` is NOT: it means
+		// "typed since the last reply" and stays true over an emptied composer, which
+		// would hold an update back for the rest of the session. Nor is the suggestion
+		// the server writes into the composer after a turn — that is not the user's
+		// text, and it carries the class every composer handler clears on first touch.
+		var typed = composerInput && composerInput.value.trim() &&
+			!composerInput.classList.contains('staff-ai-suggestion-text');
+		return !_isStreaming && !isLoading && !conversationOn && !hasActiveFiles() && !typed;
 	}
 
 	function takeUpdateWhenQuiet() {
 		if (!_updateSeen) return;
-		if (!quietEnough()) return;   // re-checked on the next foreground / turn end
-		try { sessionStorage.setItem('def:updatedTo', _updateSeen); } catch (e) {}
+		if (!quietEnough()) return;   // re-checked on the next foreground
+		// The service worker is network-first over a cache it never fills, so a reload
+		// with no network is a dead page — and the installed app has no address bar to
+		// escape from. Old code beats no app.
+		if (navigator.onLine === false) return;
+		// ONE reload per target version. Come back still not running it and the server is
+		// stuck advertising a version this page will never become — a manifest held at a
+		// CDN edge, a half-finished deploy — so stop rather than reload for ever at page
+		// speed. No brake recorded means no reload: without storage nothing ends the loop.
+		var braked = false;
+		try {
+			if (sessionStorage.getItem('def:updateTried') === _updateSeen) return;
+			sessionStorage.setItem('def:updateTried', _updateSeen);
+			sessionStorage.setItem('def:updatedTo', _updateSeen);
+			braked = true;
+		} catch (e) {}
+		if (!braked) return;
 		location.reload();
 	}
 
@@ -1189,14 +1208,18 @@ function t(key, fallback) {
 			.finally(function () { _updateChecking = false; });
 	}
 
-	// The notice, after the reload has happened. The info banner is the console's
-	// one-line notice and clears itself on the next New chat — nothing else at boot
-	// touches it.
+	// The notice, after the reload — and only if the page really came back on the version
+	// it reloaded FOR. Landing on anything else means the reload did not take, which also
+	// leaves the brake armed. The info banner is the console's one-line notice and clears
+	// itself on the next New chat; nothing else at boot touches it.
 	try {
 		var _updatedTo = sessionStorage.getItem('def:updatedTo');
 		if (_updatedTo) {
 			sessionStorage.removeItem('def:updatedTo');
-			showInfo(t('updatedTo', 'Updated to %s').replace('%s', _updatedTo));
+			if (StaffAIConfig && _updatedTo === StaffAIConfig.version) {
+				sessionStorage.removeItem('def:updateTried');
+				showInfo(t('updatedTo', 'Updated to %s').replace('%s', _updatedTo));
+			}
 		}
 	} catch (e) {}
 
@@ -2898,9 +2921,6 @@ function t(key, fallback) {
 						dirtyInput = false;
 						loadConversations();
 						updateReadOnlyState();
-						// C3b: a release that landed mid-reply is taken now the turn is
-						// over — the other moment a stale app is quiet enough to reload.
-						takeUpdateWhenQuiet();
 					} else if (evt.type === 'transcript') {
 						// The server heard the recording (7.7.1): the bubble gets its words.
 						// Before any text streams, so a full re-render wipes nothing.

@@ -1,16 +1,18 @@
 /*
  * The installed app keeps up with the release (C3b / v7.9.0) — behavioural harness.
- * Runs the SHIPPED release-check block (extracted by marker) inside jsdom and drives
- * it through the moments that matter: the same version is not news, a newer one waits
- * for the stream and the composer to be quiet, a rollback is taken too, and the notice
- * names the version on the other side of the reload. Nothing here is a copy of the
- * code under test.
+ * Runs the SHIPPED release-check block (extracted by marker) inside jsdom and drives it
+ * through the moments that matter: the same version is not news, a newer one waits for
+ * the stream, the composer and the user's staged files to be quiet, a rollback is taken
+ * too, a server stuck on a version this page will never become reloads ONCE, and the
+ * notice names the version only when the reload really landed. Nothing here is a copy of
+ * the code under test.
  *
- * `location.reload()` and `fetch` are declared in the HEAD scaffold rather than stubbed
- * on the window: jsdom implements neither, and a reload that really navigated would
- * take the checks with it.
+ * `location`, `fetch`, `navigator` and `sessionStorage` are declared in the HEAD scaffold
+ * rather than left to the window: jsdom implements neither reload nor fetch, a Function
+ * body sees no window globals, and a reload that really navigated would take the checks
+ * with it.
  *
- * 18 checks.
+ * 25 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -30,9 +32,10 @@ const HTML = `<!doctype html><html><body>
 const HEAD = `
 	var sessionStorage = window.sessionStorage;   // the window's own, kept across a "reload"
 	var composerInput = document.getElementById('composerInput');
-	var _isStreaming = false, isLoading = false, conversationOn = false;
+	var _isStreaming = false, isLoading = false, conversationOn = false, staged = false;
 	var _streamAbort = null, _eventsSeen = 0, RESUME_GRACE_MS = 0;
 	var location = { reload: function () { reloads.push(1); } };
+	function hasActiveFiles() { return staged; }
 	function endConversation() {}
 	function t(k, fb) { return fb; }
 	function showInfo(msg) { notices.push(msg); }
@@ -52,29 +55,35 @@ const TAIL = `
 		fetches: function () { return fetches; },
 		notices: function () { return notices; },
 		streaming: function (on) { _isStreaming = on; },
-		loading: function (on) { isLoading = on; },
 		handsFree: function (on) { conversationOn = on; },
-		type: function (text) { composerInput.value = text; },
-		// The seam the SSE 'done' handler drives — wired in the shipped stream block,
-		// which is a different slice; the check below proves that call is really there.
-		turnEnded: function () { takeUpdateWhenQuiet(); }
+		stage: function (on) { staged = on; },
+		type: function (text) { composerInput.value = text; composerInput.className = ''; },
+		suggest: function (text) {
+			composerInput.value = text;
+			composerInput.className = 'staff-ai-suggestion-text';
+		}
 	};
 `;
 
-// One window per case; `revisit` reruns the block in the SAME window, which is what
-// a reload is — a fresh script over the same sessionStorage.
-function boot(server, window) {
+/*
+ * One window per case. `boot(server, window, running)` reruns the block in the SAME
+ * window, which is what a reload is: a fresh script over the same sessionStorage — and
+ * `running` is the version the server handed back with that page, so a reload that did
+ * NOT take is spelled by passing the old version again.
+ */
+function boot(server, window, running) {
 	const dom = window ? null : new JSDOM(HTML, { url: 'https://e.test/staff-ai/', pretendToBeVisual: true });
 	const w = window || dom.window;
-	const config = { version: RUNNING, homeUrl: 'https://e.test/' };
+	const config = { version: running || RUNNING, homeUrl: 'https://e.test/' };
+	const net = { onLine: !server.offline };
 	const state = { reloads: [], fetches: [], notices: [] };
-	const factory = new w.Function('window', 'document', 'StaffAIConfig', 'server',
+	const factory = new w.Function('window', 'document', 'StaffAIConfig', 'server', 'navigator',
 		'reloads', 'fetches', 'notices', HEAD + RELEASE + TAIL);
-	const api = factory(w, w.document, config, server,
+	const api = factory(w, w.document, config, server, net,
 		state.reloads, state.fetches, state.notices);
 	api.window = w;
+	api.offline = function (on) { net.onLine = !on; };
 	api.foreground = function () { visibility(w, 'visible'); };
-	api.background = function () { visibility(w, 'hidden'); };
 	return api;
 }
 
@@ -123,8 +132,9 @@ function check(label, ok, detail) {
 		check('a reply still streaming holds the reload back', t.reloads() === 0);
 
 		t.streaming(false);
-		t.turnEnded();
-		check('and the turn ending takes it, without asking the server again',
+		t.foreground();
+		await tick();
+		check('and the next foreground takes it, without asking the server again',
 			t.reloads() === 1 && t.fetches().length === 1,
 			t.reloads() + ' reloads / ' + t.fetches().length + ' fetches');
 	}
@@ -147,6 +157,28 @@ function check(label, ok, detail) {
 	}
 	{
 		const t = boot({ version: '7.9.0' });
+		t.stage(true);
+		await tick();
+		check('a staged attachment holds the reload back — the composer is text OR files',
+			t.reloads() === 0);
+
+		t.stage(false);
+		t.foreground();
+		await tick();
+		check('and the reload follows once the file is gone', t.reloads() === 1);
+	}
+	{
+		// DEF sends `suggestions` AFTER done, and the client writes it into the composer.
+		// That is the app's text, not the user's, or the app would never update again
+		// after a completed turn — which is where it spends most of its life.
+		const t = boot({ version: '7.9.0' });
+		t.suggest('Shall I book it?');
+		await tick();
+		check('the suggestion the server wrote into the composer does NOT hold it back',
+			t.reloads() === 1, String(t.reloads()));
+	}
+	{
+		const t = boot({ version: '7.9.0' });
 		t.handsFree(true);
 		await tick();
 		check('a hands-free conversation holds the reload back mid-sentence', t.reloads() === 0);
@@ -160,7 +192,23 @@ function check(label, ok, detail) {
 			t.reloads() === 1, String(t.reloads()));
 	}
 
-	// ── Offline is not an error worth showing ──────────────────────────────
+	// ── Offline: old code beats a dead app ─────────────────────────────────
+	{
+		const t = boot({ version: '7.9.0' });
+		t.streaming(true);
+		await tick();
+		t.streaming(false);
+		t.offline(true);
+		t.foreground();
+		await tick();
+		check('with no network the reload is refused — the worker caches nothing to come back to',
+			t.reloads() === 0, String(t.reloads()));
+
+		t.offline(false);
+		t.foreground();
+		await tick();
+		check('and it is taken as soon as the network is back', t.reloads() === 1);
+	}
 	{
 		const t = boot({ offline: true });
 		await tick();
@@ -172,24 +220,36 @@ function check(label, ok, detail) {
 			t.fetches().length === 2, String(t.fetches().length));
 	}
 
-	// ── The notice, on the other side of the reload ────────────────────────
+	// ── A server stuck on a version this page will never become ────────────
+	{
+		const t = boot({ version: '9.9.9' });
+		await tick();
+		check('the app reloads for it once', t.reloads() === 1);
+
+		const stuck = boot({ version: '9.9.9' }, t.window, RUNNING);   // came back UNCHANGED
+		await tick();
+		check('and never again — one reload per target, not a loop at page speed',
+			stuck.reloads() === 0, String(stuck.reloads()));
+		check('and it does not claim an update that did not happen',
+			stuck.notices().length === 0, JSON.stringify(stuck.notices()));
+	}
+
+	// ── The notice, on the other side of a reload that landed ──────────────
 	{
 		const t = boot({ version: '7.9.0' });
 		await tick();
-		const back = boot({ version: '7.9.0' }, t.window);   // the reload
+		const back = boot({ version: '7.9.0' }, t.window, '7.9.0');   // the reload took
 		check('the app says which version it came back on, once',
 			back.notices().length === 1 && back.notices()[0] === 'Updated to 7.9.0',
 			JSON.stringify(back.notices()));
 
-		const again = boot({ version: '7.9.0' }, t.window);
+		const again = boot({ version: '7.9.0' }, t.window, '7.9.0');
 		check('and does not say it again on the next launch', again.notices().length === 0,
 			JSON.stringify(again.notices()));
 	}
 
 	// ── Both halves wired, not just the block ──────────────────────────────
 	{
-		check("the SSE 'done' handler is what ends the turn for the waiting app",
-			extract.staffAiStream().includes('takeUpdateWhenQuiet();'));
 		const shell = fs.readFileSync(path.join(REPO, 'templates/staff-ai-shell.php'), 'utf8');
 		const php = fs.readFileSync(path.join(REPO, 'includes/class-def-core-staff-ai.php'), 'utf8');
 		check('the page carries the version it was SERVED with, and the manifest the live one',

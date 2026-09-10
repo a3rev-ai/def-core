@@ -51,7 +51,6 @@ const STAFF_HEAD = `
 	function endConversation() {}
 	var voiceStopped = false;                          // V-S6b's guard, outside this slice
 	function handleSpokenStop() { return false; }      // V-S6b, outside this slice
-	function takeUpdateWhenQuiet() {}                  // C3b, outside this slice
 	function readBackSoFar() { spoken.push(readbackBuffer); }
 	function readBack(final) { spoken.push('final:' + final); }
 `;
