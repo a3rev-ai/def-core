@@ -487,16 +487,32 @@ window.DefVoice = (function () {
 			.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 	}
 
-	// A spoken stop (V-S6b). `phrases` is one i18n string of phrases, so the ones a
-	// language actually says are a translation and not a code change (its separator
-	// may be a CJK comma). The employee's own name can sit anywhere among them —
-	// "Sue, stop", "Stop, Sue", "Thanks Sue, that's all" — so it is dropped as a word.
-	// The WHOLE transcript must be the phrase: "stop the newsletter" is an instruction.
+	// A spoken stop MUST NAME THE EMPLOYEE — "Sue, stop", not "stop" (Steve, 2026-09-10).
+	// The Siri rule: you say "Siri, stop". `phrases` is one i18n string, so the words a
+	// language actually says are a translation and not a code change (its separator may
+	// be a CJK comma). The name leads or trails — "Sue, stop", "Stop, Sue", "Thanks,
+	// that's all, Sue" — and the WHOLE transcript must be the phrase, so "stop the
+	// newsletter" is still an instruction.
+	//
+	// Why the name is required: a bare "stop" is a one-word clip, the worst case for the
+	// transcriber, and 7.7.9 transcribes short clips WITH the conversation as context.
+	// Seven real stop attempts on 2026-09-10 produced transcripts of 3 to 85 characters
+	// and not one was the word "stop" — so the stop never matched and the employee
+	// answered it. Naming her gives the transcriber two words and a proper noun, and the
+	// vendor hint already carries her name, so this agrees with what it will emit.
+	// MUST stay identical to DEF's is_stop_phrase (app/shared/voice.py) — if the two
+	// halves disagree, one side ends the session while the other answers the turn.
 	function isStopPhrase(transcript, phrases, name) {
 		var said = bareWords(transcript);
 		if (!said) return false;
 		var who = bareWords(name).split(' ')[0];
-		if (who) said = said.split(' ').filter(function (word) { return word !== who; }).join(' ');
+		if (who) {
+			var words = said.split(' ');
+			if (words[0] === who) words = words.slice(1);
+			else if (words[words.length - 1] === who) words = words.slice(0, -1);
+			else return false;   // the name is mandatory — a bare phrase is a message
+			said = words.join(' ');
+		}
 		return String(phrases || '').split(/[,、，]/).some(function (phrase) {
 			var want = bareWords(phrase);
 			return !!want && want === said;

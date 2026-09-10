@@ -227,17 +227,28 @@ function check(n, label, cond, detail) {
 		const set = STRINGS.voiceStopPhrases;
 		const is = text => DefVoice.isStopPhrase(text, set, 'Sue');
 		const cases = [
-			['Stop.', true], ['stop', true], ['Sue, stop!', true], ['SUE STOP', true],
-			['Stop, Sue', true], ["Thanks Sue, that's all", true],   // the name leads, trails or sits inside
-			["That's all.", true], ['thats all', true], ['Thanks, that’s all.', true],
+			// The name is MANDATORY and LEADS or TRAILS (Steve, 2026-09-10 — the Siri rule).
+			['Sue, stop!', true], ['SUE STOP', true], ['Stop, Sue', true],
+			["Sue, that's all", true], ["Thanks, that's all, Sue", true],
+			// Bare phrases are no longer a stop. These four were true before this rule and
+			// ARE the change: "stop" is a word people say, and as a one-word clip it is the
+			// case the transcriber gets wrong (see isStopPhrase's comment).
+			['Stop.', false], ['stop', false], ["That's all.", false], ['thats all', false],
+			// The name must be at an END: "Thanks Sue, that's all" no longer lands. Trailing
+			// it — "Thanks, that's all, Sue" — says the same thing and does.
+			["Thanks Sue, that's all", false],
+			// Unchanged: an instruction is not a stop; another employee is not the employee.
 			['stop the newsletter', false], ['Can you stop that', false], ['', false],
-			['Joe, stop', false],   // another employee's name is not the one being spoken to
+			['Joe, stop', false],
 		];
 		const wrong = cases.filter(c => is(c[0]) !== c[1]).map(c => JSON.stringify(c[0]));
-		// A translated set may be punctuated in its own script.
-		const cjk = DefVoice.isStopPhrase('停止', 'ストップ、停止', 'Sue');
-		check(5, 'a whole-transcript stop phrase matches past case, punctuation and the name; a request does not',
-			wrong.length === 0 && cjk === true, 'misjudged ' + wrong.join(', ') + ' cjk=' + cjk);
+		// A translated set stays translatable — but the name is required in every language,
+		// so the bare translated phrase no longer stops on its own.
+		const cjkNamed = DefVoice.isStopPhrase('Sue 停止', 'ストップ、停止', 'Sue');
+		const cjkBare = DefVoice.isStopPhrase('停止', 'ストップ、停止', 'Sue');
+		check(5, 'a stop names the employee, leading or trailing; a bare phrase or a request does not',
+			wrong.length === 0 && cjkNamed === true && cjkBare === false,
+			'misjudged ' + wrong.join(', ') + ' cjkNamed=' + cjkNamed + ' cjkBare=' + cjkBare);
 	}
 	// 6. the console: the stop ends the session and renders no turn
 	{
