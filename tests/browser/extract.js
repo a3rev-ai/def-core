@@ -13,8 +13,8 @@
  * a function out of the block is a hard error here and not a silent pass.
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
- * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE, CHAT_VOICE,
- * CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
+ * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -99,6 +99,17 @@ function documentViewer() {
 		['consolePages.push', 'async function load', 'async function fetchChunk',
 			'openDocumentViewer ='],
 		'DOCVIEWER');
+}
+
+// C6a: initDocuments on the card kit — the cards, the ⋯ menu and its touch
+// sheet, the inline "Move to project…" editor and Delete.
+function documents() {
+	return slice('initDocuments',
+		l => l.startsWith('\t(function initDocuments() {'),
+		l => l.startsWith('\t(function initProjects() {'),
+		['consolePages.push', 'function renderRow', 'function toggleAssignRow',
+			'function removeDoc', 'function closeManageSheets'],
+		'DOCUMENTS');
 }
 
 // C5: the one "Ask X how this works" entry, and the seven shipped calls to it.
@@ -347,8 +358,40 @@ function templateModal(id) {
 		l => l.includes('id="' + id + '"'), 'div#' + id), 'div#' + id);
 }
 
+// ── The stylesheet, as rules ────────────────────────────────────────────
+// Comments stripped, then each rule's simple class names mapped to the rules
+// they take part in. Two names that always appear in the SAME rules are the
+// same styling by construction — the card kit's proof (C5, C6).
+//
+// The limit, stated so it is not mistaken for more than it is: this compares
+// MEMBERSHIP, not position within a selector. It proves a kit name and the name
+// it replaced take part in the same rules with the same declarations; it would
+// not catch a kit name wired into the wrong half of a descendant pair. Every
+// such pair in the kit is one line apart from its twin, which is what makes
+// that readable by eye.
+function cssRules(css) {
+	const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
+	const byClass = new Map();
+	const rules = [];
+	const RULE = /([^{}]+)\{([^{}]*)\}/g;
+	let m;
+	while ((m = RULE.exec(src)) !== null) {
+		const selector = m[1].trim();
+		if (!selector || selector.startsWith('@')) continue;
+		const id = rules.length;
+		rules.push({ selector: selector, body: m[2].trim() });
+		const CLS = /\.([A-Za-z0-9_-]+)/g;
+		let c;
+		while ((c = CLS.exec(selector)) !== null) {
+			if (!byClass.has(c[1])) byClass.set(c[1], new Set());
+			byClass.get(c[1]).add(id);
+		}
+	}
+	return { rules: rules, byClass: byClass };
+}
+
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, documentViewer, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
+	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.9.4 - 2026/09/11 =
+* Update - Staff AI console: on the Documents page, a document's actions now sit behind the ⋯ menu - Move to project, Download and Delete - with View staying on the card. It is the same card and menu Projects uses, so the document tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.
+
 = 7.9.3 - 2026/09/11 =
 * Update - Staff AI console, under the hood: the card, the menu, the slot tiles and the status line that Projects introduced now have shared names, so the other console pages can wear the same ones instead of each carrying its own copy. The seven "Ask your assistant how this works" buttons - on Projects, My documents, Memories, Usage, Connections, Scheduled and in the task editor - are now wired once rather than seven times over. Nothing changes on screen and nothing changes about what any of them does: this is groundwork for the pages that adopt the shared look next.
 

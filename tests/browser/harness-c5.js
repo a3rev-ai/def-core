@@ -114,41 +114,9 @@ function runEntry(call, opts) {
 
 // ── 2. the kit's names ────────────────────────────────────────────────────
 //
-// Strip comments, then walk the stylesheet's rules so each simple class name maps
-// to the set of declaration blocks it takes part in. Two names that always appear
-// in the SAME blocks are the same styling, by construction.
-//
-// The limit, stated so it is not mistaken for more than it is: this compares
-// MEMBERSHIP, not position within a selector. It proves the kit name and the name
-// it replaced take part in the same rules with the same declarations; it would not
-// catch a kit name wired into the wrong half of a descendant pair. Every such pair
-// in the kit is one line apart from its twin below, which is what makes that
-// readable by eye.
-
-function ruleIndex(css) {
-  const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const byClass = new Map();
-  const rules = [];
-  const RULE = /([^{}]+)\{([^{}]*)\}/g;
-  let m;
-  while ((m = RULE.exec(src)) !== null) {
-    const selector = m[1].trim();
-    if (!selector || selector.startsWith('@')) continue;
-    const id = rules.length;
-    rules.push({ selector: selector, body: m[2].trim() });
-    const seen = new Set();
-    let c;
-    const CLS = /\.([A-Za-z0-9_-]+)/g;
-    while ((c = CLS.exec(selector)) !== null) seen.add(c[1]);
-    seen.forEach(function (name) {
-      if (!byClass.has(name)) byClass.set(name, new Set());
-      byClass.get(name).add(id);
-    });
-  }
-  return { rules: rules, byClass: byClass };
-}
-
-const INDEX = ruleIndex(CSS);
+// The stylesheet as rules, each class name mapped to the rules it takes part in
+// (extract.cssRules, which states the method and its limit).
+const INDEX = extract.cssRules(CSS);
 
 // Each kit name and the name it was derived from. Sharing every rule is what
 // makes re-pointing Projects a no-op on screen.
