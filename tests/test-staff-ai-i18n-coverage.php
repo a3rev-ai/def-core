@@ -106,7 +106,11 @@ assert_true( false !== $end, 'the i18n map closes at its own indent level' );
 $map_src = substr( $php, $start, ( false === $end ? strlen( $php ) : $end ) - $start );
 
 $map_keys = array();
-preg_match_all( '/^\t{3}([A-Za-z0-9_]+): (.*)$/m', $map_src, $mm, PREG_SET_ORDER );
+// `(.*?)\r?$` and not `(.*)`: a Windows checkout (core.autocrlf) leaves a carriage
+// return on the end of every line, which PCRE keeps in the capture and the shape
+// check below then rejects — all 250-odd entries red on this laptop, every one of
+// them green in CI. The gate has to bite on the same laptop the console is built on.
+preg_match_all( '/^\t{3}([A-Za-z0-9_]+): (.*?)\r?$/m', $map_src, $mm, PREG_SET_ORDER );
 foreach ( $mm as $entry ) {
 	$map_keys[ $entry[1] ][] = $entry[2];
 }
