@@ -630,10 +630,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<!-- The My Documents modal became the #documentsPane page (tweaks item 3, 2026-09-02). -->
 		<!-- Connections, Memories and Usage became the #connectionsPane, #memoriesPane
 		     and #usagePane pages (C3, v7.8.3). -->
-		<!-- Document viewer (Projects P-D3, D-P14): read a document in place. The text
-		     is set via textContent into a <pre> — never HTML (a project document is
-		     untrusted content, D-P7). Reached from a document row's View and from a
-		     project's slot lines. -->
+		<!-- The document viewer became the #documentPage page (C4, v7.9.1). -->
 		<!-- Email Triage schedule (S4b) - the user's own daily digest settings -->
 		<div class="modal-overlay" id="scheduleModal">
 			<div class="modal" style="max-width: 480px;">

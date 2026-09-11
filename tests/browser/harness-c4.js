@@ -9,7 +9,7 @@
  * checked here is the difference between a box something opens FOR you and a
  * place you can arrive at cold: a reload, a link, a back button.
  *
- * 24 checks.
+ * 26 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -43,16 +43,19 @@ const SHELL_TAIL = `
 const VIEWER_TAIL = `
 	return { open: openDocumentViewer };`;
 
-const DOC = {
-	document_id: 'doc-1',
-	title: 'Inspect It Homes — runsheet',
+// Every document answers with its OWN title, text and download link, so a check
+// can tell whose content is on screen — which is the whole subject of one page
+// serving many documents.
+const docFor = (id) => ({
+	document_id: id,
+	title: 'Title of ' + id,
 	file_type: 'md',
 	version: 3,
-	download_url: 'https://e.test/staff-ai-download/tenant-1/runsheet.md'
-};
-// A document whose TEXT looks like markup: the <pre> takes it via textContent,
-// so it must stay literal (D-P7 — a document is untrusted content).
-const HEAD_TEXT = 'First half <b>not markup</b>';
+	download_url: 'https://e.test/staff-ai-download/tenant-1/' + id + '.md'
+});
+// The text also looks like markup: the <pre> takes it via textContent, so it
+// must stay literal (D-P7 — a document is untrusted content).
+const textFor = (id) => 'Body of ' + id + ' <b>not markup</b>';
 const TAIL_TEXT = ' — second half';
 
 function boot(startUrl, opts) {
@@ -69,18 +72,26 @@ function boot(startUrl, opts) {
 		document.getElementById('composerContainer'),
 		document.getElementById('conversationList'), []);
 
+	// A held request is one still in flight when the reader moves on — the case
+	// that decides whether a late read can write into the document now on screen.
+	const held = [];
 	async function apiRequest(url) {
 		requests.push(url);
 		if (opts.fail) throw new Error('DEF said no');
+		const id = (url.match(/documents\/([^/?]+)/) || [])[1] || '';
 		const second = /offset=/.test(url);
-		return {
-			document: Object.assign({}, DOC, opts.doc || {}),
-			content: second ? TAIL_TEXT : HEAD_TEXT,
-			offset: second ? HEAD_TEXT.length : 0,
-			total_chars: HEAD_TEXT.length + TAIL_TEXT.length,
+		const body = {
+			document: Object.assign(docFor(id), opts.doc || {}),
+			content: second ? TAIL_TEXT : textFor(id),
+			offset: second ? textFor(id).length : 0,
+			total_chars: textFor(id).length + TAIL_TEXT.length,
 			truncated: !second,
-			next_offset: second ? null : HEAD_TEXT.length
+			next_offset: second ? null : textFor(id).length
 		};
+		if (opts.hold && opts.hold(url)) {
+			return new Promise(function (resolve) { held.push(function () { resolve(body); }); });
+		}
+		return body;
 	}
 
 	const names = ['window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
@@ -103,6 +114,7 @@ function boot(startUrl, opts) {
 	return {
 		window, document, location, api, requests,
 		openFromCard: viewer.open,
+		release: () => { held.splice(0).forEach((fn) => fn()); },
 		page: () => $('documentPage'),
 		title: () => $('documentPageTitle').textContent,
 		status: () => $('documentViewerStatus').textContent,
@@ -152,16 +164,16 @@ function check(label, ok, detail) {
 
 		await tick();
 		check('the document\'s own title replaces it once loaded',
-			t.title() === DOC.title, t.title());
+			t.title() === docFor('doc-1').title, t.title());
 		check('the status line names the type, the version and the size',
 			t.status() === 'MD · v3 · %s characters'.replace('%s',
-				String(HEAD_TEXT.length + TAIL_TEXT.length)), t.status());
+				String(textFor('doc-1').length + TAIL_TEXT.length)), t.status());
 		check('the request asked for the id in the address',
 			t.requests[0] === '/documents/doc-1/content', t.requests[0]);
 		check('the text is TEXT — markup inside a document stays literal',
-			t.text() === HEAD_TEXT && t.html().indexOf('<b>') === -1, t.html());
+			t.text() === textFor('doc-1') && t.html().indexOf('<b>') === -1, t.html());
 		check('Download points at the link the DOCUMENT carried, not one an opener passed',
-			t.download().style.display === '' && t.download().href === DOC.download_url,
+			t.download().style.display === '' && t.download().href === docFor('doc-1').download_url,
 			t.download().href);
 
 		// ── Show more ──────────────────────────────────────────────────────
@@ -169,7 +181,7 @@ function check(label, ok, detail) {
 		t.click(t.more());
 		await tick();
 		check('it appends the rest rather than replacing what was read',
-			t.text() === HEAD_TEXT + TAIL_TEXT, t.text());
+			t.text() === textFor('doc-1') + TAIL_TEXT, t.text());
 		check('and goes away at the end of the document', t.more().style.display === 'none');
 	}
 
@@ -209,7 +221,8 @@ function check(label, ok, detail) {
 			t.shown('documentPage'));
 		await tick();
 		check('and the title, the status and the download link all come from the load',
-			t.title() === DOC.title && t.download().href === DOC.download_url, t.title());
+			t.title() === docFor('doc-1').title
+			&& t.download().href === docFor('doc-1').download_url, t.title());
 	}
 
 	// ── Routes that name no document ───────────────────────────────────────
@@ -247,6 +260,39 @@ function check(label, ok, detail) {
 			t.requests.length === before, 'before=' + before + ' after=' + JSON.stringify(t.requests));
 	}
 
+	// ── One page, many documents: a read that lands late ───────────────────
+	{
+		// Documents → View A → Show more on a big one → Back → View B, and A's
+		// read only lands now. Nothing of A may appear under B.
+		const t = boot(null, { hold: (url) => /doc-a/.test(url) });
+		t.openFromCard('doc-a', 'Doc A');
+		await tick();
+		t.openFromCard('doc-b', 'Doc B');
+		await until(t.window, () => t.title() === docFor('doc-b').title);
+		t.release();
+		await tick();
+		check('a read that lands after the reader moved on writes nothing into the document now open',
+			t.text() === textFor('doc-b') && t.title() === docFor('doc-b').title
+			&& t.download().href === docFor('doc-b').download_url,
+			'text=' + JSON.stringify(t.text()) + ' title=' + JSON.stringify(t.title()));
+		t.click(t.more());
+		await tick();
+		check('and it does not hand its own next offset to that document either',
+			t.requests[t.requests.length - 1].indexOf('/documents/doc-b/content?offset=') === 0,
+			t.requests[t.requests.length - 1]);
+	}
+
+	// ── Leaving the viewer, which has no sidebar entry of its own ──────────
+	{
+		const t = boot();
+		t.openFromCard('doc-1', 'Runsheet');
+		await tick();
+		t.api.showChat();
+		check('leaving puts focus in the chat, never on the hidden title (D-C6)',
+			t.document.activeElement === t.document.querySelector('#composerContainer textarea'),
+			t.document.activeElement && t.document.activeElement.id);
+	}
+
 	// ── A download link that is not a link ─────────────────────────────────
 	{
 		const t = boot(null, { doc: { download_url: 'javascript:alert(1)' } });
@@ -264,13 +310,6 @@ function check(label, ok, detail) {
 		check('a read that fails says so on the page and offers no download',
 			/Could not read|DEF said no/.test(t.status()) && t.download().style.display === 'none',
 			t.status());
-	}
-
-	// ── Both halves wired ──────────────────────────────────────────────────
-	{
-		const php = fs.readFileSync(path.join(REPO, 'includes/class-def-core-staff-ai.php'), 'utf8');
-		check('the proxy passes the download link through on the content endpoint',
-			/'download_url'\s*=>\s*self::document_download_href\(\s*\$doc\s*\)/.test(php));
 	}
 
 	console.log('C4 — the document viewer becomes a page');

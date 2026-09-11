@@ -2272,11 +2272,11 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'     => true,
 				'document'    => array(
-					'document_id' => ( isset( $doc['document_id'] ) && is_string( $doc['document_id'] )
+					'document_id'  => ( isset( $doc['document_id'] ) && is_string( $doc['document_id'] )
 						&& preg_match( '/^[a-zA-Z0-9-]+$/', $doc['document_id'] ) ) ? $doc['document_id'] : $id,
-					'title'       => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
-					'file_type'   => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
-					'version'     => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
+					'title'        => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
+					'file_type'    => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
+					'version'      => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
 					// C4: the viewer is a PAGE now, reachable by reload and by a
 					// link, so it cannot rely on an opener to hand it the download
 					// URL. DEF already sends the path; this stops dropping it.

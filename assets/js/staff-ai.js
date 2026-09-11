@@ -908,7 +908,12 @@ function t(key, fallback) {
 		// focus on <body> and loses a keyboard user's place. The sidebar entry for
 		// the page being LEFT is that place, however the page was reached.
 		if (restoreFocus) {
-			var back = navItemForRoute(leaving.route);
+			// The document viewer is the one page with no sidebar entry of its own
+			// — its route carries an id. The composer is where the chat's focus
+			// belongs, and leaving focus on the hidden title is the very loss the
+			// comment above is about.
+			var back = navItemForRoute(leaving.route)
+				|| composerContainer.querySelector('textarea');
 			if (back) back.focus();
 		}
 	}
@@ -4138,8 +4143,9 @@ function t(key, fallback) {
 		let pendingTitle = '';
 
 		// C4: one page, a family of routes (`param: true`) — the id rides the
-		// address. Leaving drops `current` so a stale "Show more" can never
-		// append another document's text to the one on screen.
+		// address. `onLeave` drops `current` on the way out to the chat; it is
+		// NOT what keeps two documents apart (viewer → viewer never fires it —
+		// same page object). fetchChunk's own re-check does that.
 		consolePages.push({
 			route: 'document',
 			param: true,
@@ -4153,8 +4159,14 @@ function t(key, fallback) {
 			// apiBase can be the plain-permalink ?rest_route= form — the same
 			// guard the Documents and Projects panels carry (panel round 1).
 			const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+			const asked = current.id;
 			var data = await apiRequest('/documents/' + encodeURIComponent(current.id) + '/content'
 				+ (offset ? sep + 'offset=' + encodeURIComponent(String(offset)) : ''));
+			// ONE page, MANY documents. By the time a read lands the reader may have
+			// left, or be on a different document — Back then opening another card is
+			// enough. Writing anyway would append THIS document's text, title and
+			// download link to THAT one, and hand it this one's next offset.
+			if (!current || current.id !== asked) return;
 			textEl.textContent += (typeof data.content === 'string') ? data.content : '';
 			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
 			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
@@ -4179,7 +4191,7 @@ function t(key, fallback) {
 			if (!current || current.nextOffset === null) return;
 			moreBtn.disabled = true;
 			try { await fetchChunk(current.nextOffset); }
-			catch (e) { statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.'); statusEl.className = 'documents-status documents-status-error'; }
+			catch (e) { statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.'); statusEl.className = 'console-page-desc documents-status documents-status-error'; }
 			finally { moreBtn.disabled = false; }
 		});
 
