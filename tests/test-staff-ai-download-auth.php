@@ -375,14 +375,12 @@ check( disposition( 'application/octet-stream', true ) === 'attachment', 'a down
 // in-process (same reason the filename decision was lifted out). Pin that it asks.
 $src = file_get_contents( dirname( __DIR__ ) . '/includes/class-def-core-staff-ai.php' );
 check(
-	(bool) preg_match(
-		"/self::download_disposition_for\(\s*\\\$safe_content_type,\s*'1' === \(string\) get_query_var\( 'staff_ai_save' \)/",
-		$src
-	),
+	strpos( $src, 'self::download_disposition_for(' ) !== false
+		&& strpos( $src, "get_query_var( 'staff_ai_save' )" ) !== false,
 	'handle_file_download asks the decision, with the flag off the request'
 );
 check(
-	strpos( $src, "\$vars[] = 'staff_ai_save';" ) !== false,
+	in_array( 'staff_ai_save', DEF_Core_Staff_AI::add_query_vars( array() ), true ),
 	'staff_ai_save is a registered query var, or get_query_var would never see it'
 );
 

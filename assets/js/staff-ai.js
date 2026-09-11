@@ -4120,8 +4120,9 @@ function t(key, fallback) {
 	// P-D3: the viewer, published by initDocumentViewer for the Documents rows
 	// and the Projects panel's slot lines alike.
 	let openDocumentViewer = null;
-	// What the viewer can show, and it must MATCH what DEF will return: `_document_text`
-	// reads these, and pptx was missing here while the server could read it all along.
+	// What the viewer can show. The rule is one-directional: this must never claim a
+	// format DEF cannot read — it may hold back one DEF can. `pptx` was missing here
+	// while the server could read it all along, which is the first kind of mistake.
 	// PDF is absent by DECISION, not for want of a reader — Steve, 2026-09-12: "I am not
 	// wanting to build a page that faithfully prints out what is in the PDF - I just want
 	// the PDF document stored - where Sue can read it and where the admin can download
@@ -4500,7 +4501,7 @@ function t(key, fallback) {
 			actions.className = 'console-card-actions';
 			// P-D3: read it here. Only the formats DEF can turn into text get the
 			// button; everything else is reached through the ⋯ menu's Download.
-			if (openDocumentViewer && VIEWABLE_TYPES.indexOf((doc.file_type || '').toLowerCase()) !== -1) {
+			if (openDocumentViewer && viewable) {
 				const view = document.createElement('button');
 				view.type = 'button';
 				view.className = 'modal-btn modal-btn-primary document-view-btn';
