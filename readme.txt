@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.5
+Stable tag: 7.9.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.6 - 2026-09-12 =
+* Fix - Staff AI console, three things on the Documents page. Download on a picture opened it on screen instead of saving it - and in the installed app the only way back was the small close button in the corner - so Download now saves the file, wherever you press it. A PowerPoint had no View button although it can be read on screen, and a document that genuinely cannot be shown - a PDF, a spreadsheet - now says "download to open" beside its file type rather than leaving you to guess why the button is missing. And "Move to project" no longer appears on a project's Runsheet, Session notes or Instructions: those three are the project itself and never move. On a document already filed in a project it now reads "Change project", which is what it does. Your assistant can also read a PDF you ask her about now - if it is a scan or a drawing with no text in it she says so instead of coming back empty-handed. Needs the platform release of the same day.
 
 = 7.9.5 - 2026-09-11 =
 * Update - Staff AI console: on the Scheduled page, a task's Edit and Remove now sit behind the ⋯ menu, with Run now staying on the card as its one button. It is the same card and menu Projects and Documents use, so the task tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.

@@ -12,11 +12,14 @@
  *  2. The ⋯ menu and its touch sheet on a document card, driven the way C5 drove
  *     Projects', and the three actions that moved behind them — Move to project…,
  *     Download, Delete — each doing what its old button did.
+ * 2b. What that menu says about FILING (2026-09-12, Steve's canary): a governing
+ *     document is never offered a move, and a document already filed is offered a
+ *     change rather than a move.
  *  3. The document viewer's status line is NOT the kit's. C4 folds it into the
  *     page description with a compound rule on purpose; this file keeps a later
  *     sweep from taking it.
  *
- * 19 checks.
+ * 22 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -278,7 +281,7 @@ const item = (menu, label) => menu
     check(++n, "the ⋯ menu opens on a document card and is a .console-menu anchored in that card's .console-card-actions",
       !!menu && c.contains(menu) && menu.classList.contains('console-menu') &&
       menu.parentNode.classList.contains('console-card-actions') &&
-      items(menu).join('|') === 'Move to project…|Download|—|Delete!' &&
+      items(menu).join('|') === 'Download|—|Delete!' &&
       btn.getAttribute('aria-expanded') === 'true' && t.document.activeElement === menu.firstElementChild,
       'items=' + items(menu).join('|'));
   }
@@ -304,7 +307,7 @@ const item = (menu, label) => menu
       ids.length === 2 && new Set(ids).size === 2;
     clickIf(t, btn); await tick(t.window);
     const opened = startsClosed && !sheet.hidden && btn.getAttribute('aria-expanded') === 'true' &&
-      sheet.classList.contains('console-menu') && items(sheet).join('|') === 'Move to project…|Download|—|Delete!';
+      sheet.classList.contains('console-menu') && items(sheet).join('|') === 'Download|—|Delete!';
     clickIf(t, btn); await tick(t.window);
     check(++n, 'the touch sheet expands in place with the same actions and folds away again',
       startsClosed && opened && sheet.hidden && btn.getAttribute('aria-expanded') === 'false',
@@ -422,6 +425,50 @@ const item = (menu, label) => menu
       !!after && after.disabled === false && sheetDelete.disabled === false,
       'heldDisabled=' + heldDisabled + ' status=' + s.className + ' after=' + (after && after.disabled) +
       ' sheet=' + (sheetDelete && sheetDelete.disabled));
+  }
+
+  // ---- what the menu says about filing (2026-09-12, Steve's canary) ---------
+  //
+  // "Move to Project" showed on everything. On a document already in a project that
+  // is not a move, it is a change of filing; and on the three governing documents it
+  // is not offered at all — they ARE the project (D-P2/D-UV4), so moving one is a
+  // structural change dressed up as an ordinary filing choice. Steve: "Those 3
+  // documents are the project - they should never 'move to another project'."
+  {
+    const t = boot(); await enter(t);
+    const menu = await openMenu(t, 'Go-Live Runsheet');
+    const sheet = item(within(t.card('Go-Live Runsheet'), '.console-menu-sheet-list'), 'Move to project…');
+    check(++n, 'a governing document is offered no move at all, from either rendering',
+      !!menu && !items(menu).some(l => /project…$/.test(l)) && sheet === null,
+      'menu=' + items(menu).join('|') + ' sheet=' + (sheet && sheet.textContent));
+  }
+  {
+    const filed = { document_id: 'd3', title: 'Site photos', file_type: 'pptx', size_bytes: 4096,
+      created_at: '2026-09-08T10:00:00Z', download_url: 'https://e.test/files/d3',
+      project_id: 'p1', project_name: 'Rowell Walton' };
+    const t = boot({ docs: [filed, DOCS[1]] }); await enter(t);
+    const filedItems = items(await openMenu(t, 'Site photos'));
+    const looseItems = items(await openMenu(t, 'Signed quote'));
+    check(++n, 'a document already in a project is offered Change project…; a loose one, Move to project…',
+      filedItems.join('|') === 'Change project…|Download|—|Delete!' &&
+      looseItems.join('|') === 'Move to project…|Download|—|Delete!',
+      'filed=' + filedItems.join('|') + ' loose=' + looseItems.join('|'));
+  }
+  {
+    // The other half of the same canary: a card with no View button gave no reason
+    // for it, so a PDF read as broken rather than as a format the viewer will not
+    // show. And pptx had been missing from VIEWABLE_TYPES while DEF could read one
+    // all along.
+    const deck = { document_id: 'd4', title: 'Kickoff deck', file_type: 'pptx', size_bytes: 4096,
+      created_at: '2026-09-08T10:00:00Z', download_url: 'https://e.test/files/d4' };
+    const t = boot({ docs: [deck, DOCS[1]] }); await enter(t);
+    const meta = c => (within(c, '.document-meta') || {}).textContent || '';
+    const hasView = c => !!within(c, '.document-view-btn');
+    check(++n, 'a card with no View says so on the line that names the type; a pptx has one, because DEF reads it',
+      hasView(t.card('Kickoff deck')) && meta(t.card('Kickoff deck')).indexOf('download to open') === -1 &&
+      !hasView(t.card('Signed quote')) && /· download to open$/.test(meta(t.card('Signed quote'))),
+      'deck=' + meta(t.card('Kickoff deck')) + ' view=' + hasView(t.card('Kickoff deck')) +
+      ' | quote=' + meta(t.card('Signed quote')) + ' view=' + hasView(t.card('Signed quote')));
   }
 
   console.log('\n' + results.join('\n'));

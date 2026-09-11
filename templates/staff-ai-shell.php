@@ -1009,6 +1009,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
 			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
+			documentsChangeProject: <?php echo wp_json_encode( __( 'Change project…', 'digital-employees' ) ); ?>,
+			documentsDownloadToOpen: <?php echo wp_json_encode( __( 'download to open', 'digital-employees' ) ); ?>,
 			documentsManage: <?php echo wp_json_encode( __( 'Manage document', 'digital-employees' ) ); ?>,
 			documentsUndated: <?php echo wp_json_encode( __( 'Undated', 'digital-employees' ) ); ?>,
 			/* D-C10 (7.8.1): every t( 'key' ) the console uses has its entry here.

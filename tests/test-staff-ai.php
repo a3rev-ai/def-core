@@ -714,18 +714,22 @@ function _def_test_panel_download_url( string $backend_download_url ): string {
 	return $data['documents'][0]['download_url'] ?? '';
 }
 
+// `?staff_ai_save=1` on every one of these: the proxy serves an IMAGE inline so the
+// chat can render the picture, and without the flag Download opened the picture in the
+// console instead of saving it (Steve's canary, 2026-09-12). Both consumers of this
+// field are Downloads, so it is built in rather than added at each link.
 assert_equals(
-	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md?staff_ai_save=1',
 	_def_test_panel_download_url( '/api/files/tenant-a/My Report.md' ),
-	'raw DEF form (pre-#836) → single-encoded'
+	'raw DEF form (pre-#836) → single-encoded, and asks to save'
 );
 assert_equals(
-	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md?staff_ai_save=1',
 	_def_test_panel_download_url( '/api/files/tenant-a/My%20Report.md' ),
 	'encoded DEF form (post-#836) → still single-encoded, no double-encode'
 );
 assert_equals(
-	'https://test.example.com/staff-ai-download/tenant-a/100%25%20Done.md',
+	'https://test.example.com/staff-ai-download/tenant-a/100%25%20Done.md?staff_ai_save=1',
 	_def_test_panel_download_url( '/api/files/tenant-a/100% Done.md' ),
 	'literal % in a raw name survives normalization (invalid %-sequence passes through rawurldecode)'
 );
@@ -755,7 +759,7 @@ function _def_test_content_download_url( string $backend_download_url ) {
 }
 
 assert_equals(
-	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md?staff_ai_save=1',
 	_def_test_content_download_url( '/api/files/tenant-a/My Report.md' ),
 	'content endpoint carries the download link, normalized the same way'
 );

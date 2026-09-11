@@ -1441,6 +1441,15 @@ function t(key, fallback) {
 		return url;
 	}
 
+	// The same address, asking to SAVE rather than show. The proxy serves an image
+	// inline so the picture can render above the card; a Download link must override
+	// that or it opens the image in the page instead of saving it (2026-09-12). The
+	// console's own links carry the flag already — the proxy builds them that way.
+	function saveHref(url) {
+		if (!url || url === '#') return url;
+		return url + (url.indexOf('?') === -1 ? '?' : '&') + 'staff_ai_save=1';
+	}
+
 	const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
 	// Installed on an iPhone/iPad home screen — navigator.standalone exists only in iOS
@@ -1532,7 +1541,7 @@ function t(key, fallback) {
 		const fileUrl = rewriteDownloadUrl(tool.download_url) || '#';
 		const download = document.createElement('a');
 		download.className = 'tool-output-download';
-		download.href = fileUrl;
+		download.href = saveHref(fileUrl);
 		download.target = '_blank';
 		download.rel = 'noopener';
 		download.textContent = t('download', 'Download');
@@ -4111,8 +4120,13 @@ function t(key, fallback) {
 	// P-D3: the viewer, published by initDocumentViewer for the Documents rows
 	// and the Projects panel's slot lines alike.
 	let openDocumentViewer = null;
-	// What the viewer can show: the same formats DEF can read into text.
-	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx'];
+	// What the viewer can show, and it must MATCH what DEF will return: `_document_text`
+	// reads these, and pptx was missing here while the server could read it all along.
+	// PDF is absent by DECISION, not for want of a reader — Steve, 2026-09-12: "I am not
+	// wanting to build a page that faithfully prints out what is in the PDF - I just want
+	// the PDF document stored - where Sue can read it and where the admin can download
+	// it." Sue reads the text through `read_my_document`; a human gets the file.
+	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx'];
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
@@ -4453,10 +4467,15 @@ function t(key, fallback) {
 			info.appendChild(name);
 			const meta = document.createElement('span');
 			meta.className = 'document-meta';
+			// A card with no View gave no reason for it, so a PDF read as broken rather
+			// than as a type the viewer will not show. The answer goes on the line that
+			// already names the type — that is where someone looks when a type is why.
+			const viewable = VIEWABLE_TYPES.indexOf((doc.file_type || '').toLowerCase()) !== -1;
 			meta.textContent = [
 				(doc.file_type || '').toUpperCase(),
 				formatSize(doc.size_bytes),
-				formatTime(doc.created_at)
+				formatTime(doc.created_at),
+				viewable ? '' : t('documentsDownloadToOpen', 'download to open')
 			].filter(Boolean).join(' · ');
 			info.appendChild(meta);
 			// Projects P-A (D-P10): the badge answers "which project" at a glance
@@ -4518,8 +4537,20 @@ function t(key, fallback) {
 
 		function manageActions(doc, row) {
 			const items = [];
-			if (projectsCache.some(function (p) { return p.status === 'active'; })) {
-				items.push({ label: t('documentsMoveProject', 'Move to project…'), onPick: function () { toggleAssignRow(row, doc); } });
+			// Never on a governing document: Instructions, Runsheet and Session notes ARE
+			// the project (D-P2/D-UV4), so moving one is a structural change wearing an
+			// ordinary filing choice — and demoting it to an ordinary document would put
+			// it into embedding retrieval, which D-UV4 says a governing slot never enters.
+			// Steve: "Those 3 documents are the project - they should never 'move to
+			// another project'." For the rest the label follows the state: a document
+			// already filed is having its filing CHANGED, not being moved in.
+			if (!doc.slot && projectsCache.some(function (p) { return p.status === 'active'; })) {
+				items.push({
+					label: doc.project_id
+						? t('documentsChangeProject', 'Change project…')
+						: t('documentsMoveProject', 'Move to project…'),
+					onPick: function () { toggleAssignRow(row, doc); }
+				});
 			}
 			const href = safeHttpHref(doc.download_url);
 			if (href) { items.push({ label: t('download', 'Download'), href: href }); }

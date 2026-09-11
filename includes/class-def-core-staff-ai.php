@@ -2228,8 +2228,12 @@ final class DEF_Core_Staff_AI
 			|| ! preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
 			return '';
 		}
+		// `staff_ai_save=1` because both consumers of this field are Downloads: the
+		// card's ⋯ menu and the viewer's link. Without it the proxy serves an image
+		// inline for the chat's sake and Download opened the picture in the console
+		// instead of saving it. See download_disposition_for().
 		return home_url( '/staff-ai-download/' . rawurlencode( rawurldecode( $m[1] ) )
-			. '/' . rawurlencode( rawurldecode( $m[2] ) ) );
+			. '/' . rawurlencode( rawurldecode( $m[2] ) ) ) . '?staff_ai_save=1';
 	}
 
 	/**
@@ -5195,6 +5199,7 @@ final class DEF_Core_Staff_AI
 		$vars[] = 'staff_ai_download';
 		$vars[] = 'staff_ai_tenant';
 		$vars[] = 'staff_ai_filename';
+		$vars[] = 'staff_ai_save';
 		$vars[] = 'staff_ai_pwa';
 		return $vars;
 	}
@@ -5347,17 +5352,43 @@ final class DEF_Core_Staff_AI
 		// Send file response with security headers.
 		nocache_headers();
 		header( 'Content-Type: ' . $safe_content_type );
-		// Images are served inline (7.6.8) so the chat can show the picture and a direct
-		// open renders it — an attachment inside the installed (standalone) app is a
-		// blank screen with no way back. Safe because sanitize_proxy_content_type has
-		// already downgraded SVG/HTML/XML/script types to octet-stream, which stays an
-		// attachment, and nosniff below pins the type.
-		$disposition = ( 0 === strpos( $safe_content_type, 'image/' ) ) ? 'inline' : 'attachment';
+		$disposition = self::download_disposition_for(
+			$safe_content_type,
+			'1' === (string) get_query_var( 'staff_ai_save' )
+		);
 		header( 'Content-Disposition: ' . $disposition . '; filename="' . $safe_filename . '"' );
 		header( 'Content-Length: ' . strlen( $body ) );
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $body;
 		exit;
+	}
+
+	/**
+	 * Inline or attachment for a proxied file.
+	 *
+	 * Images are served INLINE (7.6.8) so the chat can show the picture and a direct
+	 * open renders it — an attachment inside the installed (standalone) app is a blank
+	 * screen with no way back. Safe because sanitize_proxy_content_type has already
+	 * downgraded SVG/HTML/XML/script types to octet-stream, which stays an attachment,
+	 * and the caller pins the type with nosniff.
+	 *
+	 * A Download link needs the opposite for an image and one URL cannot be both, so the
+	 * CALLER says which with `?staff_ai_save=1` — and asking to save wins over the image
+	 * rule. Steve's canary, 2026-09-12: "When you click on Download - it does not
+	 * download - it opens the image in the screen ... (PWA app on laptop)." The flag can
+	 * only ever make a response MORE of an attachment, never less.
+	 *
+	 * @param string $content_type The SANITIZED content type about to be sent.
+	 * @param bool   $save         Whether the caller asked to save rather than show.
+	 * @return string 'inline' or 'attachment'.
+	 * @since 7.9.6
+	 */
+	private static function download_disposition_for( string $content_type, bool $save ): string
+	{
+		if ( $save ) {
+			return 'attachment';
+		}
+		return 0 === strpos( $content_type, 'image/' ) ? 'inline' : 'attachment';
 	}
 
 	/**

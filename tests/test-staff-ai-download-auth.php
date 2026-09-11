@@ -350,5 +350,52 @@ check(
 	'a hostile title from the header cannot inject once sanitised'
 );
 
+// ── Save it, or show it (2026-09-12, Steve's canary) ─────────────────────
+//
+// "When you click on Download - it does not download - it opens the image in the
+// screen ... you then have to right click to download - and click the tiny little X
+// in the top left hand to close it to get back to the Documents (PWA app on laptop)."
+//
+// The image rule is right for the chat, which renders the picture from this same URL,
+// and wrong for a Download link. One URL cannot be both, so the caller asks.
+
+function disposition( string $type, bool $save ): string {
+	$m = new ReflectionMethod( 'DEF_Core_Staff_AI', 'download_disposition_for' );
+	$m->setAccessible( true );
+	return $m->invoke( null, $type, $save );
+}
+
+echo "\nSaving vs showing\n";
+check( disposition( 'image/png', true ) === 'attachment', 'an image asked to be saved is an attachment (the bug)' );
+check( disposition( 'image/png', false ) === 'inline', 'an image not asked to be saved still renders (the chat picture, 7.6.8)' );
+check( disposition( 'text/markdown', false ) === 'attachment', 'a non-image is an attachment as it always was' );
+check( disposition( 'application/octet-stream', true ) === 'attachment', 'a downgraded type stays an attachment when saving' );
+
+// The handler ends in `exit` on the success path, so the real header cannot be watched
+// in-process (same reason the filename decision was lifted out). Pin that it asks.
+$src = file_get_contents( dirname( __DIR__ ) . '/includes/class-def-core-staff-ai.php' );
+check(
+	(bool) preg_match(
+		"/self::download_disposition_for\(\s*\\\$safe_content_type,\s*'1' === \(string\) get_query_var\( 'staff_ai_save' \)/",
+		$src
+	),
+	'handle_file_download asks the decision, with the flag off the request'
+);
+check(
+	strpos( $src, "\$vars[] = 'staff_ai_save';" ) !== false,
+	'staff_ai_save is a registered query var, or get_query_var would never see it'
+);
+
+// The chat renders an image from the SAME url (the picture above the card), so its
+// Download link has to ask for itself — the console's links get the flag from the
+// proxy that builds them. No harness slices the tool card, so this is a source pin.
+$js = file_get_contents( dirname( __DIR__ ) . '/assets/js/staff-ai.js' );
+check(
+	strpos( $js, 'download.href = saveHref(fileUrl);' ) !== false
+		&& strpos( $js, "'staff_ai_save=1'" ) !== false
+		&& strpos( $js, 'img.src = fileUrl;' ) !== false,
+	"the chat's Download asks to save; the picture beside it still renders from the bare url"
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
