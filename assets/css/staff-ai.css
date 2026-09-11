@@ -2836,10 +2836,6 @@ html {
 	.console-page-head {
 		flex-direction: column;
 	}
-	/* Nothing for the create row here any more. It gave the name field a line of
-	   its own when the field was a loose item in the slot and its button could
-	   wrap away from it; inside its own row the two stay together and the field
-	   simply shrinks, which fits at 320px and reads better than a stacked pair. */
 }
 
 /* --- Projects P-A (the container) ------------------------------------- */

@@ -184,8 +184,12 @@ const PAGE_HTML = `<!doctype html><html><body>
     <h1 class="console-page-title" id="projectsTitle" tabindex="-1">Projects</h1>
     <div class="console-page-actions">
       <button type="button" class="modal-btn modal-btn-secondary projects-ask-btn">Ask how Projects work</button>
-      <input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120">
-      <button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn">Create project</button>
+      <!-- One row, as the template ships it. c2 check 31 holds the shape against
+           the real template; this copy only has to not contradict it. -->
+      <div class="projects-create-row">
+        <input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120">
+        <button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn">Create project</button>
+      </div>
     </div>
   </div>
   <label class="projects-archived-toggle"><input type="checkbox" id="projectsShowArchived"> Show archived</label>
