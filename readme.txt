@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.1
+Stable tag: 7.9.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.2 - 2026-09-11 =
+* Fix - Staff AI: a document now downloads under the name you know it by. A project's runsheet saved as "runsheet.md" - and so did every other project's, so three clients' runsheets landed in your Downloads as runsheet.md, runsheet (1).md and runsheet (2).md with nothing to tell them apart. They now save as "Rowell Walton Go-Live - Runsheet.md" and the like, with the file type unchanged. Documents your assistant writes for you were already saving under their own names and are unaffected. Needs the platform release of the same day.
 
 = 7.9.1 - 2026-09-11 =
 * Update - Staff AI: a document you open is now a page in the console, like Documents and Scheduled, instead of a box over your chat. It has its own address, so the browser's back button and a phone's back gesture return you to wherever you opened it from - My documents, or a project's card - and a reload keeps you on the document instead of dropping you back at the chat. Because the document has an address, your assistant can send you a link straight to it. Long documents now scroll with the page rather than inside a small window, and Download sits at the top beside the title - it is there however you arrived, including on a link or a reload, which the box could not do. Show more, the character count and the version are unchanged. Your chat is hidden while a document is open, never reset: a reply that is streaming keeps streaming, and a half-typed message is still in the box when you return.
