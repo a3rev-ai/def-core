@@ -285,7 +285,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="schedule-empty" id="scheduledEmpty" style="display:none;">
 					<p><?php echo esc_html__( 'Nothing scheduled yet. Create your first task.', 'digital-employees' ); ?></p>
 				</div>
-				<div class="schedule-status" id="scheduledPaneStatus"></div>
+				<div class="console-status" id="scheduledPaneStatus"></div>
 			</section>
 
 			<!-- My documents — the same .console-page shell (D-C3): document CARDS
@@ -971,6 +971,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskRunNow: <?php echo wp_json_encode( __( 'Run now', 'digital-employees' ) ); ?>,
 			taskEdit: <?php echo wp_json_encode( __( 'Edit', 'digital-employees' ) ); ?>,
 			taskDelete: <?php echo wp_json_encode( __( 'Remove', 'digital-employees' ) ); ?>,
+			taskManage: <?php echo wp_json_encode( __( 'Manage task', 'digital-employees' ) ); ?>,
 			taskDeleteConfirm: <?php echo wp_json_encode( __( 'Remove Email Triage? Your mailbox stays connected.', 'digital-employees' ) ); ?>,
 			taskDeleting: <?php echo wp_json_encode( __( 'Removing…', 'digital-employees' ) ); ?>,
 			taskDeleted: <?php echo wp_json_encode( __( 'Email Triage removed. Nothing is scheduled for you now.', 'digital-employees' ) ); ?>,

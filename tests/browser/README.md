@@ -45,6 +45,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c4.js` | The document viewer as a page (v7.9.1): `#document/<id>` reached cold or from an opener, and one page serving many documents |
 | `harness-c5.js` | The card kit named (v7.9.3): the seven Ask entries on one shared helper, named and unnamed, and the proof that every kit class shares its rule with the 7.8.0 name it replaced |
 | `harness-c6a.js` | Documents on the card kit (v7.9.4): the proof that every kit name the page takes shares its rule with the name it replaced, the ⋯ menu and touch sheet on a document card, Move to project / Download / Delete driven from the menu, and the document viewer's status line held as it is |
+| `harness-c6b.js` | Scheduled on the card kit (v7.9.5): the same proof for the page, Run now joined to Open Project's rules, one ⋯ menu shared by task and triage cards, Edit / Remove driven from it, and the page's status line on the kit with the creator's own lines left alone |
 
 ## Bite checks
 
@@ -67,11 +68,12 @@ DOCVIEWER=/tmp/old-viewer.js  node tests/browser/harness-c4.js    # initDocument
 ASK_ENTRY=/tmp/old-ask.js     node tests/browser/harness-c5.js    # the shared Ask entry
 ASK_ENTRY_CALLS=/tmp/old-calls.json node tests/browser/harness-c5.js  # the seven calls to it (JSON: [{base, source}])
 DOCUMENTS=/tmp/old-documents.js node tests/browser/harness-c6a.js  # initDocuments
+SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-c6b.js  # initScheduled on the kit
 ```
 
-`harness-c5.js` and `harness-c6a.js` read the stylesheet and the template from the
-working tree, so their CSS and markup checks bite by editing those files (a scratch
-`git worktree` keeps that off your branch).
+`harness-c5.js`, `harness-c6a.js` and `harness-c6b.js` read the stylesheet and the
+template from the working tree, so their CSS and markup checks bite by editing those
+files (a scratch `git worktree` keeps that off your branch).
 
 The env var names match the extractor names in `extract.js`. `ASK_ENTRY` reaches
 further than its own harness: `extract.buildAskEntry` hands the shipped helper to

@@ -244,13 +244,15 @@ function chatStrings() {
 }
 
 // initScheduled, the Scheduled page and its creator/editor modal (row 9: the
-// `once` cadence, the date field, the card's two one-off badges).
+// `once` cadence, the date field, the card's two one-off badges; C6b: the cards
+// on the kit, and the one ⋯ menu both card types share).
 function scheduled() {
 	return slice('initScheduled',
 		l => l.includes('// SCHEDULED TASKS (Phase 3)'),
 		l => l.includes('// UPLOAD EVENT HANDLERS'),
 		['consolePages.push', 'function scheduleBadgeText', 'function onceDate',
-			'function applyCadenceRows', 'function fillTaskForm', 'function saveTask'],
+			'function applyCadenceRows', 'function fillTaskForm', 'function saveTask',
+			'function baseCard', 'function toggleMenu', 'function closeSheets'],
 		'SCHEDULED');
 }
 
