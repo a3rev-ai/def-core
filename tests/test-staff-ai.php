@@ -730,6 +730,41 @@ assert_equals(
 	'literal % in a raw name survives normalization (invalid %-sequence passes through rawurldecode)'
 );
 
+// C4: the CONTENT endpoint carries the same link. The viewer is a page now, so
+// it can be reached by reload or by a link with no opener to hand it one — the
+// field is what makes Download present however the reader arrived. Same helper,
+// so the same normalization is asserted here rather than assumed from above.
+function _def_test_content_download_url( string $backend_download_url ) {
+	$GLOBALS['_def_test_get_body'] = json_encode( array(
+		'success'  => true,
+		'document' => array(
+			'document_id'  => 'abc123-def',
+			'title'        => 'T',
+			'file_type'    => 'md',
+			'version'      => 2,
+			'download_url' => $backend_download_url,
+		),
+		'content'  => 'hello',
+	) );
+	$request = new WP_REST_Request();
+	$request->set_param( 'id', 'abc123-def' );
+	$resp = DEF_Core_Staff_AI::rest_document_content( $request );
+	unset( $GLOBALS['_def_test_get_body'] );
+	$data = is_object( $resp ) ? $resp->data : $resp;
+	return $data['document']['download_url'] ?? null;
+}
+
+assert_equals(
+	'https://test.example.com/staff-ai-download/tenant-a/My%20Report.md',
+	_def_test_content_download_url( '/api/files/tenant-a/My Report.md' ),
+	'content endpoint carries the download link, normalized the same way'
+);
+assert_equals(
+	'',
+	_def_test_content_download_url( 'https://evil.example.com/api/files/t/x.md' ),
+	'a download_url that is not a DEF /api/files path yields nothing, never an off-site link'
+);
+
 // ── 29. rest_list_memories — field allowlist round trip ─────────────────
 // The proxy remaps field by field, so an unlisted field vanishes silently and
 // the panel renders a blank column with no error anywhere. DEF returns exactly

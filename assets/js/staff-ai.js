@@ -778,12 +778,33 @@ function t(key, fallback) {
 	// The page showing, or null for the chat. Read by the hash listener to tell
 	// its own echo (see applyRoute) from a real navigation.
 	var openPage = null;
+	// The FULL route showing, id and all. `openPage` alone cannot tell
+	// #document/a from #document/b — the same page object serves both.
+	var openRoute = null;
 	// True while the entry we are on is the page entry the console itself pushed
 	// over its chat entry — the one case where leaving is a POP, not a push.
 	var chatEntryBelow = false;
 
+	// A page can own a FAMILY of routes (C4): the document viewer is ONE page
+	// with an id in its address, `document/<id>`. Its registry entry keeps the
+	// stem as its route and sets `param: true`; the marker, focus and history
+	// rules below are untouched.
 	function pageForRoute(route) {
-		return consolePages.find(function (p) { return p.route === route; }) || null;
+		// `!p.param` matters: a parameterised page's route is the STEM, and the
+		// stem alone names no document — matching `#document` exactly would open
+		// the viewer with nothing to read, so it falls through to the chat.
+		var exact = consolePages.find(function (p) { return !p.param && p.route === route; });
+		if (exact) return exact;
+		return consolePages.find(function (p) {
+			return p.param && route.indexOf(p.route + '/') === 0 && route.length > p.route.length + 1;
+		}) || null;
+	}
+
+	// What the address carries after the stem, decoded once — the document id.
+	function routeParam(page, route) {
+		if (!page.param) return '';
+		try { return decodeURIComponent(route.slice(page.route.length + 1)); }
+		catch (e) { return ''; }   // a malformed %-sequence is not an id
 	}
 
 	// The sidebar entry IS the route's link, so the marker follows from the
@@ -830,14 +851,14 @@ function t(key, fallback) {
 		// An unknown route is not an error (D-C4): a link from an older release,
 		// or a hash the console does not own, lands in the chat.
 		if (!page) { showChat({ fromHash: fromHash }); return; }
-		if (fromHash && openPage === page) return;
+		if (fromHash && openRoute === route) return;
 
 		// Only a page opened FROM the chat sits directly above the chat entry.
 		// Page → page pushes over the page entry, and an entry the user reached
 		// by address, reload or Back/Forward is not ours to pop at all.
 		// Re-entering the page already open (the sidebar entry clicked again for
 		// a reload) pushes nothing, so it must not disown the entry underneath.
-		if (openPage !== page) chatEntryBelow = !fromHash && !openPage;
+		if (openRoute !== route) chatEntryBelow = !fromHash && !openPage;
 
 		consolePages.forEach(function (other) {
 			if (other === page) return;
@@ -854,9 +875,12 @@ function t(key, fallback) {
 		page.el.hidden = false;
 		markNavCurrent(page.route, true);
 		openPage = page;
-		if (page.onEnter) page.onEnter();
+		openRoute = route;
+		if (page.onEnter) page.onEnter(routeParam(page, route));
 		if (page.title) page.title.focus();
-		if (!fromHash) setRoute('#' + page.route);
+		// The FULL route, so the id stays in the address bar — it is what makes
+		// the viewer reloadable and linkable.
+		if (!fromHash) setRoute('#' + route);
 	}
 
 	function showChat(opts) {
@@ -871,6 +895,7 @@ function t(key, fallback) {
 
 		var leaving = openPage;
 		openPage = null;
+		openRoute = null;
 		// Back/Forward already moved us off the entry we pushed.
 		if (fromHash) chatEntryBelow = false;
 		leaving.el.hidden = true;
@@ -883,7 +908,12 @@ function t(key, fallback) {
 		// focus on <body> and loses a keyboard user's place. The sidebar entry for
 		// the page being LEFT is that place, however the page was reached.
 		if (restoreFocus) {
-			var back = navItemForRoute(leaving.route);
+			// The document viewer is the one page with no sidebar entry of its own
+			// — its route carries an id. The composer is where the chat's focus
+			// belongs, and leaving focus on the hidden title is the very loss the
+			// comment above is about.
+			var back = navItemForRoute(leaving.route)
+				|| composerContainer.querySelector('textarea');
 			if (back) back.focus();
 		}
 	}
@@ -4099,61 +4129,105 @@ function t(key, fallback) {
 	// textContent — never HTML (a project document is untrusted content, D-P7).
 	// Bounded reads with "Show more" continuation, mirroring DEF's offset contract.
 	(function initDocumentViewer() {
-		const modal = document.getElementById('documentViewerModal');
-		if (!modal) return;
-		const titleEl = document.getElementById('documentViewerTitle');
+		const pane = document.getElementById('documentPage');
+		if (!pane) return;
+		const titleEl = document.getElementById('documentPageTitle');
 		const statusEl = document.getElementById('documentViewerStatus');
 		const textEl = document.getElementById('documentViewerText');
 		const moreBtn = document.getElementById('documentViewerMore');
 		const dlLink = document.getElementById('documentViewerDownload');
 		let current = null;  // { id, nextOffset }
+		// The title the opener already knows, shown while the document loads so
+		// the page is not headed "Document" for a beat. Entering by ROUTE — a
+		// reload, or a link — has no opener, and the load supplies the title.
+		let pendingTitle = '';
 
-		function close() { modal.classList.remove('visible'); current = null; }
-		document.getElementById('documentViewerClose').addEventListener('click', close);
-		document.getElementById('documentViewerCloseBtn').addEventListener('click', close);
-		modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+		// C4: one page, a family of routes (`param: true`) — the id rides the
+		// address. `onLeave` drops `current` on the way out to the chat; it is
+		// NOT what keeps two documents apart (viewer → viewer never fires it —
+		// same page object). fetchChunk's own re-check does that.
+		consolePages.push({
+			route: 'document',
+			param: true,
+			el: pane,
+			title: titleEl,
+			onEnter: function (docId) { load(docId); },
+			onLeave: function () { current = null; }
+		});
 
 		async function fetchChunk(offset) {
 			// apiBase can be the plain-permalink ?rest_route= form — the same
 			// guard the Documents and Projects panels carry (panel round 1).
 			const sep = apiBase.indexOf('?') === -1 ? '?' : '&';
+			const asked = current.id;
 			var data = await apiRequest('/documents/' + encodeURIComponent(current.id) + '/content'
 				+ (offset ? sep + 'offset=' + encodeURIComponent(String(offset)) : ''));
+			// ONE page, MANY documents. By the time a read lands the reader may have
+			// left, or be on a different document — Back then opening another card is
+			// enough. Writing anyway would append THIS document's text, title and
+			// download link to THAT one, and hand it this one's next offset.
+			if (!current || current.id !== asked) return;
 			textEl.textContent += (typeof data.content === 'string') ? data.content : '';
 			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
 			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
 			var doc = data.document || {};
 			if (doc.title) { titleEl.textContent = doc.title; }
+			// C4: the download link comes from the document's OWN response, so the
+			// page carries it however it was reached — a card, a project tile, a
+			// reload, a link Sue sent. Validated at the sink like every other href
+			// the console renders, even though the proxy builds it from home_url().
+			var href = safeHttpHref(doc.download_url || '');
+			if (href) { dlLink.href = href; dlLink.style.display = ''; }
+			else { dlLink.style.display = 'none'; }
 			statusEl.textContent = [
 				(doc.file_type || '').toUpperCase(),
 				doc.version ? 'v' + doc.version : '',
 				(typeof data.total_chars === 'number') ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
 			].filter(Boolean).join(' · ');
-			statusEl.className = 'documents-status documents-status-muted';
+			statusEl.className = 'console-page-desc documents-status documents-status-muted';
 		}
 
 		moreBtn.addEventListener('click', async function () {
 			if (!current || current.nextOffset === null) return;
 			moreBtn.disabled = true;
 			try { await fetchChunk(current.nextOffset); }
-			catch (e) { statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.'); statusEl.className = 'documents-status documents-status-error'; }
+			catch (e) { statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.'); statusEl.className = 'console-page-desc documents-status documents-status-error'; }
 			finally { moreBtn.disabled = false; }
 		});
 
-		openDocumentViewer = async function (docId, title, downloadHref) {
+		async function load(docId) {
+			// A malformed %-sequence in the address decodes to nothing. There is
+			// no document to ask for, so say so rather than fetch `//content`.
+			if (!docId) {
+				titleEl.textContent = t('documentViewerTitle', 'Document');
+				textEl.textContent = '';
+				moreBtn.style.display = 'none';
+				dlLink.style.display = 'none';
+				statusEl.textContent = t('documentViewerFailed', 'Could not read the document.');
+				statusEl.className = 'console-page-desc documents-status documents-status-error';
+				return;
+			}
 			current = { id: docId, nextOffset: null };
-			titleEl.textContent = title || t('documentViewerTitle', 'Document');
+			titleEl.textContent = pendingTitle || t('documentViewerTitle', 'Document');
+			pendingTitle = '';
 			textEl.textContent = '';
 			moreBtn.style.display = 'none';
-			if (downloadHref) { dlLink.href = downloadHref; dlLink.style.display = ''; } else { dlLink.style.display = 'none'; }
+			dlLink.style.display = 'none';
 			statusEl.textContent = t('documentViewerLoading', 'Loading…');
-			statusEl.className = 'documents-status documents-status-muted';
-			modal.classList.add('visible');
+			statusEl.className = 'console-page-desc documents-status documents-status-muted';
 			try { await fetchChunk(0); }
 			catch (e) {
 				statusEl.textContent = (e && e.message) || t('documentViewerFailed', 'Could not read the document.');
-				statusEl.className = 'documents-status documents-status-error';
+				statusEl.className = 'console-page-desc documents-status documents-status-error';
 			}
+		}
+
+		// The openers keep their call; what changes is that it NAVIGATES. The
+		// page does the loading from the id in the address, which is the same
+		// path a reload takes — one way in, not two.
+		openDocumentViewer = function (docId, title) {
+			pendingTitle = title || '';
+			showPage('document/' + encodeURIComponent(docId));
 		};
 	})();
 
@@ -4382,7 +4456,7 @@ function t(key, fallback) {
 				view.type = 'button';
 				view.className = 'document-btn';
 				view.textContent = t('documentsView', 'View');
-				view.addEventListener('click', function () { openDocumentViewer(doc.document_id, doc.title, href || ''); });
+				view.addEventListener('click', function () { openDocumentViewer(doc.document_id, doc.title); });
 				action.appendChild(view);
 			}
 			if (href) {
@@ -4785,7 +4859,7 @@ function t(key, fallback) {
 					slotsEl.appendChild(slotButton(pair[1],
 						t('projectsSlotVersion', 'v%s').replace('%s', String(d.version || 1)), false, function () {
 						if (openDocumentViewer) {
-							openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]), safeHttpHref(d.download_url) || '');
+							openDocumentViewer(d.document_id, d.title || (project.name + ' — ' + pair[1]));
 						} else {
 							openProjectDocuments(project);
 						}

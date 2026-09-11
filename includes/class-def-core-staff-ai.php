@@ -2177,19 +2177,7 @@ final class DEF_Core_Staff_AI
 				|| ! preg_match( '/^[a-zA-Z0-9-]+$/', (string) $doc['document_id'] ) ) {
 				continue;
 			}
-			$download = '';
-			if ( isset( $doc['download_url'] ) && is_string( $doc['download_url'] )
-				&& preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
-				// Normalize-then-encode: DEF's download_url arrives raw (pre-#836)
-				// or single-encoded (post-#836). rawurldecode() no-ops on raw input
-				// (invalid %-sequences pass through), so the result is single-encoded
-				// for BOTH forms — version-skew-safe in either deploy order. WP
-				// matches this pretty URL against the RAW request URI (class-wp.php),
-				// so exactly one encode must survive to handle_file_download's
-				// single urldecode.
-				$download = home_url( '/staff-ai-download/' . rawurlencode( rawurldecode( $m[1] ) )
-					. '/' . rawurlencode( rawurldecode( $m[2] ) ) );
-			}
+			$download = self::document_download_href( $doc );
 			$documents[] = array(
 				'document_id'  => (string) $doc['document_id'],
 				'title'        => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
@@ -2216,6 +2204,32 @@ final class DEF_Core_Staff_AI
 			),
 			200
 		);
+	}
+
+	/**
+	 * Rewrite DEF's `/api/files/` path into this site's own download URL.
+	 *
+	 * Normalize-then-encode: DEF's download_url arrives raw (pre-#836) or
+	 * single-encoded (post-#836). rawurldecode() no-ops on raw input (invalid
+	 * %-sequences pass through), so the result is single-encoded for BOTH forms
+	 * — version-skew-safe in either deploy order. WP matches this pretty URL
+	 * against the RAW request URI (class-wp.php), so exactly one encode must
+	 * survive to handle_file_download's single urldecode.
+	 *
+	 * Lifted out of the list handler unchanged when C4 gave the viewer page its
+	 * own need for it: one copy of a URL transform, not two to keep in step.
+	 *
+	 * @param array $doc A document summary as DEF returned it.
+	 * @return string The site download URL, or '' when DEF sent no usable path.
+	 */
+	private static function document_download_href( array $doc ): string
+	{
+		if ( ! isset( $doc['download_url'] ) || ! is_string( $doc['download_url'] )
+			|| ! preg_match( '#^/api/files/([^/]+)/(.+)$#', $doc['download_url'], $m ) ) {
+			return '';
+		}
+		return home_url( '/staff-ai-download/' . rawurlencode( rawurldecode( $m[1] ) )
+			. '/' . rawurlencode( rawurldecode( $m[2] ) ) );
 	}
 
 	/**
@@ -2258,11 +2272,15 @@ final class DEF_Core_Staff_AI
 			array(
 				'success'     => true,
 				'document'    => array(
-					'document_id' => ( isset( $doc['document_id'] ) && is_string( $doc['document_id'] )
+					'document_id'  => ( isset( $doc['document_id'] ) && is_string( $doc['document_id'] )
 						&& preg_match( '/^[a-zA-Z0-9-]+$/', $doc['document_id'] ) ) ? $doc['document_id'] : $id,
-					'title'       => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
-					'file_type'   => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
-					'version'     => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
+					'title'        => ( isset( $doc['title'] ) && is_string( $doc['title'] ) ) ? $doc['title'] : '',
+					'file_type'    => ( isset( $doc['file_type'] ) && is_string( $doc['file_type'] ) ) ? $doc['file_type'] : '',
+					'version'      => isset( $doc['version'] ) ? (int) $doc['version'] : 1,
+					// C4: the viewer is a PAGE now, reachable by reload and by a
+					// link, so it cannot rely on an opener to hand it the download
+					// URL. DEF already sends the path; this stops dropping it.
+					'download_url' => self::document_download_href( $doc ),
 				),
 				'content'     => ( isset( $result['content'] ) && is_string( $result['content'] ) ) ? $result['content'] : '',
 				'offset'      => isset( $result['offset'] ) ? (int) $result['offset'] : 0,

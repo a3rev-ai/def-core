@@ -41,6 +41,8 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-so3.js` | The `once` cadence on the Scheduled page (v7.8.6): the creator's date field and the card's two one-off badges |
 | `harness-voice.js` | Hands-free voice (v7.8.7): the speech detector against a fake microphone, and the spoken stop on both surfaces |
 | `harness-connections-consent.js` | Connections (v7.8.8): the pending Finish-connecting / Connect-another link survives the focus rebuild until the account connects, the row loses its picker, or the user dismisses it |
+| `harness-c3b.js` | The installed app keeps up with the release (v7.9.0): the version check, the quiet-moment rule, one reload per target, and the notice only when it landed |
+| `harness-c4.js` | The document viewer as a page (v7.9.1): `#document/<id>` reached cold or from an opener, and one page serving many documents |
 
 ## Bite checks
 
@@ -58,6 +60,8 @@ ATTACH_GATE=/tmp/old-gate.js  node tests/browser/harness-cc-uploads.js  # the at
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-so3.js   # initScheduled
 VOICE_MODULE=/tmp/old-voice.js node tests/browser/harness-voice.js   # the shared recorder
 INTEGRATIONS=/tmp/old-integrations.js node tests/browser/harness-connections-consent.js   # initIntegrations
+RELEASE=/tmp/old-release.js   node tests/browser/harness-c3b.js   # the release check
+DOCVIEWER=/tmp/old-viewer.js  node tests/browser/harness-c4.js    # initDocumentViewer
 ```
 
 The env var names match the extractor names in `extract.js`.
