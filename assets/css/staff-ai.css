@@ -2836,11 +2836,10 @@ html {
 	.console-page-head {
 		flex-direction: column;
 	}
-	/* The head has stacked, so the slot is full width: give the name field a
-	   line of its own rather than a 200px stub beside a wrapped button. */
-	.projects-create-name {
-		flex-basis: 100%;
-	}
+	/* Nothing for the create row here any more. It gave the name field a line of
+	   its own when the field was a loose item in the slot and its button could
+	   wrap away from it; inside its own row the two stay together and the field
+	   simply shrinks, which fits at 320px and reads better than a stacked pair. */
 }
 
 /* --- Projects P-A (the container) ------------------------------------- */
@@ -3347,10 +3346,22 @@ html {
 	display: none;
 }
 
-/* The Projects create row in that slot: the name field takes a fixed share and
-   gives it up first, so the two buttons keep their own width. min-width:0
-   because a flex item otherwise refuses to shrink past an input's intrinsic
-   size and would push the head wider than a phone's viewport. */
+/* Projects is the only page whose actions slot carries a create ROW as well as
+   the Ask entry, and three loose items in one wrapping row broke in the wrong
+   place: the field stayed up beside Ask and Create dropped alone to a second
+   line. The field and its button travel together instead — flex-basis 100%
+   starts their own line, flex-end keeps it under the Ask entry's right edge. */
+.projects-create-row {
+	display: flex;
+	gap: 10px;
+	flex: 0 0 100%;
+	justify-content: flex-end;
+}
+
+/* The name field takes a fixed share and gives it up first, so the button keeps
+   its own width. min-width:0 because a flex item otherwise refuses to shrink
+   past an input's intrinsic size and would push the head wider than a phone's
+   viewport. */
 .projects-create-name {
 	flex: 0 1 200px;
 	min-width: 0;

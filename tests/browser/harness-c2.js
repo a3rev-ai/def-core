@@ -30,8 +30,10 @@ const HTML = `<!doctype html><html><body>
     </div>
     <div class="console-page-actions">
       <button type="button" class="modal-btn modal-btn-secondary projects-ask-btn">Ask how Projects work</button>
-      <input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120">
-      <button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn">Create project</button>
+      <div class="projects-create-row">
+        <input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120">
+        <button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn">Create project</button>
+      </div>
     </div>
   </div>
   <label class="projects-archived-toggle"><input type="checkbox" id="projectsShowArchived"> Show archived</label>
@@ -526,10 +528,27 @@ function check(n, label, cond, detail) {
     const nameEl = t.document.getElementById('projectsNewName');
     const ask = slot && slot.querySelector('.projects-ask-btn');
     const create = t.document.getElementById('projectsCreateBtn');
-    check(31, 'the name field sits in the Projects page header actions slot, with Ask and Create',
-      !!slot && !!nameEl && nameEl.parentNode === slot && !!ask && !!create &&
-      create.parentNode === slot && nameEl.classList.contains('projects-create-name'),
-      'inSlot=' + (!!nameEl && nameEl.parentNode === slot) + ' ask=' + !!ask + ' create=' + !!create);
+    // The field and Create are one ROW inside the slot rather than two loose
+    // items in it (2026-09-12): as loose items the wrap fell between them and
+    // stranded Create on its own line under Ask. Still the page header, which is
+    // what this check has always been protecting - not a dialog, not a modal.
+    //
+    // SHELL_PHP as well as the fixture. Until now this check read only the copy
+    // of the header written at the top of this file, so the shipped template was
+    // free to differ from it and nothing here would have said so.
+    const shipped = /<div class="projects-create-row">\s*<input[^>]*id="projectsNewName"[\s\S]*?id="projectsCreateBtn"[\s\S]*?<\/div>/.test(SHELL_PHP);
+    const row = nameEl && nameEl.parentNode;
+    check(31, 'the name field and Create are one row in the Projects header actions slot, below the Ask entry',
+      shipped &&
+      !!slot && !!nameEl && !!ask && !!create &&
+      !!row && row.classList.contains('projects-create-row') && row.parentNode === slot &&
+      create.parentNode === row && ask.parentNode === slot &&
+      Array.prototype.indexOf.call(slot.children, ask) <
+        Array.prototype.indexOf.call(slot.children, row) &&
+      nameEl.classList.contains('projects-create-name'),
+      'shipped=' + shipped + ' row=' + (row && row.className) +
+      ' inSlot=' + (!!row && row.parentNode === slot) +
+      ' ask=' + !!ask + ' create=' + (!!create && create.parentNode === row));
   }
   // the header carries the title, ONE description line and nothing else
   {
