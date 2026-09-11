@@ -68,6 +68,24 @@ preg_match_all( "/[^A-Za-z0-9_.\\$]t\\(\\s*['\"]([A-Za-z0-9_]+)['\"]/", $js, $m 
 foreach ( $m[1] as $key ) {
 	$js_keys[ $key ] = true;
 }
+
+/**
+ * The seven "Ask X how this works" entries build their keys from a base
+ * (`askEntry( askBtn, 'usage', … )` asks for usageAskNamed, usageAsk and
+ * usageAskPrompt). A scan for a literal t( 'key' ) cannot see those, so the
+ * bases are expanded here — otherwise collapsing the seven near-identical
+ * blocks onto one helper (C5) would have quietly dropped 21 keys out of this
+ * check, which is the one thing standing between a console string and English
+ * for ever.
+ */
+preg_match_all( "/askEntry\(\s*[^,]+,\s*'([A-Za-z0-9_]+)'/", $js, $ak );
+assert_same( 7, count( $ak[1] ), 'the console wires seven Ask entries through askEntry()' );
+foreach ( $ak[1] as $base ) {
+	foreach ( array( 'AskNamed', 'Ask', 'AskPrompt' ) as $suffix ) {
+		$js_keys[ $base . $suffix ] = true;
+	}
+}
+
 $js_keys = array_keys( $js_keys );
 sort( $js_keys );
 

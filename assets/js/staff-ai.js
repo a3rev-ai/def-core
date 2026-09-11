@@ -37,13 +37,51 @@ function t(key, fallback) {
 	// relabels itself when it lands; until then, or for a tenant that has not
 	// named the assistant, it says "your assistant".
 	// Every Ask entry point names the assistant, so they subscribe rather than
-	// each owning a module-level relabel hook (four of them now, six buttons).
+	// each owning a module-level relabel hook (seven of them now, eight buttons).
 	let assistantName = '';
 	const assistantNameSubscribers = [];
 	function onAssistantName(relabel) {
 		assistantNameSubscribers.push(relabel);
 		relabel();
 	}
+
+	// ── The "Ask X how this works" entry (D-C3: the assistant IS the help layer) ──
+	// Seven of these across the console — Projects, Documents, Memories, Usage,
+	// Connections, Scheduled, and the task creator's delivery line — each the same
+	// sixteen lines: relabel when the tenant's name for the assistant lands, then on
+	// click leave any project, open a fresh chat and send one fixed question.
+	//
+	// `btns` takes an element id, an element, or a list of either (two entries wear
+	// a class because the markup repeats the button). `keyBase` builds the three
+	// i18n keys <base>AskNamed / <base>Ask / <base>AskPrompt. `defaults.before`
+	// returns false to call the whole thing off — only the creator needs it, sitting
+	// inside a form the chat would tear down.
+	function askEntry(btns, keyBase, defaults) {
+		var list = (Array.isArray(btns) ? btns : [btns])
+			.map(function (b) { return typeof b === 'string' ? document.getElementById(b) : b; })
+			.filter(Boolean);
+		if (!list.length) return;
+		onAssistantName(function () {
+			list.forEach(function (btn) {
+				// The function form of replace: a name carrying `$&` or `$'` is the
+				// tenant's text, not a substitution pattern.
+				btn.textContent = assistantName
+					? t(keyBase + 'AskNamed', defaults.named).replace('%s', function () { return assistantName; })
+					: t(keyBase + 'Ask', defaults.plain);
+			});
+		});
+		list.forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				if (defaults.before && defaults.before() === false) return;
+				clearActiveProject();
+				resetToNewChat();
+				composerInput.value = t(keyBase + 'AskPrompt', defaults.prompt);
+				updateSendButton();
+				sendMessage();
+			});
+		});
+	}
+	// ── end Ask entry ────────────────────────────────────────────────────────────
 
 	// SSE buffer parser — handles comments, multi-line data:, partial chunks
 	function parseSSEBuffer(buffer) {
@@ -960,10 +998,11 @@ function t(key, fallback) {
 	// already gone and one Escape would both close it AND leave the page.
 	document.addEventListener('keydown', function (e) {
 		if (e.key !== 'Escape' || !openPage) return;
-		// :not([hidden]) — the Projects card's touch sheet is a .chat-menu that
-		// lives in the page hidden, one per card. Matching it would mean Escape
-		// could never leave Projects at all.
-		if (document.querySelector('.chat-menu:not([hidden])')) return;
+		// Both menu surfaces: the chat row's .chat-menu and the card kit's
+		// .console-menu, which a card's ⋯ popover and its touch sheet both wear.
+		// :not([hidden]) — the touch sheet lives in the page hidden, one per card.
+		// Matching it would mean Escape could never leave Projects at all.
+		if (document.querySelector('.chat-menu:not([hidden]), .console-menu:not([hidden])')) return;
 		if (document.querySelector('.modal-overlay.visible')) return;
 		// Escape belongs to whatever the user is editing before it belongs to the
 		// page: the Documents inline "Move to project…" editor, the search field,
@@ -4047,22 +4086,11 @@ function t(key, fallback) {
 			onLeave: function () { pageOpen = false; setStatus('', ''); }
 		});
 
-		function labelAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('connectionsAskNamed', 'Ask %s how Connections work').replace('%s', function () { return assistantName; })
-				: t('connectionsAsk', 'Ask how Connections work');
-		}
-		onAssistantName(labelAsk);
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('connectionsAskPrompt', 'Walk me through connecting my own accounts — what connecting one lets you do on my behalf, what a primary mailbox is for, and how I disconnect one later.');
-				updateSendButton();
-				sendMessage();
-			});
-		}
+		askEntry(askBtn, 'connections', {
+			named: 'Ask %s how Connections work',
+			plain: 'Ask how Connections work',
+			prompt: 'Walk me through connecting my own accounts — what connecting one lets you do on my behalf, what a primary mailbox is for, and how I disconnect one later.'
+		});
 
 		// Re-check status when the user returns from the OAuth consent tab (page open only).
 		// Skip while an authorize POST is in flight (`posting`) so we don't rebuild the row the
@@ -4568,23 +4596,11 @@ function t(key, fallback) {
 
 		// The empty state's Ask button — the P-D2 pattern (the chat IS the entry):
 		// a fresh chat outside any project, pre-seeded with the request itself.
-		function labelAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('documentsAskNamed', 'Ask %s to create a document').replace('%s', function () { return assistantName; })
-				: t('documentsAsk', 'Ask your assistant to create a document');
-		}
-		onAssistantName(labelAsk);
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('documentsAskPrompt',
-					'Create a document for me — ask me what it should cover, then write it and save it to my documents.');
-				updateSendButton();
-				sendMessage();
-			});
-		}
+		askEntry(askBtn, 'documents', {
+			named: 'Ask %s to create a document',
+			plain: 'Ask your assistant to create a document',
+			prompt: 'Create a document for me — ask me what it should cover, then write it and save it to my documents.'
+		});
 
 		// A plain visit drops the bridge's slot exclusion, which has no control
 		// of its own to undo it. The project filter keeps its stickiness. The
@@ -4653,7 +4669,7 @@ function t(key, fallback) {
 			title: document.getElementById('projectsTitle'),
 			onEnter: loadList,
 			// Both renderings are anchored inside a card that is about to be hidden. An
-			// expanded sheet left behind stays a .chat-menu:not([hidden]) in the hidden
+			// expanded sheet left behind stays a .console-menu:not([hidden]) in the hidden
 			// page, and the shell's Escape guard would stand aside for it on every page.
 			onLeave: function () { closeManageMenu(false); closeManageSheets(); }
 		});
@@ -4661,28 +4677,15 @@ function t(key, fallback) {
 		// P-D2 (D-P14): the chat IS the onboarding. The button starts a fresh chat
 		// (outside any project) with a fixed first message; the assistant explains
 		// the method and, with create_project, can make the project right there.
-		function labelAsk() {
-			askBtns.forEach(function (btn) {
-				btn.textContent = assistantName
-					? t('projectsAskNamed', 'Ask %s how Projects work').replace('%s', function () { return assistantName; })
-					: t('projectsAsk', 'Ask how Projects work');
-			});
-		}
-		onAssistantName(labelAsk);
-		askBtns.forEach(function (btn) {
-			btn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('projectsAskPrompt',
-					'Walk me through creating and managing a Project, step by step — and create one for me when I\'m ready.');
-				updateSendButton();
-				sendMessage();
-			});
+		askEntry(askBtns, 'projects', {
+			named: 'Ask %s how Projects work',
+			plain: 'Ask how Projects work',
+			prompt: 'Walk me through creating and managing a Project, step by step — and create one for me when I\'m ready.'
 		});
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
-			statusEl.className = 'documents-status' + (message ? ' documents-status-' + (kind || 'muted') : '');
+			statusEl.className = 'console-status' + (message ? ' console-status-' + (kind || 'muted') : '');
 		}
 
 		// P-C (D-P9): the archive / delete prompt. Returns 'keep' | 'unbind' |
@@ -4741,10 +4744,10 @@ function t(key, fallback) {
 		function renderCard(project) {
 			const archived = project.status === 'archived';
 			const card = document.createElement('article');
-			card.className = 'project-card' + (archived ? ' project-card-archived' : '');
+			card.className = 'console-card' + (archived ? ' project-card-archived' : '');
 
 			const head = document.createElement('div');
-			head.className = 'project-card-head';
+			head.className = 'console-card-head';
 			card.appendChild(head);
 
 			const ident = document.createElement('div');
@@ -4770,7 +4773,7 @@ function t(key, fallback) {
 			head.appendChild(ident);
 
 			const actions = document.createElement('div');
-			actions.className = 'project-card-actions';
+			actions.className = 'console-card-actions';
 			const cardOpenBtn = document.createElement('button');
 			cardOpenBtn.type = 'button';
 			cardOpenBtn.className = 'modal-btn project-open-btn '
@@ -4794,7 +4797,7 @@ function t(key, fallback) {
 
 			const menuBtn = document.createElement('button');
 			menuBtn.type = 'button';
-			menuBtn.className = 'project-menu-btn';
+			menuBtn.className = 'console-menu-btn';
 			menuBtn.setAttribute('aria-haspopup', 'menu');
 			menuBtn.setAttribute('aria-expanded', 'false');
 			menuBtn.setAttribute('aria-label', t('projectsManage', 'Manage project'));
@@ -4818,7 +4821,7 @@ function t(key, fallback) {
 			knowledgeHead.textContent = t('projectsKnowledge', 'Project knowledge');
 			knowledge.appendChild(knowledgeHead);
 			const slotsEl = document.createElement('div');
-			slotsEl.className = 'project-slots';
+			slotsEl.className = 'console-slots';
 			slotsEl.textContent = t('projectsSlotsLoading', 'Loading…');
 			knowledge.appendChild(slotsEl);
 			card.appendChild(knowledge);
@@ -4885,13 +4888,13 @@ function t(key, fallback) {
 			const btn = document.createElement('button');
 			btn.type = 'button';
 			btn.disabled = !!disabled;
-			btn.className = 'project-slot' + (empty ? ' project-slot-empty' : '');
+			btn.className = 'console-slot' + (empty ? ' console-slot-empty' : '');
 			const name = document.createElement('span');
-			name.className = 'project-slot-name';
+			name.className = 'console-slot-name';
 			name.textContent = label;
 			btn.appendChild(name);
 			const metaEl = document.createElement('span');
-			metaEl.className = 'project-slot-meta';
+			metaEl.className = 'console-slot-meta';
 			metaEl.textContent = meta;
 			btn.appendChild(metaEl);
 			btn.addEventListener('click', onPick);
@@ -4924,7 +4927,7 @@ function t(key, fallback) {
 		function manageMenuItem(item, closeOnPick) {
 			const btn = document.createElement('button');
 			btn.type = 'button';
-			btn.className = 'chat-menu-item' + (item.danger ? ' chat-menu-item-danger' : '');
+			btn.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
 			btn.setAttribute('role', 'menuitem');
 			btn.textContent = item.label;
 			btn.addEventListener('click', function (e) {
@@ -4938,7 +4941,7 @@ function t(key, fallback) {
 
 		function manageMenuSeparator() {
 			const sep = document.createElement('div');
-			sep.className = 'chat-menu-sep';
+			sep.className = 'console-menu-sep';
 			sep.setAttribute('role', 'separator');
 			return sep;
 		}
@@ -4968,7 +4971,7 @@ function t(key, fallback) {
 			if (wasOpen) return;
 
 			const menu = document.createElement('div');
-			menu.className = 'chat-menu project-manage-menu';
+			menu.className = 'console-menu console-menu-drop';
 			menu.setAttribute('role', 'menu');
 			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
 			menu.addEventListener('click', function (e) { e.stopPropagation(); });
@@ -4993,7 +4996,7 @@ function t(key, fallback) {
 			});
 
 			menu.addEventListener('keydown', function (e) {
-				const items = Array.prototype.slice.call(menu.querySelectorAll('.chat-menu-item'));
+				const items = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
 				if (!items.length) return;
 				const at = items.indexOf(document.activeElement);
 				if (e.key === 'ArrowDown') {
@@ -5010,13 +5013,13 @@ function t(key, fallback) {
 				}
 			});
 
-			// .project-card-actions is the positioned parent (CSS) and the ⋯ button its
+			// .console-card-actions is the positioned parent (CSS) and the ⋯ button its
 			// last child, so the menu's right edge lands on the button's.
 			(anchor.parentNode || document.body).appendChild(menu);
 			manageMenuEl = menu;
 			manageMenuAnchor = anchor;
 			anchor.setAttribute('aria-expanded', 'true');
-			const first = menu.querySelector('.chat-menu-item');
+			const first = menu.querySelector('.console-menu-item');
 			if (first) { first.focus(); }
 		}
 
@@ -5026,20 +5029,20 @@ function t(key, fallback) {
 		// the same way. It stays in the DOM hidden, which is why the shell's
 		// "stand aside for an open menu" test reads :not([hidden]).
 		function closeManageSheets() {
-			var open = listEl ? listEl.querySelectorAll('.project-manage-sheet:not([hidden])') : [];
+			var open = listEl ? listEl.querySelectorAll('.console-menu-sheet-list:not([hidden])') : [];
 			Array.prototype.forEach.call(open, function (sheet) {
 				sheet.hidden = true;
-				var btn = sheet.parentNode && sheet.parentNode.querySelector('.project-manage-btn');
+				var btn = sheet.parentNode && sheet.parentNode.querySelector('.console-menu-sheet-btn');
 				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
 			});
 		}
 
 		function manageDisclosure(project) {
 			const wrap = document.createElement('div');
-			wrap.className = 'project-manage';
+			wrap.className = 'console-menu-sheet';
 
 			const sheet = document.createElement('div');
-			sheet.className = 'chat-menu project-manage-sheet';
+			sheet.className = 'console-menu console-menu-sheet-list';
 			sheet.setAttribute('role', 'menu');
 			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
 			sheet.hidden = true;
@@ -5049,7 +5052,7 @@ function t(key, fallback) {
 
 			const btn = document.createElement('button');
 			btn.type = 'button';
-			btn.className = 'project-manage-btn';
+			btn.className = 'console-menu-sheet-btn';
 			btn.setAttribute('aria-expanded', 'false');
 			btn.setAttribute('aria-controls', sheet.id);
 			btn.textContent = t('projectsManage', 'Manage project');
@@ -5171,8 +5174,8 @@ function t(key, fallback) {
 		document.addEventListener('click', function () { closeManageMenu(false); });
 		// C1's rule, both renderings: Escape closes the menu, and only a second
 		// Escape leaves the page. The shell's own handler runs first (capture) and
-		// stands aside while a .chat-menu is on screen — the popover and the
-		// expanded sheet are both .chat-menu — so this one gets the first press.
+		// stands aside while a .console-menu is on screen — the popover and the
+		// expanded sheet are both .console-menu — so this one gets the first press.
 		document.addEventListener('keydown', function (e) {
 			if (e.key !== 'Escape') return;
 			closeManageMenu(false);
@@ -5227,22 +5230,11 @@ function t(key, fallback) {
 		// explainer. The modal's second intro paragraph — what deleting does and
 		// how a fact comes back — went with it; the per-row confirm already says
 		// that at the moment it matters, and this asks for the rest.
-		function labelAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('memoriesAskNamed', 'Ask %s how Memories work').replace('%s', function () { return assistantName; })
-				: t('memoriesAsk', 'Ask how Memories work');
-		}
-		onAssistantName(labelAsk);
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('memoriesAskPrompt', 'What do you remember about me, how do you decide what to note, and how do I stop something coming back after I delete it?');
-				updateSendButton();
-				sendMessage();
-			});
-		}
+		askEntry(askBtn, 'memories', {
+			named: 'Ask %s how Memories work',
+			plain: 'Ask how Memories work',
+			prompt: 'What do you remember about me, how do you decide what to note, and how do I stop something coming back after I delete it?'
+		});
 
 		async function loadList() {
 			if (loading) return;
@@ -5354,22 +5346,11 @@ function t(key, fallback) {
 			onLeave: function () { setStatus('', ''); }
 		});
 
-		function labelAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('usageAskNamed', 'Ask %s how Usage works').replace('%s', function () { return assistantName; })
-				: t('usageAsk', 'Ask how Usage works');
-		}
-		onAssistantName(labelAsk);
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('usageAskPrompt', 'Explain my weekly limits — what counts toward the budget, what the two bars are telling me, and how I can get more done inside it.');
-				updateSendButton();
-				sendMessage();
-			});
-		}
+		askEntry(askBtn, 'usage', {
+			named: 'Ask %s how Usage works',
+			plain: 'Ask how Usage works',
+			prompt: 'Explain my weekly limits — what counts toward the budget, what the two bars are telling me, and how I can get more done inside it.'
+		});
 
 		function formatTokens(n) {
 			return Number(n || 0).toLocaleString();
@@ -6547,52 +6528,29 @@ function t(key, fallback) {
 		// The creator's delivery section (2026-09-03): the label beside it states
 		// the one fact, this asks the assistant everything past that fact.
 		var resultsAskBtns = Array.prototype.slice.call(modal.querySelectorAll('.schedule-results-ask'));
-		function labelResultsAsk() {
-			resultsAskBtns.forEach(function (btn) {
-				btn.textContent = assistantName
-					? t('scheduleResultsAskNamed', 'Where do results go? Ask %s').replace('%s', function () { return assistantName; })
-					: t('scheduleResultsAsk', 'Where do results go? Ask your assistant');
-			});
-		}
-		onAssistantName(labelResultsAsk);
-		resultsAskBtns.forEach(function (btn) {
-			btn.addEventListener('click', function () {
-				// This entry point is INSIDE the creator, below a long instruction
-				// box, and leaving for the chat tears the form down (the
-				// abandoned-edit rule means it cannot be recovered on reopen).
+		askEntry(resultsAskBtns, 'scheduleResults', {
+			named: 'Where do results go? Ask %s',
+			plain: 'Where do results go? Ask your assistant',
+			prompt: 'Where do the results of my scheduled tasks go, and how do I change it?',
+			// This entry point is INSIDE the creator, below a long instruction box,
+			// and leaving for the chat tears the form down (the abandoned-edit rule
+			// means it cannot be recovered on reopen).
+			before: function () {
 				if (((nameEl && nameEl.value) || (instructionEl && instructionEl.value))
 					&& !window.confirm(t('taskDiscardForAsk',
-						'Leave this task and open a chat? What you have typed here is not kept.'))) return;
+						'Leave this task and open a chat? What you have typed here is not kept.'))) return false;
 				closeModal();
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('scheduleResultsAskPrompt',
-					'Where do the results of my scheduled tasks go, and how do I change it?');
-				updateSendButton();
-				sendMessage();
-			});
+			}
 		});
 
 		// Tweaks item 2 (2026-09-02): the Projects Ask pattern on Scheduled —
 		// the chat IS the onboarding, and with create_scheduled_task shipped the
 		// prompt honestly asks the assistant to set one up too.
-		var askBtn = document.getElementById('scheduledAskAssistant');
-		function labelScheduledAsk() {
-			if (!askBtn) return;
-			askBtn.textContent = assistantName
-				? t('scheduledAskNamed', 'Ask %s how Scheduled Tasks work').replace('%s', function () { return assistantName; })
-				: t('scheduledAsk', 'Ask how Scheduled Tasks work');
-		}
-		onAssistantName(labelScheduledAsk);
-		if (askBtn) {
-			askBtn.addEventListener('click', function () {
-				clearActiveProject();
-				resetToNewChat();
-				composerInput.value = t('scheduledAskPrompt', 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.');
-				updateSendButton();
-				sendMessage();
-			});
-		}
+		askEntry('scheduledAskAssistant', 'scheduled', {
+			named: 'Ask %s how Scheduled Tasks work',
+			plain: 'Ask how Scheduled Tasks work',
+			prompt: 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.'
+		});
 
 		if (newTaskBtn) newTaskBtn.addEventListener('click', openCreator);
 		if (modalClose) modalClose.addEventListener('click', closeModal);

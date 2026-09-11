@@ -43,6 +43,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-connections-consent.js` | Connections (v7.8.8): the pending Finish-connecting / Connect-another link survives the focus rebuild until the account connects, the row loses its picker, or the user dismisses it |
 | `harness-c3b.js` | The installed app keeps up with the release (v7.9.0): the version check, the quiet-moment rule, one reload per target, and the notice only when it landed |
 | `harness-c4.js` | The document viewer as a page (v7.9.1): `#document/<id>` reached cold or from an opener, and one page serving many documents |
+| `harness-c5.js` | The card kit named (v7.9.3): the seven Ask entries on one shared helper, named and unnamed, and the proof that every kit class shares its rule with the 7.8.0 name it replaced |
 
 ## Bite checks
 
@@ -62,9 +63,14 @@ VOICE_MODULE=/tmp/old-voice.js node tests/browser/harness-voice.js   # the share
 INTEGRATIONS=/tmp/old-integrations.js node tests/browser/harness-connections-consent.js   # initIntegrations
 RELEASE=/tmp/old-release.js   node tests/browser/harness-c3b.js   # the release check
 DOCVIEWER=/tmp/old-viewer.js  node tests/browser/harness-c4.js    # initDocumentViewer
+ASK_ENTRY=/tmp/old-ask.js     node tests/browser/harness-c5.js    # the shared Ask entry
+ASK_ENTRY_CALLS=/tmp/old-calls.json node tests/browser/harness-c5.js  # the seven calls to it (JSON: [{base, source}])
 ```
 
-The env var names match the extractor names in `extract.js`.
+The env var names match the extractor names in `extract.js`. `ASK_ENTRY` reaches
+further than its own harness: `extract.buildAskEntry` hands the shipped helper to
+every page that has an Ask entry, so pointing it at an older helper turns
+`harness-c2`, `harness-c3`, `harness-so3` and `harness-connections-consent` red too.
 
 ## Adding to them
 

@@ -71,6 +71,8 @@ function boot(tasks) {
 	const names = ['window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase',
 		'userEmail', 'assistantName', 'onAssistantName', 'clearActiveProject', 'resetToNewChat',
 		'composerInput', 'updateSendButton', 'sendMessage'];
+	// C5: Scheduled carries TWO Ask entries, both on the SHARED helper.
+	extract.pushAskEntry(window, names, outer);
 	new window.Function(...names, SCHEDULED)(...outer);
 	const $ = (id) => document.getElementById(id);
 	return {

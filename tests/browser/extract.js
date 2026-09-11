@@ -13,8 +13,8 @@
  * a function out of the block is a hard error here and not a silent pass.
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
- * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE, CHAT_VOICE, CHAT_STRINGS) naming a file
- * to load instead — that is how a "bite check" is run: put the OLD code back in
+ * INTEGRATIONS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE, CHAT_VOICE,
+ * CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -68,7 +68,9 @@ function memories() {
 	return slice('initMemories',
 		l => l.startsWith('	(function initMemories() {'),
 		l => l.includes('// USAGE (Usage & Budgets D-U7)'),
-		['consolePages.push', 'function loadList', 'function removeMemory', 'memoriesAskPrompt'],
+		// The Ask entry's three keys are built from the base now (C5), so the key
+		// to assert on is the base the block hands the shared helper.
+		['consolePages.push', 'function loadList', 'function removeMemory', "askEntry(askBtn, 'memories'"],
 		'MEMORIES');
 }
 
@@ -97,6 +99,78 @@ function documentViewer() {
 		['consolePages.push', 'async function load', 'async function fetchChunk',
 			'openDocumentViewer ='],
 		'DOCVIEWER');
+}
+
+// C5: the one "Ask X how this works" entry, and the seven shipped calls to it.
+// The helper is sliced by its markers; the calls are found BY PATTERN — an
+// askEntry( … ) at the console's inner indent through the line that closes it —
+// so a page that moves keeps its entry covered and a page that loses one is a
+// hard failure here rather than a quietly untested button.
+function askEntry() {
+	return slice('askEntry',
+		l => l.includes('── The "Ask X how this works" entry'),
+		l => l.includes('── end Ask entry'),
+		['function askEntry', "'AskNamed'", "'AskPrompt'", 'defaults.before'],
+		'ASK_ENTRY');
+}
+
+function askEntryCalls() {
+	if (process.env.ASK_ENTRY_CALLS) {
+		return JSON.parse(fs.readFileSync(path.resolve(process.env.ASK_ENTRY_CALLS), 'utf8'));
+	}
+	const src = fs.readFileSync(JS_PATH, 'utf8').split(/\r?\n/);
+	const calls = [];
+	for (let i = 0; i < src.length; i++) {
+		if (!/^\t\taskEntry\(/.test(src[i])) continue;
+		const end = src.findIndex((l, j) => j > i && l === '\t\t});');
+		if (end < 0) throw new Error('askEntry calls: UNCLOSED CALL at line ' + (i + 1));
+		const source = src.slice(i, end + 1).join('\n');
+		const base = /askEntry\(\s*[^,]+,\s*'([A-Za-z0-9_]+)'/.exec(source);
+		if (!base) throw new Error('askEntry calls: NO KEY BASE at line ' + (i + 1));
+		calls.push({ base: base[1], source: source, line: i + 1 });
+		i = end;
+	}
+	if (calls.length !== 7) {
+		throw new Error('askEntry calls: EXPECTED SEVEN, FOUND ' + calls.length +
+			' (' + calls.map(c => c.base).join(', ') + ')');
+	}
+	return calls;
+}
+
+// Append the shipped Ask-entry helper to a harness's parallel names/outer arrays,
+// built from the seam stubs those arrays already declare. Three harnesses wire it
+// exactly this way, so it lives here rather than three times over.
+function pushAskEntry(window, names, outer) {
+	const at = name => outer[names.indexOf(name)];
+	outer.push(buildAskEntry(window, {
+		t: at('t'), assistantName: at('assistantName'), onAssistantName: at('onAssistantName'),
+		clearActiveProject: at('clearActiveProject'), resetToNewChat: at('resetToNewChat'),
+		composerInput: at('composerInput'), updateSendButton: at('updateSendButton'),
+		sendMessage: at('sendMessage')
+	}));
+	names.push('askEntry');
+}
+
+// Compile the shipped Ask-entry helper into a harness's jsdom realm. Four pages
+// and the task creator call it now, so this is the one place they all get the
+// REAL helper — a harness that stood in a fake here would be testing its own
+// stub's labels instead of the console's.
+function buildAskEntry(window, deps) {
+	return new window.Function(
+		'window', 'document', 't', 'assistantName', 'onAssistantName', 'clearActiveProject',
+		'resetToNewChat', 'composerInput', 'updateSendButton', 'sendMessage',
+		askEntry() + '\nreturn askEntry;'
+	)(
+		window, window.document,
+		deps.t || function (key, def) { return def; },
+		deps.assistantName || '',
+		deps.onAssistantName || function (relabel) { relabel(); },
+		deps.clearActiveProject || function () {},
+		deps.resetToNewChat || function () {},
+		deps.composerInput,
+		deps.updateSendButton || function () {},
+		deps.sendMessage || function () {}
+	);
 }
 
 // C3b: the installed app's release check — the version compare, the quiet-moment
@@ -274,6 +348,7 @@ function templateModal(id) {
 }
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, documentViewer, release, staffAiStream, customerChatStream, scheduled,
+	usage, integrations, documentViewer, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
+	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

@@ -132,6 +132,9 @@ function boot(startUrl, opts) {
 		'onAssistantName', 'clearActiveProject', 'resetToNewChat', 'composerInput',
 		'updateSendButton', 'sendMessage', 'formatTime', 'CSS'];
 
+	// C5: all three pages reach their Ask entry through the SHARED helper.
+	extract.pushAskEntry(window, names, outer);
+
 	new window.Function(...names, MEMORIES)(...outer);
 	new window.Function(...names, USAGE)(...outer);
 	new window.Function(...names, INTEGRATIONS)(...outer);
