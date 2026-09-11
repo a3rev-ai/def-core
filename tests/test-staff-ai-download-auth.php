@@ -310,6 +310,19 @@ check(
 	'an unquoted filename is read too'
 );
 
+// A title is USER text, and RFC 6266 escaping keeps a `filename*=` sequence inside
+// the quoted value rather than removing it. Scanning the raw header therefore found
+// the copy INSIDE the quotes and stopped at the `;` in it — a title could rename its
+// own download and drop the extension DEF works to preserve (panel, security leg).
+// The genuine parameter sits OUTSIDE the quotes; blanking quoted values finds it.
+$smuggle_title  = 'x"; filename*=UTF-8\'\'pwn.exe;.md';
+$smuggle_header = 'attachment; filename="x\\"; filename*=UTF-8\'\'pwn.exe;.md"'
+	. "; filename*=UTF-8''" . rawurlencode( $smuggle_title );
+check(
+	saved_name( $smuggle_header, $url_key ) === $smuggle_title,
+	'a title cannot smuggle a second filename* past the parser'
+);
+
 // WIRING. The checks above prove the DECISION; this one proves the handler asks for
 // it. handle_file_download's success path ends in `exit`, so it cannot be invoked
 // in-process to watch a real header come out — a source pin is the honest substitute,

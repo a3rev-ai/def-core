@@ -5425,7 +5425,13 @@ final class DEF_Core_Staff_AI
 	private static function download_filename_from( $disposition, string $url_filename ): string {
 		$name = '';
 		if ( is_string( $disposition ) && '' !== $disposition ) {
-			if ( preg_match( "/filename\*\s*=\s*UTF-8''([^;]+)/i", $disposition, $m ) ) {
+			// A QUOTED parameter value can itself contain `filename*=`. A title is user
+			// text, and RFC 6266 escaping keeps such a sequence inside the quotes rather
+			// than removing it — so a scan of the raw header matches the copy INSIDE the
+			// quoted filename and stops at the `;` in it. Blank quoted values first: the
+			// genuine parameter sits outside them and survives untouched.
+			$scan = preg_replace( '/"(?:[^"\\\\]|\\\\.)*"/', '""', $disposition );
+			if ( preg_match( "/filename\*\s*=\s*UTF-8''([^;]+)/i", $scan, $m ) ) {
 				$name = rawurldecode( trim( $m[1] ) );
 			} elseif ( preg_match( '/filename\s*=\s*"((?:[^"\\\\]|\\\\.)*)"/i', $disposition, $m ) ) {
 				$name = stripslashes( $m[1] );
