@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.2
+Stable tag: 7.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.3 - 2026-09-11 =
+* Update - Staff AI console, under the hood: the card, the menu, the slot tiles and the status line that Projects introduced now have shared names, so the other console pages can wear the same ones instead of each carrying its own copy. The seven "Ask your assistant how this works" buttons - on Projects, My documents, Memories, Usage, Connections, Scheduled and in the task editor - are now wired once rather than seven times over. Nothing changes on screen and nothing changes about what any of them does: this is groundwork for the pages that adopt the shared look next.
 
 = 7.9.2 - 2026-09-11 =
 * Fix - Staff AI: a document now downloads under the name you know it by. A project's runsheet saved as "runsheet.md" - and so did every other project's, so three clients' runsheets landed in your Downloads as runsheet.md, runsheet (1).md and runsheet (2).md with nothing to tell them apart. They now save as "Rowell Walton Go-Live - Runsheet.md" and the like, with the file type unchanged. Documents your assistant writes for you were already saving under their own names and are unaffected. Needs the platform release of the same day.

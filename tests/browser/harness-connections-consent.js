@@ -86,6 +86,8 @@ function boot(opts) {
 	const names = ['window', 'document', 'consolePages', 't', 'apiRequest', 'assistantName',
 		'onAssistantName', 'clearActiveProject', 'resetToNewChat', 'composerInput',
 		'updateSendButton', 'sendMessage', 'formatTime', 'CSS'];
+	// C5: the page's Ask entry goes through the SHARED helper.
+	extract.pushAskEntry(window, names, outer);
 	new window.Function(...names, INTEGRATIONS)(...outer);
 
 	const page = consolePages.find(p => p.route === 'connections');

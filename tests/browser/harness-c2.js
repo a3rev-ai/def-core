@@ -35,7 +35,7 @@ const HTML = `<!doctype html><html><body>
     </div>
   </div>
   <label class="projects-archived-toggle"><input type="checkbox" id="projectsShowArchived"> Show archived</label>
-  <div class="documents-status" id="projectsStatus"></div>
+  <div class="console-status" id="projectsStatus"></div>
   <div class="projects-list" id="projectsList"></div>
 </section>
 <section class="console-page" id="documentsPane" hidden>
@@ -98,29 +98,42 @@ function boot(startUrl, opts) {
     return {};
   }
   const state = { activeProject: null, newChats: 0, sent: [], viewer: null, docFilter: null };
+  // The four bindings the page's Ask entry needs, named because the SHIPPED
+  // askEntry helper (C5) is built from the same ones — the "Ask Sue how Projects
+  // work" checks below run the real helper, not a stand-in for it.
+  const t = function (key, def) { return def; };
+  const clearActiveProject = function () { state.activeProject = null; };
+  const resetToNewChat = function () { api.showChat({ focus: false }); state.newChats++; };
+  const sendMessage = function () { state.sent.push(composerInput.value); };
   const projectsFactory = new window.Function(
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'assistantName',
     'onAssistantName', 'clearActiveProject', 'resetToNewChat', 'composerInput',
     'updateSendButton', 'sendMessage', 'setActiveProject', 'activeProjectId', 'formatTime',
     'openDocumentViewer', 'openDocumentsForProject', 'safeHttpHref', 'projectsCache',
-    'showPage', 'state',
+    'showPage', 'askEntry', 'state',
     PROJECTS
   );
   projectsFactory(
     window, document, api.consolePages,
-    function (key, def) { return def; },
+    t,
     apiRequest, '/def/v1', 'Sue',
     function (fn) { fn(); },
-    function () { state.activeProject = null; },
-    function () { api.showChat({ focus: false }); state.newChats++; },
+    clearActiveProject,
+    resetToNewChat,
     composerInput,
-    function () {}, function () { state.sent.push(composerInput.value); },
+    function () {}, sendMessage,
     function (p) { state.activeProject = p; },
     null, function (x) { return String(x || ''); },
     function (id, title) { state.viewer = id; },
     function (id, excl) { state.docFilter = { id: id, excl: !!excl }; api.showPage('documents'); },
     function (u) { return u; }, [],
-    api.showPage, state
+    api.showPage,
+    extract.buildAskEntry(window, {
+      t: t, assistantName: 'Sue', composerInput: composerInput,
+      clearActiveProject: clearActiveProject, resetToNewChat: resetToNewChat,
+      sendMessage: sendMessage
+    }),
+    state
   );
 
   return {
@@ -147,7 +160,7 @@ async function bootWithPrevious() {
   await tick(t.window);
   return t;
 }
-const cards = t => Array.prototype.slice.call(t.document.querySelectorAll('#projectsList .project-card'));
+const cards = t => Array.prototype.slice.call(t.document.querySelectorAll('#projectsList .console-card'));
 const byText = (root, sel, re) =>
   Array.prototype.slice.call(root.querySelectorAll(sel)).filter(el => re.test(el.textContent))[0];
 
@@ -246,7 +259,7 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, byText(cards(t)[0], '.project-slot', /Other documents/)); await tick(t.window, 60);
+    click(t.window, byText(cards(t)[0], '.console-slot', /Other documents/)); await tick(t.window, 60);
     const atDocs = t.api.open() === 'documents' && t.location.hash === '#documents' &&
       t.state.docFilter && t.state.docFilter.id === 'p1' && t.state.docFilter.excl === true;
     t.window.history.back(); await tick(t.window, 60);
@@ -272,8 +285,8 @@ function check(n, label, cond, detail) {
     t.window.confirm = () => true;
     clickNav(t, 'navProjects'); await tick(t.window, 80);
     const before = t.requests.length;
-    click(t.window, cards(t)[1].querySelector('.project-menu-btn')); await tick(t.window);
-    click(t.window, byText(t.document, '.project-manage-menu .chat-menu-item', /Restore/)); await tick(t.window, 90);
+    click(t.window, cards(t)[1].querySelector('.console-menu-btn')); await tick(t.window);
+    click(t.window, byText(t.document, '.console-menu-drop .console-menu-item', /Restore/)); await tick(t.window, 90);
     const put = t.requests.slice(before).filter(r => r.method === 'PUT')[0];
     check(11, 'Restore from the ⋯ menu still PUTs status:active and reloads the list',
       !!put && put.url === '/projects/p2' && /"status":"active"/.test(put.body || ''),
@@ -286,18 +299,18 @@ function check(n, label, cond, detail) {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
     const card = cards(t)[0];
-    click(t.window, card.querySelector('.project-menu-btn')); await tick(t.window);
-    const menu = t.document.querySelector('.project-manage-menu');
+    click(t.window, card.querySelector('.console-menu-btn')); await tick(t.window);
+    const menu = t.document.querySelector('.console-menu-drop');
     check(12, 'the ⋯ menu is anchored INSIDE its own card (not appended to <body>)',
-      !!menu && card.contains(menu) && menu.parentNode.classList.contains('project-card-actions'),
+      !!menu && card.contains(menu) && menu.parentNode.classList.contains('console-card-actions'),
       'inCard=' + (!!menu && card.contains(menu)) + ' parent=' + (menu && menu.parentNode.className));
   }
   // 13. no viewport maths left on the element
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-menu-btn')); await tick(t.window);
-    const menu = t.document.querySelector('.project-manage-menu');
+    click(t.window, cards(t)[0].querySelector('.console-menu-btn')); await tick(t.window);
+    const menu = t.document.querySelector('.console-menu-drop');
     check(13, 'the ⋯ menu carries NO measured inline top/right (the fixed overlay maths are gone)',
       !!menu && !menu.style.top && !menu.style.right,
       'top=' + JSON.stringify(menu && menu.style.top) + ' right=' + JSON.stringify(menu && menu.style.right));
@@ -306,24 +319,24 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-menu-btn')); await tick(t.window);
-    const upBefore = !!t.document.querySelector('.project-manage-menu');
+    click(t.window, cards(t)[0].querySelector('.console-menu-btn')); await tick(t.window);
+    const upBefore = !!t.document.querySelector('.console-menu-drop');
     t.document.getElementById('projectsPane').dispatchEvent(new t.window.Event('scroll'));
     t.document.getElementById('projectsList').dispatchEvent(new t.window.Event('scroll'));
     t.window.dispatchEvent(new t.window.Event('resize'));
     await tick(t.window);
     check(14, 'the ⋯ menu survives a page scroll and a resize — it moves with its card now',
-      upBefore && !!t.document.querySelector('.project-manage-menu'),
-      'before=' + upBefore + ' after=' + !!t.document.querySelector('.project-manage-menu'));
+      upBefore && !!t.document.querySelector('.console-menu-drop'),
+      'before=' + upBefore + ' after=' + !!t.document.querySelector('.console-menu-drop'));
   }
   // 15. a click elsewhere still closes it
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-menu-btn')); await tick(t.window);
+    click(t.window, cards(t)[0].querySelector('.console-menu-btn')); await tick(t.window);
     click(t.window, t.document.getElementById('projectsTitle')); await tick(t.window);
     check(15, 'a click anywhere else still closes the ⋯ menu',
-      !t.document.querySelector('.project-manage-menu') && t.api.open() === 'projects');
+      !t.document.querySelector('.console-menu-drop') && t.api.open() === 'projects');
   }
 
   // ---- Escape: the menu first, the page second (the C1 rule) --------------
@@ -331,9 +344,9 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-menu-btn')); await tick(t.window);
+    click(t.window, cards(t)[0].querySelector('.console-menu-btn')); await tick(t.window);
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
-    const menuGone = !t.document.querySelector('.project-manage-menu');
+    const menuGone = !t.document.querySelector('.console-menu-drop');
     const stillOnPage = t.api.open() === 'projects';
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
     check(16, 'Escape closes the ⋯ menu FIRST and the page SECOND',
@@ -344,9 +357,9 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    const sheets = t.document.querySelectorAll('.project-manage-sheet');
+    const sheets = t.document.querySelectorAll('.console-menu-sheet-list');
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
-    check(17, "the cards' HIDDEN touch sheets (also .chat-menu) do not block Escape from leaving Projects",
+    check(17, "the cards' HIDDEN touch sheets (also .console-menu) do not block Escape from leaving Projects",
       sheets.length === 2 && t.api.open() === null && t.chatVisible(),
       'sheets=' + sheets.length + ' open=' + t.api.open());
   }
@@ -354,7 +367,7 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    const btn = cards(t)[0].querySelector('.project-manage-btn');
+    const btn = cards(t)[0].querySelector('.console-menu-sheet-btn');
     click(t.window, btn); await tick(t.window);
     const opened = btn.getAttribute('aria-expanded') === 'true';
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
@@ -425,8 +438,8 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    const btn = cards(t)[0].querySelector('.project-manage-btn');
-    const sheet = cards(t)[0].querySelector('.project-manage-sheet');
+    const btn = cards(t)[0].querySelector('.console-menu-sheet-btn');
+    const sheet = cards(t)[0].querySelector('.console-menu-sheet-list');
     click(t.window, btn); await tick(t.window);
     const opened = !sheet.hidden && btn.getAttribute('aria-expanded') === 'true';
     clickNav(t, 'navDocuments'); await tick(t.window, 60);
@@ -434,22 +447,22 @@ function check(n, label, cond, detail) {
       opened && sheet.hidden === true && btn.getAttribute('aria-expanded') === 'false',
       'opened=' + opened + ' hidden=' + sheet.hidden + ' aria=' + btn.getAttribute('aria-expanded'));
   }
-  // 29. and the hidden page therefore holds no open .chat-menu
+  // 29. and the hidden page therefore holds no open .console-menu
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-manage-btn')); await tick(t.window);
-    const leaked = t.document.querySelectorAll('.chat-menu:not([hidden])').length;
+    click(t.window, cards(t)[0].querySelector('.console-menu-sheet-btn')); await tick(t.window);
+    const leaked = t.document.querySelectorAll('.console-menu:not([hidden])').length;
     clickNav(t, 'navScheduled'); await tick(t.window, 60);
-    check(24, "the hidden Projects page leaves NO .chat-menu:not([hidden]) behind (the shell's guard)",
-      leaked === 1 && t.document.querySelectorAll('.chat-menu:not([hidden])').length === 0,
-      'whileOpen=' + leaked + ' afterLeave=' + t.document.querySelectorAll('.chat-menu:not([hidden])').length);
+    check(24, "the hidden Projects page leaves NO .console-menu:not([hidden]) behind (the shell's guard)",
+      leaked === 1 && t.document.querySelectorAll('.console-menu:not([hidden])').length === 0,
+      'whileOpen=' + leaked + ' afterLeave=' + t.document.querySelectorAll('.console-menu:not([hidden])').length);
   }
   // 30. THE BUG: the destination page's first Escape must not be swallowed
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-manage-btn')); await tick(t.window);
+    click(t.window, cards(t)[0].querySelector('.console-menu-sheet-btn')); await tick(t.window);
     clickNav(t, 'navDocuments'); await tick(t.window, 60);
     const onDocs = t.api.open() === 'documents';
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
@@ -461,27 +474,27 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-manage-btn')); await tick(t.window);
+    click(t.window, cards(t)[0].querySelector('.console-menu-sheet-btn')); await tick(t.window);
     clickNav(t, 'navScheduled'); await tick(t.window, 60);
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
     const scheduledLeft = t.api.open() === null;
     const t2 = boot();
     clickNav(t2, 'navProjects'); await tick(t2.window, 80);
-    click(t2.window, cards(t2)[0].querySelector('.project-manage-btn')); await tick(t2.window);
+    click(t2.window, cards(t2)[0].querySelector('.console-menu-sheet-btn')); await tick(t2.window);
     clickNav(t2, 'navDocuments'); await tick(t2.window, 60);
     check(26, 'the FIRST Escape on Scheduled leaves too, and no ⋯ popover survives the move',
-      scheduledLeft && t2.document.querySelectorAll('.project-manage-menu').length === 0,
-      'scheduledLeft=' + scheduledLeft + ' popovers=' + t2.document.querySelectorAll('.project-manage-menu').length);
+      scheduledLeft && t2.document.querySelectorAll('.console-menu-drop').length === 0,
+      'scheduledLeft=' + scheduledLeft + ' popovers=' + t2.document.querySelectorAll('.console-menu-drop').length);
   }
   // 32. re-entering Projects after that leave is clean (no half-open sheet)
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    click(t.window, cards(t)[0].querySelector('.project-manage-btn')); await tick(t.window);
+    click(t.window, cards(t)[0].querySelector('.console-menu-sheet-btn')); await tick(t.window);
     clickNav(t, 'navDocuments'); await tick(t.window, 60);
     clickNav(t, 'navProjects'); await tick(t.window, 80);
     const open = Array.prototype.slice.call(
-      t.document.querySelectorAll('#projectsList .project-manage-sheet')).filter(s => !s.hidden);
+      t.document.querySelectorAll('#projectsList .console-menu-sheet-list')).filter(s => !s.hidden);
     check(27, 'coming back to Projects shows every touch sheet closed',
       t.api.open() === 'projects' && open.length === 0, 'openSheets=' + open.length);
   }
@@ -582,7 +595,7 @@ function check(n, label, cond, detail) {
   {
     const t = boot();
     clickNav(t, 'navProjects'); await tick(t.window, 80);
-    const statuses = t.document.querySelectorAll('#projectsPane .documents-status');
+    const statuses = t.document.querySelectorAll('#projectsPane .console-status');
     check(36, 'Projects has ONE status surface — no create-only status line',
       statuses.length === 1 && statuses[0].id === 'projectsStatus',
       'count=' + statuses.length);

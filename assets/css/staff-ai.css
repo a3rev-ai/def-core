@@ -478,8 +478,13 @@ body {
 	}
 }
 
-.chat-menu {
-	position: fixed; /* top/right set from the ⋮ button's rect at open time */
+/* The menu surface. Shared with the card kit's ⋯ menu (`.console-menu`, D-C8 —
+   the index is beside the kit, further down this file): one box, worn by the chat
+   row's popover, a card's ⋯ popover and a card's touch sheet alike. The chat row
+   keeps `position: fixed` below, which only a menu measured against the viewport
+   needs. */
+.chat-menu,
+.console-menu {
 	z-index: 1000;
 	min-width: 190px;
 	background: var(--bg-modal);
@@ -489,7 +494,12 @@ body {
 	padding: 4px;
 }
 
-.chat-menu-item {
+.chat-menu {
+	position: fixed; /* top/right set from the ⋮ button's rect at open time */
+}
+
+.chat-menu-item,
+.console-menu-item {
 	display: block;
 	width: 100%;
 	border: none;
@@ -502,11 +512,13 @@ body {
 	cursor: pointer;
 }
 
-.chat-menu-item:hover {
+.chat-menu-item:hover,
+.console-menu-item:hover {
 	background: var(--hover-bg);
 }
 
-.chat-menu-item-danger {
+.chat-menu-item-danger,
+.console-menu-item-danger {
 	color: #d64541;
 }
 
@@ -2368,7 +2380,8 @@ html {
 .integrations-status-muted {
 	color: var(--text-tertiary);
 }
-.integrations-status-ok {
+.integrations-status-ok,
+.console-status-ok {
 	color: var(--accent-green);
 }
 .integrations-status-error {
@@ -2509,18 +2522,26 @@ html {
 	font-size: 13px;
 }
 
-.documents-status {
+/* The status line, shared with the card kit (`.console-status`, D-C8). Three
+   more copies of these exact declarations live in their own sections
+   (`.integrations-status`, `.memories-status`, `.usage-status`); each retires
+   into the kit name as C6 re-points its page. */
+.documents-status,
+.console-status {
 	font-size: 13px;
 	margin-bottom: 10px;
 	min-height: 18px;
 }
-.documents-status:empty {
+.documents-status:empty,
+.console-status:empty {
 	margin-bottom: 0;
 }
-.documents-status-muted {
+.documents-status-muted,
+.console-status-muted {
 	color: var(--text-tertiary);
 }
-.documents-status-error {
+.documents-status-error,
+.console-status-error {
 	color: var(--banner-error-text);
 }
 
@@ -2956,7 +2977,23 @@ html {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-/* Projects P-D5 (7.8.0): the project card — a workspace, not an admin row.
+/* ——— The console card kit (D-C8, C5) ———————————————————————————————————
+   The 7.8.0 Projects patterns, NAMED so a second page can wear them instead of
+   copying them. Every kit name JOINS the selector of the rule it was derived
+   from rather than restating the declarations, so the two cannot drift and
+   re-pointing a page is provably a no-op on screen. Projects wears the kit as of
+   C5; C6 adopts it page by page, and each page's own name drops out of these
+   selectors as it does. The families:
+
+     .console-card    with -head and -actions (the ⋯ menu's positioned parent)
+     .console-menu    the menu surface (shared with the chat row's .chat-menu,
+                      near the top of this file): -item / -item-danger / -sep,
+                      the -btn trigger, -drop for the popover's placement, and
+                      the touch rendering -sheet > -sheet-btn + -sheet-list
+     .console-slots   the slot tiles: .console-slot, -name, -empty, -meta
+     .console-status  the status line (shared with .documents-status)
+
+   Projects P-D5 (7.8.0): the project card — a workspace, not an admin row.
    Name and status, then the one filled Open Project, then the project
    knowledge, and the ⋯ management menu last. Tokens only: the shell borrows
    the document card's, the menu borrows the chat row's, so dark mode and the
@@ -2970,21 +3007,24 @@ html {
 	   control needs a pixel of room. */
 	padding: 2px;
 }
-.project-card {
+.project-card,
+.console-card {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
 	border-radius: 10px;
 	/* No overflow:hidden — it would clip the ⋯ menu, a child of the card; the last
 	   child rounds its own bottom corners instead (9px = 10px less the 1px border). */
 }
-.project-card > :last-child {
+.project-card > :last-child,
+.console-card > :last-child {
 	border-bottom-left-radius: 9px;
 	border-bottom-right-radius: 9px;
 }
 .project-card-archived {
 	background: var(--bg-sidebar);
 }
-.project-card-head {
+.project-card-head,
+.console-card-head {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
@@ -3027,7 +3067,8 @@ html {
 	background: var(--active-bg);
 	color: var(--text-secondary);
 }
-.project-card-actions {
+.project-card-actions,
+.console-card-actions {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -3040,7 +3081,8 @@ html {
    modal whose list scrolled under it. Same place on screen, nothing to
    recompute on scroll or resize. Hidden on touch, where the in-place sheet
    below takes over. */
-.project-manage-menu {
+.project-manage-menu,
+.console-menu-drop {
 	position: absolute;
 	top: 100%;
 	right: 0;
@@ -3053,7 +3095,8 @@ html {
 	font-weight: 600;
 	white-space: nowrap;
 }
-.project-menu-btn {
+.project-menu-btn,
+.console-menu-btn {
 	flex: none;
 	border: 1px solid transparent;
 	background: transparent;
@@ -3066,7 +3109,8 @@ html {
 	border-radius: 6px;
 	cursor: pointer;
 }
-.project-menu-btn:hover {
+.project-menu-btn:hover,
+.console-menu-btn:hover {
 	background: var(--active-bg);
 	color: var(--text-heading);
 }
@@ -3075,13 +3119,19 @@ html {
 .project-slot:focus-visible,
 .project-manage-btn:focus-visible,
 .project-manage-menu .chat-menu-item:focus-visible,
-.project-manage-sheet .chat-menu-item:focus-visible {
+.project-manage-sheet .chat-menu-item:focus-visible,
+.console-menu-btn:focus-visible,
+.console-slot:focus-visible,
+.console-menu-sheet-btn:focus-visible,
+.console-menu-drop .console-menu-item:focus-visible,
+.console-menu-sheet-list .console-menu-item:focus-visible {
 	outline: 2px solid var(--border-hover);
 	outline-offset: -2px;
 }
 /* Delete sits under a divider so it cannot be hit on the way to Archive.
    Only the project menus build one; the chat row menu has no separator. */
-.chat-menu-sep {
+.chat-menu-sep,
+.console-menu-sep {
 	height: 1px;
 	margin: 4px 6px;
 	background: var(--border-light);
@@ -3100,7 +3150,8 @@ html {
 	font-weight: 600;
 	color: var(--text-secondary);
 }
-.project-slots {
+.project-slots,
+.console-slots {
 	display: grid;
 	/* Two up inside a 560px panel — the Artifact's narrow-container treatment. */
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3108,7 +3159,8 @@ html {
 	font-size: 12px;
 	color: var(--text-tertiary);
 }
-.project-slot {
+.project-slot,
+.console-slot {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
@@ -3123,26 +3175,31 @@ html {
 	cursor: pointer;
 	transition: border-color 0.15s;
 }
-.project-slot:hover:not(:disabled) {
+.project-slot:hover:not(:disabled),
+.console-slot:hover:not(:disabled) {
 	border-color: var(--border-hover);
 }
 /* A tile with nothing behind it must not send the user to an empty list. */
-.project-slot:disabled {
+.project-slot:disabled,
+.console-slot:disabled {
 	cursor: default;
 	opacity: 0.55;
 }
-.project-slot-name {
+.project-slot-name,
+.console-slot-name {
 	font-size: 13px;
 	font-weight: 500;
 	color: var(--text-heading);
 	overflow-wrap: anywhere;
 }
 /* An empty slot invites the document rather than hiding. */
-.project-slot-empty .project-slot-name {
+.project-slot-empty .project-slot-name,
+.console-slot-empty .console-slot-name {
 	font-weight: 400;
 	color: var(--text-secondary);
 }
-.project-slot-meta {
+.project-slot-meta,
+.console-slot-meta {
 	font-size: 11px;
 	color: var(--text-tertiary);
 }
@@ -3150,10 +3207,12 @@ html {
 /* ——— touch: the management actions expand in place under Open Project
    instead of hanging a popover off a small target. CSS shows the ⋯ popover or
    this disclosure, never both. ——— */
-.project-manage {
+.project-manage,
+.console-menu-sheet {
 	display: none;
 }
-.project-manage-btn {
+.project-manage-btn,
+.console-menu-sheet-btn {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -3168,7 +3227,8 @@ html {
 	color: var(--text-secondary);
 	cursor: pointer;
 }
-.project-manage-btn::after {
+.project-manage-btn::after,
+.console-menu-sheet-btn::after {
 	content: '';
 	width: 7px;
 	height: 7px;
@@ -3178,58 +3238,69 @@ html {
 	transform: rotate(45deg);
 	transition: transform 0.15s;
 }
-.project-manage-btn[aria-expanded="true"]::after {
+.project-manage-btn[aria-expanded="true"]::after,
+.console-menu-sheet-btn[aria-expanded="true"]::after {
 	margin-top: 3px;
 	transform: rotate(-135deg);
 }
-/* Deltas over the .chat-menu shell it reuses. */
-.project-manage-sheet {
+/* Deltas over the menu surface it reuses. */
+.project-manage-sheet,
+.console-menu-sheet-list {
 	position: static;
 	margin-top: 6px;
 	min-width: 0;
 	box-shadow: none;
 }
-.project-manage-sheet .chat-menu-item {
+.project-manage-sheet .chat-menu-item,
+.console-menu-sheet-list .console-menu-item {
 	font-size: 14px;
 	padding: 11px 12px;
 }
 
 @media (max-width: 640px) {
 	/* One action per line; nothing squeezed into a horizontal row. */
-	.project-card-head {
+	.project-card-head,
+	.console-card-head {
 		flex-direction: column;
 		gap: 10px;
 		padding-bottom: 10px;
 	}
-	.project-card-actions {
+	.project-card-actions,
+	.console-card-actions {
 		width: 100%;
 	}
 	.project-open-btn {
 		flex: 1;
 		min-height: 38px;
 	}
-	.project-menu-btn {
+	.project-menu-btn,
+	.console-menu-btn {
 		display: none;
 	}
-	.project-manage {
+	.project-manage,
+	.console-menu-sheet {
 		display: block;
 		padding: 0 14px 12px;
 	}
 	/* The four slots become list rows with a chevron — same targets, at tap size. */
-	.project-slots {
+	.project-slots,
+	.console-slots {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 6px;
 	}
-	.project-slot {
+	.project-slot,
+	.console-slot {
 		flex-direction: row;
 		align-items: center;
 		gap: 10px;
 		min-height: 42px;
 	}
-	.project-slot-meta {
+	.project-slot-meta,
+	.console-slot-meta {
 		margin-left: auto;
 	}
-	.project-slot::after {
+	.project-slot::after,
+	.console-slot::after {
 		content: '›';
 		flex: none;
 		font-size: 15px;
@@ -3376,7 +3447,10 @@ html {
 	width: auto;
 	margin: 0;
 }
-.console-page .documents-status {
+/* Every page's status line, not just this one — Projects wears it too, under
+   the kit name (D-C8). */
+.console-page .documents-status,
+.console-page .console-status {
 	margin-top: 10px;
 }
 .documents-grid {

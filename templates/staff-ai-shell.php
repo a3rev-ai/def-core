@@ -262,7 +262,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<input type="checkbox" id="projectsShowArchived">
 					<?php echo esc_html__( 'Show archived', 'digital-employees' ); ?>
 				</label>
-				<div class="documents-status" id="projectsStatus"></div>
+				<div class="console-status" id="projectsStatus"></div>
 				<div class="projects-list" id="projectsList"></div>
 			</section>
 
