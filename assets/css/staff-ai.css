@@ -2942,8 +2942,9 @@ html {
    copying them. Every kit name JOINS the selector of the rule it was derived
    from rather than restating the declarations, so the two cannot drift and
    re-pointing a page is provably a no-op on screen. Projects wears the kit as of
-   C5 and Documents as of C6a; a page's old names stay joined here, which is what
-   lets its harness prove the kit renders what they did. The families:
+   C5, its 7.8.0 names still joined here as that proof. Documents wears it as of
+   C6a, as it is: its cards changed their look on adoption, so there was no old
+   rendering to join. The families:
 
      .console-card    with -head and -actions (the ⋯ menu's positioned parent)
      .console-menu    the menu surface (shared with the chat row's .chat-menu,
@@ -2968,7 +2969,6 @@ html {
 	padding: 2px;
 }
 .project-card,
-.document-card,
 .console-card {
 	background: var(--bg-main);
 	border: 1px solid var(--border-light);
@@ -2977,7 +2977,6 @@ html {
 	   child rounds its own bottom corners instead (9px = 10px less the 1px border). */
 }
 .project-card > :last-child,
-.document-card > :last-child,
 .console-card > :last-child {
 	border-bottom-left-radius: 9px;
 	border-bottom-right-radius: 9px;
@@ -3030,7 +3029,6 @@ html {
 	color: var(--text-secondary);
 }
 .project-card-actions,
-.document-action,
 .console-card-actions {
 	display: flex;
 	align-items: center;
@@ -3231,7 +3229,6 @@ html {
 		padding-bottom: 10px;
 	}
 	.project-card-actions,
-	.document-action,
 	.console-card-actions {
 		width: 100%;
 	}

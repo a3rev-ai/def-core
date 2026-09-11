@@ -39,12 +39,15 @@ function check(n, label, cond, detail) {
 
 // ── 1. the proof ──────────────────────────────────────────────────────────
 //
-// Each kit name the Documents block writes, and the name it replaced: the page's
-// own where it had one — joined into the kit's selectors the way C5 joined
-// Projects' — and otherwise the 7.8.0 name the kit itself was derived from.
+// Each kit name the Documents block writes, and the name it replaced. The card
+// and the menu replaced Documents' own buttons with a different look, so there
+// is no old Documents rendering to hold them to; they are held to the 7.8.0 name
+// the kit was derived from (C5's table), which is what catches a Documents
+// variant of the kit. The status line is the same line it was, so it keeps
+// Documents' own name.
 const REPLACED = {
-  'console-card': 'document-card',
-  'console-card-actions': 'document-action',
+  'console-card': 'project-card',
+  'console-card-actions': 'project-card-actions',
   'console-status': 'documents-status',
   'console-status-muted': 'documents-status-muted',
   'console-status-error': 'documents-status-error',
@@ -210,8 +213,10 @@ const item = (menu, label) => menu
     check(++n, "View is the card's one filled action and shares every rule with Projects' Open Project",
       /'modal-btn modal-btn-primary document-view-btn'/.test(CODE) && view.length === 0, view.join(' | '));
 
+    // A whole class token anywhere in a string literal: `'console-card document-card'`
+    // counts, `'document-card-id'` would not.
     const left = ['document-card', 'document-action', 'documents-status']
-      .filter(nm => new RegExp("'" + nm + "['\\s]").test(CODE))
+      .filter(nm => new RegExp("'(?:[^'\\n]*\\s)?" + nm + "(?=['\\s])").test(CODE))
       .concat(/document-btn/.test(CODE) ? ['document-btn'] : []);
     check(++n, 'the shipped block no longer writes a name the kit replaced — no card, action row, button or status of its own',
       left.length === 0, 'left: ' + left.join(', '));
@@ -404,17 +409,19 @@ const item = (menu, label) => menu
     // The old button stayed disabled while its DELETE was out. The popover is
     // rebuilt on every open, so the same guarantee has to survive a reopen.
     const whileOut = item(await openMenu(t, 'Go-Live Runsheet'), 'Delete');
-    const heldDisabled = !!whileOut && whileOut.disabled === true;
+    const sheetDelete = item(within(t.card('Go-Live Runsheet'), '.console-menu-sheet-list'), 'Delete');
+    const heldDisabled = !!whileOut && whileOut.disabled === true && !!sheetDelete && sheetDelete.disabled === true;
     click(t.window, t.document.body); await tick(t.window);
     if (t.state.release) t.state.release();
     await tick(t.window, 80);
     const s = t.document.getElementById('documentsStatus');
     const after = item(await openMenu(t, 'Go-Live Runsheet'), 'Delete');
-    check(++n, 'a Delete still on its way cannot be sent twice from a reopened menu, and a failed one is offered again with the error shown',
+    check(++n, 'a Delete still on its way cannot be sent twice from either rendering, and a failed one is offered again with the error shown',
       heldDisabled && t.state.requests.filter(r => r.method === 'DELETE').length === 1 &&
       s.className === 'console-status console-status-error' && s.textContent === 'DEF said no' &&
-      !!after && after.disabled === false,
-      'heldDisabled=' + heldDisabled + ' status=' + s.className + ' after=' + (after && after.disabled));
+      !!after && after.disabled === false && sheetDelete.disabled === false,
+      'heldDisabled=' + heldDisabled + ' status=' + s.className + ' after=' + (after && after.disabled) +
+      ' sheet=' + (sheetDelete && sheetDelete.disabled));
   }
 
   console.log('\n' + results.join('\n'));

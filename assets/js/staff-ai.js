@@ -4527,11 +4527,11 @@ function t(key, fallback) {
 			items.push({
 				label: t('documentsDelete', 'Delete'),
 				danger: true,
-				// The popover is built afresh on every open, so this is what keeps a
-				// Delete already on its way from firing twice — the old button simply
-				// stayed disabled.
+				// The old button simply stayed disabled while its DELETE was out. The
+				// popover is built afresh on every open, so it reads `deleting`;
+				// removeDoc holds the sheet's Delete, which lives on the card.
 				disabled: deleting.has(doc.document_id),
-				onPick: function (btn) { removeDoc(doc, btn); }
+				onPick: function () { removeDoc(doc, row); }
 			});
 			return items;
 		}
@@ -4549,7 +4549,7 @@ function t(key, fallback) {
 				e.stopPropagation();
 				// Focus the trigger before the dialog: the cancel paths re-render nothing.
 				if (closeOnPick) { closeManageMenu(true); }
-				if (item.onPick) { item.onPick(btn); }
+				if (item.onPick) { item.onPick(); }
 			});
 			return btn;
 		}
@@ -4741,21 +4741,24 @@ function t(key, fallback) {
 			row.appendChild(panel);
 		}
 
-		async function removeDoc(doc, btn) {
+		async function removeDoc(doc, row) {
 			// Function replacement — a title containing $& / $' would garble a
 			// string-pattern replace. Fallback matches the row label's.
 			const msg = t('documentsConfirmDelete', 'Delete "%s"? This permanently removes it from your library.')
 				.replace('%s', function () { return doc.title || doc.document_id; });
 			if (!window.confirm(msg)) return;
+			// Both renderings: the popover reads `deleting` when it next opens; the
+			// sheet's Delete is on the card for the whole request.
+			const sheetDelete = row.querySelector('.console-menu-sheet-list .console-menu-item-danger');
 			deleting.add(doc.document_id);
-			btn.disabled = true;
+			sheetDelete.disabled = true;
 			try {
 				await apiRequest('/documents/' + encodeURIComponent(doc.document_id), { method: 'DELETE' });
 				// Reload rather than pluck: keeps the month headings honest.
 				loadList();
 			} catch (e) {
 				deleting.delete(doc.document_id);
-				btn.disabled = false;
+				sheetDelete.disabled = false;
 				setStatus((e && e.message) || t('documentsDeleteFailed', 'Could not delete the document.'), 'error');
 			}
 		}
