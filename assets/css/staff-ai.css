@@ -2744,18 +2744,6 @@ html {
 	color: var(--text-tertiary);
 }
 .schedule-status-error { color: var(--banner-error-text); }
-/* Success reads as SUCCESS (5.8.2): the plain grey line was missed twice in a
-   row at the canary arming. Reuses the green --banner-info tokens (light+dark)
-   rather than minting a success family. */
-.schedule-status-ok {
-	display: inline-block;
-	padding: 3px 10px;
-	border-radius: 6px;
-	background: var(--banner-info-bg);
-	border: 1px solid var(--banner-info-border);
-	color: var(--banner-info-text);
-	font-weight: 600;
-}
 
 /* =============================================
    Scheduled tasks — the full-pane landing page (Phase 3, D-S7).

@@ -446,26 +446,32 @@ const item = (menu, label) => menu
       'confirms=' + JSON.stringify(t.state.confirms) + ' dels=' + JSON.stringify(dels) + ' said=' + said);
   }
   {
-    const t = boot({ holdDelete: true, failDelete: true }); await enter(t);
-    clickIf(t, item(await openMenu(t, 'Daily brief'), 'Remove')); await tick(t.window);
     // The old icon stayed disabled while its DELETE was out; the same has to hold in
-    // both renderings, the popover reopened included.
-    const drop = await openMenu(t, 'Daily brief');
-    const whileOut = item(drop, 'Remove');
-    const editLive = !!item(drop, 'Edit') && item(drop, 'Edit').disabled === false;
-    const sheetRemove = item(within(t.card('Daily brief'), '.console-menu-sheet-list'), 'Remove');
-    const held = !!whileOut && whileOut.disabled === true && !!sheetRemove && sheetRemove.disabled === true && editLive;
-    click(t.window, t.document.body); await tick(t.window);
-    if (t.state.release) t.state.release();
-    await tick(t.window, 80);
-    const said = t.line();
-    const after = item(await openMenu(t, 'Daily brief'), 'Remove');
-    const sheetAfter = item(within(t.card('Daily brief'), '.console-menu-sheet-list'), 'Remove');
-    check(++n, 'a Remove still on its way cannot be sent twice from either rendering, and a failed one is offered again with the error shown',
-      held && t.state.requests.filter(r => r.method === 'DELETE').length === 1 &&
-      said === 'console-status console-status-error :: DEF said no' &&
-      !!after && after.disabled === false && !!sheetAfter && sheetAfter.disabled === false,
-      'held=' + held + ' said=' + said + ' after=' + (after && after.disabled) + ' sheet=' + (sheetAfter && sheetAfter.disabled));
+    // both renderings, the popover reopened included — on both kinds of card.
+    const bad = [];
+    for (const name of ['Daily brief', 'Email Triage']) {
+      const t = boot({ holdDelete: true, failDelete: true }); await enter(t);
+      clickIf(t, item(await openMenu(t, name), 'Remove')); await tick(t.window);
+      const drop = await openMenu(t, name);
+      const whileOut = item(drop, 'Remove');
+      const editLive = !!item(drop, 'Edit') && item(drop, 'Edit').disabled === false;
+      const sheetRemove = item(within(t.card(name), '.console-menu-sheet-list'), 'Remove');
+      const held = !!whileOut && whileOut.disabled === true && !!sheetRemove && sheetRemove.disabled === true && editLive;
+      click(t.window, t.document.body); await tick(t.window);
+      if (t.state.release) t.state.release();
+      await tick(t.window, 80);
+      const said = t.line();
+      const after = item(await openMenu(t, name), 'Remove');
+      const sheetAfter = item(within(t.card(name), '.console-menu-sheet-list'), 'Remove');
+      const dels = t.state.requests.filter(r => r.method === 'DELETE').length;
+      if (!(held && dels === 1 && said === 'console-status console-status-error :: DEF said no' &&
+        !!after && after.disabled === false && !!sheetAfter && sheetAfter.disabled === false)) {
+        bad.push(name + ': held=' + held + ' dels=' + dels + ' said=' + said +
+          ' after=' + (after && after.disabled) + ' sheet=' + (sheetAfter && sheetAfter.disabled));
+      }
+    }
+    check(++n, 'a Remove still on its way, from a task or a triage card, cannot be sent twice from either rendering, and a failed one is offered again with the error shown',
+      bad.length === 0, bad.join(' | '));
   }
 
   console.log('\n' + results.join('\n'));

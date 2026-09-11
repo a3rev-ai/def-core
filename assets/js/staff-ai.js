@@ -6168,6 +6168,9 @@ function t(key, fallback) {
 		// (the renderers add it), and the ⋯ menu over the items it is handed.
 		function baseCard(name, desc, schedule, lastRun, items) {
 			var id = cardId(schedule);
+			// Remove, the danger item, is held while its card's DELETE is out
+			// (holdRemove): read here once, for both card types and both renderings.
+			items.forEach(function (item) { if (item.danger) item.disabled = !!removing[id]; });
 			var card = el('div', 'console-card');
 			var head = el('div', 'console-card-head');
 			head.appendChild(el('span', 'task-card-name', name));
@@ -6225,8 +6228,7 @@ function t(key, fallback) {
 				schedule, schedule.last_run, [
 					{ label: t('taskEdit', 'Edit'), onPick: function () { openTriageForm(schedule); } },
 					{ separator: true },
-					{ label: t('taskDelete', 'Remove'), danger: true, disabled: !!removing[cardId(schedule)],
-						onPick: function () { removeTriage(schedule); } }
+					{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTriage(schedule); } }
 				]
 			);
 			// Only when the schedule is on: DEF refuses a switched-off one with
@@ -6246,8 +6248,7 @@ function t(key, fallback) {
 			var built = baseCard(task.name || '', desc, task, task.last_run, [
 				{ label: t('taskEdit', 'Edit'), onPick: function () { openTaskForm(task); } },
 				{ separator: true },
-				{ label: t('taskDelete', 'Remove'), danger: true, disabled: !!removing[cardId(task)],
-					onPick: function () { removeTask(task); } }
+				{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTask(task); } }
 			]);
 			if (task.enabled) {
 				var run = el('button', 'modal-btn modal-btn-primary task-card-run', t('taskRunNow', 'Run now'));
