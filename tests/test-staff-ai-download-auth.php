@@ -255,5 +255,87 @@ $GLOBALS['_wp_test_remote_responses'][] = array(
 $e = invoke_download();
 check( $e !== null && strpos( $e->getMessage(), 'test-api-key-download' ) === false, 'API key never appears in the error surface' );
 
+
+// ── The name the reader saves it under (2026-09-11, Steve's 7.9.1 canary) ─
+//
+// The URL carries the blob key. For a project's governing slot that key is only
+// ever `runsheet.md` / `instructions.md` / `session_notes.md` (DEF seeds them by
+// slot), so every project's runsheet arrived in Downloads under the same name and
+// overwrote the last. DEF knows the TITLE from its library row and sends it in its
+// own Content-Disposition; the proxy used to ignore that and re-derive from the URL.
+
+echo "\nStaff-AI download proxy — the saved name\n";
+
+function saved_name( $disposition, string $url_filename ): string {
+	$m = new ReflectionMethod( 'DEF_Core_Staff_AI', 'download_filename_from' );
+	$m->setAccessible( true );
+	return $m->invoke( null, $disposition, $url_filename );
+}
+
+$url_key = '20260910_101500_ab12cd34_runsheet.md';
+
+check(
+	saved_name(
+		"attachment; filename=\"Rowell Walton Go-Live - Runsheet.md\"",
+		$url_key
+	) === 'Rowell Walton Go-Live - Runsheet.md',
+	'the title DEF sends wins over the slot name in the URL'
+);
+
+check(
+	saved_name(
+		"attachment; filename=\"Rowell Walton Go-Live ? Runsheet.md\"; filename*=UTF-8''Rowell%20Walton%20Go-Live%20%E2%80%94%20Runsheet.md",
+		$url_key
+	) === 'Rowell Walton Go-Live — Runsheet.md',
+	'the RFC 5987 copy is preferred, so an em dash survives instead of "?"'
+);
+
+check(
+	saved_name( '', $url_key ) === 'runsheet.md',
+	'no header from DEF falls back to the URL, exactly as before'
+);
+
+check(
+	saved_name( 'attachment', $url_key ) === 'runsheet.md',
+	'a header with no filename at all falls back too'
+);
+
+check(
+	saved_name( "attachment; filename=\"$url_key\"", $url_key ) === 'runsheet.md',
+	'a DEF that has not deployed its half sends the blob key — the prefix is still stripped'
+);
+
+check(
+	saved_name( 'attachment; filename=plain-report.md', $url_key ) === 'plain-report.md',
+	'an unquoted filename is read too'
+);
+
+// WIRING. The checks above prove the DECISION; this one proves the handler asks for
+// it. handle_file_download's success path ends in `exit`, so it cannot be invoked
+// in-process to watch a real header come out — a source pin is the honest substitute,
+// and it is a pin ON TOP of behavioural coverage, not instead of it.
+$handler = file_get_contents( dirname( __DIR__ ) . '/includes/class-def-core-staff-ai.php' );
+check(
+	(bool) preg_match(
+		"/self::download_filename_from\(\s*wp_remote_retrieve_header\(\s*\\\$response,\s*'content-disposition'\s*\)/",
+		$handler
+	),
+	'handle_file_download feeds the upstream header to the decision (not the URL)'
+);
+
+// The value still goes through sanitize_proxy_filename before it reaches a header;
+// this pins that the two work together rather than each being right alone.
+$inject = new ReflectionMethod( 'DEF_Core_Staff_AI', 'sanitize_proxy_filename' );
+$inject->setAccessible( true );
+$hostile = saved_name(
+	"attachment; filename*=UTF-8''Quarter%22%0D%0AX-Injected:%20yes.md",
+	$url_key
+);
+$safe = $inject->invoke( null, $hostile );
+check(
+	strpos( $safe, "\r" ) === false && strpos( $safe, "\n" ) === false && strpos( $safe, '"' ) === false,
+	'a hostile title from the header cannot inject once sanitised'
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

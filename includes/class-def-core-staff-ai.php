@@ -5329,11 +5329,14 @@ final class DEF_Core_Staff_AI
 		$body         = wp_remote_retrieve_body($response);
 		$content_type = wp_remote_retrieve_header($response, 'content-type');
 
-		// Extract clean filename (remove timestamp prefix).
-		$clean_filename = $filename;
-		if (preg_match('/^\d{8}_\d{6}_[a-f0-9]+_(.+)$/', $filename, $matches)) {
-			$clean_filename = $matches[1];
-		}
+		// The name the reader saves it under. DEF knows the document's TITLE from its
+		// library row and puts it in the Content-Disposition; the URL carries only the
+		// blob key, and for a project's governing slot that key is just `runsheet.md`
+		// — so every project's runsheet saved over the last one (Steve's 7.9.1 canary).
+		$clean_filename = self::download_filename_from(
+			wp_remote_retrieve_header( $response, 'content-disposition' ),
+			$filename
+		);
 
 		// SECURITY: Sanitize Content-Type — only allow safe MIME types, block text/html.
 		$safe_content_type = self::sanitize_proxy_content_type( $content_type );
@@ -5398,6 +5401,45 @@ final class DEF_Core_Staff_AI
 		}
 
 		return $base;
+	}
+
+	/**
+	 * Decide the name a downloaded document is saved under.
+	 *
+	 * DEF sends the document's TITLE in its own Content-Disposition (it has the
+	 * library row); the URL carries the blob key, which for a project's governing
+	 * slot is only ever `runsheet.md` / `instructions.md` / `session_notes.md`.
+	 * Prefer what DEF says, fall back to the URL when it says nothing usable.
+	 *
+	 * The RFC 5987 `filename*` copy is read FIRST because it is the one that
+	 * survives a non-ASCII title — the plain `filename` beside it is an ASCII
+	 * approximation with `?` where the characters were.
+	 *
+	 * The storage prefix is stripped from EITHER source, so a DEF that has not
+	 * yet deployed its half cannot serve a blob key as a filename.
+	 *
+	 * @param mixed  $disposition  The upstream Content-Disposition header, if any.
+	 * @param string $url_filename The filename segment from the request URL.
+	 * @return string The name to offer, before header sanitisation.
+	 */
+	private static function download_filename_from( $disposition, string $url_filename ): string {
+		$name = '';
+		if ( is_string( $disposition ) && '' !== $disposition ) {
+			if ( preg_match( "/filename\*\s*=\s*UTF-8''([^;]+)/i", $disposition, $m ) ) {
+				$name = rawurldecode( trim( $m[1] ) );
+			} elseif ( preg_match( '/filename\s*=\s*"((?:[^"\\\\]|\\\\.)*)"/i', $disposition, $m ) ) {
+				$name = stripslashes( $m[1] );
+			} elseif ( preg_match( '/filename\s*=\s*([^;]+)/i', $disposition, $m ) ) {
+				$name = trim( $m[1] );
+			}
+		}
+		if ( '' === trim( $name ) ) {
+			$name = $url_filename;
+		}
+		if ( preg_match( '/^\d{8}_\d{6}_[a-f0-9]+_(.+)$/', $name, $m ) ) {
+			$name = $m[1];
+		}
+		return $name;
 	}
 
 	/**
