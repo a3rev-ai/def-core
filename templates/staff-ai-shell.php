@@ -306,7 +306,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<option value=""><?php echo esc_html__( 'All documents', 'digital-employees' ); ?></option>
 					</select>
 				</div>
-				<div class="documents-status" id="documentsStatus"></div>
+				<div class="console-status" id="documentsStatus"></div>
 				<div class="documents-grid" id="documentsGrid"></div>
 				<!-- The empty state IS the entry point (2026-09-03): the line it replaces
 				     told the reader to "ask me to create one" without giving them a way
@@ -1008,6 +1008,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
 			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
+			documentsManage: <?php echo wp_json_encode( __( 'Manage document', 'digital-employees' ) ); ?>,
 			documentsUndated: <?php echo wp_json_encode( __( 'Undated', 'digital-employees' ) ); ?>,
 			/* D-C10 (7.8.1): every t( 'key' ) the console uses has its entry here.
 			   A key that only ever had a JS fallback shipped English and no language

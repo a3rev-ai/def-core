@@ -44,6 +44,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c3b.js` | The installed app keeps up with the release (v7.9.0): the version check, the quiet-moment rule, one reload per target, and the notice only when it landed |
 | `harness-c4.js` | The document viewer as a page (v7.9.1): `#document/<id>` reached cold or from an opener, and one page serving many documents |
 | `harness-c5.js` | The card kit named (v7.9.3): the seven Ask entries on one shared helper, named and unnamed, and the proof that every kit class shares its rule with the 7.8.0 name it replaced |
+| `harness-c6a.js` | Documents on the card kit (v7.9.4): the proof that every kit name the page takes shares its rule with the name it replaced, the ⋯ menu and touch sheet on a document card, Move to project / Download / Delete driven from the menu, and the document viewer's status line held as it is |
 
 ## Bite checks
 
@@ -65,7 +66,12 @@ RELEASE=/tmp/old-release.js   node tests/browser/harness-c3b.js   # the release 
 DOCVIEWER=/tmp/old-viewer.js  node tests/browser/harness-c4.js    # initDocumentViewer
 ASK_ENTRY=/tmp/old-ask.js     node tests/browser/harness-c5.js    # the shared Ask entry
 ASK_ENTRY_CALLS=/tmp/old-calls.json node tests/browser/harness-c5.js  # the seven calls to it (JSON: [{base, source}])
+DOCUMENTS=/tmp/old-documents.js node tests/browser/harness-c6a.js  # initDocuments
 ```
+
+`harness-c5.js` and `harness-c6a.js` read the stylesheet and the template from the
+working tree, so their CSS and markup checks bite by editing those files (a scratch
+`git worktree` keeps that off your branch).
 
 The env var names match the extractor names in `extract.js`. `ASK_ENTRY` reaches
 further than its own harness: `extract.buildAskEntry` hands the shipped helper to
