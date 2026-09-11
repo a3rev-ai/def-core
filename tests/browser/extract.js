@@ -88,6 +88,17 @@ function integrations() {
 		'INTEGRATIONS');
 }
 
+// C4: the document viewer as a PAGE — its registry entry with the id-carrying
+// route, the chunked load, "Show more", and the download link off the response.
+function documentViewer() {
+	return slice('document viewer',
+		l => l.startsWith('\t(function initDocumentViewer() {'),
+		l => l.startsWith('\t(function initDocuments() {'),
+		['consolePages.push', 'async function load', 'async function fetchChunk',
+			'openDocumentViewer ='],
+		'DOCVIEWER');
+}
+
 // C3b: the installed app's release check — the version compare, the quiet-moment
 // rule, the after-the-reload notice, and the visibilitychange listener driving them.
 function release() {
@@ -263,6 +274,6 @@ function templateModal(id) {
 }
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
-	usage, integrations, release, staffAiStream, customerChatStream, scheduled,
+	usage, integrations, documentViewer, release, staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

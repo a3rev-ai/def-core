@@ -3257,8 +3257,10 @@ html {
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font-size: 13px;
 	line-height: 1.5;
-	max-height: 60vh;
-	overflow: auto;
+	/* C4: no max-height. In the modal the text scrolled inside a 60vh window
+	   because a box cannot grow; on the page it scrolls WITH the page (D-C3),
+	   which is also what keeps "Show more" reachable at the end of the text
+	   rather than pinned below a scrolling well. */
 	margin: 0 0 10px;
 	padding: 12px;
 	border: 1px solid var(--border-light);

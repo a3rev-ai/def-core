@@ -316,6 +316,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</section>
 
+			<!-- The document viewer — the P-D3 modal's body on the shared .console-page
+			     shell (C4, D-C2/D-C3): reading a runsheet in a box over the chat was the
+			     worst case of the old pattern. The status line, the <pre> and Show more
+			     are the modal's, unchanged; the overlay, the × and the footer's Close are
+			     gone. Its route carries the document id (#document/<id>), so the page is
+			     reachable by reload and by a link Sue sends, and Download is a page
+			     action rather than a footer button. The title is the document's own, so
+			     it is set by JS on load rather than written here. -->
+			<section class="console-page console-page-compact" id="documentPage" hidden>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="documentPageTitle" tabindex="-1"><?php echo esc_html__( 'Document', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc documents-status" id="documentViewerStatus"></p>
+					</div>
+					<div class="console-page-actions">
+						<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
+					</div>
+				</div>
+				<pre class="document-viewer-text" id="documentViewerText"></pre>
+				<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerMore" style="display:none;"><?php echo esc_html__( 'Show more', 'digital-employees' ); ?></button>
+			</section>
+
 			<!-- Memories — the Memories modal's body on the shared .console-page shell
 			     (C3, D-C2/D-C3): the status line and the row list are the modal's,
 			     unchanged. The overlay, the ×, and the footer's Refresh and Close are
@@ -612,23 +634,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 		     is set via textContent into a <pre> — never HTML (a project document is
 		     untrusted content, D-P7). Reached from a document row's View and from a
 		     project's slot lines. -->
-		<div class="modal-overlay" id="documentViewerModal">
-			<div class="modal" style="max-width: 720px;">
-				<div class="modal-header">
-					<span class="modal-title" id="documentViewerTitle"><?php echo esc_html__( 'Document', 'digital-employees' ); ?></span>
-					<button type="button" class="modal-close" id="documentViewerClose">&times;</button>
-				</div>
-				<div class="modal-body">
-					<div class="documents-status" id="documentViewerStatus"></div>
-					<pre class="document-viewer-text" id="documentViewerText"></pre>
-					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerMore" style="display:none;"><?php echo esc_html__( 'Show more', 'digital-employees' ); ?></button>
-				</div>
-				<div class="modal-footer">
-					<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
-					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerCloseBtn"><?php echo esc_html__( 'Close', 'digital-employees' ); ?></button>
-				</div>
-			</div>
-		</div>
 		<!-- Email Triage schedule (S4b) - the user's own daily digest settings -->
 		<div class="modal-overlay" id="scheduleModal">
 			<div class="modal" style="max-width: 480px;">
