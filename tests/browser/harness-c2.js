@@ -1,8 +1,11 @@
 /*
  * Projects on the console shell — behavioural harness (C2 / v7.8.2).
- * Runs the SHIPPED page-shell block AND the SHIPPED initProjects block
- * (both extracted by marker) inside jsdom, against a DOM that mirrors
- * templates/staff-ai-shell.php. Nothing here is a copy of the code under test.
+ * Runs the SHIPPED page-shell block AND the SHIPPED initProjects block (both
+ * extracted by marker) inside jsdom, against the SHIPPED #projectsPane markup
+ * pulled out of templates/staff-ai-shell.php. Nothing here is a copy of the code
+ * under test, and since 2026-09-12 nothing is a copy of the MARKUP either — the
+ * page section used to be hand-written here, so the shipped template was free to
+ * differ from it and no check would have said so.
  */
 const fs = require('fs');
 const path = require('path');
@@ -22,22 +25,7 @@ const HTML = `<!doctype html><html><body>
 <div id="conversationList"><div class="conversation-item" id="conv1">A chat</div></div>
 <div class="messages-container" id="messagesContainer"><div id="messageList"></div></div>
 <div id="composerContainer"><textarea id="composerInput"></textarea></div>
-<section class="console-page console-page-compact" id="projectsPane" hidden>
-  <div class="console-page-head">
-    <div>
-      <h1 class="console-page-title" id="projectsTitle" tabindex="-1">Projects</h1>
-      <p class="console-page-desc">Folders your assistant works from.</p>
-    </div>
-    <div class="console-page-actions">
-      <button type="button" class="modal-btn modal-btn-secondary projects-ask-btn">Ask how Projects work</button>
-      <input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120">
-      <button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn">Create project</button>
-    </div>
-  </div>
-  <label class="projects-archived-toggle"><input type="checkbox" id="projectsShowArchived"> Show archived</label>
-  <div class="console-status" id="projectsStatus"></div>
-  <div class="projects-list" id="projectsList"></div>
-</section>
+${extract.templatePage('projectsPane')}
 <section class="console-page" id="documentsPane" hidden>
   <h1 class="console-page-title" id="documentsTitle" tabindex="-1">My documents</h1>
 </section>
@@ -526,10 +514,29 @@ function check(n, label, cond, detail) {
     const nameEl = t.document.getElementById('projectsNewName');
     const ask = slot && slot.querySelector('.projects-ask-btn');
     const create = t.document.getElementById('projectsCreateBtn');
-    check(31, 'the name field sits in the Projects page header actions slot, with Ask and Create',
-      !!slot && !!nameEl && nameEl.parentNode === slot && !!ask && !!create &&
-      create.parentNode === slot && nameEl.classList.contains('projects-create-name'),
-      'inSlot=' + (!!nameEl && nameEl.parentNode === slot) + ' ask=' + !!ask + ' create=' + !!create);
+    // The field and Create are one ROW inside the slot rather than two loose
+    // items in it (2026-09-12): as loose items the wrap fell between them and
+    // stranded Create on its own line under Ask. Still the page header, which is
+    // what this check has always been protecting - not a dialog, not a modal.
+    //
+    // The DOM below IS the shipped section now (see the header), so these assert
+    // the template rather than a copy of it. And the reported bug was a LAYOUT bug:
+    // DOM order alone would stay green with the CSS deleted and the pair back up
+    // beside Ask, so the rule that puts them on their own line is pinned too.
+    const css = fs.readFileSync(path.join(REPO, 'assets/css/staff-ai.css'), 'utf8');
+    const onItsOwnLine = /\.projects-create-row\s*\{[^}]*flex:\s*0 0 100%/.test(css);
+    const row = nameEl && nameEl.parentNode;
+    check(31, 'the name field and Create are one row in the Projects header actions slot, below the Ask entry',
+      onItsOwnLine &&
+      !!slot && !!nameEl && !!ask && !!create &&
+      !!row && row.classList.contains('projects-create-row') && row.parentNode === slot &&
+      create.parentNode === row && ask.parentNode === slot &&
+      Array.prototype.indexOf.call(slot.children, ask) <
+        Array.prototype.indexOf.call(slot.children, row) &&
+      nameEl.classList.contains('projects-create-name'),
+      'ownLine=' + onItsOwnLine + ' row=' + (row && row.className) +
+      ' inSlot=' + (!!row && row.parentNode === slot) +
+      ' ask=' + !!ask + ' create=' + (!!create && create.parentNode === row));
   }
   // the header carries the title, ONE description line and nothing else
   {

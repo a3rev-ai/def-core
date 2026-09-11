@@ -250,12 +250,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<h1 class="console-page-title" id="projectsTitle" tabindex="-1"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Folders your assistant works from, each with its own governing documents.', 'digital-employees' ); ?></p>
 					</div>
-					<!-- The 7.8.0 create row, in the shell's actions slot: a name field and
-					     the button beside the Ask entry. Enter in the field creates too. -->
+					<!-- The 7.8.0 create row, in the shell's actions slot. The name field
+					     and its button are ONE row on a line of their own BELOW the Ask
+					     entry: as three loose items they wrapped mid-row, which left
+					     Create stranded on a second line under Ask while the field stayed
+					     up beside it (Steve, 2026-09-12). Enter in the field creates too. -->
 					<div class="console-page-actions">
 						<button type="button" class="modal-btn modal-btn-secondary projects-ask-btn"><?php echo esc_html__( 'Ask how Projects work', 'digital-employees' ); ?></button>
-						<input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
-						<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
+						<div class="projects-create-row">
+							<input type="text" class="form-input projects-create-name" id="projectsNewName" maxlength="120" aria-label="<?php echo esc_attr__( 'New project name', 'digital-employees' ); ?>" placeholder="<?php echo esc_attr__( 'New project name…', 'digital-employees' ); ?>">
+							<button type="button" class="modal-btn modal-btn-primary" id="projectsCreateBtn"><?php echo esc_html__( 'Create project', 'digital-employees' ); ?></button>
+						</div>
 					</div>
 				</div>
 				<label class="projects-archived-toggle">

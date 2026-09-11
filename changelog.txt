@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.9.7 - 2026/09/12 =
+* Update - Staff AI console: on the Projects page, the new-project name field and the Create project button now sit together on the line below "Ask how Projects work", instead of the field sharing a line with Ask and the button dropping alone to the next one. Nothing about creating a project has changed.
+
 = 7.9.6 - 2026/09/12 =
 * Fix - Staff AI console, three things on the Documents page. Download on a picture opened it on screen instead of saving it - and in the installed app the only way back was the small close button in the corner - so Download now saves the file, wherever you press it. A PowerPoint had no View button although it can be read on screen, and a document that genuinely cannot be shown - a PDF, a spreadsheet - now says "download to open" beside its file type rather than leaving you to guess why the button is missing. And "Move to project" no longer appears on a project's Runsheet, Session notes or Instructions: those three are the project itself and never move. On a document already filed in a project it now reads "Change project", which is what it does. Your assistant can also read a PDF you ask her about now - if it is a scan or a drawing with no text in it she says so instead of coming back empty-handed. Needs the platform release of the same day.
 
