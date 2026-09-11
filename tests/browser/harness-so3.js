@@ -78,8 +78,14 @@ function boot(tasks) {
 	return {
 		window, document, requests, rows, $,
 		load: () => consolePages[0].onEnter(),
-		cards: () => Array.prototype.slice.call(document.querySelectorAll('.task-card')),
-		badge: (i) => document.querySelectorAll('.task-card')[i].querySelector('.task-badge').textContent,
+		cards: () => Array.prototype.slice.call(document.querySelectorAll('#taskCardGrid .console-card')),
+		badge: (i) => document.querySelectorAll('#taskCardGrid .console-card')[i].querySelector('.task-badge').textContent,
+		// C6b: a card's Edit sits behind its ⋯ menu.
+		edit: function (i) {
+			this.click(this.cards()[i].querySelector('.console-menu-btn'));
+			this.click(Array.prototype.find.call(document.querySelectorAll('.console-menu-drop .console-menu-item'),
+				(b) => b.textContent === 'Edit'));
+		},
 		shown: (id) => $(id).style.display !== 'none',
 		click: (el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true })),
 		change: (el) => el.dispatchEvent(new window.Event('change', { bubbles: true })),
@@ -175,7 +181,7 @@ function check(label, ok, detail) {
 		const t = boot([RAN]);
 		await t.load();
 		await tick(t.window);
-		t.click(t.cards()[0].querySelector('.task-card-icon[title="Edit"]'));
+		t.edit(0);
 		await tick(t.window);
 		check('the editor shows the date it ran, read-only, under a label that says so',
 			t.shown('taskDateRow') && t.$('taskDate').value === '2026-12-24'
@@ -193,7 +199,7 @@ function check(label, ok, detail) {
 		const t = boot([RAN]);
 		await t.load();
 		await tick(t.window);
-		t.click(t.cards()[0].querySelector('.task-card-icon[title="Edit"]'));
+		t.edit(0);
 		await tick(t.window);
 		t.$('taskCadence').value = 'weekly';
 		t.change(t.$('taskCadence'));
@@ -209,7 +215,7 @@ function check(label, ok, detail) {
 		const t = boot([ONCE]);
 		await t.load();
 		await tick(t.window);
-		t.click(t.cards()[0].querySelector('.task-card-icon[title="Edit"]'));
+		t.edit(0);
 		await tick(t.window);
 		t.$('taskCadence').value = 'manual';
 		t.change(t.$('taskCadence'));

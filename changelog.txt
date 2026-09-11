@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.9.5 - 2026/09/11 =
+* Update - Staff AI console: on the Scheduled page, a task's Edit and Remove now sit behind the ⋯ menu, with Run now staying on the card as its one button. It is the same card and menu Projects and Documents use, so the task tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.
+
 = 7.9.4 - 2026/09/11 =
 * Update - Staff AI console: on the Documents page, a document's actions now sit behind the ⋯ menu - Move to project, Download and Delete - with View staying on the card. It is the same card and menu Projects uses, so the document tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.
 

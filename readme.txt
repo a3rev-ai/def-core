@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.4
+Stable tag: 7.9.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.5 - 2026-09-11 =
+* Update - Staff AI console: on the Scheduled page, a task's Edit and Remove now sit behind the ⋯ menu, with Run now staying on the card as its one button. It is the same card and menu Projects and Documents use, so the task tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.
 
 = 7.9.4 - 2026-09-11 =
 * Update - Staff AI console: on the Documents page, a document's actions now sit behind the ⋯ menu - Move to project, Download and Delete - with View staying on the card. It is the same card and menu Projects uses, so the document tiles are a little wider to fit it; on a phone the menu opens in place under the card. Nothing about what those actions do has changed.

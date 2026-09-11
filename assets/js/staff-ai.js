@@ -5802,7 +5802,11 @@ function t(key, fallback) {
 
 		function setStatus(el, msg, kind) {
 			el.textContent = msg || '';
-			el.className = 'schedule-status' + (kind ? ' schedule-status-' + kind : '');
+			// C6b: the page's line is the kit's status line (D-C8); the creator's two
+			// lines keep their own.
+			el.className = el === paneStatus
+				? 'console-status' + (msg ? ' console-status-' + (kind || 'muted') : '')
+				: 'schedule-status' + (kind ? ' schedule-status-' + kind : '');
 		}
 
 		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
@@ -6026,20 +6030,161 @@ function t(key, fallback) {
 			return n;
 		}
 
-		function iconBtn(glyph, label, onClick) {
-			var b = el('button', 'task-card-icon', glyph);
-			b.type = 'button';
-			b.title = label;
-			b.setAttribute('aria-label', label);
-			b.addEventListener('click', onClick);
-			return b;
+		// ——— a card's management: Edit | — | Remove (C6b, D-C8) ———
+		// Documents' menu (C6a), built HERE once for both card types: baseCard
+		// renders the items a card hands it two ways, the ⋯ popover on a pointer
+		// and the in-place sheet on touch. Each item does what the card's icon did.
+		// Keyed by card id on Object.create(null), for the reason runRequests gives.
+		var menuEl = null;
+		var menuAnchor = null;
+		var menuFor = null;                    // the card id the popover is open on
+		var menuCards = Object.create(null);   // card id: its ⋯ button and items, this render
+		var openSheets = Object.create(null);  // card ids whose touch sheet is expanded
+		var removing = Object.create(null);    // card ids whose DELETE is still out
+		var sheetSeq = 0;
+
+		function fillMenu(menu, items, closeOnPick) {
+			items.forEach(function (item) {
+				if (item.separator) {
+					var sep = el('div', 'console-menu-sep');
+					sep.setAttribute('role', 'separator');
+					menu.appendChild(sep);
+					return;
+				}
+				var btn = el('button', 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : ''), item.label);
+				btn.type = 'button';
+				btn.disabled = !!item.disabled;
+				btn.setAttribute('role', 'menuitem');
+				btn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					// Focus the trigger before the dialog: the cancel paths re-render nothing.
+					if (closeOnPick) closeMenu(true);
+					item.onPick();
+				});
+				menu.appendChild(btn);
+			});
 		}
 
-		function baseCard(name, desc, schedule, lastRun) {
-			var card = el('div', 'task-card');
-			var head = el('div', 'task-card-head');
+		function closeMenu(restoreFocus) {
+			if (!menuEl) return;
+			var menu = menuEl;
+			var anchor = menuAnchor;
+			menuEl = null;
+			menuAnchor = null;
+			menuFor = null;
+			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape
+			// puts a keyboard user back on it rather than at the top of the page.
+			anchor.setAttribute('aria-expanded', 'false');
+			if (restoreFocus) anchor.focus();
+			menu.remove();
+		}
+
+		function toggleMenu(id, items, anchor) {
+			var wasOpen = menuAnchor === anchor;
+			closeMenu(false);
+			if (wasOpen) return;
+
+			var menu = el('div', 'console-menu console-menu-drop');
+			menu.setAttribute('role', 'menu');
+			menu.setAttribute('aria-label', t('taskManage', 'Manage task'));
+			menu.addEventListener('click', function (e) { e.stopPropagation(); });
+			fillMenu(menu, items, true);
+
+			// Safari focuses no button on mousedown: focusout would tear the menu down
+			// mid-click and the item would never fire. The click still runs.
+			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+			menu.addEventListener('focusout', function (e) {
+				// A menu a re-render has already replaced is not the open one.
+				if (menuEl !== menu) return;
+				// Focus returning to the ⋯ button is its own click arriving.
+				if (e.relatedTarget === anchor) return;
+				if (!menu.contains(e.relatedTarget)) closeMenu(e.relatedTarget === null);
+			});
+			menu.addEventListener('keydown', function (e) {
+				var list = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
+				if (!list.length) return;
+				var at = list.indexOf(document.activeElement);
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					list[at === -1 ? 0 : (at + 1) % list.length].focus();
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					list[at <= 0 ? list.length - 1 : at - 1].focus();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					e.stopPropagation();
+					closeMenu(true);
+				}
+			});
+
+			// .console-card-actions is the positioned parent (CSS) and the ⋯ button
+			// its last child, so the menu's right edge lands on the button's.
+			anchor.parentNode.appendChild(menu);
+			menuEl = menu;
+			menuAnchor = anchor;
+			menuFor = id;
+			anchor.setAttribute('aria-expanded', 'true');
+			var first = menu.querySelector('.console-menu-item');
+			if (first) first.focus();
+		}
+
+		// The touch rendering answers Escape the same way. It stays in the DOM
+		// hidden, which is why the shell's guard reads :not([hidden]).
+		function closeSheets() {
+			openSheets = Object.create(null);
+			var open = grid.querySelectorAll('.console-menu-sheet-list:not([hidden])');
+			Array.prototype.forEach.call(open, function (sheet) {
+				sheet.hidden = true;
+				var btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
+				if (btn) btn.setAttribute('aria-expanded', 'false');
+			});
+		}
+
+		function manageSheet(id, items) {
+			var wrap = el('div', 'console-menu-sheet');
+			var sheet = el('div', 'console-menu console-menu-sheet-list');
+			sheet.setAttribute('role', 'menu');
+			sheet.id = 'taskManageSheet' + (++sheetSeq);
+			sheet.hidden = !openSheets[id];
+			fillMenu(sheet, items, false);
+
+			var btn = el('button', 'console-menu-sheet-btn', t('taskManage', 'Manage task'));
+			btn.type = 'button';
+			btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
+			btn.setAttribute('aria-controls', sheet.id);
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				sheet.hidden = !sheet.hidden;
+				if (sheet.hidden) { delete openSheets[id]; } else { openSheets[id] = true; }
+				btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(sheet);
+			return wrap;
+		}
+
+		// A card wears the kit (C6b): the name beside Run now, its one filled action
+		// (the renderers add it), and the ⋯ menu over the items it is handed.
+		function baseCard(name, desc, schedule, lastRun, items) {
+			var id = cardId(schedule);
+			// Remove, the danger item, is held while its card's DELETE is out
+			// (holdRemove): read here once, for both card types and both renderings.
+			items.forEach(function (item) { if (item.danger) item.disabled = !!removing[id]; });
+			var card = el('div', 'console-card');
+			var head = el('div', 'console-card-head');
 			head.appendChild(el('span', 'task-card-name', name));
-			var actions = el('div', 'task-card-actions');
+			var actions = el('div', 'console-card-actions');
+			var menuBtn = el('button', 'console-menu-btn', '•••');
+			menuBtn.type = 'button';
+			menuBtn.setAttribute('aria-haspopup', 'menu');
+			menuBtn.setAttribute('aria-expanded', 'false');
+			menuBtn.setAttribute('aria-label', t('taskManage', 'Manage task'));
+			menuBtn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				toggleMenu(id, items, menuBtn);
+			});
+			actions.appendChild(menuBtn);
 			head.appendChild(actions);
 			card.appendChild(head);
 			card.appendChild(el('p', 'task-card-desc', desc));
@@ -6058,6 +6203,10 @@ function t(key, fallback) {
 			var runLine = runLineText(schedule, lastRun);
 			if (runLine) { meta.appendChild(el('span', 'task-last-run', runLine)); }
 			card.appendChild(meta);
+			// The same items, expanded in place, for touch. CSS shows one or the
+			// other — never both.
+			card.appendChild(manageSheet(id, items));
+			menuCards[id] = { btn: menuBtn, items: items };
 			return { card: card, actions: actions };
 		}
 
@@ -6076,18 +6225,19 @@ function t(key, fallback) {
 			var built = baseCard(
 				triageCardName(schedule),
 				t('taskTriageDesc', 'Reads your mailbox, drafts routine replies, and sends you a digest of what needs attention.'),
-				schedule, schedule.last_run
+				schedule, schedule.last_run, [
+					{ label: t('taskEdit', 'Edit'), onPick: function () { openTriageForm(schedule); } },
+					{ separator: true },
+					{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTriage(schedule); } }
+				]
 			);
-			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTriageForm(schedule); }));
-			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTriage(del, schedule); });
-			built.actions.appendChild(del);
 			// Only when the schedule is on: DEF refuses a switched-off one with
 			// a 409 (D-S6) - offering a control that can only fail is worse.
 			if (schedule.enabled) {
-				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
+				var run = el('button', 'modal-btn modal-btn-primary task-card-run', t('taskRunNow', 'Run now'));
 				run.type = 'button';
 				run.addEventListener('click', function () { runNowTriage(run, schedule); });
-				built.card.appendChild(run);
+				built.actions.insertBefore(run, built.actions.firstChild);
 			}
 			return built.card;
 		}
@@ -6095,20 +6245,27 @@ function t(key, fallback) {
 		function renderTaskCard(task) {
 			var desc = String(task.instruction || '');
 			if (desc.length > 140) desc = desc.slice(0, 140) + '…';
-			var built = baseCard(task.name || '', desc, task, task.last_run);
-			built.actions.appendChild(iconBtn('✎', t('taskEdit', 'Edit'), function () { openTaskForm(task); }));
-			var del = iconBtn('✕', t('taskDelete', 'Remove'), function () { removeTask(del, task); });
-			built.actions.appendChild(del);
+			var built = baseCard(task.name || '', desc, task, task.last_run, [
+				{ label: t('taskEdit', 'Edit'), onPick: function () { openTaskForm(task); } },
+				{ separator: true },
+				{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTask(task); } }
+			]);
 			if (task.enabled) {
-				var run = el('button', 'modal-btn modal-btn-secondary task-card-run', t('taskRunNow', 'Run now'));
+				var run = el('button', 'modal-btn modal-btn-primary task-card-run', t('taskRunNow', 'Run now'));
 				run.type = 'button';
 				run.addEventListener('click', function () { runNowTask(run, task); });
-				built.card.appendChild(run);
+				built.actions.insertBefore(run, built.actions.firstChild);
 			}
 			return built.card;
 		}
 
 		function renderGrid() {
+			// Run now's watcher re-renders every few seconds. A menu open on a card is
+			// reopened on its rebuilt card rather than vanishing mid-pick; an expanded
+			// sheet stays expanded through openSheets.
+			var reopen = menuEl ? menuFor : null;
+			closeMenu(false);
+			menuCards = Object.create(null);
 			grid.textContent = '';
 			var any = false;
 			triages.forEach(function (schedule) {
@@ -6120,6 +6277,8 @@ function t(key, fallback) {
 				any = true;
 			});
 			paneEmpty.style.display = any ? 'none' : '';
+			var again = reopen === null ? null : menuCards[reopen];
+			if (again) toggleMenu(reopen, again.items, again.btn);
 		}
 
 		// Scheduled on the shared page shell (D-C3), where the container swap,
@@ -6129,7 +6288,11 @@ function t(key, fallback) {
 			route: 'scheduled',
 			el: pane,
 			title: document.getElementById('scheduledTitle'),
-			onEnter: loadAll
+			onEnter: loadAll,
+			// Documents' rule (C6a): an expanded sheet left in the hidden page is still
+			// a .console-menu:not([hidden]), and the shell's Escape would stand aside
+			// for it on every other page.
+			onLeave: function () { closeMenu(false); closeSheets(); }
 		});
 
 		async function loadAll() {
@@ -6670,39 +6833,57 @@ function t(key, fallback) {
 			}
 		}
 
-		async function removeTriage(btn, schedule) {
+		// The old icon stayed disabled while its DELETE was out. Both renderings are
+		// built from the items a render reads `removing` into, so a render puts the
+		// hold on both at once, and takes it off again.
+		function holdRemove(row, held) {
+			if (held) { removing[cardId(row)] = true; } else { delete removing[cardId(row)]; }
+			renderGrid();
+		}
+
+		async function removeTriage(schedule) {
 			// Retires the SETUP. The mailbox connection is untouched and stays
 			// usable by chat; disconnecting that grant is a separate control.
 			if (!window.confirm(t('taskDeleteConfirm', 'Remove Email Triage? Your mailbox stays connected.'))) return;
-			btn.disabled = true;
+			holdRemove(schedule, true);
 			setStatus(paneStatus, t('taskDeleting', 'Removing…'));
 			try {
 				await apiRequest('/triage-schedules/' + encodeURIComponent(schedule.schedule_id),
 					{ method: 'DELETE' });
 				triages = triages.filter(function (item) { return item.schedule_id !== schedule.schedule_id; });
-				renderGrid();
+				holdRemove(schedule, false);
 				setStatus(paneStatus, t('taskDeleted', 'Email Triage removed. Its schedule has stopped.'), 'ok');
 			} catch (e) {
-				btn.disabled = false;
+				holdRemove(schedule, false);
 				setStatus(paneStatus, (e && e.message) || t('taskDeleteFailed', 'Could not remove your Email Triage setup.'), 'error');
 			}
 		}
 
-		async function removeTask(btn, task) {
+		async function removeTask(task) {
 			if (!window.confirm(t('taskConfirmDeleteNamed', 'Remove "%s"? Its schedule stops now; past run history is kept.')
 					.replace('%s', task.name || ''))) return;
-			btn.disabled = true;
+			holdRemove(task, true);
 			setStatus(paneStatus, t('taskDeleting', 'Removing…'));
 			try {
 				await apiRequest('/tasks/' + encodeURIComponent(task.id), { method: 'DELETE' });
 				tasks = tasks.filter(function (item) { return item.id !== task.id; });
-				renderGrid();
+				holdRemove(task, false);
 				setStatus(paneStatus, t('taskDeletedNamed', 'Task removed. Its schedule has stopped.'), 'ok');
 			} catch (e) {
-				btn.disabled = false;
+				holdRemove(task, false);
 				setStatus(paneStatus, (e && e.message) || t('taskRemoveFailed', 'Could not remove your task. Nothing has changed - try again in a moment.'), 'error');
 			}
 		}
+
+		// A click anywhere else closes the open menu; Escape closes the menu and an
+		// expanded sheet, and only a second Escape leaves the page (the shell stands
+		// aside while a .console-menu is on screen) — Documents' two rules.
+		document.addEventListener('click', function () { closeMenu(false); });
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			closeMenu(false);
+			closeSheets();
+		});
 
 		// The creator's delivery section (2026-09-03): the label beside it states
 		// the one fact, this asks the assistant everything past that fact.

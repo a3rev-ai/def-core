@@ -219,52 +219,21 @@ body {
 }
 
 /* Scheduled task card — the list §6.1 asks for: name, description, cadence
-   badge, status, and Run now. */
-.task-card {
-	border: 1px solid var(--border-light);
-	border-radius: 8px;
-	padding: 14px 16px;
-	margin-bottom: 12px;
-	background: var(--bg-main);
-}
-
-.task-card-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-}
-
+   badge, status, and Run now. The card, its head and its actions are the
+   console card kit's (C6b); these are the parts only a task card has, inset
+   to the kit head's 14px because a kit card carries no padding of its own. */
 .task-card-name {
 	font-weight: 600;
 	color: var(--text-heading);
 	font-size: 15px;
-}
-
-.task-card-actions {
-	display: flex;
-	gap: 4px;
-	flex-shrink: 0;
-}
-
-.task-card-icon {
-	background: transparent;
-	border: none;
-	color: var(--text-secondary);
-	cursor: pointer;
-	font-size: 14px;
-	line-height: 1;
-	padding: 4px 6px;
-	border-radius: 4px;
-}
-
-.task-card-icon:hover {
-	background: var(--hover-bg);
-	color: var(--text-heading);
+	/* Beside Run now and ⋯ the name has to give way: a triage card's name ends in
+	   its mailbox address, one unbreakable word. */
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .task-card-desc {
-	margin: 6px 0 10px;
+	margin: 0 14px 10px;
 	color: var(--text-secondary);
 	font-size: 13px;
 	line-height: 1.45;
@@ -275,7 +244,7 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
-	margin-bottom: 12px;
+	margin: 0 14px 14px;
 }
 
 .task-badge {
@@ -296,10 +265,6 @@ body {
 .task-last-run {
 	font-size: 12px;
 	color: var(--text-secondary);
-}
-
-.task-card-run {
-	width: 100%;
 }
 
 .schedule-empty {
@@ -2779,23 +2744,11 @@ html {
 	color: var(--text-tertiary);
 }
 .schedule-status-error { color: var(--banner-error-text); }
-/* Success reads as SUCCESS (5.8.2): the plain grey line was missed twice in a
-   row at the canary arming. Reuses the green --banner-info tokens (light+dark)
-   rather than minting a success family. */
-.schedule-status-ok {
-	display: inline-block;
-	padding: 3px 10px;
-	border-radius: 6px;
-	background: var(--banner-info-bg);
-	border: 1px solid var(--banner-info-border);
-	color: var(--banner-info-text);
-	font-weight: 600;
-}
 
 /* =============================================
    Scheduled tasks — the full-pane landing page (Phase 3, D-S7).
    A page in the content area, swapped with the chat containers by JS;
-   the cards reuse .task-card, laid out as a responsive grid.
+   the cards wear the console card kit (C6b), laid out as a responsive grid.
    ============================================= */
 
 /* --- The console page shell (D-C3, 7.8.1) ------------------------------
@@ -2856,13 +2809,13 @@ html {
 
 .task-card-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	/* C6b: a kit card sets the name beside Run now and the ⋯ button, so a tile
+	   needs the room Documents' grid gave its cards in C6a (at 300px a triage
+	   card's mailbox address broke mid-word over four lines). min() keeps one
+	   column from overflowing a narrow page. */
+	grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
 	gap: 14px;
 	align-items: start;
-}
-
-.task-card-grid .task-card {
-	margin-bottom: 0;
 }
 
 .task-instruction {
@@ -2942,9 +2895,10 @@ html {
    copying them. Every kit name JOINS the selector of the rule it was derived
    from rather than restating the declarations, so the two cannot drift and
    re-pointing a page is provably a no-op on screen. Projects wears the kit as of
-   C5, its 7.8.0 names still joined here as that proof. Documents wears it as of
-   C6a, as it is: its cards changed their look on adoption, so there was no old
-   rendering to join. The families:
+   C5, its 7.8.0 names still joined here as that proof. Documents (C6a) and
+   Scheduled (C6b) wear it as it is: their cards changed their look on adoption,
+   so there was no old rendering to join; only their filled actions (View, Run
+   now) join Open Project's rules. The families:
 
      .console-card    with -head and -actions (the ⋯ menu's positioned parent)
      .console-menu    the menu surface (shared with the chat row's .chat-menu,
@@ -2952,7 +2906,8 @@ html {
                       the -btn trigger, -drop for the popover's placement, and
                       the touch rendering -sheet > -sheet-btn + -sheet-list
      .console-slots   the slot tiles: .console-slot, -name, -empty, -meta
-     .console-status  the status line (shared with .documents-status)
+     .console-status  the status line (shared with .documents-status), and its
+                      -muted / -error / -ok kinds
 
    Projects P-D5 (7.8.0): the project card — a workspace, not an admin row.
    Name and status, then the one filled Open Project, then the project
@@ -3049,9 +3004,11 @@ html {
 	right: 0;
 	margin-top: 4px;
 }
-/* The only filled control on the card: Open Project, and a document's View. */
+/* The only filled control on the card: Open Project, a document's View and a
+   task's Run now. */
 .project-open-btn,
-.document-view-btn {
+.document-view-btn,
+.task-card-run {
 	padding: 8px 16px;
 	font-size: 13px;
 	font-weight: 600;
@@ -3078,6 +3035,7 @@ html {
 }
 .project-open-btn:focus-visible,
 .document-view-btn:focus-visible,
+.task-card-run:focus-visible,
 .project-menu-btn:focus-visible,
 .project-slot:focus-visible,
 .project-manage-btn:focus-visible,
@@ -3233,7 +3191,8 @@ html {
 		width: 100%;
 	}
 	.project-open-btn,
-	.document-view-btn {
+	.document-view-btn,
+	.task-card-run {
 		flex: 1;
 		min-height: 38px;
 	}
