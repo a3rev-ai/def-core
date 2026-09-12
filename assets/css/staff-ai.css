@@ -745,9 +745,35 @@ body {
 	max-width: 85%;
 	padding: 10px 14px;
 	border-radius: 12px;
-	line-height: 1.5;
+	/* DECLARED, not inherited. Nothing between `body` and here set a size, so the
+	   conversation rendered at whatever the browser defaulted to — 16px, and a notch
+	   under what a phone reads comfortably. 17px/1.6 is the size a chat is read at
+	   (Steve, on an iPhone: "our text is tiny - we need it to be the same size as
+	   Claude's"). */
+	font-size: 17px;
+	line-height: 1.6;
 	white-space: normal;
 	word-break: break-word;
+}
+
+/* The conversation follows the PHONE'S text size, not ours.
+   `-apple-system-body` is the only way a web page opts into iOS Dynamic Type: on iPhone
+   and in the installed app it renders at whatever size the reader has set in Settings >
+   Display & Brightness > Text Size, and it is inert everywhere else — so the 17px above
+   stays the floor for every other platform. Claude's app does this by being native;
+   without it we paint one fixed number at a reader who has already told the phone what
+   they need (Steve, 2026-09-12, with both apps side by side on the same iPhone).
+   The shorthand resets line-height and weight, so both are restated.
+
+   The CONVERSATION only, deliberately. The composer stays at a fixed 17px: its row
+   carries the attach, mic, speak, model picker and send controls, and at Larger
+   Accessibility Sizes a Dynamic Type textarea would push them apart. 17px is already
+   over the 16px line at which iOS zooms the page on focus, which was the bug there. */
+@supports (font: -apple-system-body) {
+	.message-content {
+		font: -apple-system-body;
+		line-height: 1.6;
+	}
 }
 
 .message-user .message-content {
@@ -1294,10 +1320,14 @@ body {
 	background: transparent;
 	border: none;
 	color: var(--text-heading);
-	font-size: 15px;
+	/* 16px MINIMUM, and 17px to match the conversation. Under 16px, iOS Safari zooms
+	   the page whenever this takes focus — the viewport meta deliberately carries no
+	   `maximum-scale`, so nothing was suppressing it and the console jumped on every
+	   tap of the message box. */
+	font-size: 17px;
 	line-height: 1.5;
 	resize: none;
-	min-height: 24px;
+	min-height: 26px;
 	outline: none;
 	font-family: inherit;
 	overflow: hidden;
