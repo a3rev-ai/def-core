@@ -13,6 +13,8 @@ const SHELL = extract.pageShell();
 const MEMORIES = extract.memories();
 const USAGE = extract.usage();
 const INTEGRATIONS = extract.integrations();
+// C7: the ⋯ menu's machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 
 // The fixture is the SHIPPED markup, not a copy of it: the sidebar nav and the
 // three page sections are sliced out of templates/staff-ai-shell.php the same
@@ -137,7 +139,7 @@ function boot(startUrl, opts) {
 
 	new window.Function(...names, MEMORIES)(...outer);
 	new window.Function(...names, USAGE)(...outer);
-	new window.Function(...names, INTEGRATIONS)(...outer);
+	new window.Function(...names, MENU + '\n' + INTEGRATIONS)(...outer);
 
 	return {
 		dom, window, document, location, api, calls, requests, state,

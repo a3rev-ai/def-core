@@ -27,6 +27,8 @@ const ASK = extract.askEntry();
 const CALLS = extract.askEntryCalls();
 const SHELL = extract.pageShell();
 const PROJECTS = extract.projects();
+// C7: the menu machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 const CSS = fs.readFileSync(path.join(REPO, 'assets/css/staff-ai.css'), 'utf8');
 const JS = fs.readFileSync(path.join(REPO, 'assets/js/staff-ai.js'), 'utf8');
 const SHELL_PHP = fs.readFileSync(path.join(REPO, 'templates/staff-ai-shell.php'), 'utf8');
@@ -231,7 +233,7 @@ function bootProjects() {
     'onAssistantName', 'clearActiveProject', 'resetToNewChat', 'composerInput',
     'updateSendButton', 'sendMessage', 'setActiveProject', 'activeProjectId', 'formatTime',
     'openDocumentViewer', 'openDocumentsForProject', 'safeHttpHref', 'projectsCache',
-    'showPage', 'askEntry', 'state', PROJECTS
+    'showPage', 'askEntry', 'state', MENU + '\n' + PROJECTS
   )(
     window, document, api.consolePages, function (key, def) { return def; },
     apiRequest, '/def/v1', 'Sue', function (fn) { fn(); },

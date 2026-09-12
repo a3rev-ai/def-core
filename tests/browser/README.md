@@ -72,6 +72,7 @@ ASK_ENTRY=/tmp/old-ask.js     node tests/browser/harness-c5.js    # the shared A
 ASK_ENTRY_CALLS=/tmp/old-calls.json node tests/browser/harness-c5.js  # the seven calls to it (JSON: [{base, source}])
 DOCUMENTS=/tmp/old-documents.js node tests/browser/harness-c6a.js  # initDocuments
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-c6b.js  # initScheduled on the kit
+CONSOLE_MENU=/tmp/old-menu.js node tests/browser/harness-c6c.js   # the ⋯ menu, shared by all four pages
 ```
 
 `harness-c5.js`, `harness-c6a.js` and `harness-c6b.js` read the stylesheet and the
@@ -82,6 +83,15 @@ The env var names match the extractor names in `extract.js`. `ASK_ENTRY` reaches
 further than its own harness: `extract.buildAskEntry` hands the shipped helper to
 every page that has an Ask entry, so pointing it at an older helper turns
 `harness-c2`, `harness-c3`, `harness-so3` and `harness-connections-consent` red too.
+
+`CONSOLE_MENU` reaches furthest of all (C7). The ⋯ menu's machinery - open, close,
+the Escape ordering, arrow keys, focus restore, the touch sheet - is ONE block shared by
+Projects, Documents, Scheduled and Connections, so every page harness prepends it and a
+regression in it turns `harness-c5`, `harness-c6a`, `harness-c6b` and `harness-c6c` red
+together. That is the point: before C7 the same bug could be true on one page and false
+on the other three - and on C6c it was, until the panel caught it on the branch.
+Deleting the block's page-level
+Escape listener is the canonical bite - it fails two checks on each of the four.
 
 ## Adding to them
 

@@ -27,6 +27,8 @@ const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 const SHELL = extract.pageShell();
 const SCHEDULED = extract.scheduled();
+// C7: the menu machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 const CSS = fs.readFileSync(path.join(extract.REPO, 'assets/css/staff-ai.css'), 'utf8');
 const TEMPLATE = extract.templateSource();
 const INDEX = extract.cssRules(CSS);
@@ -93,7 +95,8 @@ function drift(kitName, oldName) {
 // The kit names the shipped block writes, read off its code with the comments
 // stripped. `'console-status-' + (kind || 'muted')` reads as console-status; its
 // kinds are the default and the ones setStatus is called with.
-const CODE = SCHEDULED.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+// C7: a card's code is the page block plus the shared menu it delegates to.
+const CODE = (MENU + '\n' + SCHEDULED).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const WRITTEN = new Set(CODE.match(/\bconsole-[a-z]+(?:-[a-z]+)*\b/g) || []);
 if (WRITTEN.has('console-status')) {
   (CODE.match(/(?:,|\|\|)\s*'(muted|error|ok)'\)/g) || []).forEach(m => WRITTEN.add('console-status-' + /'(\w+)'/.exec(m)[1]));
@@ -164,7 +167,7 @@ function boot(opts) {
   const composerInput = document.getElementById('composerInput');
   new window.Function(
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'userEmail', 'projectsCache',
-    'askEntry', 'setTimeout', SCHEDULED
+    'askEntry', 'setTimeout', MENU + '\n' + SCHEDULED
   )(
     window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1',
     'you@example.test', [], extract.buildAskEntry(window, { composerInput: composerInput }), clock

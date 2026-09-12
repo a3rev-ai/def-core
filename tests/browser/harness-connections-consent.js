@@ -27,6 +27,8 @@ const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 
 const INTEGRATIONS = extract.integrations();
+// C7: the ⋯ menu's machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 
 const HTML = `<!doctype html><html><body>
 ${extract.templatePage('connectionsPane')}
@@ -88,7 +90,7 @@ function boot(opts) {
 		'updateSendButton', 'sendMessage', 'formatTime', 'CSS'];
 	// C5: the page's Ask entry goes through the SHARED helper.
 	extract.pushAskEntry(window, names, outer);
-	new window.Function(...names, INTEGRATIONS)(...outer);
+	new window.Function(...names, MENU + '\n' + INTEGRATIONS)(...outer);
 
 	const page = consolePages.find(p => p.route === 'connections');
 	if (!page) throw new Error('initIntegrations did not register the connections page');

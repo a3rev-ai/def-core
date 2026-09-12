@@ -14,6 +14,8 @@ const REPO = path.resolve(__dirname, '..', '..');
 const extract = require('./extract');
 const SHELL = extract.pageShell();
 const PROJECTS = extract.projects();
+// C7: the menu machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 const SHELL_PHP = fs.readFileSync(path.join(REPO, 'templates/staff-ai-shell.php'), 'utf8');
 
 const HTML = `<!doctype html><html><body>
@@ -99,7 +101,7 @@ function boot(startUrl, opts) {
     'updateSendButton', 'sendMessage', 'setActiveProject', 'activeProjectId', 'formatTime',
     'openDocumentViewer', 'openDocumentsForProject', 'safeHttpHref', 'projectsCache',
     'showPage', 'askEntry', 'state',
-    PROJECTS
+    MENU + '\n' + PROJECTS
   );
   projectsFactory(
     window, document, api.consolePages,

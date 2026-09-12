@@ -53,13 +53,27 @@ function pageShell() {
 		'BLOCK');
 }
 
+// C7: the console's ⋯ menu, written once and shared by Projects, Documents,
+// Scheduled and Connections. It sits OUTSIDE the four page blocks, so every page
+// harness prepends this to run the page at all.
+function consoleMenu() {
+	return slice('createConsoleMenu',
+		l => l.includes('THE CONSOLE ⋯ MENU, WRITTEN ONCE'),
+		l => l.includes('// Inline web citations'),
+		['function createConsoleMenu', 'function toggle', 'function disclosure',
+			'function closeSheets', "e.key !== 'Escape'"],
+		'CONSOLE_MENU');
+}
+
 // initProjects, the C2 page (cards, the ⋯ menu, the touch sheets, Create).
 function projects() {
 	return slice('initProjects',
 		l => l.startsWith('\t(function initProjects() {'),
 		l => l.startsWith('\t(function initMemories() {'),
-		['consolePages.push', 'function toggleManageMenu', 'function createProject',
-			'function closeManageSheets', 'function openProjectDocuments'],
+		['consolePages.push', 'function createProject', 'function openProjectDocuments',
+			// C7: the page keeps its items and delegates the machinery - assert the
+			// DELEGATION, so a page that quietly loses its menu is still a hard error.
+			'createConsoleMenu({', 'manageMenu.toggle(', 'manageMenu.disclosure('],
 		'PROJECTS');
 }
 
@@ -87,9 +101,11 @@ function integrations() {
 		l => l.startsWith('	(function initIntegrations() {'),
 		l => l.includes('// MY DOCUMENTS PANEL (document library'),
 		['consolePages.push', 'function loadList', 'function renderRow', 'function connect', 'pageOpen',
-			// C6c: the kit's menu, both renderings. A rename that moves one out of the
-			// block is a hard error here rather than a harness that quietly tests nothing.
-			'function manageActions', 'function toggleManageMenu', 'function manageDisclosure'],
+			// C7: the page keeps its items and delegates the machinery. Asserting the
+			// DELEGATION is what stops a page quietly losing its menu while the harness
+			// still passes - the same job the old 'function toggleManageMenu' did.
+			'function manageActions', 'createConsoleMenu({', 'manageMenu.toggle(',
+			'manageMenu.disclosure('],
 		'INTEGRATIONS');
 }
 
@@ -111,7 +127,10 @@ function documents() {
 		l => l.startsWith('\t(function initDocuments() {'),
 		l => l.startsWith('\t(function initProjects() {'),
 		['consolePages.push', 'function renderRow', 'function toggleAssignRow',
-			'function removeDoc', 'function closeManageSheets'],
+			'function removeDoc',
+			// C7: the page keeps its items and delegates the machinery - assert the
+			// DELEGATION, so a page that quietly loses its menu is still a hard error.
+			'createConsoleMenu({', 'manageMenu.toggle(', 'manageMenu.disclosure('],
 		'DOCUMENTS');
 }
 
@@ -255,7 +274,10 @@ function scheduled() {
 		l => l.includes('// UPLOAD EVENT HANDLERS'),
 		['consolePages.push', 'function scheduleBadgeText', 'function onceDate',
 			'function applyCadenceRows', 'function fillTaskForm', 'function saveTask',
-			'function baseCard', 'function toggleMenu', 'function closeSheets'],
+			'function baseCard',
+			// C7: the page keeps its items and delegates the machinery - assert the
+			// DELEGATION, so a page that quietly loses its menu is still a hard error.
+			'createConsoleMenu({', 'manageMenu.toggle(', 'manageMenu.disclosure('],
 		'SCHEDULED');
 }
 
@@ -395,7 +417,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, projects, memories,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, consoleMenu, projects, memories,
 	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
