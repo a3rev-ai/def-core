@@ -170,6 +170,51 @@ check(++n, 'the accent is declared SEPARATELY for each theme, not inherited into
   !!darkDeclared && darkDeclared !== lightGreen,
   'light=' + lightGreen + ' dark=' + (darkDeclared || 'NOT DECLARED — inherits ' + lightGreen));
 
+// 9. EVERY token used as plain text, both themes, enumerated FROM THE STYLESHEET
+//    rather than listed here. This is the check that makes the file worth keeping: a
+//    colour added below AA fails without anyone remembering to add a case for it.
+//
+//    Judged against the worst ground it could sit on (page, sidebar, input, modal),
+//    because static CSS cannot know which one an element actually lands on. A rule that
+//    paints its own background is a self-contained pair and is skipped — checks 5-6
+//    cover the one that matters.
+//
+//    Two narrow exemptions, both non-text uses that answer to the 3:1 rule instead —
+//    named as token@ground so the exemption is visible and cannot quietly widen:
+//      tool-icon-color      — .tool-output-icon svg, an icon everywhere it appears.
+//      accent-green@bg-input — the upload chip's tick sits on the input ground; the
+//                              token's TEXT uses (.console-status-ok) are on bg-main
+//                              at 5.28:1. Checks 3-4 hold this pairing to its real 3:1.
+const NON_TEXT = ['tool-icon-color', 'accent-green@bg-input'];
+const GROUNDS = ['bg-main', 'bg-sidebar', 'bg-input', 'bg-modal'];
+const RULE = /(?:^|[}\n])\s*([^{}@\/][^{}]*?)\s*\{([^{}]*)\}/g;
+const textTokens = new Set();
+let rm;
+while ((rm = RULE.exec(CSS)) !== null) {
+  if (/^:root/.test(rm[1].trim())) continue;
+  if (/(?:^|;)\s*background(?:-color)?:/.test(rm[2])) continue;
+  const c = /(?:^|;)\s*color:\s*var\(\s*--([\w-]+)\s*\)/.exec(rm[2]);
+  if (c && NON_TEXT.indexOf(c[1]) === -1) textTokens.add(c[1]);
+}
+const belowAA = [];
+Array.from(textTokens).sort().forEach(function (tok) {
+  [['light', LIGHT_VARS], ['dark', DARK_VARS]].forEach(function (t) {
+    const fgRaw = tokenIn(t[1], tok) || tokenIn(LIGHT_VARS, tok);
+    if (!fgRaw) { return; }
+    const fg = resolve(fgRaw, t[1]);
+    GROUNDS.forEach(function (g) {
+      const bgRaw = tokenIn(t[1], g) || tokenIn(LIGHT_VARS, g);
+      if (!bgRaw) { return; }
+      if (NON_TEXT.indexOf(tok + '@' + g) !== -1) { return; }
+      const r = ratio(fg, resolve(bgRaw, t[1]));
+      if (r < TEXT) { belowAA.push('--' + tok + ' ' + t[0] + '/' + g + ' ' + r.toFixed(2) + ':1'); }
+    });
+  });
+});
+check(++n, 'every token used as plain text clears 4.5:1 on every ground, both themes (' +
+  textTokens.size + ' tokens)',
+  belowAA.length === 0, belowAA.join('; '));
+
 console.log('\n' + results.join('\n'));
 console.log('\n=== ' + pass + ' passed, ' + fail + ' failed (of ' + (pass + fail) + ') ===');
 process.exit(fail > 0 ? 1 : 0);

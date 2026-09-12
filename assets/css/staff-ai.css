@@ -16,9 +16,15 @@
 	--text-primary: #343541;
 	--text-heading: #202123;
 	--text-secondary: #6e6e80;
-	--text-tertiary: #8e8ea0;
-	--text-placeholder: #ababbe;
-	--text-faint: #c5c5d2;
+	/* There is no readable grey BELOW --text-secondary. #6e6e80 is the lightest that
+	   clears 4.5:1 on every ground the console paints on (page, sidebar, input, modal)
+	   — and it IS --text-secondary. So these three carried their own lighter values and
+	   all three failed: tertiary 3.22:1, placeholder 2.26:1, faint 1.71:1, across 33
+	   rules of meta lines, captions, hints and placeholders. They resolve to the
+	   readable floor rather than being restated as three near-identical greys. */
+	--text-tertiary: var(--text-secondary);
+	--text-placeholder: var(--text-secondary);
+	--text-faint: var(--text-secondary);
 
 	--border-light: rgba(0,0,0,0.1);
 	--border-medium: rgba(0,0,0,0.15);
@@ -45,7 +51,7 @@
 	--banner-info-text: #16a34a;
 	--banner-error-bg: rgba(239,68,68,0.08);
 	--banner-error-border: rgba(239,68,68,0.25);
-	--banner-error-text: #dc2626;
+	--banner-error-text: #c62121;   /* 4.39:1 at #dc2626 — under the line */
 
 	--warning-bg: rgba(251,191,36,0.08);
 	--warning-border: rgba(251,191,36,0.25);
@@ -66,12 +72,12 @@
 	--dropdown-shadow: 0 4px 12px rgba(0,0,0,0.15);
 
 	--spinner-track: rgba(0,0,0,0.1);
-	--share-error-text: #dc2626;
+	--share-error-text: var(--banner-error-text);
 	--readonly-bg: rgba(251,191,36,0.12);
 	--readonly-text: #b45309;
 	--tool-icon-bg: rgba(0,0,0,0.06);
 	--tool-icon-color: rgba(0,0,0,0.5);
-	--tool-type-text: rgba(0,0,0,0.45);
+	--tool-type-text: rgba(0,0,0,0.6);   /* 3.30:1 at 0.45 */
 	--typing-dot: rgba(0,0,0,0.25);
 }
 
@@ -88,9 +94,12 @@
 	--text-primary: #ececf1;
 	--text-heading: #fff;
 	--text-secondary: rgba(255,255,255,0.7);
-	--text-tertiary: rgba(255,255,255,0.5);
-	--text-placeholder: rgba(255,255,255,0.4);
-	--text-faint: rgba(255,255,255,0.35);
+	/* Same three, the same way: 4.33 / 3.34 / 2.91:1. 0.6 clears 4.5:1 on every dark
+	   ground and still sits a step below --text-secondary's 0.7, so the hierarchy the
+	   light theme has to give up survives here. */
+	--text-tertiary: rgba(255,255,255,0.6);
+	--text-placeholder: rgba(255,255,255,0.6);
+	--text-faint: rgba(255,255,255,0.6);
 
 	--border-light: rgba(255,255,255,0.1);
 	--border-medium: rgba(255,255,255,0.15);
@@ -126,12 +135,12 @@
 	--dropdown-shadow: 0 4px 12px rgba(0,0,0,0.3);
 
 	--spinner-track: rgba(255,255,255,0.15);
-	--share-error-text: #f87171;
+	--share-error-text: var(--banner-error-text);   /* 3.64:1 at #f87171 */
 	--readonly-bg: rgba(251,191,36,0.15);
 	--readonly-text: #fbbf24;
 	--tool-icon-bg: rgba(255,255,255,0.1);
 	--tool-icon-color: rgba(255,255,255,0.7);
-	--tool-type-text: rgba(255,255,255,0.5);
+	--tool-type-text: rgba(255,255,255,0.6);   /* 3.87:1 at 0.5 */
 	--typing-dot: rgba(255,255,255,0.4);
 }
 
@@ -2024,12 +2033,15 @@ html {
 	display: flex;
 }
 
+/* Its own indigo, not --accent-indigo: this text sits on the overlay's 8% indigo
+   tint, not on the page, where the brand indigo reads 4.04:1 light and 2.52:1 dark.
+   Darker in light, lighter in dark - the same split the accent green needed. */
 .upload-drop-overlay-content {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	color: var(--accent-indigo);
+	color: #4338ca;
 	font-size: 15px;
 	font-weight: 500;
 }
@@ -2431,6 +2443,9 @@ html {
 .integration-badge-ok {
 	background: rgba(34, 160, 90, 0.12);
 	color: #1c7a45;
+}
+.dark-theme .upload-drop-overlay-content {
+	color: #a5b4fc;
 }
 .dark-theme .integration-badge-ok {
 	background: rgba(52, 199, 123, 0.16);
