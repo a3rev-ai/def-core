@@ -3410,11 +3410,16 @@ html {
 	padding: 0 14px 14px;
 	border-bottom: none;
 }
-/* Cancel and Save share a line inside that column, right-packed. */
+/* Cancel and Save share a line inside that column, right-packed under the picker
+   as the dialogs do it. `align-self` is load-bearing: the row's base rule sets
+   `align-items: center` and the column override does not reset it, so without this
+   the actions shrink to their content, centre, and `justify-content` has no free
+   space to distribute. */
 .document-assign-actions {
 	display: flex;
 	gap: 8px;
 	justify-content: flex-end;
+	align-self: stretch;
 }
 
 @media (max-width: 640px) {

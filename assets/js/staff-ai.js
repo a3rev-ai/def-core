@@ -4731,11 +4731,14 @@ function t(key, fallback) {
 			// Runsheet / Session notes as destinations for ANY document, so a 2 MB PNG
 			// could be made a project's Session notes (Steve, 2026-09-12: "how can a file
 			// be moved into Instructions | Runsheet | Session notes - that is a flawed
-			// concept"). The three governing documents are seeded when the project is
-			// created and maintained through Sue; this was a second way into the same
-			// slots that mostly ended in DEF's 409 "that project already has a runsheet
-			// document", and crossing the boundary silently moves a file in or out of
-			// embedding retrieval (D-UV4). Leaving only "Ordinary document" — which the
+			// concept"). Two of the three are seeded when the project is created and the
+			// third on Sue's first write; all three are hers to maintain. This was a
+			// second way into the same slots, and mostly a broken one — runsheet and
+			// instructions exist already, so DEF answered 409 "that project already has
+			// a runsheet document". Session notes is NOT seeded, so that one succeeded,
+			// which is how a 2 MB PNG could become a project's session notes. Crossing
+			// the boundary also moves a file in or out of embedding retrieval (D-UV4)
+			// with nothing said. Leaving only "Ordinary document" — which the
 			// panel then disabled whenever No project was chosen. So: a document moves
 			// to a PROJECT. The PUT sends no slot, which DEF reads as an ordinary
 			// document, and that is what a move means.
@@ -5084,9 +5087,13 @@ function t(key, fallback) {
 						}
 					}));
 				} else {
-					// An empty slot invites the document rather than hiding: My
-					// Documents, filtered to this project, is where a document is
-					// given its slot (Move to project…) — no new flow, no new route.
+					// An empty slot shows rather than hides, and clicking it opens My
+					// Documents filtered to this project. It no longer LEADS anywhere:
+					// giving a document a slot by hand is gone (7.9.8), and an empty
+					// slot is filled by asking Sue to write it. The label still says
+					// "add", which now over-promises — flagged for Steve rather than
+					// redesigned here, because it is the Projects page and the wording
+					// is his.
 					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Not set — add'), true, function () {
 						openProjectDocuments(project);
 					}));
