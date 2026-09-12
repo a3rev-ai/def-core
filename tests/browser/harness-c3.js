@@ -644,8 +644,10 @@ function check(label, ok, detail) {
 		clickNav(t, 'navMemories');
 		await tick(t.window);
 		const st = t.document.getElementById('memoriesStatus');
+		// C6d: the error kind reads through the kit's name now. The assertion is
+		// otherwise unchanged — what the page SAYS on a failed load did not move.
 		check('Memories: a failed load reports the error and does NOT claim the store is empty',
-			/DEF said no/.test(st.textContent) && /memories-status-error/.test(st.className)
+			/DEF said no/.test(st.textContent) && /console-status-error/.test(st.className)
 			&& t.document.querySelectorAll('.memory-row').length === 0,
 			'status=' + JSON.stringify(st.textContent));
 
