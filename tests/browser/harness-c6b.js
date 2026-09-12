@@ -59,9 +59,14 @@ const REPLACED = {
   'console-menu-sheet-btn': 'project-manage-btn',
   'console-menu-sheet-list': 'project-manage-sheet',
   'console-status': 'documents-status',
+  // 'console-status-ok': 'integrations-status-ok' â€” retired in C6c with Connections'
+  // own status family; see the note in harness-c5.js.
   'console-status-muted': 'documents-status-muted',
   'console-status-error': 'documents-status-error',
-  'console-status-ok': 'integrations-status-ok'
+  // null = its predecessor has RETIRED (C6c took Connections' own status family with it),
+  // so there is nothing left to hold this name against. Declared rather than dropped:
+  // this table is also the list of names the kit owns. See the note in harness-c5.js.
+  'console-status-ok': null
 };
 
 // The rules a derived-from name keeps that its kit name deliberately does not take
@@ -210,7 +215,10 @@ const item = (menu, label) => menu
     check(++n, 'PROOF: every kit name Scheduled takes SHARES every rule with the name it replaced — no Scheduled variant of the kit',
       WRITTEN.size > 0 && drifted.length === 0, drifted.join(' | ') || 'written=' + WRITTEN.size);
 
-    const undeclared = Array.from(WRITTEN).filter(name => !REPLACED[name]);
+    // `in`, not truthiness: a name whose predecessor has retired is declared with
+    // null, and is still owned by the kit. Line 214 above correctly uses truthiness,
+    // because THAT test needs an old name to compare against.
+    const undeclared = Array.from(WRITTEN).filter(name => !(name in REPLACED));
     const unused = Object.keys(REPLACED).filter(name => !WRITTEN.has(name));
     check(++n, 'the table above IS the page: every kit name the shipped block writes is declared, and none declared goes unwritten',
       undeclared.length === 0 && unused.length === 0,

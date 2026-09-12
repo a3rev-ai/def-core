@@ -141,7 +141,12 @@ const KIT = [
   ['console-status', 'documents-status'],
   ['console-status-muted', 'documents-status-muted'],
   ['console-status-error', 'documents-status-error'],
-  ['console-status-ok', 'integrations-status-ok']
+  // null = the name it replaced has RETIRED. Connections was the only writer of
+  // `.integrations-status-ok` and gave the name up when it took the kit's status
+  // line (C6c), so there is no longer an old name to hold this one against - which is
+  // this table's success condition, not a gap. It stays DECLARED, because the table is
+  // also the list of names the kit owns and a name missing from it reads as a stray.
+  ['console-status-ok', null]
 ];
 
 // The rules a kit name deliberately does NOT take, each one stated rather than
@@ -415,6 +420,8 @@ const clickIf = (t, el) => { if (el) click(t.window, el); return !!el; };
   {
     const drifted = [];
     KIT.forEach(function (pair) {
+      // Its predecessor has retired: declared, but nothing left to compare against.
+      if (!pair[1]) { return; }
       const r = sharedRules(pair[0], pair[1]);
       if (r.count === 0) { drifted.push(pair[0] + ': no rule in the stylesheet at all'); return; }
       if (r.kitOnly.length) drifted.push(pair[0] + ' alone in: ' + r.kitOnly.join(' / '));

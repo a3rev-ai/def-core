@@ -407,7 +407,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<button type="button" class="modal-btn modal-btn-secondary" id="connectionsAskAssistant"><?php echo esc_html__( 'Ask how Connections work', 'digital-employees' ); ?></button>
 					</div>
 				</div>
-				<div class="integrations-status" id="integrationsStatus"></div>
+				<div class="console-status" id="integrationsStatus"></div>
 				<div class="integrations-list" id="integrationsList"></div>
 			</section>
 
@@ -1066,6 +1066,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			integrationsReady: <?php echo wp_json_encode( __( 'Ready', 'digital-employees' ) ); ?>,
 			integrationsConnected: <?php echo wp_json_encode( __( 'Connected', 'digital-employees' ) ); ?>,
 			integrationsConnect: <?php echo wp_json_encode( __( 'Connect', 'digital-employees' ) ); ?>,
+			integrationsManage: <?php echo wp_json_encode( __( 'Manage connection', 'digital-employees' ) ); ?>,
 			integrationsDisconnect: <?php echo wp_json_encode( __( 'Disconnect', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the app’s name, e.g. Google Drive (used twice). */ ?>
 			integrationsDisconnectConfirm: <?php echo wp_json_encode( __( 'Disconnect %s? This ends your own access. Your team’s connection to %s stays, and you can connect again later.', 'digital-employees' ) ); ?>,

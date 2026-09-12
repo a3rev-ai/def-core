@@ -499,14 +499,22 @@ function check(label, ok, detail) {
 		const t = boot();
 		clickNav(t, 'navConnections');
 		await tick(t.window);
-		const dis = t.document.querySelector('.integration-row[data-server-id="s-gmail"] .integration-btn-danger');
-		click(t.window, dis);
+		// C6c: Disconnect moved behind the â‹¯ menu. Driven through the menu now, and the
+		// assertion is deliberately unchanged â€” the point of the slice is that only WHERE
+		// you click it moved.
+		const row = t.document.querySelector('.integration-row[data-server-id="s-gmail"]');
+		const menuBtn = row && row.querySelector('.console-menu-btn');
+		if (menuBtn) { click(t.window, menuBtn); await tick(t.window); }
+		const dis = row && row.querySelector('.console-menu-drop .console-menu-item-danger');
+		if (dis) { click(t.window, dis); }
 		await tick(t.window);
 		check('Connections: Disconnect still asks before it acts, with the same per-row confirm',
-			t.state.confirms.length === 1 && /Gmail/.test(t.state.confirms[0])
+			!!menuBtn && !!dis
+			&& t.state.confirms.length === 1 && /Gmail/.test(t.state.confirms[0])
 			&& /ends your own access/.test(t.state.confirms[0])
 			&& t.reqs(/disconnect$/).length === 1,
-			'confirms=' + t.state.confirms.length);
+			'menuBtn=' + !!menuBtn + ' item=' + !!dis + ' confirms=' + t.state.confirms.length
+			+ ' posts=' + t.reqs(/disconnect$/).length);
 	}
 
 	// ── PROOF: the OAuth focus re-check is armed on entry, DISARMED on leave ─

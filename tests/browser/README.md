@@ -45,6 +45,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c4.js` | The document viewer as a page (v7.9.1): `#document/<id>` reached cold or from an opener, and one page serving many documents |
 | `harness-c5.js` | The card kit named (v7.9.3): the seven Ask entries on one shared helper, named and unnamed, and the proof that every kit class shares its rule with the 7.8.0 name it replaced |
 | `harness-c6a.js` | Documents on the card kit (v7.9.4): the proof that every kit name the page takes shares its rule with the name it replaced, the ⋯ menu and touch sheet on a document card, Move to project / Download / Delete driven from the menu, and the document viewer's status line held as it is |
+| `harness-c6c.js` | Connections on the card kit (C6c): the page takes the ⋯ menu and the status line and NO card name (D-C8 - it is rows); Connect stays on the row, Disconnect moves behind the menu, a row with nothing to manage renders no menu at all, and the 10px the status line gains on re-point |
 | `harness-contrast.js` | The palette against WCAG 2.1 AA, computed rather than pinned: --accent-green as text and as a border/ring in both themes, and the integrations OK pill. Asserts ratios, so any readable colour passes |
 | `harness-c6b.js` | Scheduled on the card kit (v7.9.5): the same proof for the page, Run now joined to Open Project's rules, one ⋯ menu shared by task and triage cards, Edit / Remove driven from it, and the page's status line on the kit with the creator's own lines left alone |
 

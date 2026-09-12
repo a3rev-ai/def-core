@@ -86,7 +86,10 @@ function integrations() {
 	return slice('initIntegrations',
 		l => l.startsWith('	(function initIntegrations() {'),
 		l => l.includes('// MY DOCUMENTS PANEL (document library'),
-		['consolePages.push', 'function loadList', 'function renderRow', 'function connect', 'pageOpen'],
+		['consolePages.push', 'function loadList', 'function renderRow', 'function connect', 'pageOpen',
+			// C6c: the kit's menu, both renderings. A rename that moves one out of the
+			// block is a hard error here rather than a harness that quietly tests nothing.
+			'function manageActions', 'function toggleManageMenu', 'function manageDisclosure'],
 		'INTEGRATIONS');
 }
 
