@@ -2391,23 +2391,10 @@ html {
    Connected accounts — the #connectionsPane page (per-user integrations,
    Slice 2; on the console page shell since C3/v7.8.3)
    ============================================= */
-.integrations-status {
-	font-size: 13px;
-	margin-bottom: 10px;
-	min-height: 18px;
-}
-.integrations-status:empty {
-	margin-bottom: 0;
-}
-.integrations-status-muted {
-	color: var(--text-tertiary);
-}
-.integrations-status-ok,
+/* C6c: Connections' own status family has retired into the kit — `.console-status`
+   and its -muted / -ok / -error kinds carry every rule these did. */
 .console-status-ok {
 	color: var(--accent-green);
-}
-.integrations-status-error {
-	color: var(--banner-error-text);
 }
 
 .integrations-list {
@@ -2457,6 +2444,9 @@ html {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	/* C6c: the positioned parent of the ⋯ menu, as .console-card-actions is on the
+	   card pages. */
+	position: relative;
 }
 
 .integration-badge {
@@ -2555,10 +2545,10 @@ html {
 	font-size: 13px;
 }
 
-/* The status line, shared with the card kit (`.console-status`, D-C8). Three
-   more copies of these exact declarations live in their own sections
-   (`.integrations-status`, `.memories-status`, `.usage-status`); each retires
-   into the kit name as C6 re-points its page. */
+/* The status line, shared with the card kit (`.console-status`, D-C8). Connections
+   retired its copy in C6c; TWO more of these exact declarations still live in their
+   own sections (`.memories-status`, `.usage-status`) and retire as C6 reaches
+   their pages. */
 .documents-status,
 .console-status {
 	font-size: 13px;

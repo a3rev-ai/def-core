@@ -3674,7 +3674,7 @@ function t(key, fallback) {
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
-			statusEl.className = 'integrations-status' + (message ? ' integrations-status-' + (kind || 'muted') : '');
+			statusEl.className = 'console-status' + (message ? ' console-status-' + (kind || 'muted') : '');
 		}
 
 		async function loadList() {
@@ -3924,6 +3924,163 @@ function t(key, fallback) {
 			setStatus(outcome, kind);
 		}
 
+		// C6c (D-C8): Connections is ROWS, so it takes the kit's ⋯ menu and status line
+		// and none of the card family. The menu holds Disconnect alone — Connect stays on
+		// the row as the filled action — so unlike Documents and Scheduled this page has
+		// rows with NO actions at all, and those render no ⋯ button rather than an empty
+		// menu.
+		function manageActions(app) {
+			const items = [];
+			// Gated on has_grant exactly as the old row button was — the reasoning above
+			// renderRow is unchanged and still governs when Disconnect exists at all.
+			if (app.has_grant && !app.no_auth) {
+				items.push({
+					label: t('integrationsDisconnect', 'Disconnect'),
+					danger: true,
+					onPick: function () {
+						disconnect(app.server_id, prettyName(app.category, app.server_id),
+							row_action_of(app.server_id));
+					}
+				});
+			}
+			return items;
+		}
+
+		// disconnect() writes its progress into the row's action cell, which is the same
+		// cell the ⋯ button lives in. Looked up at pick time rather than captured, because
+		// the sheet's items are built once and the list re-renders under them.
+		function row_action_of(serverId) {
+			// CSS.escape, as the two selectors 200 lines above already use for the same
+			// attribute — a hand-rolled quote escape mis-handles a backslash and misses
+			// silently rather than throwing.
+			const row = listEl.querySelector('.integration-row[data-server-id="' + CSS.escape(String(serverId)) + '"]');
+			return row ? row.querySelector('.integration-action') : null;
+		}
+
+		function manageMenuItem(item, closeOnPick) {
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.disabled = !!item.disabled;
+			btn.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
+			btn.setAttribute('role', 'menuitem');
+			btn.textContent = item.label;
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				// Focus the trigger before the confirm: the cancel path re-renders nothing.
+				if (closeOnPick) { closeManageMenu(true); }
+				if (item.onPick) { item.onPick(); }
+			});
+			return btn;
+		}
+
+		let manageMenuEl = null;
+		let manageMenuAnchor = null;
+
+		function closeManageMenu(restoreFocus) {
+			if (!manageMenuEl) return;
+			const menu = manageMenuEl;
+			const anchor = manageMenuAnchor;
+			manageMenuEl = null;
+			manageMenuAnchor = null;
+			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape puts a
+			// keyboard user back on it rather than at the top of the page.
+			anchor.setAttribute('aria-expanded', 'false');
+			if (restoreFocus) { anchor.focus(); }
+			menu.remove();
+		}
+
+		function toggleManageMenu(app, anchor) {
+			const wasOpen = manageMenuAnchor === anchor;
+			closeManageMenu(false);
+			if (wasOpen) return;
+
+			const menu = document.createElement('div');
+			menu.className = 'console-menu console-menu-drop';
+			menu.setAttribute('role', 'menu');
+			menu.setAttribute('aria-label', t('integrationsManage', 'Manage connection'));
+			menu.addEventListener('click', function (e) { e.stopPropagation(); });
+			manageActions(app).forEach(function (item) {
+				menu.appendChild(manageMenuItem(item, true));
+			});
+
+			// Safari focuses no button on mousedown: focusout would tear the menu down
+			// mid-click and the item would never fire. The click still runs.
+			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+			menu.addEventListener('focusout', function (e) {
+				if (e.relatedTarget === anchor) return;
+				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
+			});
+			menu.addEventListener('keydown', function (e) {
+				const items = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
+				if (!items.length) return;
+				const at = items.indexOf(document.activeElement);
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					items[at === -1 ? 0 : (at + 1) % items.length].focus();
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					items[at <= 0 ? items.length - 1 : at - 1].focus();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					e.stopPropagation();
+					closeManageMenu(true);
+				}
+			});
+
+			// .integration-action is the positioned parent (CSS) and the ⋯ button its last
+			// child, so the menu's right edge lands on the button's.
+			anchor.parentNode.appendChild(menu);
+			manageMenuEl = menu;
+			manageMenuAnchor = anchor;
+			anchor.setAttribute('aria-expanded', 'true');
+			const first = menu.querySelector('.console-menu-item');
+			if (first) { first.focus(); }
+		}
+
+		let manageSheetSeq = 0;
+
+		// The touch rendering answers Escape the same way. It stays in the DOM hidden,
+		// which is why the shell's guard reads :not([hidden]).
+		function closeManageSheets() {
+			const open = listEl.querySelectorAll('.console-menu-sheet-list:not([hidden])');
+			Array.prototype.forEach.call(open, function (sheet) {
+				sheet.hidden = true;
+				const btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
+				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+			});
+		}
+
+		function manageDisclosure(app) {
+			const wrap = document.createElement('div');
+			wrap.className = 'console-menu-sheet';
+
+			const sheet = document.createElement('div');
+			sheet.className = 'console-menu console-menu-sheet-list';
+			sheet.setAttribute('role', 'menu');
+			sheet.id = 'connectionManageSheet' + (++manageSheetSeq);
+			sheet.hidden = true;
+			manageActions(app).forEach(function (item) {
+				sheet.appendChild(manageMenuItem(item, false));
+			});
+
+			const btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'console-menu-sheet-btn';
+			btn.setAttribute('aria-expanded', 'false');
+			btn.setAttribute('aria-controls', sheet.id);
+			btn.textContent = t('integrationsManage', 'Manage connection');
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				const opening = sheet.hidden;
+				sheet.hidden = !opening;
+				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(sheet);
+			return wrap;
+		}
+
 		function renderRow(app) {
 			const row = document.createElement('div');
 			row.className = 'integration-row';
@@ -3978,15 +4135,24 @@ function t(key, fallback) {
 			// which is why the handler reports honestly when the revoke finds nothing.
 			// Reconnect on its own was the whole problem: it minted ANOTHER grant, and a
 			// person who left, or a business moving from Gmail to M365, had no way out.
-			if (app.has_grant && !app.no_auth) {
-				const dis = document.createElement('button');
-				dis.type = 'button';
-				dis.className = 'integration-btn integration-btn-link integration-btn-danger';
-				dis.textContent = t('integrationsDisconnect', 'Disconnect');
-				dis.addEventListener('click', function () {
-					disconnect(app.server_id, prettyName(app.category, app.server_id), action);
+			// C6c: Disconnect is behind the ⋯ menu now, in both renderings. The gate is
+			// unchanged — manageActions() applies exactly the has_grant condition this
+			// block used to — so a row that never offered Disconnect still offers no menu
+			// at all rather than an empty one.
+			const actions = manageActions(app);
+			if (actions.length) {
+				const menuBtn = document.createElement('button');
+				menuBtn.type = 'button';
+				menuBtn.className = 'console-menu-btn';
+				menuBtn.setAttribute('aria-haspopup', 'menu');
+				menuBtn.setAttribute('aria-expanded', 'false');
+				menuBtn.setAttribute('aria-label', t('integrationsManage', 'Manage connection'));
+				menuBtn.textContent = '•••';
+				menuBtn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					toggleManageMenu(app, menuBtn);
 				});
-				action.appendChild(dis);
+				action.appendChild(menuBtn);
 			}
 
 			// Connected retires the link; otherwise it goes back where connect() put it —
@@ -4005,10 +4171,16 @@ function t(key, fallback) {
 			}
 
 			row.appendChild(action);
+			if (actions.length) { row.appendChild(manageDisclosure(app)); }
 			return row;
 		}
 
 		async function disconnect(serverId, appName, action) {
+			// C6c: `action` is resolved at pick time now (row_action_of), so it can be
+			// null if the list re-rendered while the menu was open — the OAuth focus
+			// re-check does exactly that. Returning before the confirm is the honest
+			// order: asking and then silently doing nothing is worse than not asking.
+			if (!action) { return; }
 			// Names what it does and does NOT do. "Disconnect" next to a shared app reads
 			// like it might cut the whole team off; it ends this person's access only.
 			if (!window.confirm(
@@ -4092,7 +4264,12 @@ function t(key, fallback) {
 			el: pane,
 			title: document.getElementById('connectionsTitle'),
 			onEnter: function () { pageOpen = true; loadList(); },
-			onLeave: function () { pageOpen = false; setStatus('', ''); }
+			onLeave: function () {
+				pageOpen = false;
+				setStatus('', '');
+				closeManageMenu(false);
+				closeManageSheets();
+			}
 		});
 
 		askEntry(askBtn, 'connections', {
@@ -4107,6 +4284,21 @@ function t(key, fallback) {
 		// after that is wanted: pendingConsent is what makes it safe.
 		window.addEventListener('focus', function () {
 			if (pageOpen && !loading && !posting) loadList();
+		});
+
+		// A click anywhere else closes the open menu; Escape closes the menu and an
+		// expanded sheet, and only a SECOND Escape leaves the page (the shell stands
+		// aside while a .console-menu is on screen) — Projects' two rules, and the same
+		// pair Documents and Scheduled carry.
+		//
+		// Not optional. An expanded sheet is a `.console-menu` that is not [hidden], so
+		// the shell's capture guard matches it and steps back; with nothing else
+		// listening, Escape did nothing at all on this page while a sheet was open.
+		document.addEventListener('click', function () { closeManageMenu(false); });
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			closeManageMenu(false);
+			closeManageSheets();
 		});
 	})();
 

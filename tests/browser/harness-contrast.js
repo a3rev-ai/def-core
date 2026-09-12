@@ -114,8 +114,9 @@ if (!lightGreen) { throw new Error(':root does not declare --accent-green at all
 const TEXT = 4.5, UI = 3.0;
 let n = 0;
 
-// 1-2. The OK status line (.console-status-ok / .integrations-status-ok) and the
-//      uploaded tick both take their colour straight from the token.
+// 1-2. The OK status line (.console-status-ok — Connections retired its own
+//      .integrations-status-ok into it in C6c) and the uploaded tick both take their
+//      colour straight from the token.
 [['light', lightGreen, lightBg], ['dark', darkGreen, darkBg]].forEach(function (t) {
   const r = ratio(t[1], t[2]);
   check(++n, '--accent-green carries text on the ' + t[0] + ' page at AA (' + t[1] + ' on ' + t[2] + ')',
