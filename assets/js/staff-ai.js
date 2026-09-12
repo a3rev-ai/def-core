@@ -3950,7 +3950,10 @@ function t(key, fallback) {
 		// cell the ⋯ button lives in. Looked up at pick time rather than captured, because
 		// the sheet's items are built once and the list re-renders under them.
 		function row_action_of(serverId) {
-			const row = listEl.querySelector('.integration-row[data-server-id="' + String(serverId).replace(/"/g, '\\"') + '"]');
+			// CSS.escape, as the two selectors 200 lines above already use for the same
+			// attribute — a hand-rolled quote escape mis-handles a backslash and misses
+			// silently rather than throwing.
+			const row = listEl.querySelector('.integration-row[data-server-id="' + CSS.escape(String(serverId)) + '"]');
 			return row ? row.querySelector('.integration-action') : null;
 		}
 
@@ -4168,11 +4171,16 @@ function t(key, fallback) {
 			}
 
 			row.appendChild(action);
-			if (manageActions(app).length) { row.appendChild(manageDisclosure(app)); }
+			if (actions.length) { row.appendChild(manageDisclosure(app)); }
 			return row;
 		}
 
 		async function disconnect(serverId, appName, action) {
+			// C6c: `action` is resolved at pick time now (row_action_of), so it can be
+			// null if the list re-rendered while the menu was open — the OAuth focus
+			// re-check does exactly that. Returning before the confirm is the honest
+			// order: asking and then silently doing nothing is worse than not asking.
+			if (!action) { return; }
 			// Names what it does and does NOT do. "Disconnect" next to a shared app reads
 			// like it might cut the whole team off; it ends this person's access only.
 			if (!window.confirm(
@@ -4276,6 +4284,21 @@ function t(key, fallback) {
 		// after that is wanted: pendingConsent is what makes it safe.
 		window.addEventListener('focus', function () {
 			if (pageOpen && !loading && !posting) loadList();
+		});
+
+		// A click anywhere else closes the open menu; Escape closes the menu and an
+		// expanded sheet, and only a SECOND Escape leaves the page (the shell stands
+		// aside while a .console-menu is on screen) — Projects' two rules, and the same
+		// pair Documents and Scheduled carry.
+		//
+		// Not optional. An expanded sheet is a `.console-menu` that is not [hidden], so
+		// the shell's capture guard matches it and steps back; with nothing else
+		// listening, Escape did nothing at all on this page while a sheet was open.
+		document.addEventListener('click', function () { closeManageMenu(false); });
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			closeManageMenu(false);
+			closeManageSheets();
 		});
 	})();
 

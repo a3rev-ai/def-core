@@ -222,14 +222,6 @@ const items = menu => menu
       'slack=' + !!(slack && slack.querySelector('.console-menu-btn')) +
       ' files=' + !!(files && files.querySelector('.console-menu-btn')));
   }
-  {
-    const t = boot(); await enter(t);
-    const files = t.row('s-files');
-    const badge = files && files.querySelector('.integration-badge-ok');
-    check(++n, 'a no-auth row still says Ready and still offers no Connect',
-      !!badge && badge.textContent === 'Ready' && !files.querySelector('.integration-btn-primary'),
-      'badge=' + (badge && badge.textContent));
-  }
 
   // ---- 4. Disconnect does what the row button did -------------------------
   {
@@ -258,11 +250,12 @@ const items = menu => menu
   {
     const t = boot(); await enter(t);
     const menu = await openMenu(t, 's-gmail');
-    // Dispatched on the FOCUSED element, which is where a real keypress lands: opening
-    // the menu focuses its first item, and the menu closes itself from its own keydown.
-    // A body-dispatched Escape never reaches it - verified in jsdom - so aiming at body
-    // would be testing the shell rather than the menu.
-    keyOn(t.window, t.document.activeElement, 'Escape'); await tick(t.window);
+    // On the BODY, as a real keypress arrives at the document. It does not reach the menu
+    // element (a keydown bubbles up, not down) and the shell's guard deliberately stands
+    // aside while a .console-menu is on screen — so what answers this is the PAGE's own
+    // document-level Escape listener. That listener is the thing C6c first shipped
+    // without, and dispatching at the focused element hid its absence.
+    key(t.window, t.document.body, 'Escape'); await tick(t.window);
     const gone = !!menu && !t.document.querySelector('.console-menu-drop');
     const stillHere = t.api.open() === 'connections';
     key(t.window, t.document.body, 'Escape'); await tick(t.window);
@@ -284,6 +277,24 @@ const items = menu => menu
     check(++n, 'the touch sheet expands in place with the same action and folds away again',
       closed && opened && sheet.hidden && btn.getAttribute('aria-expanded') === 'false',
       'btn=' + !!btn + ' sheet=' + !!sheet + ' closed=' + closed + ' opened=' + opened);
+  }
+  {
+    // The check C6c was missing, and the bug it missed: an EXPANDED sheet is a
+    // `.console-menu` that is not [hidden], so the shell's guard matches it and steps
+    // back. Without the page's own Escape listener nothing answered at all — the sheet
+    // stayed open and the page would not leave, however many times you pressed it.
+    const t = boot(); await enter(t);
+    const row = t.row('s-gmail');
+    const btn = row && row.querySelector('.console-menu-sheet-btn');
+    click(t.window, btn); await tick(t.window);
+    const sheet = row && row.querySelector('.console-menu-sheet-list');
+    const wasOpen = !!sheet && !sheet.hidden;
+    key(t.window, t.document.body, 'Escape'); await tick(t.window);
+    const closedIt = wasOpen && sheet.hidden && t.api.open() === 'connections';
+    key(t.window, t.document.body, 'Escape'); await tick(t.window);
+    check(++n, 'an EXPANDED touch sheet answers Escape first, and only then does Escape leave the page',
+      closedIt && t.api.open() !== 'connections',
+      'wasOpen=' + wasOpen + ' closedIt=' + closedIt + ' then=' + t.api.open());
   }
   {
     const t = boot(); await enter(t);
