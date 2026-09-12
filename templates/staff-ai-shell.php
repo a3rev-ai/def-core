@@ -361,7 +361,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<button type="button" class="modal-btn modal-btn-secondary" id="memoriesAskAssistant"><?php echo esc_html__( 'Ask how Memories work', 'digital-employees' ); ?></button>
 					</div>
 				</div>
-				<div class="memories-status" id="memoriesStatus"></div>
+				<div class="console-status" id="memoriesStatus"></div>
 				<div class="memories-list" id="memoriesList"></div>
 			</section>
 

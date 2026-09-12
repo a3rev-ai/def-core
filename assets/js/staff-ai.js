@@ -5619,7 +5619,7 @@ function t(key, fallback) {
 
 		function setStatus(message, kind) {
 			statusEl.textContent = message || '';
-			statusEl.className = 'memories-status' + (message ? ' memories-status-' + (kind || 'muted') : '');
+			statusEl.className = 'console-status' + (message ? ' console-status-' + (kind || 'muted') : '');
 		}
 
 		// Memories on the shared page shell (C3, D-C3/D-C4). The modal's Refresh
@@ -5691,6 +5691,9 @@ function t(key, fallback) {
 			info.appendChild(meta);
 			row.appendChild(info);
 
+			// D-C8: the page adopts only what fits, and Delete is ALL this row has.
+			// A ⋯ menu here would be a click to reach a click, so it stays the row's
+			// own button where the card pages put their several actions behind one.
 			const del = document.createElement('button');
 			del.type = 'button';
 			del.className = 'memory-btn-delete';

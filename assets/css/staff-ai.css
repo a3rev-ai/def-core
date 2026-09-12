@@ -2546,9 +2546,9 @@ html {
 }
 
 /* The status line, shared with the card kit (`.console-status`, D-C8). Connections
-   retired its copy in C6c; TWO more of these exact declarations still live in their
-   own sections (`.memories-status`, `.usage-status`) and retire as C6 reaches
-   their pages. */
+   retired its copy in C6c and Memories in C6d; ONE more of these exact declarations
+   still lives in its own section (`.usage-status`) and retires as C6 reaches that
+   page. */
 .documents-status,
 .console-status {
 	font-size: 13px;
@@ -2706,21 +2706,9 @@ html {
    Memories — the #memoriesPane page (what the assistant remembers, privacy
    slice B; on the console page shell since C3/v7.8.3)
    ============================================= */
-.memories-status {
-	font-size: 13px;
-	margin-bottom: 10px;
-	min-height: 18px;
-}
-.memories-status:empty {
-	margin-bottom: 0;
-}
-.memories-status-muted {
-	color: var(--text-tertiary);
-}
-.memories-status-error {
-	color: var(--banner-error-text);
-}
-
+/* C6d: Memories' own status family has retired into the kit — `.console-status`
+   and its -muted / -error kinds carry every rule these did. The page never had an
+   -ok state and has not been given one. */
 .memories-list {
 	display: flex;
 	flex-direction: column;

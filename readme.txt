@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.11
+Stable tag: 7.9.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.12 - 2026-09-12 =
+* Update - Staff AI console: on the Memories page, the status line above the list - the one that says what is loading, that nothing has been noted yet, or why something could not be read or deleted - now uses the console's shared styling instead of its own copy of it. Nothing on the page looks or behaves any differently: the line reads the same and sits in the same place, and Delete is still the row's own button with the same question before it.
 
 = 7.9.11 - 2026-09-12 =
 * Update - Staff AI console: on the Connections page, Disconnect now sits behind the ⋯ menu, with Connect staying on the row. It is the same menu the Projects, Documents and Scheduled pages use; on a phone it opens in place under the row. A connection with nothing to manage shows no menu at all. Nothing about what Connect or Disconnect do has changed, and the status line above the list now sits 10px lower, matching every other console page.
