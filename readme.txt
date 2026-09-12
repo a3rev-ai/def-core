@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.8
+Stable tag: 7.9.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.9 - 2026-09-12 =
+* Fix - Staff AI console: the green used for "connected", the uploaded-file tick and the OK badge was too pale to read against a white page - it met less than half the contrast the accessibility standard asks for. It is now a deeper green in the light theme and unchanged in the dark one, where the brighter green was already the readable choice. The "connected" badge no longer prints white on green. Also on the Projects page, a governing document that has not been written yet now reads "Pending" rather than "Not set - add".
 
 = 7.9.8 - 2026-09-12 =
 * Fix - Staff AI console: moving a document to a project is now just that. The panel used to offer Instructions, Runsheet and Session notes as places to move a file into, so any document - a photo, a spreadsheet - could be turned into one of a project's three governing documents. Those three belong to the project and are written by your assistant; they are not a folder to file things in, so the choice has gone. The panel also had no way out once opened - it now has a Cancel button beside Save.

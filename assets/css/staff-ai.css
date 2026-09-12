@@ -28,7 +28,13 @@
 	--hover-bg: rgba(0,0,0,0.04);
 	--active-bg: rgba(0,0,0,0.08);
 
-	--accent-green: #19c37d;
+	/* Light theme. #19c37d reads at 2.30:1 on white — it fails AA wherever it
+	   carries text or an icon, and the 3:1 non-text rule on the upload chip's
+	   border and the tile's focus ring. #1c7a45 is 5.36:1 and is not a new colour:
+	   it is the green .task-badge already uses for the Active pill. The DARK theme
+	   keeps #19c37d, which reads 5.28:1 on #343541 — no single value passes in both,
+	   which is why this is split rather than simply darkened. */
+	--accent-green: #1c7a45;
 	--accent-green-hover: #1a9d6a;
 	--accent-indigo: #6366f1;
 	--avatar-user: #5436da;
@@ -71,6 +77,9 @@
 /* Theme variables — dark */
 .dark-theme {
 	--bg-main: #343541;
+	/* Bright on a dark ground is the readable direction: 5.28:1 here, where the
+	   light theme's #1c7a45 would drop to 3.11:1. See the light block. */
+	--accent-green: #19c37d;
 	--bg-sidebar: #202123;
 	--bg-input: #40414f;
 	--bg-modal: #2d2d3a;
@@ -2414,9 +2423,17 @@ html {
 	border-radius: 999px;
 	white-space: nowrap;
 }
+/* Not white-on-green: that is 2.30:1 regardless of theme, because a filled pill's
+   contrast has nothing to do with the page behind it. This is the pair .task-badge
+   wears — 4.70:1 light, 4.80:1 dark — kept literal rather than tokenised, since two
+   uses is not an abstraction. */
 .integration-badge-ok {
-	background: var(--accent-green);
-	color: #fff;
+	background: rgba(34, 160, 90, 0.12);
+	color: #1c7a45;
+}
+.dark-theme .integration-badge-ok {
+	background: rgba(52, 199, 123, 0.16);
+	color: #59d18f;
 }
 
 .integration-btn {

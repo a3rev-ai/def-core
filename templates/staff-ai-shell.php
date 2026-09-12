@@ -1112,7 +1112,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			projectsSlotInstructions: <?php echo wp_json_encode( __( 'Instructions', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the document's version number. */ ?>
 			projectsSlotVersion: <?php echo wp_json_encode( __( 'v%s', 'digital-employees' ) ); ?>,
-			projectsSlotNotSet: <?php echo wp_json_encode( __( 'Not set — add', 'digital-employees' ) ); ?>,
+			projectsSlotNotSet: <?php echo wp_json_encode( __( 'Pending', 'digital-employees' ) ); ?>,
 			projectsOtherDocs: <?php echo wp_json_encode( __( 'Other documents', 'digital-employees' ) ); ?>,
 			projectsFileCountOne: <?php echo wp_json_encode( __( '1 file', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: how many files. */ ?>
