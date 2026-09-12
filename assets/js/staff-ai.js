@@ -1590,6 +1590,202 @@ function t(key, fallback) {
 	}
 
 	// =============================================
+	// THE CONSOLE ⋯ MENU, WRITTEN ONCE (C7)
+	// =============================================
+	// D-C8's card kit shared CLASS NAMES. It never shared the menu's BEHAVIOUR —
+	// open, close, the Escape ordering, arrow keys, focus restore, the touch sheet —
+	// and that was copy-pasted into Projects, Documents, Scheduled and Connections
+	// instead. The four had already drifted three ways, and one divergence was a
+	// real bug caught in review: C6c was WRITTEN without the two page-level
+	// listeners, and because the shell's capture guard deliberately stands aside
+	// while a `.console-menu:not([hidden])` is on screen, Escape would have done
+	// nothing at all on that page for as long as a sheet was open. The panel caught
+	// it on the branch (93642e5), so it never reached main - but four copies is what
+	// made it possible to write, and review is a thinner net than one copy.
+	//
+	// A page keeps what is genuinely its own — the label on its trigger, the id
+	// prefix for its sheets, the element its sheets live under, and its items —
+	// and gives up the machinery.
+	//
+	// `label` is the trigger's text and `sweepRoot` the element whose open sheets get
+	// swept closed. Both are plain values: every page has its list element and its
+	// i18n table in hand before it gets here.
+	function createConsoleMenu(opts) {
+		var sheetIdPrefix = opts.sheetIdPrefix;
+		var keepSheetState = !!opts.keepSheetState;
+		var menuEl = null;
+		var menuAnchor = null;
+		var menuKey = null;
+		var openSheets = Object.create(null);
+		var sheetSeq = 0;
+
+		function menuItem(item, closeOnPick) {
+			// A link item stays a link to the same address, so the browser treats it
+			// exactly as it treated the button that used to sit on the card.
+			var node = document.createElement(item.href ? 'a' : 'button');
+			if (item.href) {
+				node.href = item.href;
+			} else {
+				node.type = 'button';
+				node.disabled = !!item.disabled;
+			}
+			node.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
+			node.setAttribute('role', 'menuitem');
+			node.textContent = item.label;
+			node.addEventListener('click', function (e) {
+				e.stopPropagation();
+				// Focus the trigger before the dialog: the cancel paths re-render nothing.
+				if (closeOnPick) { close(true); }
+				if (item.onPick) { item.onPick(); }
+			});
+			return node;
+		}
+
+		function separator() {
+			var sep = document.createElement('div');
+			sep.className = 'console-menu-sep';
+			sep.setAttribute('role', 'separator');
+			return sep;
+		}
+
+		function fill(container, items, closeOnPick) {
+			items.forEach(function (item) {
+				container.appendChild(item.separator ? separator() : menuItem(item, closeOnPick));
+			});
+		}
+
+		function close(restoreFocus) {
+			if (!menuEl) return;
+			var menu = menuEl;
+			var anchor = menuAnchor;
+			menuEl = null;
+			menuAnchor = null;
+			menuKey = null;
+			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape
+			// puts a keyboard user back on it rather than at the top of the page.
+			anchor.setAttribute('aria-expanded', 'false');
+			if (restoreFocus) { anchor.focus(); }
+			menu.remove();
+		}
+
+		function toggle(key, items, anchor) {
+			var wasOpen = menuAnchor === anchor;
+			close(false);
+			if (wasOpen) return;
+
+			var menu = document.createElement('div');
+			menu.className = 'console-menu console-menu-drop';
+			menu.setAttribute('role', 'menu');
+			menu.setAttribute('aria-label', opts.label);
+			menu.addEventListener('click', function (e) { e.stopPropagation(); });
+			fill(menu, items, true);
+
+			// Safari focuses no button on mousedown: focusout would tear the menu down
+			// mid-click and the item would never fire. The click still runs.
+			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
+			menu.addEventListener('focusout', function (e) {
+				// A menu a re-render has already replaced is not the open one. Scheduled
+				// carried this guard and the other three did not; it is correct for all.
+				if (menuEl !== menu) return;
+				// Focus returning to the ⋯ button is its own click arriving.
+				if (e.relatedTarget === anchor) return;
+				if (!menu.contains(e.relatedTarget)) { close(e.relatedTarget === null); }
+			});
+			menu.addEventListener('keydown', function (e) {
+				var list = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
+				if (!list.length) return;
+				var at = list.indexOf(document.activeElement);
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					list[at === -1 ? 0 : (at + 1) % list.length].focus();
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					list[at <= 0 ? list.length - 1 : at - 1].focus();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					e.stopPropagation();
+					close(true);
+				}
+			});
+
+			// .console-card-actions is the positioned parent (CSS) and the ⋯ button
+			// its last child, so the menu's right edge lands on the button's.
+			anchor.parentNode.appendChild(menu);
+			menuEl = menu;
+			menuAnchor = anchor;
+			menuKey = key;
+			anchor.setAttribute('aria-expanded', 'true');
+			var first = menu.querySelector('.console-menu-item');
+			if (first) { first.focus(); }
+		}
+
+		// The touch rendering answers Escape the same way. It stays in the DOM
+		// hidden, which is why the shell's guard reads :not([hidden]).
+		function closeSheets() {
+			openSheets = Object.create(null);
+			var root = opts.sweepRoot;
+			var open = root ? root.querySelectorAll('.console-menu-sheet-list:not([hidden])') : [];
+			Array.prototype.forEach.call(open, function (sheet) {
+				sheet.hidden = true;
+				var btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
+				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+			});
+		}
+
+		function disclosure(key, items) {
+			var wrap = document.createElement('div');
+			wrap.className = 'console-menu-sheet';
+
+			var sheet = document.createElement('div');
+			sheet.className = 'console-menu console-menu-sheet-list';
+			sheet.setAttribute('role', 'menu');
+			sheet.id = sheetIdPrefix + (++sheetSeq);
+			// Scheduled re-renders its grid under an open sheet and must not close it;
+			// the other three build theirs fresh and start hidden either way.
+			sheet.hidden = !(keepSheetState && openSheets[key]);
+			fill(sheet, items, false);
+
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'console-menu-sheet-btn';
+			btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
+			btn.setAttribute('aria-controls', sheet.id);
+			btn.textContent = opts.label;
+			btn.addEventListener('click', function (e) {
+				e.stopPropagation();
+				sheet.hidden = !sheet.hidden;
+				if (sheet.hidden) { delete openSheets[key]; } else { openSheets[key] = true; }
+				btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
+			});
+
+			wrap.appendChild(btn);
+			wrap.appendChild(sheet);
+			return wrap;
+		}
+
+		// Registered once per page, here rather than in the page, because leaving
+		// them out is exactly the bug this slice exists to stop repeating.
+		document.addEventListener('click', function () { close(false); });
+		// C1's rule, both renderings: Escape closes the menu, and only a second
+		// Escape leaves the page. The shell's own handler runs first (capture) and
+		// stands aside while a .console-menu is on screen — the popover and the
+		// expanded sheet are both .console-menu — so this one gets the first press.
+		document.addEventListener('keydown', function (e) {
+			if (e.key !== 'Escape') return;
+			close(false);
+			closeSheets();
+		});
+
+		return {
+			toggle: toggle,
+			close: close,
+			closeSheets: closeSheets,
+			disclosure: disclosure,
+			openKey: function () { return menuKey; }
+		};
+	}
+
+	// =============================================
 	// Inline web citations — Claude-style source pills
 	// =============================================
 	// The model cites web_search/web_fetch results inline as [src_N]; the tool
@@ -3957,129 +4153,13 @@ function t(key, fallback) {
 			return row ? row.querySelector('.integration-action') : null;
 		}
 
-		function manageMenuItem(item, closeOnPick) {
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.disabled = !!item.disabled;
-			btn.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
-			btn.setAttribute('role', 'menuitem');
-			btn.textContent = item.label;
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				// Focus the trigger before the confirm: the cancel path re-renders nothing.
-				if (closeOnPick) { closeManageMenu(true); }
-				if (item.onPick) { item.onPick(); }
-			});
-			return btn;
-		}
-
-		let manageMenuEl = null;
-		let manageMenuAnchor = null;
-
-		function closeManageMenu(restoreFocus) {
-			if (!manageMenuEl) return;
-			const menu = manageMenuEl;
-			const anchor = manageMenuAnchor;
-			manageMenuEl = null;
-			manageMenuAnchor = null;
-			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape puts a
-			// keyboard user back on it rather than at the top of the page.
-			anchor.setAttribute('aria-expanded', 'false');
-			if (restoreFocus) { anchor.focus(); }
-			menu.remove();
-		}
-
-		function toggleManageMenu(app, anchor) {
-			const wasOpen = manageMenuAnchor === anchor;
-			closeManageMenu(false);
-			if (wasOpen) return;
-
-			const menu = document.createElement('div');
-			menu.className = 'console-menu console-menu-drop';
-			menu.setAttribute('role', 'menu');
-			menu.setAttribute('aria-label', t('integrationsManage', 'Manage connection'));
-			menu.addEventListener('click', function (e) { e.stopPropagation(); });
-			manageActions(app).forEach(function (item) {
-				menu.appendChild(manageMenuItem(item, true));
-			});
-
-			// Safari focuses no button on mousedown: focusout would tear the menu down
-			// mid-click and the item would never fire. The click still runs.
-			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
-			menu.addEventListener('focusout', function (e) {
-				if (e.relatedTarget === anchor) return;
-				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
-			});
-			menu.addEventListener('keydown', function (e) {
-				const items = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
-				if (!items.length) return;
-				const at = items.indexOf(document.activeElement);
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					items[at === -1 ? 0 : (at + 1) % items.length].focus();
-				} else if (e.key === 'ArrowUp') {
-					e.preventDefault();
-					items[at <= 0 ? items.length - 1 : at - 1].focus();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					e.stopPropagation();
-					closeManageMenu(true);
-				}
-			});
-
-			// .integration-action is the positioned parent (CSS) and the ⋯ button its last
-			// child, so the menu's right edge lands on the button's.
-			anchor.parentNode.appendChild(menu);
-			manageMenuEl = menu;
-			manageMenuAnchor = anchor;
-			anchor.setAttribute('aria-expanded', 'true');
-			const first = menu.querySelector('.console-menu-item');
-			if (first) { first.focus(); }
-		}
-
-		let manageSheetSeq = 0;
-
-		// The touch rendering answers Escape the same way. It stays in the DOM hidden,
-		// which is why the shell's guard reads :not([hidden]).
-		function closeManageSheets() {
-			const open = listEl.querySelectorAll('.console-menu-sheet-list:not([hidden])');
-			Array.prototype.forEach.call(open, function (sheet) {
-				sheet.hidden = true;
-				const btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
-				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
-			});
-		}
-
-		function manageDisclosure(app) {
-			const wrap = document.createElement('div');
-			wrap.className = 'console-menu-sheet';
-
-			const sheet = document.createElement('div');
-			sheet.className = 'console-menu console-menu-sheet-list';
-			sheet.setAttribute('role', 'menu');
-			sheet.id = 'connectionManageSheet' + (++manageSheetSeq);
-			sheet.hidden = true;
-			manageActions(app).forEach(function (item) {
-				sheet.appendChild(manageMenuItem(item, false));
-			});
-
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'console-menu-sheet-btn';
-			btn.setAttribute('aria-expanded', 'false');
-			btn.setAttribute('aria-controls', sheet.id);
-			btn.textContent = t('integrationsManage', 'Manage connection');
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				const opening = sheet.hidden;
-				sheet.hidden = !opening;
-				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-			});
-
-			wrap.appendChild(btn);
-			wrap.appendChild(sheet);
-			return wrap;
-		}
+		// C7: the machinery is createConsoleMenu's. Connections keeps its own label,
+		// its own sheet ids and the list its sheets live under.
+		const manageMenu = createConsoleMenu({
+			label: t('integrationsManage', 'Manage connection'),
+			sheetIdPrefix: 'connectionManageSheet',
+			sweepRoot: listEl
+		});
 
 		function renderRow(app) {
 			const row = document.createElement('div');
@@ -4150,7 +4230,7 @@ function t(key, fallback) {
 				menuBtn.textContent = '•••';
 				menuBtn.addEventListener('click', function (e) {
 					e.stopPropagation();
-					toggleManageMenu(app, menuBtn);
+					manageMenu.toggle(app.server_id, actions, menuBtn);
 				});
 				action.appendChild(menuBtn);
 			}
@@ -4171,7 +4251,7 @@ function t(key, fallback) {
 			}
 
 			row.appendChild(action);
-			if (actions.length) { row.appendChild(manageDisclosure(app)); }
+			if (actions.length) { row.appendChild(manageMenu.disclosure(app.server_id, actions)); }
 			return row;
 		}
 
@@ -4267,8 +4347,8 @@ function t(key, fallback) {
 			onLeave: function () {
 				pageOpen = false;
 				setStatus('', '');
-				closeManageMenu(false);
-				closeManageSheets();
+				manageMenu.close(false);
+				manageMenu.closeSheets();
 			}
 		});
 
@@ -4286,20 +4366,6 @@ function t(key, fallback) {
 			if (pageOpen && !loading && !posting) loadList();
 		});
 
-		// A click anywhere else closes the open menu; Escape closes the menu and an
-		// expanded sheet, and only a SECOND Escape leaves the page (the shell stands
-		// aside while a .console-menu is on screen) — Projects' two rules, and the same
-		// pair Documents and Scheduled carry.
-		//
-		// Not optional. An expanded sheet is a `.console-menu` that is not [hidden], so
-		// the shell's capture guard matches it and steps back; with nothing else
-		// listening, Escape did nothing at all on this page while a sheet was open.
-		document.addEventListener('click', function () { closeManageMenu(false); });
-		document.addEventListener('keydown', function (e) {
-			if (e.key !== 'Escape') return;
-			closeManageMenu(false);
-			closeManageSheets();
-		});
 	})();
 
 	// =============================================
@@ -4543,7 +4609,7 @@ function t(key, fallback) {
 			// Projects' rule (C2): an expanded sheet left in the hidden page is still
 			// a .console-menu:not([hidden]), and the shell's Escape would stand aside
 			// for it on every other page.
-			onLeave: function () { closeManageMenu(false); closeManageSheets(); }
+			onLeave: function () { manageMenu.close(false); manageMenu.closeSheets(); }
 		});
 
 		// The projects panel's "Documents" action lands here pre-filtered (D-P10).
@@ -4589,7 +4655,7 @@ function t(key, fallback) {
 		async function loadList() {
 			if (loading) return;
 			// The rebuild detaches every card the open menu is anchored to.
-			closeManageMenu(false);
+			manageMenu.close(false);
 			loading = true;
 			const term = searchTerm();
 			setStatus(t('documentsLoading', 'Loading your documents…'), 'muted');
@@ -4711,14 +4777,14 @@ function t(key, fallback) {
 			menuBtn.textContent = '•••';
 			menuBtn.addEventListener('click', function (e) {
 				e.stopPropagation();
-				toggleManageMenu(doc, row, menuBtn);
+				manageMenu.toggle(doc.document_id, manageActions(doc, row), menuBtn);
 			});
 			actions.appendChild(menuBtn);
 			head.appendChild(actions);
 
 			// The same actions, expanded in place, for touch. CSS shows one or
 			// the other — never both.
-			row.appendChild(manageDisclosure(doc, row));
+			row.appendChild(manageMenu.disclosure(doc.document_id, manageActions(doc, row)));
 			return row;
 		}
 
@@ -4760,139 +4826,15 @@ function t(key, fallback) {
 			return items;
 		}
 
-		function manageMenuItem(item, closeOnPick) {
-			// Download stays a link to the same address, so the browser treats it
-			// exactly as it treated the card's Download.
-			const btn = document.createElement(item.href ? 'a' : 'button');
-			if (item.href) { btn.href = item.href; }
-			else { btn.type = 'button'; btn.disabled = !!item.disabled; }
-			btn.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
-			btn.setAttribute('role', 'menuitem');
-			btn.textContent = item.label;
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				// Focus the trigger before the dialog: the cancel paths re-render nothing.
-				if (closeOnPick) { closeManageMenu(true); }
-				if (item.onPick) { item.onPick(); }
-			});
-			return btn;
-		}
-
-		function manageMenuSeparator() {
-			const sep = document.createElement('div');
-			sep.className = 'console-menu-sep';
-			sep.setAttribute('role', 'separator');
-			return sep;
-		}
-
-		let manageMenuEl = null;
-		let manageMenuAnchor = null;
-
-		function closeManageMenu(restoreFocus) {
-			if (!manageMenuEl) return;
-			const menu = manageMenuEl;
-			const anchor = manageMenuAnchor;
-			manageMenuEl = null;
-			manageMenuAnchor = null;
-			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape
-			// puts a keyboard user back on it rather than at the top of the page.
-			anchor.setAttribute('aria-expanded', 'false');
-			if (restoreFocus) { anchor.focus(); }
-			menu.remove();
-		}
-
-		function toggleManageMenu(doc, row, anchor) {
-			const wasOpen = manageMenuAnchor === anchor;
-			closeManageMenu(false);
-			if (wasOpen) return;
-
-			const menu = document.createElement('div');
-			menu.className = 'console-menu console-menu-drop';
-			menu.setAttribute('role', 'menu');
-			menu.setAttribute('aria-label', t('documentsManage', 'Manage document'));
-			menu.addEventListener('click', function (e) { e.stopPropagation(); });
-			manageActions(doc, row).forEach(function (item) {
-				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
-			});
-
-			// Safari focuses no button on mousedown: focusout would tear the menu down
-			// mid-click and the item would never fire. The click still runs.
-			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
-			menu.addEventListener('focusout', function (e) {
-				// Focus returning to the ⋯ button is its own click arriving.
-				if (e.relatedTarget === anchor) return;
-				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
-			});
-			menu.addEventListener('keydown', function (e) {
-				const items = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
-				if (!items.length) return;
-				const at = items.indexOf(document.activeElement);
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					items[at === -1 ? 0 : (at + 1) % items.length].focus();
-				} else if (e.key === 'ArrowUp') {
-					e.preventDefault();
-					items[at <= 0 ? items.length - 1 : at - 1].focus();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					e.stopPropagation();
-					closeManageMenu(true);
-				}
-			});
-
-			// .console-card-actions is the positioned parent (CSS) and the ⋯ button
-			// its last child, so the menu's right edge lands on the button's.
-			anchor.parentNode.appendChild(menu);
-			manageMenuEl = menu;
-			manageMenuAnchor = anchor;
-			anchor.setAttribute('aria-expanded', 'true');
-			const first = menu.querySelector('.console-menu-item');
-			if (first) { first.focus(); }
-		}
-
-		let manageSheetSeq = 0;
-
-		// The touch rendering answers Escape the same way. It stays in the DOM
-		// hidden, which is why the shell's guard reads :not([hidden]).
-		function closeManageSheets() {
-			const open = listEl.querySelectorAll('.console-menu-sheet-list:not([hidden])');
-			Array.prototype.forEach.call(open, function (sheet) {
-				sheet.hidden = true;
-				const btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
-				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
-			});
-		}
-
-		function manageDisclosure(doc, row) {
-			const wrap = document.createElement('div');
-			wrap.className = 'console-menu-sheet';
-
-			const sheet = document.createElement('div');
-			sheet.className = 'console-menu console-menu-sheet-list';
-			sheet.setAttribute('role', 'menu');
-			sheet.id = 'documentManageSheet' + (++manageSheetSeq);
-			sheet.hidden = true;
-			manageActions(doc, row).forEach(function (item) {
-				sheet.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, false));
-			});
-
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'console-menu-sheet-btn';
-			btn.setAttribute('aria-expanded', 'false');
-			btn.setAttribute('aria-controls', sheet.id);
-			btn.textContent = t('documentsManage', 'Manage document');
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				const opening = sheet.hidden;
-				sheet.hidden = !opening;
-				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-			});
-
-			wrap.appendChild(btn);
-			wrap.appendChild(sheet);
-			return wrap;
-		}
+		// C7: the machinery is createConsoleMenu's. Documents keeps its own label,
+		// its own sheet ids and the list its sheets live under. It is the page with
+		// link items (Download) and a separator, which is why the shared menu takes
+		// `href` and `separator` items rather than buttons alone.
+		const manageMenu = createConsoleMenu({
+			label: t('documentsManage', 'Manage document'),
+			sheetIdPrefix: 'documentManageSheet',
+			sweepRoot: listEl
+		});
 
 		function toggleAssignRow(row, doc) {
 			const existing = row.querySelector('.document-assign-row');
@@ -5040,15 +4982,6 @@ function t(key, fallback) {
 			});
 		}
 
-		// A click anywhere else closes the open menu; Escape closes the menu and
-		// an expanded sheet, and only a second Escape leaves the page (the shell
-		// stands aside while a .console-menu is on screen) — Projects' two rules.
-		document.addEventListener('click', function () { closeManageMenu(false); });
-		document.addEventListener('keydown', function (e) {
-			if (e.key !== 'Escape') return;
-			closeManageMenu(false);
-			closeManageSheets();
-		});
 	})();
 
 	// =============================================
@@ -5082,7 +5015,7 @@ function t(key, fallback) {
 			// Both renderings are anchored inside a card that is about to be hidden. An
 			// expanded sheet left behind stays a .console-menu:not([hidden]) in the hidden
 			// page, and the shell's Escape guard would stand aside for it on every page.
-			onLeave: function () { closeManageMenu(false); closeManageSheets(); }
+			onLeave: function () { manageMenu.close(false); manageMenu.closeSheets(); }
 		});
 
 		// P-D2 (D-P14): the chat IS the onboarding. The button starts a fresh chat
@@ -5127,7 +5060,7 @@ function t(key, fallback) {
 		async function loadList() {
 			if (loading) return;
 			// The rebuild detaches every card the open menu is anchored to.
-			closeManageMenu(false);
+			manageMenu.close(false);
 			loading = true;
 			setStatus(t('projectsLoading', 'Loading your projects…'), 'muted');
 			listEl.innerHTML = '';
@@ -5215,14 +5148,14 @@ function t(key, fallback) {
 			menuBtn.textContent = '•••';
 			menuBtn.addEventListener('click', function (e) {
 				e.stopPropagation();
-				toggleManageMenu(project, menuBtn);
+				manageMenu.toggle(project.project_id, manageActions(project), menuBtn);
 			});
 			actions.appendChild(menuBtn);
 			head.appendChild(actions);
 
 			// The same actions, expanded in place, for touch. CSS shows one or
 			// the other — never both.
-			card.appendChild(manageDisclosure(project));
+			card.appendChild(manageMenu.disclosure(project.project_id, manageActions(project)));
 
 			// P-B / P-D2: the governing documents on the card itself.
 			const knowledge = document.createElement('div');
@@ -5335,149 +5268,13 @@ function t(key, fallback) {
 			];
 		}
 
-		function manageMenuItem(item, closeOnPick) {
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : '');
-			btn.setAttribute('role', 'menuitem');
-			btn.textContent = item.label;
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				// Focus the trigger before the dialog: the cancel paths re-render nothing.
-				if (closeOnPick) { closeManageMenu(true); }
-				item.onPick();
-			});
-			return btn;
-		}
-
-		function manageMenuSeparator() {
-			const sep = document.createElement('div');
-			sep.className = 'console-menu-sep';
-			sep.setAttribute('role', 'separator');
-			return sep;
-		}
-
-		let manageMenuEl = null;
-		let manageMenuAnchor = null;
-
-		function closeManageMenu(restoreFocus) {
-			if (!manageMenuEl) return;
-			const menu = manageMenuEl;
-			const anchor = manageMenuAnchor;
-			manageMenuEl = null;
-			manageMenuAnchor = null;
-			// Move focus to the trigger before the menu leaves the DOM, so the
-			// focused node is never the one being removed: Escape must put a
-			// keyboard user back on the ⋯ button, not at the top of the page.
-			if (anchor) {
-				anchor.setAttribute('aria-expanded', 'false');
-				if (restoreFocus) { anchor.focus(); }
-			}
-			menu.remove();
-		}
-
-		function toggleManageMenu(project, anchor) {
-			const wasOpen = manageMenuAnchor === anchor;
-			closeManageMenu(false);
-			if (wasOpen) return;
-
-			const menu = document.createElement('div');
-			menu.className = 'console-menu console-menu-drop';
-			menu.setAttribute('role', 'menu');
-			menu.setAttribute('aria-label', t('projectsManage', 'Manage project'));
-			menu.addEventListener('click', function (e) { e.stopPropagation(); });
-
-			// The menu hangs off the card and scrolls with it — no measured position.
-			manageActions(project).forEach(function (item) {
-				menu.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, true));
-			});
-
-			// Safari focuses no button on mousedown: the focused item would blur to
-			// <body>, focusout would tear the menu down mid-click, and the item would
-			// never fire. Preventing the default keeps focus put; the click still runs.
-			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
-
-			menu.addEventListener('focusout', function (e) {
-				// Focus returning to the ⋯ button is its own click arriving: leave the
-				// menu up so that click performs the normal toggle-close.
-				if (e.relatedTarget === anchor) return;
-				// Focus that left the document (Tab past the last item) comes back to the ⋯
-				// button; focus that landed on another control stays there.
-				if (!menu.contains(e.relatedTarget)) { closeManageMenu(e.relatedTarget === null); }
-			});
-
-			menu.addEventListener('keydown', function (e) {
-				const items = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
-				if (!items.length) return;
-				const at = items.indexOf(document.activeElement);
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					items[at === -1 ? 0 : (at + 1) % items.length].focus();
-				} else if (e.key === 'ArrowUp') {
-					e.preventDefault();
-					items[at <= 0 ? items.length - 1 : at - 1].focus();
-				} else if (e.key === 'Escape') {
-					// Escape closes the menu; stopped so nothing above the menu sees it.
-					e.preventDefault();
-					e.stopPropagation();
-					closeManageMenu(true);
-				}
-			});
-
-			// .console-card-actions is the positioned parent (CSS) and the ⋯ button its
-			// last child, so the menu's right edge lands on the button's.
-			(anchor.parentNode || document.body).appendChild(menu);
-			manageMenuEl = menu;
-			manageMenuAnchor = anchor;
-			anchor.setAttribute('aria-expanded', 'true');
-			const first = menu.querySelector('.console-menu-item');
-			if (first) { first.focus(); }
-		}
-
-		let manageSheetSeq = 0;
-
-		// The sheet is the touch rendering of the same menu, so it answers Escape
-		// the same way. It stays in the DOM hidden, which is why the shell's
-		// "stand aside for an open menu" test reads :not([hidden]).
-		function closeManageSheets() {
-			var open = listEl ? listEl.querySelectorAll('.console-menu-sheet-list:not([hidden])') : [];
-			Array.prototype.forEach.call(open, function (sheet) {
-				sheet.hidden = true;
-				var btn = sheet.parentNode && sheet.parentNode.querySelector('.console-menu-sheet-btn');
-				if (btn) { btn.setAttribute('aria-expanded', 'false'); }
-			});
-		}
-
-		function manageDisclosure(project) {
-			const wrap = document.createElement('div');
-			wrap.className = 'console-menu-sheet';
-
-			const sheet = document.createElement('div');
-			sheet.className = 'console-menu console-menu-sheet-list';
-			sheet.setAttribute('role', 'menu');
-			sheet.id = 'projectManageSheet' + (++manageSheetSeq);
-			sheet.hidden = true;
-			manageActions(project).forEach(function (item) {
-				sheet.appendChild(item.separator ? manageMenuSeparator() : manageMenuItem(item, false));
-			});
-
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'console-menu-sheet-btn';
-			btn.setAttribute('aria-expanded', 'false');
-			btn.setAttribute('aria-controls', sheet.id);
-			btn.textContent = t('projectsManage', 'Manage project');
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				const opening = sheet.hidden;
-				sheet.hidden = !opening;
-				btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-			});
-
-			wrap.appendChild(btn);
-			wrap.appendChild(sheet);
-			return wrap;
-		}
+		// C7: the machinery is createConsoleMenu's. Projects keeps its own label,
+		// its own sheet ids and the list its sheets live under.
+		const manageMenu = createConsoleMenu({
+			label: t('projectsManage', 'Manage project'),
+			sheetIdPrefix: 'projectManageSheet',
+			sweepRoot: listEl
+		});
 
 		async function renameProject(project) {
 			if (mutating) { setStatus(t('projectsBusy', 'One change at a time…'), 'muted'); return; }
@@ -5579,19 +5376,6 @@ function t(key, fallback) {
 		});
 		if (archivedEl) archivedEl.addEventListener('change', loadList);
 
-		// A click anywhere else closes the open menu, the way the chat row's does.
-		// The scroll and resize listeners the fixed anchoring needed are gone with
-		// it: the menu moves with its card now.
-		document.addEventListener('click', function () { closeManageMenu(false); });
-		// C1's rule, both renderings: Escape closes the menu, and only a second
-		// Escape leaves the page. The shell's own handler runs first (capture) and
-		// stands aside while a .console-menu is on screen — the popover and the
-		// expanded sheet are both .console-menu — so this one gets the first press.
-		document.addEventListener('keydown', function (e) {
-			if (e.key !== 'Escape') return;
-			closeManageMenu(false);
-			closeManageSheets();
-		});
 	})();
 
 	// =============================================
@@ -6270,134 +6054,19 @@ function t(key, fallback) {
 		// renders the items a card hands it two ways, the ⋯ popover on a pointer
 		// and the in-place sheet on touch. Each item does what the card's icon did.
 		// Keyed by card id on Object.create(null), for the reason runRequests gives.
-		var menuEl = null;
-		var menuAnchor = null;
-		var menuFor = null;                    // the card id the popover is open on
 		var menuCards = Object.create(null);   // card id: its ⋯ button and items, this render
-		var openSheets = Object.create(null);  // card ids whose touch sheet is expanded
 		var removing = Object.create(null);    // card ids whose DELETE is still out
-		var sheetSeq = 0;
 
-		function fillMenu(menu, items, closeOnPick) {
-			items.forEach(function (item) {
-				if (item.separator) {
-					var sep = el('div', 'console-menu-sep');
-					sep.setAttribute('role', 'separator');
-					menu.appendChild(sep);
-					return;
-				}
-				var btn = el('button', 'console-menu-item' + (item.danger ? ' console-menu-item-danger' : ''), item.label);
-				btn.type = 'button';
-				btn.disabled = !!item.disabled;
-				btn.setAttribute('role', 'menuitem');
-				btn.addEventListener('click', function (e) {
-					e.stopPropagation();
-					// Focus the trigger before the dialog: the cancel paths re-render nothing.
-					if (closeOnPick) closeMenu(true);
-					item.onPick();
-				});
-				menu.appendChild(btn);
-			});
-		}
-
-		function closeMenu(restoreFocus) {
-			if (!menuEl) return;
-			var menu = menuEl;
-			var anchor = menuAnchor;
-			menuEl = null;
-			menuAnchor = null;
-			menuFor = null;
-			// Focus moves to the ⋯ button BEFORE the menu leaves the DOM, so Escape
-			// puts a keyboard user back on it rather than at the top of the page.
-			anchor.setAttribute('aria-expanded', 'false');
-			if (restoreFocus) anchor.focus();
-			menu.remove();
-		}
-
-		function toggleMenu(id, items, anchor) {
-			var wasOpen = menuAnchor === anchor;
-			closeMenu(false);
-			if (wasOpen) return;
-
-			var menu = el('div', 'console-menu console-menu-drop');
-			menu.setAttribute('role', 'menu');
-			menu.setAttribute('aria-label', t('taskManage', 'Manage task'));
-			menu.addEventListener('click', function (e) { e.stopPropagation(); });
-			fillMenu(menu, items, true);
-
-			// Safari focuses no button on mousedown: focusout would tear the menu down
-			// mid-click and the item would never fire. The click still runs.
-			menu.addEventListener('mousedown', function (e) { e.preventDefault(); });
-			menu.addEventListener('focusout', function (e) {
-				// A menu a re-render has already replaced is not the open one.
-				if (menuEl !== menu) return;
-				// Focus returning to the ⋯ button is its own click arriving.
-				if (e.relatedTarget === anchor) return;
-				if (!menu.contains(e.relatedTarget)) closeMenu(e.relatedTarget === null);
-			});
-			menu.addEventListener('keydown', function (e) {
-				var list = Array.prototype.slice.call(menu.querySelectorAll('.console-menu-item'));
-				if (!list.length) return;
-				var at = list.indexOf(document.activeElement);
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					list[at === -1 ? 0 : (at + 1) % list.length].focus();
-				} else if (e.key === 'ArrowUp') {
-					e.preventDefault();
-					list[at <= 0 ? list.length - 1 : at - 1].focus();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					e.stopPropagation();
-					closeMenu(true);
-				}
-			});
-
-			// .console-card-actions is the positioned parent (CSS) and the ⋯ button
-			// its last child, so the menu's right edge lands on the button's.
-			anchor.parentNode.appendChild(menu);
-			menuEl = menu;
-			menuAnchor = anchor;
-			menuFor = id;
-			anchor.setAttribute('aria-expanded', 'true');
-			var first = menu.querySelector('.console-menu-item');
-			if (first) first.focus();
-		}
-
-		// The touch rendering answers Escape the same way. It stays in the DOM
-		// hidden, which is why the shell's guard reads :not([hidden]).
-		function closeSheets() {
-			openSheets = Object.create(null);
-			var open = grid.querySelectorAll('.console-menu-sheet-list:not([hidden])');
-			Array.prototype.forEach.call(open, function (sheet) {
-				sheet.hidden = true;
-				var btn = sheet.parentNode.querySelector('.console-menu-sheet-btn');
-				if (btn) btn.setAttribute('aria-expanded', 'false');
-			});
-		}
-
-		function manageSheet(id, items) {
-			var wrap = el('div', 'console-menu-sheet');
-			var sheet = el('div', 'console-menu console-menu-sheet-list');
-			sheet.setAttribute('role', 'menu');
-			sheet.id = 'taskManageSheet' + (++sheetSeq);
-			sheet.hidden = !openSheets[id];
-			fillMenu(sheet, items, false);
-
-			var btn = el('button', 'console-menu-sheet-btn', t('taskManage', 'Manage task'));
-			btn.type = 'button';
-			btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
-			btn.setAttribute('aria-controls', sheet.id);
-			btn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				sheet.hidden = !sheet.hidden;
-				if (sheet.hidden) { delete openSheets[id]; } else { openSheets[id] = true; }
-				btn.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
-			});
-
-			wrap.appendChild(btn);
-			wrap.appendChild(sheet);
-			return wrap;
-		}
+		// C7: the machinery is createConsoleMenu's. Scheduled is the page that needs
+		// `keepSheetState` — Run now's watcher re-renders the grid every few seconds,
+		// and an expanded sheet must survive that rather than snapping shut under the
+		// user's finger. It also sweeps `grid` rather than a list.
+		var manageMenu = createConsoleMenu({
+			label: t('taskManage', 'Manage task'),
+			sheetIdPrefix: 'taskManageSheet',
+			sweepRoot: grid,
+			keepSheetState: true
+		});
 
 		// A card wears the kit (C6b): the name beside Run now, its one filled action
 		// (the renderers add it), and the ⋯ menu over the items it is handed.
@@ -6417,7 +6086,7 @@ function t(key, fallback) {
 			menuBtn.setAttribute('aria-label', t('taskManage', 'Manage task'));
 			menuBtn.addEventListener('click', function (e) {
 				e.stopPropagation();
-				toggleMenu(id, items, menuBtn);
+				manageMenu.toggle(id, items, menuBtn);
 			});
 			actions.appendChild(menuBtn);
 			head.appendChild(actions);
@@ -6440,7 +6109,7 @@ function t(key, fallback) {
 			card.appendChild(meta);
 			// The same items, expanded in place, for touch. CSS shows one or the
 			// other — never both.
-			card.appendChild(manageSheet(id, items));
+			card.appendChild(manageMenu.disclosure(id, items));
 			menuCards[id] = { btn: menuBtn, items: items };
 			return { card: card, actions: actions };
 		}
@@ -6498,8 +6167,8 @@ function t(key, fallback) {
 			// Run now's watcher re-renders every few seconds. A menu open on a card is
 			// reopened on its rebuilt card rather than vanishing mid-pick; an expanded
 			// sheet stays expanded through openSheets.
-			var reopen = menuEl ? menuFor : null;
-			closeMenu(false);
+			var reopen = manageMenu.openKey();
+			manageMenu.close(false);
 			menuCards = Object.create(null);
 			grid.textContent = '';
 			var any = false;
@@ -6513,7 +6182,7 @@ function t(key, fallback) {
 			});
 			paneEmpty.style.display = any ? 'none' : '';
 			var again = reopen === null ? null : menuCards[reopen];
-			if (again) toggleMenu(reopen, again.items, again.btn);
+			if (again) manageMenu.toggle(reopen, again.items, again.btn);
 		}
 
 		// Scheduled on the shared page shell (D-C3), where the container swap,
@@ -6527,7 +6196,7 @@ function t(key, fallback) {
 			// Documents' rule (C6a): an expanded sheet left in the hidden page is still
 			// a .console-menu:not([hidden]), and the shell's Escape would stand aside
 			// for it on every other page.
-			onLeave: function () { closeMenu(false); closeSheets(); }
+			onLeave: function () { manageMenu.close(false); manageMenu.closeSheets(); }
 		});
 
 		async function loadAll() {
@@ -7110,15 +6779,6 @@ function t(key, fallback) {
 			}
 		}
 
-		// A click anywhere else closes the open menu; Escape closes the menu and an
-		// expanded sheet, and only a second Escape leaves the page (the shell stands
-		// aside while a .console-menu is on screen) — Documents' two rules.
-		document.addEventListener('click', function () { closeMenu(false); });
-		document.addEventListener('keydown', function (e) {
-			if (e.key !== 'Escape') return;
-			closeMenu(false);
-			closeSheets();
-		});
 
 		// The creator's delivery section (2026-09-03): the label beside it states
 		// the one fact, this asks the assistant everything past that fact.

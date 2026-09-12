@@ -24,6 +24,8 @@ const extract = require('./extract');
 
 const SHELL = extract.pageShell();
 const INTEGRATIONS = extract.integrations();
+// C7: the ⋯ menu's machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 const CSS = fs.readFileSync(path.join(extract.REPO, 'assets/css/staff-ai.css'), 'utf8');
 const TEMPLATE = extract.templateSource();
 const INDEX = extract.cssRules(CSS);
@@ -106,7 +108,7 @@ function boot(opts) {
       : { escape: function (v) { return String(v).replace(/([^\w-])/g, '\\$1'); } }
   ];
   extract.pushAskEntry(window, names, outer);
-  new window.Function(...names, INTEGRATIONS)(...outer);
+  new window.Function(...names, MENU + '\n' + INTEGRATIONS)(...outer);
 
   return {
     window, document, api, state, requests,
@@ -150,7 +152,8 @@ const items = menu => menu
   {
     // D-C8: Connections is rows. Taking the card family would be the opposite of what
     // the decision says, so its absence is asserted rather than assumed.
-    const CODE = INTEGRATIONS.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    // C7: the row's code is the page block plus the shared menu it delegates to.
+    const CODE = (MENU + '\n' + INTEGRATIONS).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     const written = new Set(CODE.match(/\bconsole-[a-z]+(?:-[a-z]+)*\b/g) || []);
     const cardNames = Array.from(written).filter(x => /^console-card/.test(x));
     check(++n, 'Connections takes NO card name — it is rows, and D-C8 says a page adopts only what fits',

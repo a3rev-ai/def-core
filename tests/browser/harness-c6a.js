@@ -27,6 +27,8 @@ const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 const SHELL = extract.pageShell();
 const DOCUMENTS = extract.documents();
+// C7: the menu machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 const VIEWER = extract.documentViewer();
 const CSS = fs.readFileSync(path.join(extract.REPO, 'assets/css/staff-ai.css'), 'utf8');
 const JS = fs.readFileSync(extract.JS_PATH, 'utf8');
@@ -90,7 +92,7 @@ function drift(kitName, oldName) {
 // The kit names the shipped block writes, read off its code with the comments
 // stripped. `'console-status-' + kind` reads as console-status; its kinds are the
 // ones setStatus is actually called with.
-const CODE = DOCUMENTS.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const CODE = (MENU + '\n' + DOCUMENTS).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const WRITTEN = new Set(CODE.match(/\bconsole-[a-z]+(?:-[a-z]+)*\b/g) || []);
 if (WRITTEN.has('console-status')) {
   (CODE.match(/,\s*'(muted|error|ok)'\)/g) || []).forEach(m => WRITTEN.add('console-status-' + /'(\w+)'/.exec(m)[1]));
@@ -154,7 +156,7 @@ function boot(opts) {
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
     'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
     'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-    DOCUMENTS
+    MENU + '\n' + DOCUMENTS
   )(
     window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
     function (x) { return String(x || ''); },

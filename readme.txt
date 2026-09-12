@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.12
+Stable tag: 7.9.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.13 - 2026-09-13 =
+* Dev - Staff AI console: the ⋯ menu on the Projects, Documents, Scheduled and Connections pages is now one piece of code shared by all four rather than four copies of it. Nothing on any page looks or behaves differently, with one exception worth naming: on a page that rebuilds itself while a menu is open - Scheduled does this every few seconds - the menu being replaced can no longer close the one that replaced it. Scheduled already had that guard; the other three now do too.
 
 = 7.9.12 - 2026-09-12 =
 * Update - Staff AI console: on the Memories page, the status line above the list - the one that says what is loading, that nothing has been noted yet, or why something could not be read or deleted - now uses the console's shared styling instead of its own copy of it. Nothing on the page looks or behaves any differently: the line reads the same and sits in the same place, and Delete is still the row's own button with the same question before it.

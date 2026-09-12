@@ -17,6 +17,8 @@ const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 
 const SCHEDULED = extract.scheduled();
+// C7: the menu machinery is shared and sits outside the page block.
+const MENU = extract.consoleMenu();
 
 const HTML = `<!doctype html><html><body>
 ${extract.templatePage('scheduledPane')}
@@ -73,7 +75,7 @@ function boot(tasks) {
 		'composerInput', 'updateSendButton', 'sendMessage'];
 	// C5: Scheduled carries TWO Ask entries, both on the SHARED helper.
 	extract.pushAskEntry(window, names, outer);
-	new window.Function(...names, SCHEDULED)(...outer);
+	new window.Function(...names, MENU + '\n' + SCHEDULED)(...outer);
 	const $ = (id) => document.getElementById(id);
 	return {
 		window, document, requests, rows, $,
