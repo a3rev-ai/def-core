@@ -173,18 +173,22 @@ const items = menu => menu
       'left: ' + left.join(', '));
   }
 
-  // ---- 2. the 10px the re-point MOVES (reported, not absorbed) ------------
+  // ---- 2. the 10px the re-point ADDS - which the page head then absorbs ----
   {
-    // `.console-page .console-status` carries a margin-top that `.integrations-status`
-    // never had, so Connections' status line sits 10px lower than it did. The rule has
-    // been in the stylesheet since C6a, so asserting it EXISTS proves nothing — this
-    // asserts the page's own status element now MATCHES it, inside a .console-page,
-    // which is what actually moves the line.
+    // `.console-page .console-status` carries a `margin-top: 10px` that the retired
+    // `.integrations-status` never declared. It does NOT move anything on screen: the
+    // status div is the immediately following sibling of `.console-page-head`, whose
+    // `margin-bottom: 20px` collapses with it, and adjacent margins collapse to the
+    // LARGER - 20px before the re-point and 20px after. Sorin measured 0.0px on C6d.
+    //
+    // So what is worth pinning is not a movement, it is that the page's own status
+    // element now carries the kit's NAME inside a `.console-page`. The rule itself has
+    // been in the stylesheet since C6a, so asserting it exists would prove nothing.
     const t = boot(); await enter(t);
     const el = t.document.getElementById('integrationsStatus');
     const inPage = !!(el && el.closest('.console-page'));
     const moved = INDEX.rules.filter(r => /\.console-page\s+\.console-status\b/.test(r.selector));
-    check(++n, 'the re-point MOVES the status line down 10px — the kit rule Connections never matched',
+    check(++n, 'the kit rule adds a 10px margin-top Connections never declared — which collapses into the page head above it, so nothing moves',
       !!el && el.classList.contains('console-status') && inPage &&
       moved.length === 1 && /margin-top:\s*10px/.test(moved[0].body.replace(/\s+/g, ' ')),
       'class=' + (el && el.className) + ' inPage=' + inPage + ' rules=' + moved.length);

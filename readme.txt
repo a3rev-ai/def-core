@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.13
+Stable tag: 7.9.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
+= 7.9.14 - 2026-09-13 =
+* Fix - Changelog correction, no code change. The 7.9.11 note claimed the Connections status line "now sits 10px lower". It does not: the kit's 10px margin collapses into the 20px below the page heading above it, and adjacent margins collapse to the larger, so the line sits exactly where it always did. The claim survived a three-leg review and went out in a cut release before it was measured. The 7.9.11 entry now says what actually happened, and the test that pinned it says so too.
+
 = 7.9.13 - 2026-09-13 =
 * Dev - Staff AI console: the ⋯ menu on the Projects, Documents, Scheduled and Connections pages is now one piece of code shared by all four rather than four copies of it. Nothing on any page looks or behaves differently, with one exception worth naming: on a page that rebuilds itself while a menu is open - Scheduled does this every few seconds - the menu being replaced can no longer close the one that replaced it. Scheduled already had that guard; the other three now do too.
 
@@ -127,7 +130,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 * Update - Staff AI console: on the Memories page, the status line above the list - the one that says what is loading, that nothing has been noted yet, or why something could not be read or deleted - now uses the console's shared styling instead of its own copy of it. Nothing on the page looks or behaves any differently: the line reads the same and sits in the same place, and Delete is still the row's own button with the same question before it.
 
 = 7.9.11 - 2026-09-12 =
-* Update - Staff AI console: on the Connections page, Disconnect now sits behind the ⋯ menu, with Connect staying on the row. It is the same menu the Projects, Documents and Scheduled pages use; on a phone it opens in place under the row. A connection with nothing to manage shows no menu at all. Nothing about what Connect or Disconnect do has changed, and the status line above the list now sits 10px lower, matching every other console page.
+* Update - Staff AI console: on the Connections page, Disconnect now sits behind the ⋯ menu, with Connect staying on the row. It is the same menu the Projects, Documents and Scheduled pages use; on a phone it opens in place under the row. A connection with nothing to manage shows no menu at all. Nothing about what Connect or Disconnect do has changed.
 
 = 7.9.9 - 2026-09-12 =
 * Fix - Staff AI console, readability: every colour the console uses for text now meets the WCAG AA contrast standard, in both the light and the dark theme. The greys used for meta lines, captions, hints and input placeholders were the worst of it - the lightest of them read at 1.7:1 against a white page where the standard asks for 4.5:1 - and they sat under roughly a third of the secondary text in the console. The green for "connected" and the uploaded-file tick, the red for errors, the file-type label on a tool card and the "drop files here" text were all under the line too. Nothing moved position and no wording changed; text that was faint is now readable. Two more on a phone: the conversation now follows your phone's own text size - the same iOS setting the Claude app follows, so if you have made text larger or smaller on the device, your assistant now matches it instead of ignoring it - and the message box no longer makes the page jump when you tap it. Also on the Projects page, a governing document that has not been written yet reads "Pending" rather than "Not set - add".
