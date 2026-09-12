@@ -5087,14 +5087,10 @@ function t(key, fallback) {
 						}
 					}));
 				} else {
-					// An empty slot shows rather than hides, and clicking it opens My
-					// Documents filtered to this project. It no longer LEADS anywhere:
-					// giving a document a slot by hand is gone (7.9.8), and an empty
-					// slot is filled by asking Sue to write it. The label still says
-					// "add", which now over-promises — flagged for Steve rather than
-					// redesigned here, because it is the Projects page and the wording
-					// is his.
-					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Not set — add'), true, function () {
+					// An empty slot shows as "Pending" rather than hiding. It fills
+					// when the assistant first writes that document for the project;
+					// giving one a slot by hand went in 7.9.8.
+					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Pending'), true, function () {
 						openProjectDocuments(project);
 					}));
 				}

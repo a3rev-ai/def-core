@@ -16,9 +16,15 @@
 	--text-primary: #343541;
 	--text-heading: #202123;
 	--text-secondary: #6e6e80;
-	--text-tertiary: #8e8ea0;
-	--text-placeholder: #ababbe;
-	--text-faint: #c5c5d2;
+	/* There is no readable grey BELOW --text-secondary. #6e6e80 is the lightest that
+	   clears 4.5:1 on every ground the console paints on (page, sidebar, input, modal)
+	   — and it IS --text-secondary. So these three carried their own lighter values and
+	   all three failed: tertiary 3.22:1, placeholder 2.26:1, faint 1.71:1, across 33
+	   rules of meta lines, captions, hints and placeholders. They resolve to the
+	   readable floor rather than being restated as three near-identical greys. */
+	--text-tertiary: var(--text-secondary);
+	--text-placeholder: var(--text-secondary);
+	--text-faint: var(--text-secondary);
 
 	--border-light: rgba(0,0,0,0.1);
 	--border-medium: rgba(0,0,0,0.15);
@@ -28,7 +34,14 @@
 	--hover-bg: rgba(0,0,0,0.04);
 	--active-bg: rgba(0,0,0,0.08);
 
-	--accent-green: #19c37d;
+	/* Light theme. #19c37d reads at 2.30:1 on white — it fails AA wherever it
+	   carries text or an icon, and the 3:1 non-text rule on the upload chip's
+	   border and the tile's focus ring. #1c7a45 is 5.36:1 and is not a new colour:
+	   it is the green .task-badge already uses for the Active pill. The DARK theme
+	   keeps #19c37d, which reads 5.28:1 on #343541 — no single value passes in both,
+	   which is why this is split rather than simply darkened: #1c7a45 on that same
+	   dark ground is 2.26:1. */
+	--accent-green: #1c7a45;
 	--accent-green-hover: #1a9d6a;
 	--accent-indigo: #6366f1;
 	--avatar-user: #5436da;
@@ -38,7 +51,7 @@
 	--banner-info-text: #16a34a;
 	--banner-error-bg: rgba(239,68,68,0.08);
 	--banner-error-border: rgba(239,68,68,0.25);
-	--banner-error-text: #dc2626;
+	--banner-error-text: #c62121;   /* 4.39:1 at #dc2626 — under the line */
 
 	--warning-bg: rgba(251,191,36,0.08);
 	--warning-border: rgba(251,191,36,0.25);
@@ -59,18 +72,21 @@
 	--dropdown-shadow: 0 4px 12px rgba(0,0,0,0.15);
 
 	--spinner-track: rgba(0,0,0,0.1);
-	--share-error-text: #dc2626;
+	--share-error-text: var(--banner-error-text);
 	--readonly-bg: rgba(251,191,36,0.12);
 	--readonly-text: #b45309;
 	--tool-icon-bg: rgba(0,0,0,0.06);
 	--tool-icon-color: rgba(0,0,0,0.5);
-	--tool-type-text: rgba(0,0,0,0.45);
+	--tool-type-text: rgba(0,0,0,0.6);   /* 3.30:1 at 0.45 */
 	--typing-dot: rgba(0,0,0,0.25);
 }
 
 /* Theme variables — dark */
 .dark-theme {
 	--bg-main: #343541;
+	/* Bright on a dark ground is the readable direction: 5.28:1 here, where the
+	   light theme's #1c7a45 would drop to 2.26:1. See the light block. */
+	--accent-green: #19c37d;
 	--bg-sidebar: #202123;
 	--bg-input: #40414f;
 	--bg-modal: #2d2d3a;
@@ -78,9 +94,12 @@
 	--text-primary: #ececf1;
 	--text-heading: #fff;
 	--text-secondary: rgba(255,255,255,0.7);
-	--text-tertiary: rgba(255,255,255,0.5);
-	--text-placeholder: rgba(255,255,255,0.4);
-	--text-faint: rgba(255,255,255,0.35);
+	/* Same three, the same way: 4.33 / 3.34 / 2.91:1. 0.6 clears 4.5:1 on every dark
+	   ground and still sits a step below --text-secondary's 0.7, so the hierarchy the
+	   light theme has to give up survives here. */
+	--text-tertiary: rgba(255,255,255,0.6);
+	--text-placeholder: rgba(255,255,255,0.6);
+	--text-faint: rgba(255,255,255,0.6);
 
 	--border-light: rgba(255,255,255,0.1);
 	--border-medium: rgba(255,255,255,0.15);
@@ -116,12 +135,12 @@
 	--dropdown-shadow: 0 4px 12px rgba(0,0,0,0.3);
 
 	--spinner-track: rgba(255,255,255,0.15);
-	--share-error-text: #f87171;
+	--share-error-text: var(--banner-error-text);   /* 3.64:1 at #f87171 */
 	--readonly-bg: rgba(251,191,36,0.15);
 	--readonly-text: #fbbf24;
 	--tool-icon-bg: rgba(255,255,255,0.1);
 	--tool-icon-color: rgba(255,255,255,0.7);
-	--tool-type-text: rgba(255,255,255,0.5);
+	--tool-type-text: rgba(255,255,255,0.6);   /* 3.87:1 at 0.5 */
 	--typing-dot: rgba(255,255,255,0.4);
 }
 
@@ -726,9 +745,35 @@ body {
 	max-width: 85%;
 	padding: 10px 14px;
 	border-radius: 12px;
-	line-height: 1.5;
+	/* DECLARED, not inherited. Nothing between `body` and here set a size, so the
+	   conversation rendered at whatever the browser defaulted to — 16px, and a notch
+	   under what a phone reads comfortably. 17px/1.6 is the size a chat is read at
+	   (Steve, on an iPhone: "our text is tiny - we need it to be the same size as
+	   Claude's"). */
+	font-size: 17px;
+	line-height: 1.6;
 	white-space: normal;
 	word-break: break-word;
+}
+
+/* The conversation follows the PHONE'S text size, not ours.
+   `-apple-system-body` is the only way a web page opts into iOS Dynamic Type: on iPhone
+   and in the installed app it renders at whatever size the reader has set in Settings >
+   Display & Brightness > Text Size, and it is inert everywhere else — so the 17px above
+   stays the floor for every other platform. Claude's app does this by being native;
+   without it we paint one fixed number at a reader who has already told the phone what
+   they need (Steve, 2026-09-12, with both apps side by side on the same iPhone).
+   The shorthand resets line-height and weight, so both are restated.
+
+   The CONVERSATION only, deliberately. The composer stays at a fixed 17px: its row
+   carries the attach, mic, speak, model picker and send controls, and at Larger
+   Accessibility Sizes a Dynamic Type textarea would push them apart. 17px is already
+   over the 16px line at which iOS zooms the page on focus, which was the bug there. */
+@supports (font: -apple-system-body) {
+	.message-content {
+		font: -apple-system-body;
+		line-height: 1.6;
+	}
 }
 
 .message-user .message-content {
@@ -1275,10 +1320,14 @@ body {
 	background: transparent;
 	border: none;
 	color: var(--text-heading);
-	font-size: 15px;
+	/* 16px MINIMUM, and 17px to match the conversation. Under 16px, iOS Safari zooms
+	   the page whenever this takes focus — the viewport meta deliberately carries no
+	   `maximum-scale`, so nothing was suppressing it and the console jumped on every
+	   tap of the message box. */
+	font-size: 17px;
 	line-height: 1.5;
 	resize: none;
-	min-height: 24px;
+	min-height: 26px;
 	outline: none;
 	font-family: inherit;
 	overflow: hidden;
@@ -2014,12 +2063,15 @@ html {
 	display: flex;
 }
 
+/* Its own indigo, not --accent-indigo: this text sits on the overlay's 8% indigo
+   tint, not on the page, where the brand indigo reads 4.04:1 light and 2.52:1 dark.
+   Darker in light, lighter in dark - the same split the accent green needed. */
 .upload-drop-overlay-content {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	color: var(--accent-indigo);
+	color: #4338ca;
 	font-size: 15px;
 	font-weight: 500;
 }
@@ -2414,9 +2466,20 @@ html {
 	border-radius: 999px;
 	white-space: nowrap;
 }
+/* Not white-on-green: that is 2.30:1 regardless of theme, because a filled pill's
+   contrast has nothing to do with the page behind it. This is the pair .task-badge
+   wears — 4.70:1 light, 4.78:1 dark — kept literal rather than tokenised, since two
+   uses is not an abstraction. */
 .integration-badge-ok {
-	background: var(--accent-green);
-	color: #fff;
+	background: rgba(34, 160, 90, 0.12);
+	color: #1c7a45;
+}
+.dark-theme .upload-drop-overlay-content {
+	color: #a5b4fc;
+}
+.dark-theme .integration-badge-ok {
+	background: rgba(52, 199, 123, 0.16);
+	color: #59d18f;
 }
 
 .integration-btn {
