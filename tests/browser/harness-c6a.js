@@ -19,7 +19,7 @@
  *     page description with a compound rule on purpose; this file keeps a later
  *     sweep from taking it.
  *
- * 22 checks.
+ * 24 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -356,17 +356,51 @@ const item = (menu, label) => menu
     if (row) {
       selects[0].value = 'p1';
       selects[0].dispatchEvent(new t.window.Event('change'));
-      selects[1].value = 'runsheet';
       const before = t.state.requests.length;
       click(t.window, row.querySelector('.modal-btn-primary')); await tick(t.window, 80);
       sent = t.state.requests.slice(before);
     }
     const put = sent.find(r => r.method === 'PUT');
-    check(++n, 'Move to project…, picked from the menu, opens the same inline editor, saves the same PUT and reloads',
+    // The body carries NO slot. DEF reads a missing slot as an ordinary document,
+    // which is what moving to a project means.
+    check(++n, 'Move to project…, picked from the menu, opens the inline editor, saves the PUT and reloads',
       closed && options === 'No project|Rowell Walton' && !!put && put.url === '/documents/d2/project' &&
-      JSON.stringify(put.body) === JSON.stringify({ project_id: 'p1', slot: 'runsheet' }) &&
+      JSON.stringify(put.body) === JSON.stringify({ project_id: 'p1' }) &&
       sent.some(r => r.method === 'GET' && /^\/documents/.test(r.url)) && !t.document.querySelector('.document-assign-row'),
       'closed=' + closed + ' options=' + options + ' sent=' + JSON.stringify(sent));
+  }
+  {
+    // A document moves to a PROJECT. It never becomes one of the project's three
+    // governing documents, which is what the second picker used to offer for any
+    // file at all (Steve, 2026-09-12).
+    const t = boot(); await enter(t);
+    clickIf(t, item(await openMenu(t, 'Signed quote'), 'Move to project…')); await tick(t.window);
+    const row = within(t.card('Signed quote'), '.document-assign-row');
+    const selects = row ? Array.from(row.querySelectorAll('select')) : [];
+    const everySlotWord = selects
+      .flatMap(s => Array.from(s.options).map(o => o.textContent))
+      .filter(txt => /Instructions|Runsheet|Session notes|Ordinary document/i.test(txt));
+    check(++n, 'the panel offers ONE picker — the project — and no way to make a file a governing document',
+      !!row && selects.length === 1 && everySlotWord.length === 0,
+      'selects=' + selects.length + ' slotWords=' + JSON.stringify(everySlotWord));
+  }
+  {
+    // The panel is a toggle, so it always HAD a way out - through the ⋯ menu, which
+    // nothing said. Cancel is the visible one, and it must send nothing.
+    const t = boot(); await enter(t);
+    clickIf(t, item(await openMenu(t, 'Signed quote'), 'Move to project…')); await tick(t.window);
+    const row = within(t.card('Signed quote'), '.document-assign-row');
+    const cancel = row ? row.querySelector('.modal-btn-secondary') : null;
+    const before = t.state.requests.length;
+    if (cancel) { click(t.window, cancel); }
+    await tick(t.window, 60);
+    check(++n, 'Cancel closes the panel and sends nothing',
+      !!row && !!cancel && cancel.textContent === 'Cancel' &&
+      !t.document.querySelector('.document-assign-row') &&
+      t.state.requests.length === before,
+      'cancel=' + (cancel && cancel.textContent) +
+      ' stillOpen=' + !!t.document.querySelector('.document-assign-row') +
+      ' sentAfter=' + (t.state.requests.length - before));
   }
   {
     const t = boot({ projects: [{ project_id: 'p2', name: 'Shelved', status: 'archived' }] }); await enter(t);

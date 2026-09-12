@@ -4727,25 +4727,29 @@ function t(key, fallback) {
 			projSel.value = doc.project_id || '';
 			panel.appendChild(projSel);
 
-			const slotSel = document.createElement('select');
-			slotSel.className = 'form-input';
-			[['', t('documentsSlotNone', 'Ordinary document')],
-			 ['instructions', t('documentsSlotInstructions', 'Instructions')],
-			 ['runsheet', t('documentsSlotRunsheet', 'Runsheet')],
-			 ['session_notes', t('documentsSlotSessionNotes', 'Session notes')]
-			].forEach(function (pair) {
-				const opt = document.createElement('option');
-				opt.value = pair[0];
-				opt.textContent = pair[1];
-				slotSel.appendChild(opt);
-			});
-			slotSel.value = doc.slot || '';
-			slotSel.disabled = !projSel.value;
-			projSel.addEventListener('change', function () {
-				slotSel.disabled = !projSel.value;
-				if (!projSel.value) { slotSel.value = ''; }
-			});
-			panel.appendChild(slotSel);
+			// There is no slot picker, and there must not be. It offered Instructions /
+			// Runsheet / Session notes as destinations for ANY document, so a 2 MB PNG
+			// could be made a project's Session notes (Steve, 2026-09-12: "how can a file
+			// be moved into Instructions | Runsheet | Session notes - that is a flawed
+			// concept"). Two of the three are seeded when the project is created and the
+			// third on Sue's first write; all three are hers to maintain. This was a
+			// second way into the same slots, and mostly a broken one — runsheet and
+			// instructions exist already, so DEF answered 409 "that project already has
+			// a runsheet document". Session notes is NOT seeded, so that one succeeded,
+			// which is how a 2 MB PNG could become a project's session notes. Crossing
+			// the boundary also moves a file in or out of embedding retrieval (D-UV4)
+			// with nothing said. Leaving only "Ordinary document" — which the
+			// panel then disabled whenever No project was chosen. So: a document moves
+			// to a PROJECT. The PUT sends no slot, which DEF reads as an ordinary
+			// document, and that is what a move means.
+			const cancel = document.createElement('button');
+			cancel.type = 'button';
+			cancel.className = 'modal-btn modal-btn-secondary';
+			cancel.textContent = t('cancel', 'Cancel');
+			// The panel had no way out. It IS a toggle — picking the same ⋯ item again
+			// removes it — but nothing on screen said so, so once it was open it read as
+			// stuck (Steve, 2026-09-12).
+			cancel.addEventListener('click', function () { panel.remove(); });
 
 			const save = document.createElement('button');
 			save.type = 'button';
@@ -4756,10 +4760,7 @@ function t(key, fallback) {
 				try {
 					await apiRequest('/documents/' + encodeURIComponent(doc.document_id) + '/project', {
 						method: 'PUT',
-						body: JSON.stringify({
-							project_id: projSel.value || null,
-							slot: (projSel.value && slotSel.value) ? slotSel.value : null
-						})
+						body: JSON.stringify({ project_id: projSel.value || null })
 					});
 					panel.remove();
 					loadList();
@@ -4768,7 +4769,14 @@ function t(key, fallback) {
 					setStatus((e && e.message) || t('documentsMoveFailed', 'Could not move the document.'), 'error');
 				}
 			});
-			panel.appendChild(save);
+			// Cancel beside Save, as the dialogs do it. Inside a card the panel stacks
+			// (.documents-grid .document-assign-row is a column), so without a row of
+			// their own the two buttons would sit one above the other.
+			const actions = document.createElement('div');
+			actions.className = 'document-assign-actions';
+			actions.appendChild(cancel);
+			actions.appendChild(save);
+			panel.appendChild(actions);
 
 			row.appendChild(panel);
 		}
@@ -5079,9 +5087,13 @@ function t(key, fallback) {
 						}
 					}));
 				} else {
-					// An empty slot invites the document rather than hiding: My
-					// Documents, filtered to this project, is where a document is
-					// given its slot (Move to project…) — no new flow, no new route.
+					// An empty slot shows rather than hides, and clicking it opens My
+					// Documents filtered to this project. It no longer LEADS anywhere:
+					// giving a document a slot by hand is gone (7.9.8), and an empty
+					// slot is filled by asking Sue to write it. The label still says
+					// "add", which now over-promises — flagged for Steve rather than
+					// redesigned here, because it is the Projects page and the wording
+					// is his.
 					slotsEl.appendChild(slotButton(pair[1], t('projectsSlotNotSet', 'Not set — add'), true, function () {
 						openProjectDocuments(project);
 					}));
