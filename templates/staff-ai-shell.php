@@ -1013,6 +1013,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
+			cancel: <?php echo wp_json_encode( __( 'Cancel', 'digital-employees' ) ); ?>,
 			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
 			documentsChangeProject: <?php echo wp_json_encode( __( 'Change project…', 'digital-employees' ) ); ?>,
 			documentsDownloadToOpen: <?php echo wp_json_encode( __( 'download to open', 'digital-employees' ) ); ?>,
@@ -1087,10 +1088,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsOtherOnly: <?php echo wp_json_encode( __( 'Other documents only — the runsheet, session notes and instructions are on the project card.', 'digital-employees' ) ); ?>,
 			documentsView: <?php echo wp_json_encode( __( 'View', 'digital-employees' ) ); ?>,
 			documentsNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
-			documentsSlotNone: <?php echo wp_json_encode( __( 'Ordinary document', 'digital-employees' ) ); ?>,
-			documentsSlotInstructions: <?php echo wp_json_encode( __( 'Instructions', 'digital-employees' ) ); ?>,
-			documentsSlotRunsheet: <?php echo wp_json_encode( __( 'Runsheet', 'digital-employees' ) ); ?>,
-			documentsSlotSessionNotes: <?php echo wp_json_encode( __( 'Session notes', 'digital-employees' ) ); ?>,
 			save: <?php echo wp_json_encode( __( 'Save', 'digital-employees' ) ); ?>,
 			documentsMoveFailed: <?php echo wp_json_encode( __( 'Could not move the document.', 'digital-employees' ) ); ?>,
 			projectsTasksCheckFailed: <?php echo wp_json_encode( __( 'Could not check the tasks bound to this project.', 'digital-employees' ) ); ?>,

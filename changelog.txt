@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 7.9.8 - 2026/09/12 =
+* Fix - Staff AI console: moving a document to a project is now just that. The panel used to offer Instructions, Runsheet and Session notes as places to move a file into, so any document - a photo, a spreadsheet - could be turned into one of a project's three governing documents. Those three are created with the project and written by your assistant; they are not a folder to file things in, so the choice has gone. The panel also had no way out once opened - it now has a Cancel button beside Save.
+
 = 7.9.7 - 2026/09/12 =
 * Update - Staff AI console: on the Projects page, the new-project name field and the Create project button now sit together on the line below "Ask how Projects work", instead of the field sharing a line with Ask and the button dropping alone to the next one. Nothing about creating a project has changed.
 
