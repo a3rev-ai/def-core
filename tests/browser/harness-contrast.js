@@ -82,11 +82,18 @@ function resolve(value, vars) {
   const v = /^var\(\s*--([\w-]+)\s*\)$/.exec(value.trim());
   return v ? (tokenIn(vars, v[1]) || tokenIn(LIGHT_VARS, v[1])) : value;
 }
+// Anchored to the start of a rule. Unanchored, `.integration-badge-ok` also matches
+// INSIDE `.dark-theme .integration-badge-ok`, so the first match in file order wins and
+// a reorder — a no-op, since the dark rule takes specificity either way — silently
+// points the light check at the dark rule. A broken light pill would then read as the
+// dark one's values and pass.
+const RULE_START = '(?:^|[}\\n])\\s*';
+function esc(selector) { return selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function hasRule(selector) {
-  return new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{').test(CSS);
+  return new RegExp(RULE_START + esc(selector) + '\\s*\\{').test(CSS);
 }
 function ruleProp(selector, prop) {
-  const re = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}');
+  const re = new RegExp(RULE_START + esc(selector) + '\\s*\\{([^}]*)\\}');
   const m = re.exec(CSS);
   if (!m) throw new Error('rule not found: ' + selector);
   const p = new RegExp('(?:^|;)\\s*' + prop + ':\\s*([^;]+)').exec(m[1]);
@@ -115,12 +122,16 @@ let n = 0;
     r >= TEXT, r.toFixed(2) + ':1 needs ' + TEXT);
 });
 
-// 3-4. The same token as a non-text component: the upload chip's border and the
-//      uploaded tile's 2px ring.
-[['light', lightGreen, lightBg], ['dark', darkGreen, darkBg]].forEach(function (t) {
+// 3-4. The same token as a non-text component — the upload chip's border and its tick.
+//      Measured against --bg-input, which is what the chip actually sits on: against
+//      --bg-main this is the same pair as checks 1-2 at a LOWER threshold, so it could
+//      never fail while they passed.
+const lightInput = tokenIn(LIGHT_VARS, 'bg-input');
+const darkInput = tokenIn(DARK_VARS, 'bg-input') || lightInput;
+[['light', lightGreen, lightInput], ['dark', darkGreen, darkInput]].forEach(function (t) {
   const r = ratio(t[1], t[2]);
-  check(++n, '--accent-green works as a border/ring on the ' + t[0] + ' page (3:1)',
-    r >= UI, r.toFixed(2) + ':1 needs ' + UI);
+  check(++n, '--accent-green works as the upload chip border/tick on the ' + t[0] +
+    ' theme, on --bg-input (3:1)', r >= UI, r.toFixed(2) + ':1 on ' + t[2] + ' needs ' + UI);
 });
 
 // 5-6. The integrations OK pill. It was white-on-green, which is 2.30:1 whatever the
@@ -139,18 +150,22 @@ let n = 0;
       r >= TEXT, r.toFixed(2) + ':1 needs ' + TEXT);
   });
 
-// 7. The pill is not white on a solid green any more, in either theme. Stated as its
-//    own check because checks 5-6 would also pass on some other white-on-dark-green
-//    pairing, and the rule being kept here is "do not put white on the accent".
-const okLight = ruleProp('.integration-badge-ok', 'background');
-check(++n, 'the OK pill does not paint white on the accent colour',
-  !/#fff|#ffffff|white/i.test(ruleProp('.integration-badge-ok', 'color')) &&
-  !/var\(--accent-green\)/.test(okLight),
-  'colour=' + ruleProp('.integration-badge-ok', 'color') + ' background=' + okLight);
+// 7. The pill is not white on a solid green any more — in BOTH themes, which means
+//    reading both rules and not just the base one. Its own check because 5-6 would pass
+//    on any readable white-on-dark-green pairing, and the rule kept here is narrower:
+//    do not paint white on the accent at all.
+const whiteOnAccent = ['.integration-badge-ok', '.dark-theme .integration-badge-ok']
+  .filter(hasRule)
+  .filter(function (sel) {
+    return /^(#fff|#ffffff|white)$/i.test(ruleProp(sel, 'color')) ||
+      /var\(--accent-green\)/.test(ruleProp(sel, 'background'));
+  });
+check(++n, 'neither OK pill rule paints white on the accent colour',
+  whiteOnAccent.length === 0, 'offending: ' + (whiteOnAccent.join(', ') || 'none'));
 
 // 8. The trap that started this: one value for both themes. If a future edit deletes
 //    the dark declaration, the light green inherits into dark mode and drops to
-//    3.11:1 - checks 1-4 would still pass, because they would read the same value twice.
+//    2.26:1 - checks 1-4 would still pass, because they would read the same value twice.
 check(++n, 'the accent is declared SEPARATELY for each theme, not inherited into both',
   !!darkDeclared && darkDeclared !== lightGreen,
   'light=' + lightGreen + ' dark=' + (darkDeclared || 'NOT DECLARED — inherits ' + lightGreen));

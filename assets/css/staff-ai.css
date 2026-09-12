@@ -33,7 +33,8 @@
 	   border and the tile's focus ring. #1c7a45 is 5.36:1 and is not a new colour:
 	   it is the green .task-badge already uses for the Active pill. The DARK theme
 	   keeps #19c37d, which reads 5.28:1 on #343541 — no single value passes in both,
-	   which is why this is split rather than simply darkened. */
+	   which is why this is split rather than simply darkened: #1c7a45 on that same
+	   dark ground is 2.26:1. */
 	--accent-green: #1c7a45;
 	--accent-green-hover: #1a9d6a;
 	--accent-indigo: #6366f1;
@@ -78,7 +79,7 @@
 .dark-theme {
 	--bg-main: #343541;
 	/* Bright on a dark ground is the readable direction: 5.28:1 here, where the
-	   light theme's #1c7a45 would drop to 3.11:1. See the light block. */
+	   light theme's #1c7a45 would drop to 2.26:1. See the light block. */
 	--accent-green: #19c37d;
 	--bg-sidebar: #202123;
 	--bg-input: #40414f;
@@ -2425,7 +2426,7 @@ html {
 }
 /* Not white-on-green: that is 2.30:1 regardless of theme, because a filled pill's
    contrast has nothing to do with the page behind it. This is the pair .task-badge
-   wears — 4.70:1 light, 4.80:1 dark — kept literal rather than tokenised, since two
+   wears — 4.70:1 light, 4.78:1 dark — kept literal rather than tokenised, since two
    uses is not an abstraction. */
 .integration-badge-ok {
 	background: rgba(34, 160, 90, 0.12);
