@@ -1467,6 +1467,22 @@ function t(key, fallback) {
 			const res = await fetch(url, { credentials: 'same-origin' });
 			if (!res.ok) throw new Error('fetch failed');
 			const blob = await res.blob();
+			// A caller with no name of its own takes the proxy's. It puts the document's
+			// title on every download (DEF's Content-Disposition, 7.9.2), which is the
+			// name the reader saw on the card - the URL carries only the blob key.
+			if (!name) {
+				const m = /filename="([^"]*)"/.exec(res.headers.get('content-disposition') || '');
+				name = (m && m[1]) || 'download';
+				// The header comes back one code unit per BYTE, and the proxy writes the
+				// title's UTF-8 bytes into it (DEF's version stamp carries an em dash), so
+				// decode them back. A value that is not a run of UTF-8 bytes is kept as is.
+				if (/^[\x00-\xff]*$/.test(name)) {
+					try {
+						name = new TextDecoder('utf-8', { fatal: true })
+							.decode(Uint8Array.from(name, function (c) { return c.charCodeAt(0); }));
+					} catch (e) { /* not UTF-8 */ }
+				}
+			}
 			const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
 			if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error('cannot share files');
 			await navigator.share({ files: [file], title: name });
@@ -4437,6 +4453,14 @@ function t(key, fallback) {
 		const textEl = document.getElementById('documentViewerText');
 		const moreBtn = document.getElementById('documentViewerMore');
 		const dlLink = document.getElementById('documentViewerDownload');
+		// The hand-off the Documents menu makes: installed on iOS the link lands on
+		// the document-preview sheet (row 8 canary, 2026-09-14), so the share sheet
+		// takes the file instead. Everywhere else the link is the browser's.
+		dlLink.addEventListener('click', function (ev) {
+			if (!isInstalledOnIOS() || !navigator.share) return;
+			ev.preventDefault();
+			shareFile(dlLink.href);
+		});
 		let current = null;  // { id, nextOffset }
 		// The title the opener already knows, shown while the document loads so
 		// the page is not headed "Document" for a beat. Entering by ROUTE — a
@@ -4812,7 +4836,15 @@ function t(key, fallback) {
 				});
 			}
 			const href = safeHttpHref(doc.download_url);
-			if (href) { items.push({ label: t('download', 'Download'), href: href }); }
+			// Installed on iOS, a link to the attachment lands the app on the system's
+			// document-preview sheet - no way into Photos and no way back (row 8 canary,
+			// 2026-09-14). The chat's download card already hands the file to the share
+			// sheet there; this is the same hand-off, and the name is the proxy's.
+			if (href && isInstalledOnIOS() && navigator.share) {
+				items.push({ label: t('download', 'Download'), onPick: function () { shareFile(href); } });
+			} else if (href) {
+				items.push({ label: t('download', 'Download'), href: href });
+			}
 			if (items.length) { items.push({ separator: true }); }
 			items.push({
 				label: t('documentsDelete', 'Delete'),
