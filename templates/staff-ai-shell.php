@@ -247,6 +247,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page console-page-compact" id="projectsPane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="projectsTitle" tabindex="-1"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Folders your assistant works from, each with its own governing documents.', 'digital-employees' ); ?></p>
 					</div>
@@ -278,6 +279,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page" id="scheduledPane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="scheduledTitle" tabindex="-1"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Run tasks on a schedule or whenever you need them.', 'digital-employees' ); ?></p>
 					</div>
@@ -300,6 +302,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page console-page-compact" id="documentsPane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="documentsTitle" tabindex="-1"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Documents created for you in Staff AI. Only you can see these.', 'digital-employees' ); ?></p>
 					</div>
@@ -332,6 +335,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page console-page-compact" id="documentPage" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="documentPageTitle" tabindex="-1"><?php echo esc_html__( 'Document', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc documents-status" id="documentViewerStatus"></p>
 					</div>
@@ -354,6 +358,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page" id="memoriesPane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="memoriesTitle" tabindex="-1"><?php echo esc_html__( 'Memories', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Things Staff AI has noted from your conversations so you do not have to repeat yourself. Only you can see these — no administrator can read them.', 'digital-employees' ); ?></p>
 					</div>
@@ -376,6 +381,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page" id="usagePane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="usageTitle" tabindex="-1"><?php echo esc_html__( 'Weekly limits', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'What you have used this week, and which models are using it.', 'digital-employees' ); ?></p>
 					</div>
@@ -400,6 +406,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<section class="console-page" id="connectionsPane" hidden>
 				<div class="console-page-head">
 					<div>
+						<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 						<h1 class="console-page-title" id="connectionsTitle" tabindex="-1"><?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?></h1>
 						<p class="console-page-desc"><?php echo esc_html__( 'Connect your own accounts so actions (like sending a message) go out as you — not a shared account.', 'digital-employees' ); ?></p>
 					</div>

@@ -993,6 +993,17 @@ function t(key, fallback) {
 		showPage(route);
 	});
 
+	// The page's own way back to the chat (D-C3): the "‹ Chat" control every
+	// head carries. The browser's back button and the phone's back gesture are
+	// not there in the installed app (Steve's row 8 canary, 2026-09-14), so a
+	// page on that screen had no way off but the menu. Delegated like the
+	// sidebar click, and it takes the one step Escape takes.
+	document.addEventListener('click', function (e) {
+		if (e.defaultPrevented || !e.target || !e.target.closest) return;
+		if (!e.target.closest('.console-page-back')) return;
+		showChat();
+	});
+
 	// Capture phase: the chat row's ⋮ menu closes on Escape from a listener
 	// registered earlier on `document`, so by the bubble phase the menu is
 	// already gone and one Escape would both close it AND leave the page.

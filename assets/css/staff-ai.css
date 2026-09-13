@@ -2835,6 +2835,35 @@ html {
 	outline: none;
 }
 
+/* The page's own way back to the chat (D-C3), above the title where a phone
+   puts its back control. On every screen size: the installed app has no
+   browser chrome at any width. A button that reads as a link. */
+.console-page-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin: 0 0 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.3;
+	color: var(--text-secondary);
+	cursor: pointer;
+}
+.console-page-back span {
+	font-size: 20px;
+	line-height: 1;
+}
+.console-page-back:hover {
+	color: var(--text-heading);
+}
+.console-page-back:focus-visible {
+	outline: 2px solid var(--border-hover);
+	outline-offset: 2px;
+}
+
 .console-page-desc {
 	margin: 0;
 	color: var(--text-secondary);
