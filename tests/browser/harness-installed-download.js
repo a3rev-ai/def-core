@@ -14,10 +14,11 @@
  *  1. The Documents ⋯ menu and its touch sheet: installed with a share sheet, Download
  *     is a button that hands the file over; otherwise it is the link it was.
  *  2. The viewer's Download: the same two shapes on one anchor.
- *  3. The helper: the file carries the proxy's name when the caller has none, and
- *     the caller's when it has one; installed means navigator.standalone === true.
+ *  3. The helper: the file carries the proxy's name when the caller has none - decoded
+ *     from the header's bytes, so an em dash in a version stamp survives - and the
+ *     caller's when it has one; installed means navigator.standalone === true.
  *
- * 10 checks.
+ * 11 checks.
  */
 const { JSDOM, VirtualConsole } = require('jsdom');
 // A link the check clicks would navigate; jsdom reports that it cannot. Expected.
@@ -150,6 +151,9 @@ function bootViewer(opts) {
 // ── 3. the helper itself ───────────────────────────────────────────────────
 
 function bootShare(opts) {
+	// Headers.get() hands back one code unit per BYTE (a ByteString): the proxy writes
+	// the title's UTF-8 bytes into the header, so the stub returns them the same way.
+	const wireName = Buffer.from(opts.filename || 'Garden photo.png', 'utf8').toString('latin1');
 	const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://e.test/staff-ai/' });
 	const window = dom.window;
 	if (opts.standalone !== undefined) {
@@ -163,7 +167,7 @@ function bootShare(opts) {
 	async function fetch() {
 		return {
 			ok: true,
-			headers: { get: function (k) { return k === 'content-disposition' ? 'attachment; filename="Garden photo.png"' : null; } },
+			headers: { get: function (k) { return k === 'content-disposition' ? 'attachment; filename="' + wireName + '"' : null; } },
 			blob: async function () { return new window.Blob(['x'], { type: 'image/png' }); }
 		};
 	}
@@ -234,6 +238,16 @@ function bootShare(opts) {
 		const f = t.shared[0] && t.shared[0].files && t.shared[0].files[0];
 		check('a caller with no name of its own: the file takes the proxy\'s name from Content-Disposition',
 			!!f && f.name === 'Garden photo.png' && f.type === 'image/png', f && (f.name + ' ' + f.type));
+	}
+	{
+		// DEF stamps every re-edited document "(v2 — date)": the name is non-ASCII by
+		// construction, and the wire carries its UTF-8 bytes.
+		const title = 'Q3 Report (v2 — 2026-09-14).md';
+		const t = bootShare({ standalone: true, filename: title });
+		await t.helper.shareFile(DOWNLOAD_URL);
+		const f = t.shared[0] && t.shared[0].files && t.shared[0].files[0];
+		check('a non-ASCII name comes back as the title, not as the header\'s bytes read as characters',
+			!!f && f.name === title, f && f.name);
 	}
 	{
 		const t = bootShare({ standalone: true });

@@ -1473,6 +1473,15 @@ function t(key, fallback) {
 			if (!name) {
 				const m = /filename="([^"]*)"/.exec(res.headers.get('content-disposition') || '');
 				name = (m && m[1]) || 'download';
+				// The header comes back one code unit per BYTE, and the proxy writes the
+				// title's UTF-8 bytes into it (DEF's version stamp carries an em dash), so
+				// decode them back. A value that is not a run of UTF-8 bytes is kept as is.
+				if (/^[\x00-\xff]*$/.test(name)) {
+					try {
+						name = new TextDecoder('utf-8', { fatal: true })
+							.decode(Uint8Array.from(name, function (c) { return c.charCodeAt(0); }));
+					} catch (e) { /* not UTF-8 */ }
+				}
 			}
 			const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
 			if (navigator.canShare && !navigator.canShare({ files: [file] })) throw new Error('cannot share files');
