@@ -95,7 +95,7 @@ function boot(startUrl, opts) {
 	}
 
 	const names = ['window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
-		'apiBase', 'safeHttpHref', 'openDocumentViewer'];
+		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isInstalledOnIOS', 'shareFile'];
 	const viewer = new window.Function(...names, VIEWER + VIEWER_TAIL)(
 		window, document, api.consolePages, api.showPage,
 		function (key, def) { return def; },
@@ -108,7 +108,10 @@ function boot(startUrl, opts) {
 				return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
 			} catch (e) { return ''; }
 		},
-		null);
+		null,
+		// Not the installed app: Download is the browser's link. The installed-app
+		// shape is harness-installed-download.js's subject.
+		function () { return false; }, function () {});
 
 	const $ = (id) => document.getElementById(id);
 	return {

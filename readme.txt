@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.14
+Stable tag: 7.9.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.15 - 2026-09-14 =
+* Fix - Staff AI console, on an iPhone or iPad running the installed app: Download on the Documents page and in the document viewer now offers the share sheet - Save Image to Photos, or Save to Files - instead of landing on a preview screen with no way to save and no way back. The chat's own download card has done this since 7.6.8; the two Download buttons that came with the Documents page had not, so the app was navigating itself to the file. The file keeps the name the card shows. Nothing changes in Safari, on Android or on a desktop, where Download saves the file as it did.
 
 = 7.9.14 - 2026-09-13 =
 * Fix - Changelog correction, no code change. The 7.9.11 note claimed the Connections status line "now sits 10px lower". It does not: the kit's 10px margin collapses into the 20px below the page heading above it, and adjacent margins collapse to the larger, so the line sits exactly where it always did. The claim survived a three-leg review and went out in a cut release before it was measured. The 7.9.11 entry now says what actually happened, and the test that pinned it says so too.
