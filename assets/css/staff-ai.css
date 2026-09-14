@@ -1556,6 +1556,9 @@ body {
 .modal-btn {
 	padding: 10px 20px;
 	border-radius: 6px;
+	/* Like .chat-menu-item and .model-select: a button does not inherit the
+	   page's font, so without this the kit's buttons wore the browser's. */
+	font-family: inherit;
 	font-size: 14px;
 	cursor: pointer;
 	transition: background 0.15s;

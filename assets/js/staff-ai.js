@@ -541,14 +541,26 @@ function t(key, fallback) {
 
 	// Render conversation list
 	function renderConversationList() {
+		// The list is redrawn whole on every change — opened, loaded, renamed,
+		// deleted — and a redraw that begins by removing every row puts the scroller
+		// back to 0. Opening a conversation from far down the history therefore threw
+		// the list to the top while it loaded. Read the offset before the rows go and
+		// put it back once they are all returned; the browser clamps it to the new
+		// height, so a list that got shorter lands at its new end rather than nowhere.
+		const keepScrollTop = conversationList.scrollTop;
+
 		// Remove existing rows
 		const items = conversationList.querySelectorAll('.conversation-item');
+		// Where the open chat stands now. If it is in the same place after the
+		// redraw, the offset restored below is still the reader's own and nothing
+		// should move — see the reveal at the end of this function.
+		const wasActiveIndex = Array.from(items).findIndex(el => el.classList.contains('active'));
 		items.forEach(el => el.remove());
 		closeChatMenu();
 
 		if (conversations.length === 0) {
 			conversationPlaceholder.style.display = 'block';
-			return;
+			return;   // no rows left to hold an offset: the scroller is 0 either way
 		}
 
 		conversationPlaceholder.style.display = 'none';
@@ -611,6 +623,23 @@ function t(key, fallback) {
 
 			conversationList.insertBefore(row, conversationPlaceholder);
 		});
+
+		conversationList.scrollTop = keepScrollTop;
+
+		// The place is the reader's until the open chat moves out from under it.
+		// Every send re-fetches the list (loadConversations) and the thread just used
+		// comes back FIRST: the offset restored above would then hold the list where
+		// that row no longer is, with the open chat off the top of it. So the reveal
+		// is conditional on the row having MOVED — renaming, deleting or moving some
+		// distant conversation leaves the reader exactly where they were.
+		const rebuilt = conversationList.querySelectorAll('.conversation-item');
+		const nowActiveIndex = Array.from(rebuilt).findIndex(el => el.classList.contains('active'));
+		if (nowActiveIndex >= 0 && nowActiveIndex !== wasActiveIndex) {
+			const openRow = rebuilt[nowActiveIndex];
+			if (typeof openRow.scrollIntoView === 'function') {
+				openRow.scrollIntoView({ block: 'nearest' });
+			}
+		}
 	}
 
 	// ——— Chat Options: the row's ⋮ menu (Rename | Add to project | Delete) ———
@@ -2897,6 +2926,48 @@ function t(key, fallback) {
 		readBackSoFar(true);
 	}
 
+	// ── The line an attachment sends on its own (8.1.2) ─────────────────────────
+	// A message with no words still has to say what it carries. Every one of them
+	// sent the same "Please analyze the attached file(s)", so a second picture
+	// arrived with nothing to tell it from the first and was read in the first
+	// one's context — Sue said so herself (Steve's canary). The line now NAMES the
+	// attachments, pictures first, each half singular or plural on its own count.
+	//
+	// The names are the user's filenames and go in whole — nothing quoted, nothing
+	// trimmed — except that a control character is flattened to a space, so a name
+	// someone else chose cannot open what reads as a new turn.
+	function attachmentPrompt(attachments) {
+		var pictures = [];
+		var files = [];
+		(attachments || []).forEach(function(att) {
+			var name = att && att.name ? String(att.name).replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ') : '';
+			if (!name) return;
+			if (att.type && att.type.startsWith('image/')) pictures.push(name);
+			else files.push(name);
+		});
+
+		function names(list) {
+			return function() { return list.join(', '); };
+		}
+
+		// Each t() is written out so the key is a literal the i18n coverage scan
+		// can see (D-C10): a key reached through a helper is a key no translator
+		// ever gets.
+		var parts = [];
+		if (pictures.length === 1) {
+			parts.push(t('attachLinePicture', 'Describe this picture: %s.').replace('%s', names(pictures)));
+		} else if (pictures.length > 1) {
+			parts.push(t('attachLinePictures', 'Describe these pictures: %s.').replace('%s', names(pictures)));
+		}
+		if (files.length === 1) {
+			parts.push(t('attachLineFile', 'Please read the attached file: %s.').replace('%s', names(files)));
+		} else if (files.length > 1) {
+			parts.push(t('attachLineFiles', 'Please read the attached files: %s.').replace('%s', names(files)));
+		}
+		return parts.join(' ');
+	}
+	// ── end the line an attachment sends on its own ─────────────────────────────
+
 	async function sendMessage() {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
@@ -2947,7 +3018,6 @@ function t(key, fallback) {
 		}
 
 		// Build user message display content.
-		var displayText = text || (fileIds.length > 0 ? t('analyzeFiles', 'Please analyze the attached file(s).') : '');
 		var fileAttachments = null;
 		if (fileIds.length > 0) {
 			fileAttachments = stagedFiles
@@ -2955,11 +3025,19 @@ function t(key, fallback) {
 				.map(function(f) {
 					return {
 						name: f.file.name,
-						type: f.file.type || '',
+						// The mime the upload COMMITS (:2260), not File.type, which the
+						// rail has never trusted: this is what DEF stores, so the line and
+						// the reopened turn describe a file the same way.
+						type: getMimeFromExtension(f.file.name),
 						thumbnailUrl: f.thumbnailUrl || null,
 					};
 				});
 		}
+		// Wordless, the message says what it carries (8.1.2). The old one-line-for-
+		// everything stays as the floor: an upload that named nothing still sends.
+		var displayText = text || (fileIds.length > 0
+			? (attachmentPrompt(fileAttachments) || t('analyzeFiles', 'Please analyze the attached file(s).'))
+			: '');
 		messages.push({
 			role: 'user',
 			content: displayText,
@@ -2989,7 +3067,9 @@ function t(key, fallback) {
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
 				(!chatStreamUrl ? ' (no chatStreamUrl)' : ' (no ReadableStream)'));
-			await sendMessageSync(text, fileIds);
+			// displayText, not text: a wordless attachment would otherwise be shown
+			// in the bubble and sent as an empty message. The shape is unchanged.
+			await sendMessageSync(displayText, fileIds);
 		}
 	}
 

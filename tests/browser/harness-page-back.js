@@ -1,13 +1,16 @@
 /*
- * The "‹ Back" control — behavioural harness (v7.9.16, corrected in v7.9.17).
+ * The "‹ Back" control — behavioural harness (v7.9.16, corrected in v7.9.17 and
+ * again in v7.9.18).
  *
  * D-C3 gave the page shell one way back, and D-C4 relied on the browser's back
  * button and the phone's back gesture to be it. The installed app on an iPhone has
- * neither (Steve, 2026-09-14): a page there had no way off but the menu. 7.9.16
- * gave every page a "‹ Chat" that always returned to the chat — and from an open
- * document that skipped the Documents it was opened from (Steve's canary, the same
- * day). Now it is Back: a POP while the console stands on an entry it pushed
- * itself, the chat otherwise.
+ * neither (Steve, 2026-09-14): a page there had no way off but the menu.
+ *
+ * 7.9.16 gave every page "‹ Chat", always the chat; 7.9.17 made it "‹ Back", the
+ * screen you came from; 7.9.18 stopped a page left behind coming back over the chat.
+ * So: a POP while the console stands on an entry it pushed itself, the chat
+ * otherwise — and leaving for the chat SHOWS the chat, even when the bottom of the
+ * console's own stack is a page and not the chat.
  *
  * Runs the SHIPPED page-shell block (sliced by marker, tests/browser/extract.js)
  * inside jsdom against the SHIPPED nav and three SHIPPED page sections out of
@@ -21,6 +24,8 @@
  *     the chat by a push of the clean URL, never out of the console; and after the
  *     browser's own Back landed on a page, still the chat and still inside.
  *     Focus lands where the shell puts it (D-C6).
+ *  3. Leaving for the chat (7.9.18): reopened on a page by ADDRESS, two pages deep,
+ *     one Back — the chat shows with a clean address, not the page underneath.
  *
  * 10 checks.
  */

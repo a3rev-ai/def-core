@@ -52,6 +52,9 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-contrast.js` | The palette against WCAG 2.1 AA, computed rather than pinned: --accent-green as text and as a border/ring in both themes, and the integrations OK pill. Asserts ratios, so any readable colour passes |
 | `harness-c6b.js` | Scheduled on the card kit (v7.9.5): the same proof for the page, Run now joined to Open Project's rules, one ⋯ menu shared by task and triage cards, Edit / Remove driven from it, and the page's status line on the kit with the creator's own lines left alone |
 | `harness-chat-images.js` | A picture stays in the chat (v8.0.0, images runsheet I-2): a stored picture renders its companion thumbnail through the console's proxy (the original when there is none), a tap opens the original (new tab / share sheet), a stored document is a chip whose name is text, the live turn's data: URL is untouched, and the upload rail declares the companion at init, PUTs it before commit and retries a refused declaration without it |
+| `harness-admin-tables-phone.js` | The wp-admin tables on a phone (v8.1.1): the Connection Logs table scrolls inside its own box rather than making the page wider than the screen, and every `.def-core-*-table` given a `min-width` is wrapped somewhere in the shipped markup |
+| `harness-attachment-line.js` | The line a wordless message sends (v8.1.2): one picture, several, one document, several and a mix — pictures first, each half singular or plural on its own count; the filename goes in whole (a `$&` in it is not expanded, nothing is quoted or trimmed, a control character is flattened); a translated map entry is what ships; and typed words are never replaced |
+| `harness-conversation-list.js` | The history list keeps its place (v8.1.2): the redraw reads the offset before the rows go and writes it back after they return — a chat opened, loaded, renamed, deleted, and the empty list — but a send that brings the open chat back to the TOP scrolls it into view rather than holding an offset it has left. jsdom does no layout, so the harness stands a modelled scroller on the element and clamps it to its content as a browser does |
 
 ## Bite checks
 
@@ -77,6 +80,8 @@ CHAT_ATTACHMENTS=/tmp/old-render.js UPLOAD_RAIL=/tmp/old-rail.js node tests/brow
 DOCUMENTS=/tmp/old-documents.js node tests/browser/harness-c6a.js  # initDocuments
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-c6b.js  # initScheduled on the kit
 CONSOLE_MENU=/tmp/old-menu.js node tests/browser/harness-c6c.js   # the ⋯ menu, shared by all four pages
+ATTACHMENT_PROMPT=/tmp/old-prompt.js DISPLAY_TEXT=/tmp/old-display.js node tests/browser/harness-attachment-line.js  # the attachment line / the send path's one statement
+CONVERSATION_LIST=/tmp/old-list.js node tests/browser/harness-conversation-list.js  # renderConversationList
 ```
 
 `harness-c5.js`, `harness-c6a.js` and `harness-c6b.js` read the stylesheet and the

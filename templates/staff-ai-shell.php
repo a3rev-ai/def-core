@@ -1046,7 +1046,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 			chatRemoveFromProject: <?php echo wp_json_encode( __( 'Remove from project', 'digital-employees' ) ); ?>,
 			chatNoProjects: <?php echo wp_json_encode( __( 'No projects yet — create one from the Projects page.', 'digital-employees' ) ); ?>,
 			uploadTimeout: <?php echo wp_json_encode( __( 'Upload timed out. Please try again.', 'digital-employees' ) ); ?>,
+			/* 8.1.2: a wordless message NAMES what it carries, so a second picture is
+			   not read in the first one's context. analyzeFiles is the floor under
+			   these four — an upload that named nothing still sends. */
 			analyzeFiles: <?php echo wp_json_encode( __( 'Please analyze the attached file(s).', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the attached picture's filename, e.g. garden.png. */ ?>
+			attachLinePicture: <?php echo wp_json_encode( __( 'Describe this picture: %s.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the attached pictures' filenames, separated by ", ". */ ?>
+			attachLinePictures: <?php echo wp_json_encode( __( 'Describe these pictures: %s.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the attached file's filename, e.g. notes.pdf. */ ?>
+			attachLineFile: <?php echo wp_json_encode( __( 'Please read the attached file: %s.', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the attached files' filenames, separated by ", ". */ ?>
+			attachLineFiles: <?php echo wp_json_encode( __( 'Please read the attached files: %s.', 'digital-employees' ) ); ?>,
 			integrationsLoading: <?php echo wp_json_encode( __( 'Loading your connected accounts…', 'digital-employees' ) ); ?>,
 			integrationsNotConfigured: <?php echo wp_json_encode( __( 'Integrations aren’t set up for your team yet. Ask an administrator to connect apps.', 'digital-employees' ) ); ?>,
 			integrationsEmpty: <?php echo wp_json_encode( __( 'No connected apps yet. Ask an administrator to add integrations.', 'digital-employees' ) ); ?>,

@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.1.2 - 2026/09/15 =
+* Fix - Staff AI console: attach a picture or a file and send it without typing anything, and the message now says what it carries - "Describe this picture: garden.png." instead of the same "Please analyze the attached file(s)." every time. Your assistant could not tell a second picture from the first and read it in the first one's context; now each attachment is asked about by name, pictures first, then files. The conversation list also keeps its place: opening an older chat from far down your history no longer throws the list back to the top while it loads.
+
 = 8.1.1 - 2026/09/14 =
 * Fix - The Logs page in WordPress admin now fits a phone. The Connection Logs table kept its full desktop width on a small screen, so the page itself ran off the right-hand edge and you dragged the whole thing sideways to read a row; worse, the Message column was squeezed narrower than a word and the message came out one letter per line down the screen. The table now scrolls sideways inside its own box while the rest of the page stays put, and the message reads as words again. Because the page is no longer wider than the screen, the Setup Assistant no longer opens off the edge of it either. And the Logs page now carries the Setup Assistant like every other Digital Employees page, so you can ask Sam about an entry instead of looking for help text that these pages deliberately do not carry. The table itself looks no different on a desktop.
 
