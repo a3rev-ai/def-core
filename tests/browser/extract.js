@@ -14,7 +14,7 @@
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
- * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -122,6 +122,25 @@ function documentViewer() {
 
 // The iPhone/iPad hand-off: isIOS and shareFile, which the chat's download
 // card, the Documents menu and the viewer's Download all reach for.
+// 8.0.0: the chat's attachment render — a stored turn's pictures through the proxy.
+function chatAttachments() {
+	return slice('chat attachments',
+		l => l.includes('── Attachments in the chat (8.0.0'),
+		l => l.includes('── end attachments in the chat'),
+		['function attachmentUrl', 'function storedAttachment', 'function openAttachment',
+			'function appendFileAttachments', 'staff-ai-attachment/'],
+		'CHAT_ATTACHMENTS');
+}
+
+// 8.0.0: the upload rail — init with the companion declared, the PUTs, commit.
+function uploadRail() {
+	return slice('uploadSingleFile',
+		l => l.startsWith('\tasync function uploadSingleFile(entry) {'),
+		l => l.startsWith('\tasync function uploadAllStagedFiles() {'),
+		['thumbnail_upload_url', 'initBody.thumbnail', '/uploads/commit'],
+		'UPLOAD_RAIL');
+}
+
 function installedShare() {
 	return slice('installed share',
 		l => l.includes('// An iPhone or iPad, installed or in Safari.'),
@@ -428,6 +447,7 @@ function cssRules(css) {
 }
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, consoleMenu, projects, memories, installedShare,
+	chatAttachments, uploadRail,
 	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,

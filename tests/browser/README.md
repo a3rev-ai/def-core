@@ -51,6 +51,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c6d.js` | Memories on the kit's status line (C6d): the page takes the status line and NOTHING else — the runsheet rules it rows with one Delete, so the card and menu families are asserted absent; the proof that the kit carries every declaration the retired `.memories-status` family did, with the 10px it gains as the one declared exception - and the proof that the 10px collapses into the page head above it, so nothing on screen actually moves; and Delete still asking, sending and reloading exactly as it did |
 | `harness-contrast.js` | The palette against WCAG 2.1 AA, computed rather than pinned: --accent-green as text and as a border/ring in both themes, and the integrations OK pill. Asserts ratios, so any readable colour passes |
 | `harness-c6b.js` | Scheduled on the card kit (v7.9.5): the same proof for the page, Run now joined to Open Project's rules, one ⋯ menu shared by task and triage cards, Edit / Remove driven from it, and the page's status line on the kit with the creator's own lines left alone |
+| `harness-chat-images.js` | A picture stays in the chat (v8.0.0, images runsheet I-2): a stored picture renders its companion thumbnail through the console's proxy (the original when there is none), a tap opens the original (new tab / share sheet), a stored document is a chip whose name is text, the live turn's data: URL is untouched, and the upload rail declares the companion at init, PUTs it before commit and retries a refused declaration without it |
 
 ## Bite checks
 
@@ -72,6 +73,7 @@ RELEASE=/tmp/old-release.js   node tests/browser/harness-c3b.js   # the release 
 DOCVIEWER=/tmp/old-viewer.js  node tests/browser/harness-c4.js    # initDocumentViewer
 ASK_ENTRY=/tmp/old-ask.js     node tests/browser/harness-c5.js    # the shared Ask entry
 ASK_ENTRY_CALLS=/tmp/old-calls.json node tests/browser/harness-c5.js  # the seven calls to it (JSON: [{base, source}])
+CHAT_ATTACHMENTS=/tmp/old-render.js UPLOAD_RAIL=/tmp/old-rail.js node tests/browser/harness-chat-images.js  # the chat render / the upload rail
 DOCUMENTS=/tmp/old-documents.js node tests/browser/harness-c6a.js  # initDocuments
 SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-c6b.js  # initScheduled on the kit
 CONSOLE_MENU=/tmp/old-menu.js node tests/browser/harness-c6c.js   # the ⋯ menu, shared by all four pages
