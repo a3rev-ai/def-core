@@ -9,7 +9,10 @@
  * checked here is the difference between a box something opens FOR you and a
  * place you can arrive at cold: a reload, a link, a back button.
  *
- * 26 checks.
+ * 8.1.0 (images runsheet I-4): a picture is looked at, not read — shown from its
+ * download address, served inline, with the text well and Show more put away.
+ *
+ * 32 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -80,6 +83,12 @@ function boot(startUrl, opts) {
 		if (opts.fail) throw new Error('DEF said no');
 		const id = (url.match(/documents\/([^/?]+)/) || [])[1] || '';
 		const second = /offset=/.test(url);
+		// A picture: DEF answers it with its document and no text (8.1.0).
+		if (opts.picture && /^pic-/.test(id)) {
+			return { document: Object.assign(docFor(id), { file_type: 'png',
+				download_url: 'https://e.test/staff-ai-download/tenant-1/' + id + '.png?staff_ai_save=1' }),
+				kind: 'image', content: '', offset: 0, total_chars: 0, truncated: false, next_offset: null };
+		}
 		const body = {
 			document: Object.assign(docFor(id), opts.doc || {}),
 			content: second ? TAIL_TEXT : textFor(id),
@@ -125,6 +134,7 @@ function boot(startUrl, opts) {
 		html: () => $('documentViewerText').innerHTML,
 		more: () => $('documentViewerMore'),
 		download: () => $('documentViewerDownload'),
+		image: () => $('documentViewerImage'),
 		shown: (id) => !$(id).hidden,
 		click: (el) => el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
 	};
@@ -303,6 +313,37 @@ function check(label, ok, detail) {
 		await tick();
 		check('a download_url that is not http(s) is refused at the sink',
 			t.download().style.display === 'none', t.download().getAttribute('href'));
+	}
+
+	// ── A picture (8.1.0, images runsheet I-4) ─────────────────────────────
+	{
+		const t = boot(null, { picture: true });
+		t.openFromCard('pic-1', 'Garden');
+		await tick();
+		check('a picture shows on the page from its download address, served inline (no save flag)',
+			t.image().style.display === '' && t.image().getAttribute('src') === 'https://e.test/staff-ai-download/tenant-1/pic-1.png'
+			&& t.image().alt === 'Title of pic-1', t.image().getAttribute('src'));
+		check('the text well and Show more are put away — there is nothing to read on',
+			t.document.getElementById('documentViewerText').style.display === 'none' && t.more().style.display === 'none');
+		check('the status names the type and the version, not a character count',
+			/PNG/.test(t.status()) && /v3/.test(t.status()) && !/characters/.test(t.status()), t.status());
+		check('Download still points at the link the document carried, save flag and all',
+			t.download().href === 'https://e.test/staff-ai-download/tenant-1/pic-1.png?staff_ai_save=1', t.download().href);
+		// The same page, a text document next: the picture is gone and the text is back.
+		t.openFromCard('doc-2', 'Runsheet');
+		await tick();
+		check('a text document after a picture shows its text and no picture',
+			t.image().style.display === 'none' && !t.image().getAttribute('src')
+			&& t.document.getElementById('documentViewerText').style.display === '' && t.text() === textFor('doc-2'),
+			t.image().getAttribute('src') || t.text());
+	}
+	{
+		const t = boot('https://e.test/staff-ai/#document/pic-1', { picture: true });
+		t.api.applyRoute();
+		await tick();
+		check('a picture arrived at cold — a reload, a link — shows the same way (the one way in)',
+			t.shown('documentPage') && t.image().style.display === '' && /pic-1\.png$/.test(t.image().getAttribute('src') || ''),
+			t.image().getAttribute('src'));
 	}
 
 	// ── The failure the reader sees ────────────────────────────────────────

@@ -343,6 +343,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
 					</div>
 				</div>
+				<img class="document-viewer-image" id="documentViewerImage" alt="" style="display:none;">
 				<pre class="document-viewer-text" id="documentViewerText"></pre>
 				<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerMore" style="display:none;"><?php echo esc_html__( 'Show more', 'digital-employees' ); ?></button>
 			</section>

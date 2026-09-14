@@ -2292,6 +2292,10 @@ final class DEF_Core_Staff_AI
 				'total_chars' => isset( $result['total_chars'] ) ? (int) $result['total_chars'] : 0,
 				'truncated'   => ! empty( $result['truncated'] ),
 				'next_offset' => ( isset( $result['next_offset'] ) && is_numeric( $result['next_offset'] ) ) ? (int) $result['next_offset'] : null,
+				// A picture (8.1.0, images runsheet I-4): DEF answers it with its document
+				// and no text, and the viewer shows it from the download address instead
+				// of reading. Two values only; anything else, an older DEF included, reads.
+				'kind'        => ( isset( $result['kind'] ) && 'image' === $result['kind'] ) ? 'image' : 'text',
 			),
 			200
 		);

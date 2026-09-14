@@ -4577,7 +4577,9 @@ function t(key, fallback) {
 	// wanting to build a page that faithfully prints out what is in the PDF - I just want
 	// the PDF document stored - where Sue can read it and where the admin can download
 	// it." Sue reads the text through `read_my_document`; a human gets the file.
-	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx'];
+	// A picture (8.1.0, images runsheet I-4) is looked at, not read: the page shows
+	// it from its download address, which the proxy serves inline.
+	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
@@ -4629,6 +4631,7 @@ function t(key, fallback) {
 		const textEl = document.getElementById('documentViewerText');
 		const moreBtn = document.getElementById('documentViewerMore');
 		const dlLink = document.getElementById('documentViewerDownload');
+		const imgEl = document.getElementById('documentViewerImage');
 		// The hand-off the Documents menu makes: installed on iOS the link lands on
 		// the document-preview sheet (row 8 canary, 2026-09-14), so the share sheet
 		// takes the file instead. Everywhere else the link is the browser's.
@@ -4680,10 +4683,21 @@ function t(key, fallback) {
 			var href = safeHttpHref(doc.download_url || '');
 			if (href) { dlLink.href = href; dlLink.style.display = ''; }
 			else { dlLink.style.display = 'none'; }
+			// A picture (8.1.0, images runsheet I-4): DEF answers it with its document and
+			// no text, and the page shows it from the address Download carries, less the
+			// save flag so the proxy serves it inline. Nothing to read on, so no Show more.
+			var picture = data.kind === 'image';
+			if (picture && href) {
+				imgEl.src = href.replace(/\?staff_ai_save=1$/, '');
+				imgEl.alt = doc.title || '';
+			}
+			imgEl.style.display = picture && href ? '' : 'none';
+			textEl.style.display = picture ? 'none' : '';
+			if (picture) { current.nextOffset = null; moreBtn.style.display = 'none'; }
 			statusEl.textContent = [
 				(doc.file_type || '').toUpperCase(),
 				doc.version ? 'v' + doc.version : '',
-				(typeof data.total_chars === 'number') ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
+				(typeof data.total_chars === 'number' && !picture) ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
 			].filter(Boolean).join(' · ');
 			statusEl.className = 'console-page-desc documents-status documents-status-muted';
 		}
@@ -4702,6 +4716,7 @@ function t(key, fallback) {
 			if (!docId) {
 				titleEl.textContent = t('documentViewerTitle', 'Document');
 				textEl.textContent = '';
+				imgEl.style.display = 'none';
 				moreBtn.style.display = 'none';
 				dlLink.style.display = 'none';
 				statusEl.textContent = t('documentViewerFailed', 'Could not read the document.');
@@ -4712,6 +4727,9 @@ function t(key, fallback) {
 			titleEl.textContent = pendingTitle || t('documentViewerTitle', 'Document');
 			pendingTitle = '';
 			textEl.textContent = '';
+			textEl.style.display = '';
+			imgEl.style.display = 'none';
+			imgEl.removeAttribute('src');
 			moreBtn.style.display = 'none';
 			dlLink.style.display = 'none';
 			statusEl.textContent = t('documentViewerLoading', 'Loading…');
