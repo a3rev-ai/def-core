@@ -245,6 +245,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     (docs/projects-runsheet.md in the DEF repo: P-A the container, P-B chat
 			     entry, P-C scheduled runs inside a project, P-D the doorway.) -->
 			<section class="console-page console-page-compact" id="projectsPane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="projectsTitle" tabindex="-1"><?php echo esc_html__( 'Projects', 'digital-employees' ); ?></h1>
@@ -276,6 +277,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     slot, then a body that scrolls with the page. showPage()/showChat()
 			     swap it with the chat containers and drive #scheduled. -->
 			<section class="console-page" id="scheduledPane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="scheduledTitle" tabindex="-1"><?php echo esc_html__( 'Scheduled tasks', 'digital-employees' ); ?></h1>
@@ -298,6 +300,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     the project filter and the per-card actions. Its actions slot stays
 			     empty on purpose — the Ask entry belongs to the empty state below. -->
 			<section class="console-page console-page-compact" id="documentsPane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="documentsTitle" tabindex="-1"><?php echo esc_html__( 'My documents', 'digital-employees' ); ?></h1>
@@ -330,6 +333,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     action rather than a footer button. The title is the document's own, so
 			     it is set by JS on load rather than written here. -->
 			<section class="console-page console-page-compact" id="documentPage" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="documentPageTitle" tabindex="-1"><?php echo esc_html__( 'Document', 'digital-employees' ); ?></h1>
@@ -352,6 +356,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     confirm already says it at the moment it matters. No primary action:
 			     Delete belongs to a row, with its confirm, exactly as before. -->
 			<section class="console-page" id="memoriesPane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="memoriesTitle" tabindex="-1"><?php echo esc_html__( 'Memories', 'digital-employees' ); ?></h1>
@@ -374,6 +379,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     the Ask entry secondary beside it. Memories and Connections change
 			     only when you change them, and re-entering reloads. -->
 			<section class="console-page" id="usagePane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="usageTitle" tabindex="-1"><?php echo esc_html__( 'Weekly limits', 'digital-employees' ); ?></h1>
@@ -398,6 +404,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			     slot, because which app to connect is the choice a row makes. Its
 			     confirms are unchanged. -->
 			<section class="console-page" id="connectionsPane" hidden>
+				<button type="button" class="console-page-back" aria-label="<?php echo esc_attr__( 'Back to the chat', 'digital-employees' ); ?>"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Chat', 'digital-employees' ); ?></button>
 				<div class="console-page-head">
 					<div>
 						<h1 class="console-page-title" id="connectionsTitle" tabindex="-1"><?php echo esc_html__( 'Connected accounts', 'digital-employees' ); ?></h1>

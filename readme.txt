@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.15
+Stable tag: 7.9.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.16 - 2026-09-14 =
+* Update - Staff AI console: every page - Projects, Documents, an open document, Scheduled, Memories, Usage and Connections - now carries a "‹ Chat" control at the top of its heading that takes you back to the chat. On an iPhone or iPad running the installed app there is no browser back button and no back gesture, so until now the only way off a page there was the menu. The control is on every screen size and does exactly what the Escape key and the browser's back button already did: the chat is as you left it, with a reply still streaming if one was.
 
 = 7.9.15 - 2026-09-14 =
 * Fix - Staff AI console, on an iPhone or iPad running the installed app: Download on the Documents page and in the document viewer now offers the share sheet - Save Image to Photos, or Save to Files - instead of landing on a preview screen with no way to save and no way back. The chat's own download card has done this since 7.6.8; the two Download buttons that came with the Documents page had not, so the app was navigating itself to the file. The file keeps the name the card shows. Nothing changes in Safari, on Android or on a desktop, where Download saves the file as it did.
