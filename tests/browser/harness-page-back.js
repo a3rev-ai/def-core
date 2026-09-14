@@ -22,7 +22,7 @@
  *     browser's own Back landed on a page, still the chat and still inside.
  *     Focus lands where the shell puts it (D-C6).
  *
- * 9 checks.
+ * 10 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -182,6 +182,24 @@ function check(label, cond, detail) {
 			onDocuments && t.api.open() === null && t.chatVisible() && t.hash() === '' &&
 			/\/staff-ai\/$/.test(t.window.location.href),
 			'onDocuments=' + onDocuments + ' open=' + t.api.open() + ' hash=' + JSON.stringify(t.hash()) + ' href=' + t.window.location.href);
+	}
+
+	{
+		// The bottom of the console's own stack is NOT always the chat (the #357
+		// Code leg): the installed app reopened on Documents (an address entry),
+		// then a document (push), then Projects (push), then Back (pop, onto our
+		// own first push). Leaving for the chat from there — Escape, a conversation,
+		// New chat — must SHOW the chat, not pop onto the Documents underneath.
+		const t = boot('https://e.test/staff-ai/#documents');
+		t.api.applyRoute(); await tick(t.window);
+		t.api.showPage('document/abc'); await tick(t.window);
+		t.api.showPage('projects'); await tick(t.window);
+		click(t.window, t.back('projectsPane'));
+		const backOnViewer = await until(t.window, () => t.api.open() === 'document');
+		t.api.showChat(); await tick(t.window, 120);
+		check('reopened on a page by address, two pages deep, one Back, then leave for the chat: the CHAT shows with a clean address — not the page underneath',
+			backOnViewer && t.api.open() === null && t.chatVisible() && t.hash() === '' && /\/staff-ai\/$/.test(t.window.location.href),
+			'backOnViewer=' + backOnViewer + ' open=' + t.api.open() + ' chat=' + t.chatVisible() + ' hash=' + JSON.stringify(t.hash()));
 	}
 
 	console.log('harness-page-back: ' + pass + ' passed, ' + fail + ' failed');
