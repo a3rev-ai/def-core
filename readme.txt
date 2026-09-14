@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 8.1.2 - 2026-09-14 =
+= 8.1.2 - 2026-09-15 =
 * Fix - Staff AI console: attach a picture or a file and send it without typing anything, and the message now says what it carries - "Describe this picture: garden.png." instead of the same "Please analyze the attached file(s)." every time. Your assistant could not tell a second picture from the first and read it in the first one's context; now each attachment is asked about by name, pictures first, then files. The conversation list also keeps its place: opening an older chat from far down your history no longer throws the list back to the top while it loads.
 
 = 8.1.1 - 2026-09-14 =

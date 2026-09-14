@@ -551,6 +551,10 @@ function t(key, fallback) {
 
 		// Remove existing rows
 		const items = conversationList.querySelectorAll('.conversation-item');
+		// Where the open chat stands now. If it is in the same place after the
+		// redraw, the offset restored below is still the reader's own and nothing
+		// should move — see the reveal at the end of this function.
+		const wasActiveIndex = Array.from(items).findIndex(el => el.classList.contains('active'));
 		items.forEach(el => el.remove());
 		closeChatMenu();
 
@@ -622,15 +626,19 @@ function t(key, fallback) {
 
 		conversationList.scrollTop = keepScrollTop;
 
-		// Keeping the place must never cost the open chat its place on SCREEN.
-		// Every send re-fetches the list (loadConversations), and the thread just
-		// used comes back at the top — the offset restored above would then hold the
-		// list where that row no longer is, with the open chat off the top of it.
-		// 'nearest' scrolls the least it can, and does nothing at all while the row
-		// is already in view, which is every other redraw.
-		var openRow = conversationList.querySelector('.conversation-item.active');
-		if (openRow && typeof openRow.scrollIntoView === 'function') {
-			openRow.scrollIntoView({ block: 'nearest' });
+		// The place is the reader's until the open chat moves out from under it.
+		// Every send re-fetches the list (loadConversations) and the thread just used
+		// comes back FIRST: the offset restored above would then hold the list where
+		// that row no longer is, with the open chat off the top of it. So the reveal
+		// is conditional on the row having MOVED — renaming, deleting or moving some
+		// distant conversation leaves the reader exactly where they were.
+		const rebuilt = conversationList.querySelectorAll('.conversation-item');
+		const nowActiveIndex = Array.from(rebuilt).findIndex(el => el.classList.contains('active'));
+		if (nowActiveIndex >= 0 && nowActiveIndex !== wasActiveIndex) {
+			const openRow = rebuilt[nowActiveIndex];
+			if (typeof openRow.scrollIntoView === 'function') {
+				openRow.scrollIntoView({ block: 'nearest' });
+			}
 		}
 	}
 
@@ -2925,19 +2933,9 @@ function t(key, fallback) {
 	// one's context — Sue said so herself (Steve's canary). The line now NAMES the
 	// attachments, pictures first, each half singular or plural on its own count.
 	//
-	// A picture is a picture by the same test the composer rail uses (the type
-	// starts image/). The names are the user's filenames and go in whole — the
-	// bubble sets them with textContent, and %s is filled by the FUNCTION form of
-	// replace() so a filename holding $& or $' cannot expand into the line.
-	//
-	// A name is not always the reader's own words: a file dragged off a web page,
-	// or synced in from a customer, carries a name someone else chose, and this
-	// line is the prose the assistant reads AS the request. Nothing is quoted and
-	// nothing is trimmed (Steve, on the wording) — but a control character is
-	// flattened to a space, so a name cannot open what reads as a new turn
-	// (a name carrying a newline and a SYSTEM: line of its own). A name that
-	// merely ASKS for something is still just a name in a sentence, and the
-	// console's tools carry no arbitrary egress — a bound worth keeping DEF-side.
+	// The names are the user's filenames and go in whole — nothing quoted, nothing
+	// trimmed — except that a control character is flattened to a space, so a name
+	// someone else chose cannot open what reads as a new turn.
 	function attachmentPrompt(attachments) {
 		var pictures = [];
 		var files = [];
@@ -3027,10 +3025,10 @@ function t(key, fallback) {
 				.map(function(f) {
 					return {
 						name: f.file.name,
-						// The same mime the upload commits (getMimeFromExtension, 8.1.2):
-						// File.type is empty often enough that the rail never trusts it,
-						// and a picture asked about as a document is this fix inverted.
-						type: f.file.type || getMimeFromExtension(f.file.name),
+						// The mime the upload COMMITS (:2260), not File.type, which the
+						// rail has never trusted: this is what DEF stores, so the line and
+						// the reopened turn describe a file the same way.
+						type: getMimeFromExtension(f.file.name),
 						thumbnailUrl: f.thumbnailUrl || null,
 					};
 				});
@@ -3069,7 +3067,9 @@ function t(key, fallback) {
 		} else {
 			console.info('[Staff AI] Using sync fallback' +
 				(!chatStreamUrl ? ' (no chatStreamUrl)' : ' (no ReadableStream)'));
-			await sendMessageSync(text, fileIds);
+			// displayText, not text: a wordless attachment would otherwise be shown
+			// in the bubble and sent as an empty message. The shape is unchanged.
+			await sendMessageSync(displayText, fileIds);
 		}
 	}
 

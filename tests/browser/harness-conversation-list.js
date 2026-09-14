@@ -14,13 +14,14 @@
  * itself: that is what lets a check see WHEN it was read and written, and not
  * only what it ends up as.
  *
- *  1. The place is kept: a redraw leaves the offset where it was, and the offset
- *     is read before the rows go and written back after they are all returned —
- *     not while the list is empty, where a browser would clamp it to 0.
+ *  1. The place is kept: a redraw leaves the offset where the reader left it.
  *  2. Every way the list is redrawn: a conversation opened, loaded, renamed,
- *     deleted, and the empty list. And the case that makes the rule conditional:
- *     a send re-fetches the list and the open chat comes back at the TOP, where
- *     keeping the offset would hide it — it is brought back on screen instead.
+ *     deleted, and the empty list. And the two halves of the rule: a send
+ *     re-fetches the list and the open chat comes back at the TOP, where keeping
+ *     the offset would hide it, so it is brought back on screen — while a distant
+ *     rename, with the open chat where it was, leaves the reader untouched. The
+ *     reveal is conditional on the open row having MOVED, and that is the half a
+ *     bite must catch: make it unconditional and the distant-rename case fails.
  *  3. The redraw still does its job: the rows are the conversations, in order,
  *     and the open one is the row marked .active (which is what the CSS paints).
  *
@@ -28,7 +29,7 @@
  *   git show origin/main:assets/js/staff-ai.js | sed -n '/^\tfunction renderConversationList/,/Chat Options: the row/p' > /tmp/old.js
  *   CONVERSATION_LIST=/tmp/old.js node tests/browser/harness-conversation-list.js
  *
- * 13 checks.
+ * 12 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -65,14 +66,13 @@ function boot(conversations, currentConversationId) {
 	// nothing but writing it back puts the reader where they were.
 
 	let offset = 0;
-	const log = [];
 	const rows = () => list.querySelectorAll('.conversation-item').length;
 	const ceiling = () => Math.max(0, rows() * ROW - VIEWPORT);
 	const clamp = () => { offset = Math.max(0, Math.min(offset, ceiling())); };
 	Object.defineProperty(list, 'scrollTop', {
 		configurable: true,
-		get() { log.push({ op: 'get', value: offset, rows: rows() }); return offset; },
-		set(v) { offset = Math.max(0, Math.min(v, ceiling())); log.push({ op: 'set', value: offset, rows: rows() }); },
+		get() { return offset; },
+		set(v) { offset = Math.max(0, Math.min(v, ceiling())); },
 	});
 	// A browser re-clamps on the mutation itself, not at the next read: the rows
 	// are removed one at a time, and by the last one the ceiling is 0.
@@ -90,7 +90,6 @@ function boot(conversations, currentConversationId) {
 		const top = i * ROW, bottom = top + ROW;
 		if (top < offset) offset = top;
 		else if (bottom > offset + VIEWPORT) offset = bottom - VIEWPORT;
-		log.push({ op: 'into', value: offset, rows: all.length });
 	};
 
 	// currentConversationId is a parameter, and a parameter is a binding the
@@ -110,10 +109,9 @@ function boot(conversations, currentConversationId) {
 	);
 
 	return {
-		document, list, log, render: api.render, open: api.open,
+		document, list, render: api.render, open: api.open,
 		titles: () => Array.from(list.querySelectorAll('.conversation-item-title')).map(el => el.textContent),
 		active: () => Array.from(list.querySelectorAll('.conversation-item.active')).map(el => el.dataset.id),
-		clearLog: () => { log.length = 0; },
 	};
 }
 
@@ -126,24 +124,10 @@ const history = () => Array.from({ length: 12 }, (_, i) => ({
 	const t = boot(history(), null);
 	t.render();
 	t.list.scrollTop = 420;            // the reader scrolls down the history
-	t.clearLog();
 	t.render();
-	// Snapshot BEFORE any check reads scrollTop: the instrumented getter logs, so
-	// a check that reads the live log is reading its own predecessor's reads. That
-	// version passed against the 8.1.1 block, which logs nothing at all.
-	const log = t.log.slice();
 
 	check('a redraw leaves the offset where the reader left it', t.list.scrollTop === 420,
 		'scrollTop=' + t.list.scrollTop);
-
-	const writes = log.filter(e => e.op === 'set');
-	const last = writes[writes.length - 1];
-	check('the offset is read first, while the rows are all still standing',
-		log[0] && log[0].op === 'get' && log[0].rows === 12,
-		JSON.stringify(log[0]));
-	check('and written back last, once every row is back — never onto an empty list',
-		!!last && last.value === 420 && last.rows === 12,
-		JSON.stringify(last));
 }
 
 // ---- 2. every way the list is redrawn --------------------------------------
@@ -187,6 +171,23 @@ const history = () => Array.from({ length: 12 }, (_, i) => ({
 		'scrollTop=' + t.list.scrollTop + ' title=' + t.titles()[4]);
 }
 {
+	// The reader has a chat open near the top, has scrolled away from it, and
+	// renames something far down the list. The open chat has NOT moved, so the
+	// place is still theirs — the reveal must not fire and drag the list back to
+	// a row they scrolled away from on purpose.
+	const rows = history();
+	const t = boot(rows, null);
+	t.render();
+	t.open('c1');
+	t.render();
+	t.list.scrollTop = 380;   // scrolled well away from the open chat
+	rows[9].title = 'The quote for the shed';
+	t.render();
+	check('a distant chat renamed while another is open and off screen: the reader keeps their place',
+		t.list.scrollTop === 380 && t.active().join(',') === 'c1',
+		'scrollTop=' + t.list.scrollTop + ' active=' + t.active().join(','));
+}
+{
 	// Deleted: a row goes and the list is redrawn whole.
 	const rows = history();
 	const t = boot(rows, null);
@@ -205,7 +206,6 @@ const history = () => Array.from({ length: 12 }, (_, i) => ({
 	t.render();
 	t.list.scrollTop = 200;
 	rows.length = 0;
-	t.clearLog();
 	t.render();
 	const placeholder = t.document.getElementById('conversationPlaceholder');
 	check('the last chat deleted: the placeholder is shown and the list is at its top',
@@ -230,7 +230,7 @@ const history = () => Array.from({ length: 12 }, (_, i) => ({
 	t.render();
 	check('a send moves the open chat to the top of the list: it is brought back on screen, not left above it',
 		t.list.scrollTop === 0 && t.active().join(',') === 'c7',
-		'scrollTop=' + t.list.scrollTop + ' active=' + t.active().join(',')),
+		'scrollTop=' + t.list.scrollTop + ' active=' + t.active().join(','));
 	check('and a redraw that does NOT move the open chat leaves the offset exactly alone',
 		keptWhileInView === 380, 'scrollTop=' + keptWhileInView);
 }

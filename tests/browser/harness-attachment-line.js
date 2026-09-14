@@ -20,15 +20,15 @@
  *     one (the four keys are real i18n keys, D-C10). Nothing is quoted and
  *     nothing is trimmed; a control character is flattened, so a name cannot
  *     open what reads as a new turn.
- *  3. The send path: typed words are untouched, a wordless message gets the named
- *     line, a message with neither stays empty, and an upload that named nothing
- *     still sends on the old one-line floor.
+ *  3. The send path: typed words are untouched, and a wordless message gets the
+ *     named line. (The empty-message and named-nothing states are unreachable
+ *     from sendMessage, so the floor under them is asserted by neither.)
  *
  * Bite check (the four lines): put the old one-liner back and watch them fail —
  *   printf '\tfunction attachmentPrompt() {\n\t\treturn t("analyzeFiles", "Please analyze the attached file(s).");\n\t}\n' > /tmp/old.js
  *   ATTACHMENT_PROMPT=/tmp/old.js node tests/browser/harness-attachment-line.js
  *
- * 18 checks.
+ * 16 checks.
  */
 const extract = require('./extract');
 const PROMPT = extract.attachmentPrompt();
@@ -145,13 +145,6 @@ is('typed words are untouched — a message with words never gets the attachment
 is('no words, one picture: the named line is what is shown and sent',
 	displayText({ attachments: [pic('garden.png', 'image/png')] }),
 	'Describe this picture: garden.png.');
-
-is('no words and no attachments: nothing is put in the message',
-	displayText({}), '');
-
-is('an upload that named nothing still sends, on the old one-line floor',
-	displayText({ attachments: [], fileIds: 1 }),
-	'Please analyze the attached file(s).');
 
 console.log('harness-attachment-line: ' + pass + ' passed, ' + fail + ' failed');
 results.forEach(r => console.log(r));
