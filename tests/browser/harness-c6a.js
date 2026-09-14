@@ -119,7 +119,10 @@ const PROJECTS = [
   { project_id: 'p1', name: 'Rowell Walton', status: 'active' },
   { project_id: 'p2', name: 'Shelved', status: 'archived' }
 ];
-const VIEWABLE_TYPES = new Function('return ' + /const VIEWABLE_TYPES = (\[[^\]]*\]);/.exec(JS)[1])();
+// The SHIPPED lists, read back out of the source: the viewer's types are the text
+// formats plus the console's one image-extension list (8.1.0), so both are evaluated.
+const IMAGE_EXTENSIONS = new Function('return ' + /const IMAGE_EXTENSIONS = (\[[^\]]*\]);/.exec(JS)[1])();
+const VIEWABLE_TYPES = new Function('IMAGE_EXTENSIONS', 'return ' + /const VIEWABLE_TYPES = (.+);\r?$/m.exec(JS)[1])(IMAGE_EXTENSIONS);
 
 function boot(opts) {
   opts = opts || {};
