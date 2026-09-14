@@ -1514,11 +1514,17 @@ function t(key, fallback) {
 
 	const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
-	// Installed on an iPhone/iPad home screen — navigator.standalone exists only in iOS
-	// Safari. Android's installed app is NOT included on purpose: Chrome hands an
-	// attachment to its download manager there, which is what its users expect.
-	function isInstalledOnIOS() {
-		return window.navigator.standalone === true;
+	// An iPhone or iPad, installed or in Safari. A download there lands in a Files
+	// folder the reader may never find (Steve's canary, 2026-09-14: "I do not know
+	// how to access downloads on an iPhone"); the share sheet offers Save Image to
+	// Photos and Save to Files instead. Until 7.9.19 only the installed app took
+	// this path (navigator.standalone). iPadOS reports itself as a Mac, hence the
+	// touch test. Android is NOT included on purpose: Chrome hands an attachment
+	// to its download manager there, which is what its users expect.
+	function isIOS() {
+		var ua = window.navigator.userAgent || '';
+		return /iPad|iPhone|iPod/.test(ua)
+			|| (/Macintosh/.test(ua) && window.navigator.maxTouchPoints > 1);
 	}
 
 	// Fetch the file through the cookie-auth'd proxy and hand it to the iOS share sheet
@@ -1623,10 +1629,11 @@ function t(key, fallback) {
 		download.target = '_blank';
 		download.rel = 'noopener';
 		download.textContent = t('download', 'Download');
-		// Installed on iOS, a new-window navigation to an attachment is a blank screen
-		// with no way back (7.6.8, Steve's iPhone). Hand the file to the share sheet
-		// instead. Android's installed app downloads normally and is left alone.
-		if (fileUrl !== '#' && isInstalledOnIOS() && navigator.share) {
+		// On an iPhone or iPad a new-window navigation to an attachment is a blank
+		// screen with no way back in the installed app (7.6.8, Steve's iPhone) and a
+		// Files folder in Safari. Hand the file to the share sheet instead. Android's
+		// installed app downloads normally and is left alone.
+		if (fileUrl !== '#' && isIOS() && navigator.share) {
 			download.addEventListener('click', function (ev) {
 				ev.preventDefault();
 				shareFile(fileUrl, tool.file_name || 'download');
@@ -4519,7 +4526,7 @@ function t(key, fallback) {
 		// the document-preview sheet (row 8 canary, 2026-09-14), so the share sheet
 		// takes the file instead. Everywhere else the link is the browser's.
 		dlLink.addEventListener('click', function (ev) {
-			if (!isInstalledOnIOS() || !navigator.share) return;
+			if (!isIOS() || !navigator.share) return;
 			ev.preventDefault();
 			shareFile(dlLink.href);
 		});
@@ -4898,11 +4905,12 @@ function t(key, fallback) {
 				});
 			}
 			const href = safeHttpHref(doc.download_url);
-			// Installed on iOS, a link to the attachment lands the app on the system's
-			// document-preview sheet - no way into Photos and no way back (row 8 canary,
-			// 2026-09-14). The chat's download card already hands the file to the share
-			// sheet there; this is the same hand-off, and the name is the proxy's.
-			if (href && isInstalledOnIOS() && navigator.share) {
+			// On an iPhone or iPad a link to the attachment lands the installed app on
+			// the system's document-preview sheet - no way into Photos and no way back -
+			// and Safari in a Files folder (row 8 canary, 2026-09-14). The chat's download
+			// card already hands the file to the share sheet there; this is the same
+			// hand-off, and the name is the proxy's.
+			if (href && isIOS() && navigator.share) {
 				items.push({ label: t('download', 'Download'), onPick: function () { shareFile(href); } });
 			} else if (href) {
 				items.push({ label: t('download', 'Download'), href: href });

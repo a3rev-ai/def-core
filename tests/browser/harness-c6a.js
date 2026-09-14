@@ -156,7 +156,7 @@ function boot(opts) {
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
     'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
     'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-    'isInstalledOnIOS', 'shareFile',
+    'isIOS', 'shareFile',
     MENU + '\n' + DOCUMENTS
   )(
     window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
@@ -166,8 +166,8 @@ function boot(opts) {
     VIEWABLE_TYPES, null, api.showPage,
     extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
     function (e) { return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey; },
-    // Not the installed app: Download stays the link it was. The installed-app
-    // shape is harness-installed-download.js's subject.
+    // Not an iPhone or iPad: Download stays the link it was. The share-sheet
+    // shape is harness-ios-download.js's subject.
     function () { return false; }, function () {}
   );
 
