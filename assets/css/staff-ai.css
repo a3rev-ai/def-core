@@ -2835,14 +2835,16 @@ html {
 	outline: none;
 }
 
-/* The page's own way back to the chat (D-C3), above the title where a phone
-   puts its back control. On every screen size: the installed app has no
-   browser chrome at any width. A button that reads as a link. */
+/* The page's own way back to the chat (D-C3), on a line of its own ABOVE the
+   head, where a phone puts its back control. Above rather than inside: the
+   head top-aligns its actions with its first line, and a 14px control there
+   would drop the title below the buttons. On every screen size: the installed
+   app has no browser chrome at any width. A button that reads as a link. */
 .console-page-back {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	margin: 0 0 6px;
+	margin: 0 0 8px;
 	padding: 0;
 	border: 0;
 	background: none;

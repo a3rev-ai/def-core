@@ -11,8 +11,8 @@
  * inside jsdom against the SHIPPED nav and three SHIPPED page sections out of
  * templates/staff-ai-shell.php — Projects, Documents and the document viewer.
  *
- *  1. The template: every page head carries the control, first in its title
- *     column, and it is a button that says what it does.
+ *  1. The template: every page head has the control on the line above it, and
+ *     it is a button that says what it does.
  *  2. Leaving: from a page opened from the chat (a POP, history not grown), from
  *     the viewer reached page → page, and from a page entered by ADDRESS (a reload
  *     in the installed app — a push of the clean URL, never a Back out of the
@@ -84,14 +84,16 @@ function check(label, cond, detail) {
 	}
 	{
 		const t = boot();
+		// Above the head, not inside it: the head top-aligns its actions with its
+		// first line, and the control there put the title under the buttons.
 		const bad = ['projectsPane', 'documentsPane', 'documentPage'].filter(id => {
 			const head = t.document.querySelector('#' + id + ' .console-page-head');
+			const before = head && head.previousElementSibling;
 			const column = head && head.firstElementChild;
-			const first = column && column.firstElementChild;
-			const next = first && first.nextElementSibling;
-			return !(first && first.classList.contains('console-page-back') && next && next.classList.contains('console-page-title'));
+			return !(before && before.classList.contains('console-page-back') &&
+				column && column.firstElementChild && column.firstElementChild.classList.contains('console-page-title'));
 		});
-		check('it sits first in the title column, directly above the h1, on every booted page', bad.length === 0, bad.join(','));
+		check('it sits on its own line directly above the head, and the head still opens with the h1', bad.length === 0, bad.join(','));
 
 		const b = t.back('documentsPane');
 		check('it is a button that says what it does: "‹ Chat" to the eye, "Back to the chat" to a screen reader',
