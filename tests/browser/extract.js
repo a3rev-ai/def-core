@@ -446,7 +446,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, pageShell, consoleMenu, projects, memories, installedShare,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
 	chatAttachments, uploadRail,
 	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
