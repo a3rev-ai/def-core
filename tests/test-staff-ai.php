@@ -769,6 +769,27 @@ assert_equals(
 	'a download_url that is not a DEF /api/files path yields nothing, never an off-site link'
 );
 
+// A picture (8.1.0, images runsheet I-4): DEF's `kind` rides the response as one of
+// two values, so the viewer shows a picture and reads everything else.
+function _def_test_content_kind( $kind ) {
+	$GLOBALS['_def_test_get_body'] = json_encode( array(
+		'success'  => true,
+		'document' => array( 'document_id' => 'abc123-def', 'title' => 'Garden', 'file_type' => 'png', 'version' => 1,
+			'download_url' => '/api/files/tenant-a/garden.png' ),
+		'content'  => '',
+		'kind'     => $kind,
+	) );
+	$request = new WP_REST_Request();
+	$request->set_param( 'id', 'abc123-def' );
+	$resp = DEF_Core_Staff_AI::rest_document_content( $request );
+	unset( $GLOBALS['_def_test_get_body'] );
+	$data = is_object( $resp ) ? $resp->data : $resp;
+	return $data['kind'] ?? null;
+}
+assert_equals( 'image', _def_test_content_kind( 'image' ), 'a picture\'s kind rides the content response' );
+assert_equals( 'text', _def_test_content_kind( 'weird' ), 'any other kind is text - the viewer reads it' );
+assert_equals( 'text', _def_test_content_kind( null ), 'no kind at all (an older DEF) is text' );
+
 // ── 29. rest_list_memories — field allowlist round trip ─────────────────
 // The proxy remaps field by field, so an unlisted field vanishes silently and
 // the panel renders a blank column with no error anywhere. DEF returns exactly
