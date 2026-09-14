@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.17
+Stable tag: 7.9.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.18 - 2026-09-14 =
+* Fix - Staff AI console: after pressing ‹ Back in the installed app when it had been reopened on a page, going to the chat - opening a conversation, New chat, or the Escape key - could bring that page back over the chat. It now always lands in the chat. Found by the review of 7.9.17 after it shipped; the ‹ Back button itself was right.
 
 = 7.9.17 - 2026-09-14 =
 * Update - Staff AI console: the control above every page heading is now "‹ Back" and takes you to the screen you came from - from an open document back to the Documents page or the project you opened it from, from a page opened from the chat back to the chat - on a laptop and a phone alike. It is also easier to see: it wears the console's button style, like the Download button beside it, rather than reading as small grey text. 7.9.16 shipped it as "‹ Chat", always returning to the chat, which from an open document skipped the page you came from. If you reopened the installed app on a page, or reloaded one, Back still takes you to the chat rather than out of the console.

@@ -829,6 +829,12 @@ function t(key, fallback) {
 	// zero there; `poppingOwn` tells the console's own pop apart from those.
 	var ownDepth = 0;
 	var poppingOwn = false;
+	// Whether the console's own run of pushes began FROM THE CHAT. A run can
+	// begin from a page reached by address (the installed app reopened on
+	// Documents), and popping back onto that run's first push must not read as
+	// "the chat is underneath" — it was not, and leaving for the chat from there
+	// would pop onto the page instead of showing the chat (7.9.17, the #357 panel).
+	var chatIsBase = false;
 
 	// A page can own a FAMILY of routes (C4): the document viewer is ONE page
 	// with an id in its address, `document/<id>`. Its registry entry keeps the
@@ -882,10 +888,12 @@ function t(key, fallback) {
 		if (chatEntryBelow) {
 			chatEntryBelow = false;
 			ownDepth = 0;
+			chatIsBase = false;
 			window.history.back();
 			return;
 		}
 		ownDepth = 0;
+		chatIsBase = false;
 		if (!location.hash) return;
 		// Assigning '' leaves a bare "#" in the address bar; pushState gives
 		// the chat the clean URL the console loaded on.
@@ -908,14 +916,17 @@ function t(key, fallback) {
 		if (openRoute !== route) {
 			if (!fromHash) {
 				chatEntryBelow = !openPage;
+				if (!ownDepth) chatIsBase = !openPage;
 				ownDepth += 1;
 			} else if (poppingOwn) {
-				// The console's own Back landed here: what is underneath is known.
+				// The console's own Back landed here: what is underneath is known —
+				// the chat only if this run's first push was made from it.
 				poppingOwn = false;
-				chatEntryBelow = ownDepth === 1;
+				chatEntryBelow = chatIsBase && ownDepth === 1;
 			} else {
 				chatEntryBelow = false;
 				ownDepth = 0;
+				chatIsBase = false;
 			}
 		}
 
@@ -946,7 +957,7 @@ function t(key, fallback) {
 		var fromHash = !!(opts && opts.fromHash);
 		// The chat entry is never one the page's Back may pop — however it was
 		// reached, the count starts again from here.
-		if (fromHash) { poppingOwn = false; ownDepth = 0; }
+		if (fromHash) { poppingOwn = false; ownDepth = 0; chatIsBase = false; }
 		// Chat navigation (a fresh chat, opening a conversation) leaves the page
 		// without yanking focus out of what the user is about to read.
 		var restoreFocus = !(opts && opts.focus === false);
