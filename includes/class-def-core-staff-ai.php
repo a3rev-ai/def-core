@@ -65,6 +65,7 @@ final class DEF_Core_Staff_AI
 	public static function init(): void
 	{
 		add_action('init', array(__CLASS__, 'add_rewrite_rules'));
+		add_action('wp_loaded', array(__CLASS__, 'maybe_flush_rewrite_rules'));
 		add_action('template_redirect', array(__CLASS__, 'handle_endpoint'));
 		add_filter('query_vars', array(__CLASS__, 'add_query_vars'));
 		add_action('rest_api_init', array(__CLASS__, 'register_rest_routes'));
@@ -83,7 +84,7 @@ final class DEF_Core_Staff_AI
 	public static function prevent_download_redirect($redirect_url, $requested_url)
 	{
 		// Don't redirect if this is a file download or PWA asset request.
-		if (get_query_var('staff_ai_download') || get_query_var('staff_ai_pwa')) {
+		if (get_query_var('staff_ai_download') || get_query_var('staff_ai_pwa') || get_query_var('staff_ai_attachment')) {
 			return false;
 		}
 		return $redirect_url;
@@ -4277,6 +4278,8 @@ final class DEF_Core_Staff_AI
 					// sources, result cards) so the widget rebuilds inline pills / cards
 					// on history reload.
 					'tool_outputs' => ( isset($msg['tool_outputs']) && is_array($msg['tool_outputs']) ) ? $msg['tool_outputs'] : array(),
+					// A stored turn's pictures and files come back with it (8.0.0).
+					'attachments'  => self::console_attachments($msg['attachments'] ?? null),
 				);
 			}
 		}
@@ -4316,6 +4319,39 @@ final class DEF_Core_Staff_AI
 			),
 			200
 		);
+	}
+
+	/**
+	 * A stored turn's attachments for the console (8.0.0, images runsheet D-I7).
+	 *
+	 * Identity only - {file_id, kind, mime_type, filename, has_thumbnail} - each
+	 * field checked and anything else dropped; the console builds the proxy URL
+	 * from file_id. filename is the user's own text and the console renders it
+	 * as text.
+	 *
+	 * @param mixed $attachments DEF's list, or nothing.
+	 * @return array
+	 */
+	private static function console_attachments($attachments): array
+	{
+		$out = array();
+		if (! is_array($attachments)) {
+			return $out;
+		}
+		foreach ($attachments as $att) {
+			if (! is_array($att) || ! isset($att['file_id']) || ! is_string($att['file_id'])
+				|| ! preg_match('/^[A-Za-z0-9_-]{1,80}$/', $att['file_id'])) {
+				continue;
+			}
+			$out[] = array(
+				'file_id'       => $att['file_id'],
+				'kind'          => isset($att['kind']) && is_string($att['kind']) ? sanitize_text_field($att['kind']) : '',
+				'mime_type'     => isset($att['mime_type']) && is_string($att['mime_type']) ? sanitize_text_field($att['mime_type']) : '',
+				'filename'      => isset($att['filename']) && is_string($att['filename']) ? sanitize_text_field($att['filename']) : '',
+				'has_thumbnail' => ! empty($att['has_thumbnail']),
+			);
+		}
+		return $out;
 	}
 
 	/**
@@ -4373,13 +4409,27 @@ final class DEF_Core_Staff_AI
 			);
 		}
 
-		// Proxy to backend.
-		return self::backend_request('POST', '/api/staff_ai/uploads/init', array(
+		$init = array(
 			'filename'        => $filename,
 			'mime_type'       => $mime_type,
 			'size_bytes'      => $size,
 			'conversation_id' => $conv_id,
-		));
+		);
+
+		// The console's companion thumbnail (8.0.0, images runsheet D-I2), passed
+		// through as declared: the bound on it is the server's (D-I6), like the
+		// size ceiling above, and a refusal there is the console's to retry without.
+		$thumb = isset($body['thumbnail']) && is_array($body['thumbnail']) ? $body['thumbnail'] : array();
+		$thumb_size = isset($thumb['size_bytes']) ? absint($thumb['size_bytes']) : 0;
+		if ($thumb_size > 0) {
+			$init['thumbnail'] = array(
+				'mime_type'  => isset($thumb['mime_type']) && is_string($thumb['mime_type']) ? sanitize_text_field($thumb['mime_type']) : '',
+				'size_bytes' => $thumb_size,
+			);
+		}
+
+		// Proxy to backend.
+		return self::backend_request('POST', '/api/staff_ai/uploads/init', $init);
 	}
 
 	/**
@@ -5185,6 +5235,33 @@ final class DEF_Core_Staff_AI
 			'index.php?staff_ai_download=1&staff_ai_tenant=$matches[1]&staff_ai_filename=$matches[2]',
 			'top'
 		);
+
+		// A chat attachment, or its thumbnail, back to the console (8.0.0):
+		// /staff-ai-attachment/{thread}/{file_id}[/thumbnail]. Cookie auth, like a download.
+		add_rewrite_rule(
+			'^staff-ai-attachment/([^/]+)/([^/]+)(?:/(thumbnail))?/?$',
+			'index.php?staff_ai_attachment=$matches[2]&staff_ai_thread=$matches[1]&staff_ai_variant=$matches[3]',
+			'top'
+		);
+	}
+
+	/**
+	 * Flush the rewrite rules once per plugin version (8.0.0).
+	 *
+	 * The activation hook flushes, but an update never activates: the GitHub
+	 * updater's activate_plugin() finds the plugin already active, and WordPress
+	 * fires no activation hook for a plugin that already is - so a rule a release
+	 * adds (the attachment proxy) would 404 on every install until someone
+	 * deactivated and reactivated by hand. On wp_loaded, after every plugin's
+	 * init has added its own rules.
+	 */
+	public static function maybe_flush_rewrite_rules(): void
+	{
+		if (get_option('def_core_rewrite_version') === DEF_CORE_VERSION) {
+			return;
+		}
+		flush_rewrite_rules();
+		update_option('def_core_rewrite_version', DEF_CORE_VERSION);
 	}
 
 	/**
@@ -5201,6 +5278,9 @@ final class DEF_Core_Staff_AI
 		$vars[] = 'staff_ai_filename';
 		$vars[] = 'staff_ai_save';
 		$vars[] = 'staff_ai_pwa';
+		$vars[] = 'staff_ai_attachment';
+		$vars[] = 'staff_ai_thread';
+		$vars[] = 'staff_ai_variant';
 		return $vars;
 	}
 
@@ -5219,6 +5299,11 @@ final class DEF_Core_Staff_AI
 		// Handle file download endpoint.
 		if (get_query_var('staff_ai_download')) {
 			self::handle_file_download();
+			return;
+		}
+
+		if (get_query_var('staff_ai_attachment')) {
+			self::handle_attachment();
 			return;
 		}
 
@@ -5361,6 +5446,107 @@ final class DEF_Core_Staff_AI
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $body;
 		exit;
+	}
+
+	/**
+	 * Serve a chat attachment back to the console (8.0.0, images runsheet I-2).
+	 *
+	 * The picture a user attached to a turn, or its companion thumbnail, from
+	 * DEF's read-back route through the same cookie-auth'd door as a download:
+	 * the same gates, in the same order, the same BFF headers, and DEF's own
+	 * answer (404 for a file that is not this reader's in this thread) passed
+	 * through. The ONE deliberate difference from handle_file_download(): the
+	 * response is CACHEABLE, by this reader's browser only - `private, immutable`
+	 * for a year, because an upload's bytes never change under their id (D-I4),
+	 * so a thread's pictures cost one fetch per browser. WordPress sends every
+	 * logged-in response with no-cache/no-store headers (WP::send_headers);
+	 * they are replaced here, and `private` keeps a page cache or a CDN out.
+	 */
+	private static function handle_attachment(): void
+	{
+		$file_id = (string) get_query_var('staff_ai_attachment');
+		$thread  = (string) get_query_var('staff_ai_thread');
+		$variant = 'thumbnail' === get_query_var('staff_ai_variant') ? 'thumbnail' : 'original';
+
+		if (! preg_match('/^[A-Za-z0-9_-]{1,80}$/', $file_id) || ! preg_match('/^[A-Za-z0-9_-]{1,128}$/', $thread)) {
+			wp_die(__('Invalid file path.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 400));
+		}
+
+		if (! is_user_logged_in()) {
+			wp_die(__('Authentication required.', 'digital-employees'), __('Unauthorized', 'digital-employees'), array('response' => 401));
+		}
+
+		if (! self::user_has_staff_ai_access()) {
+			wp_die(esc_html(self::access_denied_message()), __('Forbidden', 'digital-employees'), array('response' => 403));
+		}
+
+		$base_url = self::get_api_base_url();
+		if (! $base_url) {
+			wp_die(__('Staff AI backend not configured.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
+		}
+
+		$user    = wp_get_current_user();
+		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
+		if ( empty( $api_key ) ) {
+			wp_die(__('API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
+		}
+		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
+
+		$response = wp_remote_get(
+			$base_url . '/api/staff_ai/uploads/' . rawurlencode($file_id) . '/content?thread_id=' . rawurlencode($thread) . '&variant=' . $variant,
+			array(
+				'timeout' => 30,
+				'headers' => array(
+					'X-DEF-API-Key'           => $api_key,
+					'X-DEF-User'              => (string) $user->ID,
+					'X-DEF-User-Capabilities' => implode( ',', $capabilities ),
+				),
+			)
+		);
+
+		if (is_wp_error($response)) {
+			wp_die(__('Failed to download file.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 500));
+		}
+
+		$status_code = wp_remote_retrieve_response_code($response);
+		if ($status_code !== 200) {
+			// DEF's answer stands (404 not this reader's, 409 not yet committed); its body does not travel.
+			wp_die(__('File not found or access denied.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => intval( $status_code ) ?: 502));
+		}
+
+		$body    = wp_remote_retrieve_body($response);
+		$headers = self::attachment_response_headers(
+			wp_remote_retrieve_header( $response, 'content-type' ),
+			self::download_filename_from( wp_remote_retrieve_header( $response, 'content-disposition' ), $file_id ),
+			strlen( $body )
+		);
+		foreach ( $headers as $line ) {
+			header( $line );
+		}
+		header_remove( 'Expires' );
+		echo $body;
+		exit;
+	}
+
+	/**
+	 * The header lines an attachment is served with - pure, so a test can pin
+	 * the one that matters (the cache) without the exit that follows it.
+	 *
+	 * @param string $content_type DEF's Content-Type, sanitized here.
+	 * @param string $filename     The name DEF gave it, sanitized here.
+	 * @param int    $length       The body length.
+	 * @return string[]
+	 */
+	private static function attachment_response_headers( string $content_type, string $filename, int $length ): array
+	{
+		$safe_type = self::sanitize_proxy_content_type( $content_type );
+		return array(
+			'Content-Type: ' . $safe_type,
+			'Content-Disposition: ' . self::download_disposition_for( $safe_type, false ) . '; filename="' . self::sanitize_proxy_filename( $filename ) . '"',
+			'Content-Length: ' . $length,
+			'Cache-Control: private, max-age=31536000, immutable',
+			'X-Content-Type-Options: nosniff',
+		);
 	}
 
 	/**

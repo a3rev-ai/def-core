@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.19
+Stable tag: 8.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.0.0 - 2026-09-14 =
+* New Feature - Staff AI console: a picture attached to a chat now stays in the chat. Reopen the conversation and the picture is there, shown from a small copy the console makes as it uploads (so a thread of photos opens fast, and your browser keeps what it has fetched), and a tap opens the full-size original - in a new tab on a laptop, through the share sheet on an iPhone or iPad where Save Image puts it in Photos. Other attached files show their name as before. Pictures attached before this version show from their original. Found by Steve's canary of 7.9.19: "the image does not persist in the chat".
 
 = 7.9.19 - 2026-09-14 =
 * Update - Staff AI console, on an iPhone or iPad: Download now opens the share sheet in Safari as well as in the installed app, so an image can be saved to Photos (Save Image) and any file to a folder you choose (Save to Files). Until now Safari showed its own download prompt and put the file in a Files folder that is hard to find from the phone. The chat's download card, the Documents page and an open document all behave the same way. Nothing changes on Android or on a desktop.

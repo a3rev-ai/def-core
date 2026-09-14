@@ -1477,9 +1477,12 @@ function t(key, fallback) {
 					});
 				}
 
-				// File indicators for uploaded files.
+				// File indicators for uploaded files; a stored turn's come back from the
+				// server on reload (8.0.0) and render through the console's proxy.
 				if (msg.fileAttachments && msg.fileAttachments.length > 0) {
 					appendFileAttachments(content, msg.fileAttachments);
+				} else if (msg.attachments && msg.attachments.length > 0) {
+					appendFileAttachments(content, msg.attachments.map(storedAttachment));
 				} else if (msg.fileNames && msg.fileNames.length > 0) {
 					appendFileIndicators(content, msg.fileNames);
 				}
@@ -2034,6 +2037,37 @@ function t(key, fallback) {
 		return null;
 	}
 
+	// The companion thumbnail (8.0.0, images runsheet D-I2): the picture the
+	// console has already decoded for its chip, drawn down to THUMBNAIL_EDGE on
+	// its longest side and encoded as a JPEG. It rides the upload beside the
+	// original, and the chat shows it on reload instead of pulling the original.
+	// Resolves to a Blob, or null when the picture cannot be drawn (the upload
+	// then goes without one, as before 8.0.0).
+	var THUMBNAIL_EDGE = 512;
+	function makeThumbnail(dataUrl) {
+		return new Promise(function(resolve) {
+			var img = new Image();
+			img.onload = function() {
+				try {
+					var scale = Math.min(1, THUMBNAIL_EDGE / Math.max(img.naturalWidth, img.naturalHeight, 1));
+					var canvas = document.createElement('canvas');
+					canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+					canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+					var ctx = canvas.getContext('2d');
+					// A transparent PNG on JPEG's black would read as a hole: paper first.
+					ctx.fillStyle = '#ffffff';
+					ctx.fillRect(0, 0, canvas.width, canvas.height);
+					ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+					canvas.toBlob(function(blob) { resolve(blob || null); }, 'image/jpeg', 0.8);
+				} catch (e) {
+					resolve(null);
+				}
+			};
+			img.onerror = function() { resolve(null); };
+			img.src = dataUrl;
+		});
+	}
+
 	function stageFile(file) {
 		var error = validateFile(file);
 		var localId = ++uploadIdCounter;
@@ -2044,6 +2078,7 @@ function t(key, fallback) {
 			fileId: null,
 			error: error,
 			thumbnailUrl: null,
+			thumbnailReady: null,
 		};
 
 		// Show validation error as banner immediately.
@@ -2051,14 +2086,19 @@ function t(key, fallback) {
 			showError(error);
 		}
 
-		// Generate thumbnail for images.
+		// Generate thumbnail for images: the chip's data: URL, then the companion
+		// the upload declares (8.0.0) — the rail waits on it before init.
 		if (!error && file.type && file.type.startsWith('image/') && file.size < 20 * 1024 * 1024) {
-			var reader = new FileReader();
-			reader.onload = function(e) {
-				entry.thumbnailUrl = e.target.result;
-				renderStagedFiles();
-			};
-			reader.readAsDataURL(file);
+			entry.thumbnailReady = new Promise(function(resolve) {
+				var reader = new FileReader();
+				reader.onload = function(e) {
+					entry.thumbnailUrl = e.target.result;
+					renderStagedFiles();
+					makeThumbnail(e.target.result).then(resolve);
+				};
+				reader.onerror = function() { resolve(null); };
+				reader.readAsDataURL(file);
+			});
 		}
 
 		stagedFiles.push(entry);
@@ -2188,16 +2228,30 @@ function t(key, fallback) {
 		renderStagedFiles();
 
 		try {
-			// Step 1: Init — get presigned URL via WordPress proxy.
-			var initResult = await apiRequest('/uploads/init', {
-				method: 'POST',
-				body: JSON.stringify({
-					filename: entry.file.name,
-					mime_type: getMimeFromExtension(entry.file.name),
-					size_bytes: entry.file.size,
-					conversation_id: currentConversationId || '_pending',
-				}),
-			});
+			// Step 1: Init — get presigned URL via WordPress proxy. A picture's
+			// companion thumbnail (8.0.0, images runsheet D-I2) is declared here so the
+			// server mints its link beside the original's. A declaration the server
+			// refuses (its own bound, D-I6) costs the thumbnail, never the picture:
+			// the init is retried without it.
+			var thumbnail = entry.thumbnailReady ? await entry.thumbnailReady : null;
+			var initBody = {
+				filename: entry.file.name,
+				mime_type: getMimeFromExtension(entry.file.name),
+				size_bytes: entry.file.size,
+				conversation_id: currentConversationId || '_pending',
+			};
+			if (thumbnail) {
+				initBody.thumbnail = { mime_type: thumbnail.type, size_bytes: thumbnail.size };
+			}
+			var initResult;
+			try {
+				initResult = await apiRequest('/uploads/init', { method: 'POST', body: JSON.stringify(initBody) });
+			} catch (initErr) {
+				if (!initBody.thumbnail) throw initErr;
+				delete initBody.thumbnail;
+				thumbnail = null;
+				initResult = await apiRequest('/uploads/init', { method: 'POST', body: JSON.stringify(initBody) });
+			}
 
 			if (!initResult || !initResult.upload_url) {
 				throw new Error('Failed to initialize upload');
@@ -2249,6 +2303,18 @@ function t(key, fallback) {
 
 			if (!blobResponse || !blobResponse.ok) {
 				throw lastError || new Error('Blob upload failed after retries');
+			}
+
+			// Step 2b: the companion's bytes to its own link. No retry — a companion
+			// that does not arrive is dropped at commit and the picture persists without it.
+			if (thumbnail && initResult.thumbnail_upload_url) {
+				try {
+					await fetch(initResult.thumbnail_upload_url, {
+						method: 'PUT',
+						headers: { 'Content-Type': thumbnail.type, 'x-ms-blob-type': 'BlockBlob' },
+						body: thumbnail,
+					});
+				} catch (e) { /* the commit drops a missing companion */ }
 			}
 
 			// Step 3: Commit via WordPress proxy.
@@ -2340,13 +2406,40 @@ function t(key, fallback) {
 		return new Blob([arr], { type: mime });
 	}
 
+	// ── Attachments in the chat (8.0.0, images runsheet I-2) ─────────────────
 	// Safe raster types for click-to-open (no SVG — different security profile)
 	var SAFE_OPEN_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/bmp'];
 
+	// A stored turn's attachment, as the server returns it on reload:
+	// {file_id, kind, mime_type, filename, has_thumbnail}. A picture shows through
+	// the console's own proxy — its companion thumbnail when the upload kept one,
+	// else the original — and the browser keeps what it fetched (the proxy marks it
+	// immutable), so a thread's pictures cost one fetch per browser. A tap opens
+	// the original. The live turn keeps rendering the data: URL the console holds.
+	function attachmentUrl(fileId, variant) {
+		return StaffAIConfig.homeUrl + 'staff-ai-attachment/' + encodeURIComponent(currentConversationId)
+			+ '/' + encodeURIComponent(fileId) + (variant ? '/' + variant : '');
+	}
+	function storedAttachment(att) {
+		var picture = !!(att.file_id && currentConversationId && SAFE_OPEN_TYPES.indexOf(att.mime_type) !== -1);
+		return {
+			name: att.filename || '',
+			type: att.mime_type || '',
+			thumbnailUrl: picture ? attachmentUrl(att.file_id, att.has_thumbnail ? 'thumbnail' : '') : null,
+			openUrl: picture ? attachmentUrl(att.file_id, '') : null,
+		};
+	}
+	// The original: a new tab on a desktop; the share sheet on an iPhone or iPad,
+	// where Save Image puts it in Photos (7.9.19's rule for every download).
+	function openAttachment(url, name) {
+		if (isIOS()) { shareFile(url, name); return; }
+		window.open(url, '_blank');
+	}
+
 	function appendFileAttachments(container, attachments) {
 		attachments.forEach(function(att) {
-			var isImage = att.type && att.type.startsWith('image/')
-				&& att.thumbnailUrl && att.thumbnailUrl.startsWith('data:image/');
+			var isImage = att.type && att.type.startsWith('image/') && att.thumbnailUrl
+				&& (att.thumbnailUrl.startsWith('data:image/') || !!att.openUrl);
 
 			if (isImage) {
 				// Image preview: 384px max-width, click to open full size in new tab
@@ -2361,6 +2454,7 @@ function t(key, fallback) {
 				if (canOpen) {
 					img.style.cursor = 'pointer';
 					img.addEventListener('click', function() {
+						if (att.openUrl) { openAttachment(att.openUrl, att.name); return; }
 						var blob = dataUrlToBlob(att.thumbnailUrl);
 						var blobUrl = URL.createObjectURL(blob);
 						window.open(blobUrl, '_blank');
@@ -2368,20 +2462,33 @@ function t(key, fallback) {
 						setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
 					});
 				}
+				if (att.openUrl) {
+					// A stored picture lands after the thread was scrolled to its end. A
+					// reader who was at the end is now one picture short of it: keep them
+					// there. One who had scrolled further up is left where they are.
+					img.addEventListener('load', function() {
+						var c = messagesContainer;
+						if (c.scrollHeight - c.scrollTop - c.clientHeight <= img.clientHeight + 8) {
+							c.scrollTop = c.scrollHeight;
+						}
+					});
+				}
 				wrapper.appendChild(img);
 				container.appendChild(wrapper);
 			} else {
-				// Non-image file: show file indicator chip
+				// Non-image file: show file indicator chip. The name is the user's own
+				// text, and from 8.0.0 the server's too — a text node, never markup.
 				var indicator = document.createElement('div');
 				indicator.className = 'message-file-indicator';
 				indicator.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
 					+ '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
-					+ '<polyline points="14 2 14 8 20 8"/></svg> '
-					+ escapeHtml(att.name);
+					+ '<polyline points="14 2 14 8 20 8"/></svg> ';
+				indicator.appendChild(document.createTextNode(att.name));
 				container.appendChild(indicator);
 			}
 		});
 	}
+	// ── end attachments in the chat ─────────────────────────────────────────
 
 	// =============================================
 	// SSE STREAMING UI HELPERS (Phase 9 PR 3)
