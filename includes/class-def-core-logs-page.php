@@ -127,12 +127,36 @@ final class DEF_Core_Logs_Page {
 		// Enqueue admin styles.
 		wp_enqueue_style( 'def-core-admin' );
 
+		// Setup Assistant drawer - Ask Sam IS the help layer, so this page carries
+		// no on-screen help text and the drawer is the entry point, the same as
+		// every other Digital Employees page. Admin-only, so a viewer who could
+		// never open it is not shipped its assets.
+		$show_setup_assistant = current_user_can( 'def_admin_access' );
+		if ( $show_setup_assistant ) {
+			DEF_Core_Admin::enqueue_setup_assistant_drawer();
+		}
+
 		$page_url = admin_url( 'admin.php?page=def-core-logs' );
 		$nonce    = wp_create_nonce( 'def_core_logs_action' );
 
 		?>
 		<div class="wrap def-core-wrap" style="max-width: 1200px;">
-			<h1><?php esc_html_e( 'Connection Logs', 'digital-employees' ); ?></h1>
+			<h1><?php esc_html_e( 'Connection Logs', 'digital-employees' ); ?>
+				<?php if ( $show_setup_assistant ) : ?>
+				<!-- Setup Assistant trigger button (same id the drawer JS binds) -->
+				<button
+					type="button"
+					id="def-setup-assistant-trigger"
+					class="def-sa-trigger"
+					aria-expanded="false"
+					aria-controls="def-setup-assistant-drawer"
+					title="<?php esc_attr_e( 'Setup Assistant', 'digital-employees' ); ?>"
+				>
+					<span class="dashicons dashicons-admin-comments"></span>
+					<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
+				</button>
+				<?php endif; ?>
+			</h1>
 
 			<!-- Filters -->
 			<form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
@@ -188,13 +212,15 @@ final class DEF_Core_Logs_Page {
 			</div>
 
 			<!-- Log Table -->
-			<table class="widefat striped" style="table-layout: fixed;">
+			<?php // Scrolls inside this wrapper, so a phone never widens the PAGE. ?>
+			<div class="def-core-table-scroll">
+			<table class="widefat striped def-core-logs-table">
 				<thead>
 					<tr>
 						<th style="width: 150px;"><?php esc_html_e( 'Timestamp', 'digital-employees' ); ?></th>
 						<th style="width: 70px;"><?php esc_html_e( 'Level', 'digital-employees' ); ?></th>
 						<th style="width: 80px;"><?php esc_html_e( 'Source', 'digital-employees' ); ?></th>
-						<th><?php esc_html_e( 'Message', 'digital-employees' ); ?></th>
+						<th class="def-core-log-message"><?php esc_html_e( 'Message', 'digital-employees' ); ?></th>
 						<th style="width: 80px;"><?php esc_html_e( 'Req ID', 'digital-employees' ); ?></th>
 					</tr>
 				</thead>
@@ -253,7 +279,7 @@ final class DEF_Core_Logs_Page {
 								<td style="font-size: 12px;">
 									<?php echo esc_html( $row->source ); ?>
 								</td>
-								<td style="font-size: 13px; word-break: break-word;">
+								<td class="def-core-log-message" style="font-size: 13px; word-break: break-word;">
 									<strong><?php echo esc_html( $row->message ); ?></strong>
 									<?php if ( $context_display ) : ?>
 										<div style="margin-top: 4px; font-size: 12px; line-height: 1.5; color: #50575e;">
@@ -269,6 +295,7 @@ final class DEF_Core_Logs_Page {
 					<?php endif; ?>
 				</tbody>
 			</table>
+			</div><!-- /.def-core-table-scroll -->
 
 			<!-- Pagination -->
 			<?php if ( $total_pages > 1 ) : ?>
@@ -368,6 +395,10 @@ final class DEF_Core_Logs_Page {
 		})();
 		</script>
 		<?php
+		// Drawer panel (the template also self-gates on def_admin_access).
+		if ( $show_setup_assistant ) {
+			include DEF_CORE_PLUGIN_DIR . 'templates/setup-assistant-drawer.php';
+		}
 	}
 
 	/**

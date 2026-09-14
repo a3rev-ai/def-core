@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.1.0
+Stable tag: 8.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.1.1 - 2026-09-14 =
+* Fix - The Logs page in WordPress admin now fits a phone. The Connection Logs table kept its full desktop width on a small screen, so the page itself ran off the right-hand edge and you dragged the whole thing sideways to read a row; worse, the Message column was squeezed narrower than a word and the message came out one letter per line down the screen. The table now scrolls sideways inside its own box while the rest of the page stays put, and the message reads as words again. Because the page is no longer wider than the screen, the Setup Assistant no longer opens off the edge of it either. And the Logs page now carries the Setup Assistant like every other Digital Employees page, so you can ask Sam about an entry instead of looking for help text that these pages deliberately do not carry. Nothing looks any different on a desktop.
 
 = 8.1.0 - 2026-09-14 =
 * New Feature - Staff AI console: a picture in your documents can now be looked at. A photo or image on the Documents page, or on a project's card, has View like a text document and opens on the document page at full width, with Download beside it; until now an image could only be downloaded ("download to open"). Needs the platform release that ships with it.

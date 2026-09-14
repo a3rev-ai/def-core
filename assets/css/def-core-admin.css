@@ -787,6 +787,39 @@
 	color: #50575e;
 }
 
+/* ─── Wide-table Scroll Container ──────────────────────────── */
+/*
+ * A wide admin table scrolls INSIDE its card; the page itself never grows past
+ * the phone. Without the wrapper the document takes the table's width, wp-admin
+ * scrolls sideways, and every position:fixed box on the page - the Setup
+ * Assistant drawer - anchors to that wider document rather than to the screen,
+ * which is how the drawer's close button ended up off the right-hand edge.
+ */
+
+.def-core-table-scroll {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	max-width: 100%;
+}
+
+/* ─── Connection Logs Table ────────────────────────────────── */
+/*
+ * The table used to carry table-layout: fixed inline. On a phone that divided a
+ * 100%-wide table by the pixel widths the header cells ask for, and what was
+ * left for Message was narrower than a word - the column read one letter per
+ * line under a Req ID column that had kept all 80 of its pixels. Auto layout
+ * plus a floor for the table and for Message is what makes the message read as
+ * words; .def-core-table-scroll above is what keeps that width off the page.
+ */
+
+.def-core-logs-table {
+	min-width: 720px;
+}
+
+.def-core-logs-table .def-core-log-message {
+	min-width: 300px;
+}
+
 /* ─── Responsive ───────────────────────────────────────────── */
 
 @media screen and (max-width: 782px) {
