@@ -24,7 +24,7 @@
  *     Safari or installed, an iPad that calls itself a Mac but has touch; not a Mac,
  *     not Android.
  *
- * 13 checks.
+ * 14 checks.
  */
 const { JSDOM, VirtualConsole } = require('jsdom');
 // A link the check clicks would navigate; jsdom reports that it cannot. Expected.
