@@ -95,7 +95,7 @@ function boot(startUrl, opts) {
 	}
 
 	const names = ['window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
-		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isInstalledOnIOS', 'shareFile'];
+		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile'];
 	const viewer = new window.Function(...names, VIEWER + VIEWER_TAIL)(
 		window, document, api.consolePages, api.showPage,
 		function (key, def) { return def; },
@@ -109,8 +109,8 @@ function boot(startUrl, opts) {
 			} catch (e) { return ''; }
 		},
 		null,
-		// Not the installed app: Download is the browser's link. The installed-app
-		// shape is harness-installed-download.js's subject.
+		// Not an iPhone or iPad: Download is the browser's link. The share-sheet
+		// shape is harness-ios-download.js's subject.
 		function () { return false; }, function () {});
 
 	const $ = (id) => document.getElementById(id);

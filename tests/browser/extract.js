@@ -120,13 +120,13 @@ function documentViewer() {
 		'DOCVIEWER');
 }
 
-// The installed-app hand-off: isInstalledOnIOS and shareFile, which the chat's
-// download card, the Documents menu and the viewer's Download all reach for.
+// The iPhone/iPad hand-off: isIOS and shareFile, which the chat's download
+// card, the Documents menu and the viewer's Download all reach for.
 function installedShare() {
 	return slice('installed share',
-		l => l.includes('// Installed on an iPhone/iPad home screen'),
+		l => l.includes('// An iPhone or iPad, installed or in Safari.'),
 		l => l.startsWith('\t// Create tool output card'),
-		['function isInstalledOnIOS', 'async function shareFile', 'navigator.share'],
+		['function isIOS', 'async function shareFile', 'navigator.share'],
 		'INSTALLED_SHARE');
 }
 

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 7.9.18
+Stable tag: 7.9.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 7.9.19 - 2026-09-14 =
+* Update - Staff AI console, on an iPhone or iPad: Download now opens the share sheet in Safari as well as in the installed app, so an image can be saved to Photos (Save Image) and any file to a folder you choose (Save to Files). Until now Safari showed its own download prompt and put the file in a Files folder that is hard to find from the phone. The chat's download card, the Documents page and an open document all behave the same way. Nothing changes on Android or on a desktop.
 
 = 7.9.18 - 2026-09-14 =
 * Fix - Staff AI console: after pressing ‹ Back in the installed app when it had been reopened on a page, going to the chat - opening a conversation, New chat, or the Escape key - could bring that page back over the chat. It now always lands in the chat. Found by the review of 7.9.17 after it shipped; the ‹ Back button itself was right.
