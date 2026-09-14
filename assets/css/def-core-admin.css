@@ -804,12 +804,10 @@
 
 /* ─── Connection Logs Table ────────────────────────────────── */
 /*
- * The table used to carry table-layout: fixed inline. On a phone that divided a
- * 100%-wide table by the pixel widths the header cells ask for, and what was
- * left for Message was narrower than a word - the column read one letter per
- * line under a Req ID column that had kept all 80 of its pixels. Auto layout
- * plus a floor for the table and for Message is what makes the message read as
- * words; .def-core-table-scroll above is what keeps that width off the page.
+ * The inline table-layout: fixed this table used to carry starved the Message
+ * column on a phone. Auto layout plus a floor for the table and for Message is
+ * what keeps it readable; .def-core-table-scroll above keeps that width off the
+ * page.
  */
 
 .def-core-logs-table {

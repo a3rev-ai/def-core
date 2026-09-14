@@ -21,7 +21,7 @@
  * The User Access grid on Settings → User Roles has the same disease and is NOT
  * treated here — that table is S3's, and nothing in this PR touches it.
  *
- * Check 6 is the one that outlives this PR. It names no table — it ENUMERATES
+ * Check 7 is the one that outlives this PR. It names no table — it ENUMERATES
  * from the stylesheet every .def-core-*-table given a min-width and insists each
  * one is wrapped somewhere in the shipped markup. The next table floored without
  * a wrapper is the exact bug this PR fixes, and it fails here without anyone
@@ -88,7 +88,7 @@ check(++n, '.def-core-table-scroll cannot itself outgrow the page (max-width: 10
 check(++n, '.def-core-table-scroll keeps momentum scrolling on older iOS',
 	declared('def-core-table-scroll', '-webkit-overflow-scrolling').includes('touch'));
 
-// ── 4. The floors ───────────────────────────────────────────────────────────
+// ── 4-5. The floors ─────────────────────────────────────────────────────────
 //
 // A floor is what turns "the table shrinks until it is unreadable" into "the
 // table stays readable and the wrapper scrolls". Held to a number, not merely to
@@ -107,7 +107,7 @@ check(++n, 'the Message column has a floor wide enough to read as words (>= 200p
 	msgFloor.some(v => v >= 200),
 	'min-width: ' + JSON.stringify(declared('def-core-log-message', 'min-width')));
 
-// ── 5. Containment, out of the shipped markup ───────────────────────────────
+// ── 6. Containment, out of the shipped markup ───────────────────────────────
 //
 // extract.element slices the wrapper by counting <div> nesting, so what comes
 // back is the wrapper's real extent. A table that sits after the wrapper's
@@ -129,7 +129,7 @@ const wraps = cls => chunk => new RegExp('<table class="[^"]*\\b' + cls + '\\b')
 check(++n, 'the Connection Logs table is INSIDE a .def-core-table-scroll in ' + LOGS_FILE,
 	scrollers(LOGS_FILE).some(wraps('def-core-logs-table')));
 
-// ── 6. The rule that outlives this PR ───────────────────────────────────────
+// ── 7. The rule that outlives this PR ───────────────────────────────────────
 //
 // Enumerated from the stylesheet, not listed here: any .def-core-*-table given a
 // floor has to be wrapped somewhere in the shipped markup, or that floor is just
@@ -150,7 +150,7 @@ check(++n, 'every .def-core-*-table given a min-width is wrapped in a scroller (
 	floored.length === 0 ? 'no floored tables found at all — the floor has gone'
 		: 'unwrapped: ' + unwrapped.join(', '));
 
-// ── 7-10. The drawer, after the page stops being wider than the screen ──────
+// ── 8-11. The drawer, after the page stops being wider than the screen ──────
 //
 // S1 scope 2 is a verification, and this is the half of it that is readable off
 // the CSS: with the document no longer wider than the viewport, the drawer's own
