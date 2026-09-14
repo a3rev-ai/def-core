@@ -541,6 +541,14 @@ function t(key, fallback) {
 
 	// Render conversation list
 	function renderConversationList() {
+		// The list is redrawn whole on every change — opened, loaded, renamed,
+		// deleted — and a redraw that begins by removing every row puts the scroller
+		// back to 0. Opening a conversation from far down the history therefore threw
+		// the list to the top while it loaded. Read the offset before the rows go and
+		// put it back once they are all returned; the browser clamps it to the new
+		// height, so a list that got shorter lands at its new end rather than nowhere.
+		const keepScrollTop = conversationList.scrollTop;
+
 		// Remove existing rows
 		const items = conversationList.querySelectorAll('.conversation-item');
 		items.forEach(el => el.remove());
@@ -548,7 +556,7 @@ function t(key, fallback) {
 
 		if (conversations.length === 0) {
 			conversationPlaceholder.style.display = 'block';
-			return;
+			return;   // no rows left to hold an offset: the scroller is 0 either way
 		}
 
 		conversationPlaceholder.style.display = 'none';
@@ -611,6 +619,19 @@ function t(key, fallback) {
 
 			conversationList.insertBefore(row, conversationPlaceholder);
 		});
+
+		conversationList.scrollTop = keepScrollTop;
+
+		// Keeping the place must never cost the open chat its place on SCREEN.
+		// Every send re-fetches the list (loadConversations), and the thread just
+		// used comes back at the top — the offset restored above would then hold the
+		// list where that row no longer is, with the open chat off the top of it.
+		// 'nearest' scrolls the least it can, and does nothing at all while the row
+		// is already in view, which is every other redraw.
+		var openRow = conversationList.querySelector('.conversation-item.active');
+		if (openRow && typeof openRow.scrollIntoView === 'function') {
+			openRow.scrollIntoView({ block: 'nearest' });
+		}
 	}
 
 	// ——— Chat Options: the row's ⋮ menu (Rename | Add to project | Delete) ———
@@ -2897,6 +2918,58 @@ function t(key, fallback) {
 		readBackSoFar(true);
 	}
 
+	// ── The line an attachment sends on its own (8.1.2) ─────────────────────────
+	// A message with no words still has to say what it carries. Every one of them
+	// sent the same "Please analyze the attached file(s)", so a second picture
+	// arrived with nothing to tell it from the first and was read in the first
+	// one's context — Sue said so herself (Steve's canary). The line now NAMES the
+	// attachments, pictures first, each half singular or plural on its own count.
+	//
+	// A picture is a picture by the same test the composer rail uses (the type
+	// starts image/). The names are the user's filenames and go in whole — the
+	// bubble sets them with textContent, and %s is filled by the FUNCTION form of
+	// replace() so a filename holding $& or $' cannot expand into the line.
+	//
+	// A name is not always the reader's own words: a file dragged off a web page,
+	// or synced in from a customer, carries a name someone else chose, and this
+	// line is the prose the assistant reads AS the request. Nothing is quoted and
+	// nothing is trimmed (Steve, on the wording) — but a control character is
+	// flattened to a space, so a name cannot open what reads as a new turn
+	// (a name carrying a newline and a SYSTEM: line of its own). A name that
+	// merely ASKS for something is still just a name in a sentence, and the
+	// console's tools carry no arbitrary egress — a bound worth keeping DEF-side.
+	function attachmentPrompt(attachments) {
+		var pictures = [];
+		var files = [];
+		(attachments || []).forEach(function(att) {
+			var name = att && att.name ? String(att.name).replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ') : '';
+			if (!name) return;
+			if (att.type && att.type.startsWith('image/')) pictures.push(name);
+			else files.push(name);
+		});
+
+		function names(list) {
+			return function() { return list.join(', '); };
+		}
+
+		// Each t() is written out so the key is a literal the i18n coverage scan
+		// can see (D-C10): a key reached through a helper is a key no translator
+		// ever gets.
+		var parts = [];
+		if (pictures.length === 1) {
+			parts.push(t('attachLinePicture', 'Describe this picture: %s.').replace('%s', names(pictures)));
+		} else if (pictures.length > 1) {
+			parts.push(t('attachLinePictures', 'Describe these pictures: %s.').replace('%s', names(pictures)));
+		}
+		if (files.length === 1) {
+			parts.push(t('attachLineFile', 'Please read the attached file: %s.').replace('%s', names(files)));
+		} else if (files.length > 1) {
+			parts.push(t('attachLineFiles', 'Please read the attached files: %s.').replace('%s', names(files)));
+		}
+		return parts.join(' ');
+	}
+	// ── end the line an attachment sends on its own ─────────────────────────────
+
 	async function sendMessage() {
 		const text = composerInput.value.trim();
 		var hasFiles = hasActiveFiles();
@@ -2947,7 +3020,6 @@ function t(key, fallback) {
 		}
 
 		// Build user message display content.
-		var displayText = text || (fileIds.length > 0 ? t('analyzeFiles', 'Please analyze the attached file(s).') : '');
 		var fileAttachments = null;
 		if (fileIds.length > 0) {
 			fileAttachments = stagedFiles
@@ -2955,11 +3027,19 @@ function t(key, fallback) {
 				.map(function(f) {
 					return {
 						name: f.file.name,
-						type: f.file.type || '',
+						// The same mime the upload commits (getMimeFromExtension, 8.1.2):
+						// File.type is empty often enough that the rail never trusts it,
+						// and a picture asked about as a document is this fix inverted.
+						type: f.file.type || getMimeFromExtension(f.file.name),
 						thumbnailUrl: f.thumbnailUrl || null,
 					};
 				});
 		}
+		// Wordless, the message says what it carries (8.1.2). The old one-line-for-
+		// everything stays as the floor: an upload that named nothing still sends.
+		var displayText = text || (fileIds.length > 0
+			? (attachmentPrompt(fileAttachments) || t('analyzeFiles', 'Please analyze the attached file(s).'))
+			: '');
 		messages.push({
 			role: 'user',
 			content: displayText,

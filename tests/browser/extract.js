@@ -14,7 +14,8 @@
  *
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
- * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -130,6 +131,38 @@ function chatAttachments() {
 		['function attachmentUrl', 'function storedAttachment', 'function openAttachment',
 			'function appendFileAttachments', 'staff-ai-attachment/'],
 		'CHAT_ATTACHMENTS');
+}
+
+// 8.1.2: the line a wordless message sends — what the attachments are called.
+function attachmentPrompt() {
+	return slice('attachment prompt',
+		l => l.includes('── The line an attachment sends on its own (8.1.2'),
+		l => l.includes('── end the line an attachment sends on its own'),
+		['function attachmentPrompt', "startsWith('image/')",
+			// The four keys are written out as literals on purpose (D-C10) — assert
+			// each, so a helper that hides one from the coverage scan fails here.
+			"t('attachLinePicture'", "t('attachLinePictures'", "t('attachLineFile'", "t('attachLineFiles'"],
+		'ATTACHMENT_PROMPT');
+}
+
+// 8.1.2: the one statement in the send path that chooses between the typed
+// words and the line the attachments write for themselves.
+function displayText() {
+	return slice('displayText',
+		l => l.includes('// Wordless, the message says what it carries (8.1.2)'),
+		l => l.includes('messages.push({'),
+		['var displayText', 'attachmentPrompt(fileAttachments)', "t('analyzeFiles'"],
+		'DISPLAY_TEXT');
+}
+
+// 8.1.2: the history list's redraw, which has to leave the scroller where it was.
+function conversationList() {
+	return slice('renderConversationList',
+		l => l.startsWith('	function renderConversationList() {'),
+		l => l.includes('——— Chat Options: the row'),
+		['function renderConversationList', 'keepScrollTop',
+			"classList.add('active')", 'conversationList.insertBefore'],
+		'CONVERSATION_LIST');
 }
 
 // 8.0.0: the upload rail — init with the companion declared, the PUTs, commit.
@@ -447,7 +480,7 @@ function cssRules(css) {
 }
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
-	chatAttachments, uploadRail,
+	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
