@@ -4579,7 +4579,7 @@ function t(key, fallback) {
 	// it." Sue reads the text through `read_my_document`; a human gets the file.
 	// A picture (8.1.0, images runsheet I-4) is looked at, not read: the page shows
 	// it from its download address, which the proxy serves inline.
-	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
+	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx'].concat(IMAGE_EXTENSIONS);
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
