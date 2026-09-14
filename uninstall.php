@@ -61,6 +61,8 @@ $options[] = 'def_core_tools_status';
 $options[] = 'def_core_allowed_origins';
 $options[] = 'def_core_keys';
 $options[] = 'def_core_roles_catalog';
+// The once-per-version rewrite flush stamp (8.0.0).
+$options[] = 'def_core_rewrite_version';
 
 foreach ( $options as $option ) {
 	delete_option( $option );
