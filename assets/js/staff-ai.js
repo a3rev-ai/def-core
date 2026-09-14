@@ -822,6 +822,13 @@ function t(key, fallback) {
 	// True while the entry we are on is the page entry the console itself pushed
 	// over its chat entry — the one case where leaving is a POP, not a push.
 	var chatEntryBelow = false;
+	// How many entries the console itself pushed and still stands on — the ones
+	// the page's Back may POP, so an open document returns to the Documents or
+	// Projects it was opened from. A navigation the browser made on its own
+	// (Back/Forward, an address, a reload) is not ours, and the count returns to
+	// zero there; `poppingOwn` tells the console's own pop apart from those.
+	var ownDepth = 0;
+	var poppingOwn = false;
 
 	// A page can own a FAMILY of routes (C4): the document viewer is ONE page
 	// with an id in its address, `document/<id>`. Its registry entry keeps the
@@ -874,9 +881,11 @@ function t(key, fallback) {
 		// time strand the phone's back gesture inside the console.
 		if (chatEntryBelow) {
 			chatEntryBelow = false;
+			ownDepth = 0;
 			window.history.back();
 			return;
 		}
+		ownDepth = 0;
 		if (!location.hash) return;
 		// Assigning '' leaves a bare "#" in the address bar; pushState gives
 		// the chat the clean URL the console loaded on.
@@ -896,7 +905,19 @@ function t(key, fallback) {
 		// by address, reload or Back/Forward is not ours to pop at all.
 		// Re-entering the page already open (the sidebar entry clicked again for
 		// a reload) pushes nothing, so it must not disown the entry underneath.
-		if (openRoute !== route) chatEntryBelow = !fromHash && !openPage;
+		if (openRoute !== route) {
+			if (!fromHash) {
+				chatEntryBelow = !openPage;
+				ownDepth += 1;
+			} else if (poppingOwn) {
+				// The console's own Back landed here: what is underneath is known.
+				poppingOwn = false;
+				chatEntryBelow = ownDepth === 1;
+			} else {
+				chatEntryBelow = false;
+				ownDepth = 0;
+			}
+		}
 
 		consolePages.forEach(function (other) {
 			if (other === page) return;
@@ -923,6 +944,9 @@ function t(key, fallback) {
 
 	function showChat(opts) {
 		var fromHash = !!(opts && opts.fromHash);
+		// The chat entry is never one the page's Back may pop — however it was
+		// reached, the count starts again from here.
+		if (fromHash) { poppingOwn = false; ownDepth = 0; }
 		// Chat navigation (a fresh chat, opening a conversation) leaves the page
 		// without yanking focus out of what the user is about to read.
 		var restoreFocus = !(opts && opts.focus === false);
@@ -993,15 +1017,31 @@ function t(key, fallback) {
 		showPage(route);
 	});
 
-	// The page's own way back to the chat (D-C3): the "‹ Chat" control every
-	// head carries. The browser's back button and the phone's back gesture are
-	// not there in the installed app (Steve's row 8 canary, 2026-09-14), so a
-	// page on that screen had no way off but the menu. Delegated like the
-	// sidebar click, and it takes the one step Escape takes.
+	// The page's own Back (D-C3), to the screen the reader came from: the
+	// "‹ Back" control every page carries. The browser's back button and the
+	// phone's back gesture are not there in the installed app (Steve's row 8
+	// canary, 2026-09-14), so a page on that screen had no way off but the menu;
+	// 7.9.16 shipped it as "‹ Chat", which from an open document skipped the
+	// Documents it was opened from (the same canary). A POP while the entry we
+	// stand on is one the console pushed — over the chat or over another page;
+	// the chat otherwise, since an entry reached by address, reload or the
+	// browser's Back is not ours to pop and a pop could leave the console.
+	function goBack() {
+		if (ownDepth > 0) {
+			ownDepth -= 1;
+			poppingOwn = true;
+			chatEntryBelow = false;
+			window.history.back();
+			return;
+		}
+		showChat();
+	}
+
+	// Delegated like the sidebar click.
 	document.addEventListener('click', function (e) {
 		if (e.defaultPrevented || !e.target || !e.target.closest) return;
 		if (!e.target.closest('.console-page-back')) return;
-		showChat();
+		goBack();
 	});
 
 	// Capture phase: the chat row's ⋮ menu closes on Escape from a listener
