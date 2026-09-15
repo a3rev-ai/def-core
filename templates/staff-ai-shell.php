@@ -84,6 +84,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</svg>
 					<?php echo esc_html__( 'Documents', 'digital-employees' ); ?>
 				</a>
+				<a class="sidebar-nav-item" id="navArtifacts" href="#artifacts">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<rect x="3" y="4" width="18" height="16" rx="2"></rect>
+						<line x1="3" y1="9" x2="21" y2="9"></line>
+						<line x1="9" y1="9" x2="9" y2="20"></line>
+					</svg>
+					<?php echo esc_html__( 'Artifacts', 'digital-employees' ); ?>
+				</a>
 				<a class="sidebar-nav-item" id="navScheduled" href="#scheduled">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<circle cx="12" cy="12" r="9"></circle>
@@ -324,6 +332,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 			</section>
 
+			<!-- Artifacts (A-2, D-A4): the Documents list filtered to html, grouped by day —
+			     the title, the project chip and the time, opening the artifact. No search,
+			     no filter, no ⋯ menu: management stays on Documents, which lists them too. -->
+			<section class="console-page console-page-compact" id="artifactsPane" hidden>
+				<button type="button" class="modal-btn modal-btn-secondary console-page-back"><span aria-hidden="true">‹</span> <?php echo esc_html__( 'Back', 'digital-employees' ); ?></button>
+				<div class="console-page-head">
+					<div>
+						<h1 class="console-page-title" id="artifactsTitle" tabindex="-1"><?php echo esc_html__( 'Artifacts', 'digital-employees' ); ?></h1>
+						<p class="console-page-desc"><?php echo esc_html__( 'Pages made for you in Staff AI — mock-ups, style kits, one-pagers, dashboards. Only you can see these.', 'digital-employees' ); ?></p>
+					</div>
+					<div class="console-page-actions"></div>
+				</div>
+				<div class="console-status" id="artifactsStatus"></div>
+				<div class="documents-grid" id="artifactsGrid"></div>
+				<!-- The empty state IS the entry point (Documents' rule, 2026-09-03). -->
+				<div class="documents-empty" id="artifactsEmptyState" style="display:none;">
+					<button type="button" class="modal-btn modal-btn-primary" id="artifactsAskAssistant"><?php echo esc_html__( 'Ask your assistant to make an artifact', 'digital-employees' ); ?></button>
+				</div>
+			</section>
+
 			<!-- The document viewer — the P-D3 modal's body on the shared .console-page
 			     shell (C4, D-C2/D-C3): reading a runsheet in a box over the chat was the
 			     worst case of the old pattern. The status line, the <pre> and Show more
@@ -344,6 +372,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</div>
 				</div>
 				<img class="document-viewer-image" id="documentViewerImage" alt="" style="display:none;">
+				<!-- Artifacts A-2 (D-A3): an html document renders ONLY in here. The sandbox
+				     grants scripts and nothing else — no allow-same-origin, so the page
+				     inside has an opaque origin: no cookies, no WordPress session, no reach
+				     into this console. Its srcdoc is set by JS from the content route's text
+				     with the CSP meta in front; the download proxy is never its source. -->
+				<iframe class="document-viewer-frame" id="documentViewerFrame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="<?php echo esc_attr__( 'Artifact', 'digital-employees' ); ?>" style="display:none;"></iframe>
 				<pre class="document-viewer-text" id="documentViewerText"></pre>
 				<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerMore" style="display:none;"><?php echo esc_html__( 'Show more', 'digital-employees' ); ?></button>
 			</section>
@@ -1107,6 +1141,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 			projectsArchived: <?php echo wp_json_encode( __( 'Archived', 'digital-employees' ) ); ?>,
 			documentsOtherOnly: <?php echo wp_json_encode( __( 'Other documents only — the runsheet, session notes and instructions are on the project card.', 'digital-employees' ) ); ?>,
 			documentsView: <?php echo wp_json_encode( __( 'View', 'digital-employees' ) ); ?>,
+			documentsOpen: <?php echo wp_json_encode( __( 'Open', 'digital-employees' ) ); ?>,
+			documentsArtifact: <?php echo wp_json_encode( __( 'ARTIFACT', 'digital-employees' ) ); ?>,
+			artifactsLoading: <?php echo wp_json_encode( __( 'Loading your artifacts…', 'digital-employees' ) ); ?>,
+			artifactsEmpty: <?php echo wp_json_encode( __( 'No artifacts yet. A mock-up, a style kit, a one-pager or a dashboard appears here once you ask for one.', 'digital-employees' ) ); ?>,
+			artifactsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your artifacts.', 'digital-employees' ) ); ?>,
+			artifactsAsk: <?php echo wp_json_encode( __( 'Ask your assistant to make an artifact', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			artifactsAskNamed: <?php echo wp_json_encode( __( 'Ask %s to make an artifact', 'digital-employees' ) ); ?>,
+			artifactsAskPrompt: <?php echo wp_json_encode( __( 'Make me an artifact — ask me what it is for (a mock-up of a screen, a style kit, a one-pager, a dashboard), then build it as a page and save it to my documents.', 'digital-employees' ) ); ?>,
+			documentViewerArtifactClosed: <?php echo wp_json_encode( __( 'This artifact tried to open another page and was closed.', 'digital-employees' ) ); ?>,
 			documentsNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
 			save: <?php echo wp_json_encode( __( 'Save', 'digital-employees' ) ); ?>,
 			documentsMoveFailed: <?php echo wp_json_encode( __( 'Could not move the document.', 'digital-employees' ) ); ?>,

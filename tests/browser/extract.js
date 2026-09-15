@@ -188,13 +188,33 @@ function installedShare() {
 function documents() {
 	return slice('initDocuments',
 		l => l.startsWith('\t(function initDocuments() {'),
-		l => l.startsWith('\t(function initProjects() {'),
+		l => l.startsWith('\t(function initArtifacts() {'),
 		['consolePages.push', 'function renderRow', 'function toggleAssignRow',
 			'function removeDoc',
 			// C7: the page keeps its items and delegates the machinery - assert the
 			// DELEGATION, so a page that quietly loses its menu is still a hard error.
 			'createConsoleMenu({', 'manageMenu.toggle(', 'manageMenu.disclosure('],
 		'DOCUMENTS');
+}
+
+// Artifacts A-2: the Artifacts page — html documents by day, each opening the artifact.
+function artifacts() {
+	return slice('initArtifacts',
+		l => l.startsWith('\t(function initArtifacts() {'),
+		l => l.startsWith('\t(function initProjects() {'),
+		['consolePages.push', 'function renderRow', 'async function loadList', 'ARTIFACT_TYPE', 'askEntry('],
+		'ARTIFACTS');
+}
+
+// Artifacts A-2 (D-A3): the frame's document — the type, the CSP string and
+// artifactDocument(), module-level so the viewer, the Documents card and the
+// Artifacts page share them. A harness that boots the viewer injects these.
+function artifactFrame() {
+	return slice('artifact frame',
+		l => l.startsWith('\tconst ARTIFACT_TYPE = '),
+		l => l.startsWith('\tlet projectsCache = '),
+		['ARTIFACT_CSP', 'function artifactDocument'],
+		'ARTIFACT_FRAME');
 }
 
 // C5: the one "Ask X how this works" entry, and the seven shipped calls to it.
@@ -226,8 +246,8 @@ function askEntryCalls() {
 		calls.push({ base: base[1], source: source, line: i + 1 });
 		i = end;
 	}
-	if (calls.length !== 7) {
-		throw new Error('askEntry calls: EXPECTED SEVEN, FOUND ' + calls.length +
+	if (calls.length !== 8) {
+		throw new Error('askEntry calls: EXPECTED EIGHT, FOUND ' + calls.length +
 			' (' + calls.map(c => c.base).join(', ') + ')');
 	}
 	return calls;
@@ -502,7 +522,7 @@ function cssRules(css) {
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
-	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
+	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

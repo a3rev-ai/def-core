@@ -49,7 +49,7 @@ class Test_Console_Frame_Headers extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				array( 'X-Frame-Options: SAMEORIGIN', true ),
-				array( "Content-Security-Policy: frame-ancestors 'self';", false ),
+				array( "Content-Security-Policy: frame-ancestors 'self'; frame-src 'self';", false ),
 			),
 			$this->emitted_headers()
 		);

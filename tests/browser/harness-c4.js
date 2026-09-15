@@ -103,8 +103,12 @@ function boot(startUrl, opts) {
 		return body;
 	}
 
+	// A-2: the viewer reads the artifact type and the frame builder; neither is this
+	// harness's subject (harness-artifacts.js), so the type is the shipped literal
+	// and the builder is the identity.
 	const names = ['window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
-		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile'];
+		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile',
+		'ARTIFACT_TYPE', 'artifactDocument'];
 	const viewer = new window.Function(...names, VIEWER + VIEWER_TAIL)(
 		window, document, api.consolePages, api.showPage,
 		function (key, def) { return def; },
@@ -120,7 +124,8 @@ function boot(startUrl, opts) {
 		null,
 		// Not an iPhone or iPad: Download is the browser's link. The share-sheet
 		// shape is harness-ios-download.js's subject.
-		function () { return false; }, function () {});
+		function () { return false; }, function () {},
+		'html', function (h) { return h; });
 
 	const $ = (id) => document.getElementById(id);
 	return {

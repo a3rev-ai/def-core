@@ -37,6 +37,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-c2.js` | Projects on the shell (v7.8.2), including the inline Create row |
 | `harness-c3.js` | Memories, Usage and Connections on the shell (v7.8.3) |
 | `harness-v-s7b.js` | A multi-step reply shown once (v7.8.4): the SSE stream handler of BOTH widgets — `step_superseded` moves a superseded round out of the bubble |
+| `harness-artifacts.js` | Artifacts A-2 (v8.2.1): an html document opens in a frame that carries exactly `sandbox="allow-scripts"`, its srcdoc built from the content route's text read to the end with the D-A3 CSP meta in front; the Artifacts page lists html by day; the Documents card says ARTIFACT and Open; the console page's CSP carries `frame-src 'self'` and the viewer closes an artifact whose frame loads a second time |
 | `harness-cc-uploads.js` | The Customer Chat attach gate (U-1b, v7.8.5): no upload before the conversation exists; the commit names its conversation (v8.1.3) |
 | `harness-ios-download.js` | Download on an iPhone or iPad (v7.9.15 the installed app, v7.9.19 Safari too): the Documents menu and the viewer hand the file to the share sheet, named by the proxy; everywhere else the link is the browser's |
 | `harness-page-back.js` | The "‹ Back" control (v7.9.16, corrected in v7.9.17 and v7.9.18): every shipped page carries it; it pops the console's own history entries — an open document back to Documents, a page back to the chat — and falls back to the chat from an entry that is not the console's (a reload, the browser's Back), never leaving the console |
