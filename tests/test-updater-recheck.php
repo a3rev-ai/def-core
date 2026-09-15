@@ -155,5 +155,30 @@ assert_same( 1, $def_core_update_checker->resets, 'a bulk update is left to PUC\
 $on_upgrade( null, array( 'action' => 'install', 'type' => 'plugin' ) );
 assert_same( 1, $def_core_update_checker->resets, 'an install names no plugin and resets nothing' );
 
+// ── The release asset is REQUIRED, not preferred ────────────────────────
+// A source pin, not a behaviour test: the call that matters is PUC's own, and
+// what we own is the argument. With PREFER (the library default) an asset-less
+// release still yields a reference carrying GitHub's source zipball, and the
+// tag/branch strategies hand back the same archive when the release yields none
+// — so both lines have to hold together.
+
+assert_same(
+	true,
+	(bool) preg_match(
+		'/enableReleaseAssets\(\s*null,\s*\$def_core_vcs_api::REQUIRE_RELEASE_ASSETS\s*\)/',
+		$src
+	),
+	'the updater REQUIRES the release asset, so a release with no zip is not an update'
+);
+
+assert_same(
+	true,
+	(bool) preg_match(
+		'/array_intersect_key\(\s*\$strategies,\s*array\(\s*\$def_core_vcs_api::STRATEGY_LATEST_RELEASE\s*=>\s*true\s*\)\s*\)/',
+		$src
+	),
+	'and it looks ONLY at the latest release — no tag or branch archive behind it'
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

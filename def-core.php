@@ -51,7 +51,33 @@ $def_core_update_checker = PucFactory::buildUpdateChecker(
 	'digital-employees'
 );
 
-$def_core_update_checker->getVcsApi()->enableReleaseAssets();
+// ── A release is only an update once its ZIP is on it (8.2.2) ───────────
+// .github/workflows/release.yml fires on `release: [published]` and THEN builds
+// and uploads digital-employees.zip, so for the first minute or two the latest
+// release carries no asset. PUC served GitHub's auto-generated source archive in
+// that window — the raw repo, tests and CI config and all — because
+// enableReleaseAssets() defaults to PREFER_RELEASE_ASSETS and getLatestRelease()
+// seeds downloadUrl with $release->zipball_url before a matching asset overwrites
+// it (Vcs/GitHubApi.php:105, :129). REQUIRE makes such a release no reference at
+// all (:137), so it is not an update until the zip lands, and the per-minute
+// re-check below then picks it up within a minute of it landing.
+//
+// REQUIRE on its own does not close the window: chooseReference() falls through
+// to the NEXT strategy (Vcs/Api.php:106-111), and getLatestTag() hands back the
+// same source zipball for the tag `gh release create` just made (GitHubApi.php:175).
+// So the tag and branch fallbacks come off the list as well — this plugin ships
+// from a release asset and from nothing else.
+$def_core_vcs_api = $def_core_update_checker->getVcsApi();
+// Read off the API object's own class: PUC's namespace carries its version
+// (…\v5p6\Vcs\Api), which the next library drop renames.
+$def_core_vcs_api->enableReleaseAssets( null, $def_core_vcs_api::REQUIRE_RELEASE_ASSETS );
+
+add_filter(
+	$def_core_update_checker->getUniqueName( 'vcs_update_detection_strategies' ),
+	function ( $strategies ) use ( $def_core_vcs_api ) {
+		return array_intersect_key( $strategies, array( $def_core_vcs_api::STRATEGY_LATEST_RELEASE => true ) );
+	}
+);
 
 // Inject plugin icon into update/plugin-info screens.
 $def_core_update_checker->addResultFilter( function ( $plugin_info ) {
