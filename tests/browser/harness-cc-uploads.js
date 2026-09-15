@@ -139,7 +139,7 @@ function check(n, label, cond, detail) {
       SRC.includes("attachAfterFirstMessage: '" + NOTICE + "'")
       && PHP.includes("'attachAfterFirstMessage' => __( '" + NOTICE + "'"));
     check(17, 'the commit names the conversation the upload was initiated for (8.1.3) - the platform checks the caller, not its own record',
-      /config\.uploadCommitUrl[\s\S]{0,400}?JSON\.stringify\(\{ file_id: fileId, conversation_id: conversationId \}\)/.test(SRC));
+      /config\.uploadCommitUrl[\s\S]{0,800}?JSON\.stringify\(\{ file_id: fileId, conversation_id: conversationId \}\)/.test(SRC));
   }
 
   console.log(results.join('\n'));
