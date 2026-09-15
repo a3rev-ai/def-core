@@ -66,6 +66,13 @@ function add_action( string $hook, $callback, int $priority = 10, int $accepted_
 	$GLOBALS['hooks'][ $hook ] = $callback;
 }
 
+// Who is looking at the Plugins screen. WordPress fires load-plugins.php before
+// plugins.php turns an unprivileged caller away, so this is a real distinction.
+$GLOBALS['can_activate_plugins'] = true;
+function current_user_can( string $capability ): bool {
+	return 'activate_plugins' === $capability && $GLOBALS['can_activate_plugins'];
+}
+
 /** Stands in for PUC's update checker: counts what the block asks it to do. */
 class PUC_Spy {
 	public int $checks = 0;
@@ -116,18 +123,30 @@ assert_same( true, isset( $hooks['upgrader_process_complete'] ), 'a completed up
 $on_plugins_screen = $hooks['load-plugins.php'];
 $on_upgrade        = $hooks['upgrader_process_complete'];
 
-// ── The Plugins screen: at most one check a minute ──────────────────────
+// ── Only someone who can manage plugins may drive it ────────────────────
+// WordPress fires load-{$pagenow} (admin.php) before plugins.php turns away a
+// caller who cannot manage plugins, so a Subscriber reaching wp-admin lands here.
+// A check is three anonymous GitHub requests against a 60-an-hour ceiling, and
+// past that ceiling a failed check BLANKS a genuine pending update.
+
+$GLOBALS['can_activate_plugins'] = false;
+$on_plugins_screen();
+assert_same( 0, $def_core_update_checker->checks, 'someone who cannot manage plugins drives no check' );
+assert_same( false, get_transient( 'def_core_puc_recheck' ), 'and does not even take the throttle slot' );
+$GLOBALS['can_activate_plugins'] = true;
+
+// ── The Plugins screen: at most one check every five minutes ────────────
 
 $on_plugins_screen();
 assert_same( 1, $def_core_update_checker->checks, 'a first load of the Plugins screen checks for a new release' );
 
-$GLOBALS['now'] += 30;
+$GLOBALS['now'] += 4 * 60;
 $on_plugins_screen();
-assert_same( 1, $def_core_update_checker->checks, 'a second load 30 seconds later does not check again' );
+assert_same( 1, $def_core_update_checker->checks, 'a second load four minutes later does not check again' );
 
-$GLOBALS['now'] += 31;
+$GLOBALS['now'] += 61;
 $on_plugins_screen();
-assert_same( 2, $def_core_update_checker->checks, 'a load after the minute is up checks again' );
+assert_same( 2, $def_core_update_checker->checks, 'a load after the five minutes are up checks again' );
 
 // ── The single / auto update path PUC skips ─────────────────────────────
 

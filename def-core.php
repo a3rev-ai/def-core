@@ -59,8 +59,8 @@ $def_core_update_checker = PucFactory::buildUpdateChecker(
 // enableReleaseAssets() defaults to PREFER_RELEASE_ASSETS and getLatestRelease()
 // seeds downloadUrl with $release->zipball_url before a matching asset overwrites
 // it (Vcs/GitHubApi.php:105, :129). REQUIRE makes such a release no reference at
-// all (:137), so it is not an update until the zip lands, and the per-minute
-// re-check below then picks it up within a minute of it landing.
+// all (:137), so it is not an update until the zip lands, and the Plugins-screen
+// re-check below then picks it up within a few minutes of it landing.
 //
 // REQUIRE on its own does not close the window: chooseReference() falls through
 // to the NEXT strategy (Vcs/Api.php:106-111), and getLatestTag() hands back the
@@ -95,14 +95,27 @@ $def_core_update_checker->addResultFilter( function ( $plugin_info ) {
 // Dashboard → Updates already gets 60s). On 2026-09-15 four releases shipped in
 // one day: the 21:35 update to 8.2.0 ran a check, 8.2.1 published ten minutes
 // later, and both production sites were throttled for the rest of that hour —
-// the zip went up by hand. These two put the Plugins screen on the same
-// 60-second ceiling PUC already accepts for Dashboard → Updates, and close the
-// single-update path PUC's own handler skips.
+// the zip went up by hand. These two bring the Plugins screen down to minutes,
+// and close the single-update path PUC's own handler skips.
 add_action( 'load-plugins.php', function () use ( $def_core_update_checker ) {
+	// admin.php:390 fires load-{$pagenow} BEFORE plugins.php:12 turns away a caller
+	// who cannot manage plugins, so without this any logged-in account that can
+	// reach wp-admin — a Subscriber, a Woo customer — could pump the check.
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
 	if ( get_transient( 'def_core_puc_recheck' ) ) {
 		return;
 	}
-	set_transient( 'def_core_puc_recheck', 1, MINUTE_IN_SECONDS );
+	// Five minutes, not one: ONE check is three anonymous api.github.com requests
+	// (releases/latest, then the plugin header and readme.txt through /contents —
+	// Vcs/PluginUpdateChecker::requestInfo), and the anonymous ceiling is 60 an hour
+	// per IP. Twelve checks an hour is 36 of them, which leaves room for PUC's own
+	// background and Dashboard → Updates checks. Past the ceiling every request is
+	// an error, and with only the release strategy left there is nothing to fall
+	// back to: checkForUpdates() stores setUpdate(null) (UpdateChecker.php:369) and
+	// blanks a genuine pending update, quietly.
+	set_transient( 'def_core_puc_recheck', 1, 5 * MINUTE_IN_SECONDS );
 	$def_core_update_checker->checkForUpdates();
 } );
 
