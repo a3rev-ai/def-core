@@ -3823,7 +3823,10 @@
 						method: 'POST',
 						headers: headers,
 						credentials: 'same-origin',
-						body: JSON.stringify({ file_id: fileId }),
+						// The conversation the upload was initiated for rides the commit
+						// too (8.1.3): the platform checks the caller's value, never its
+						// own record, so a leaked file id commits nothing.
+						body: JSON.stringify({ file_id: fileId, conversation_id: conversationId }),
 						signal: controller3.signal,
 					}
 				).then(function (commitRes) {

@@ -1,5 +1,5 @@
 /*
- * Customer Chat attach gate - behavioural harness (U-1b / v7.8.5), 16 checks.
+ * Customer Chat attach gate - behavioural harness (U-1b / v7.8.5, +1 for v8.1.3), 17 checks.
  *
  * Runs the SHIPPED attach-gate and staged-upload blocks (extracted by marker
  * from assets/js/def-core-customer-chat.js) inside jsdom over the same closure
@@ -138,6 +138,8 @@ function check(n, label, cond, detail) {
     check(16, 'the notice is in both string maps, so it can be translated',
       SRC.includes("attachAfterFirstMessage: '" + NOTICE + "'")
       && PHP.includes("'attachAfterFirstMessage' => __( '" + NOTICE + "'"));
+    check(17, 'the commit names the conversation the upload was initiated for (8.1.3) - the platform checks the caller, not its own record',
+      /config\.uploadCommitUrl[\s\S]{0,400}?JSON\.stringify\(\{ file_id: fileId, conversation_id: conversationId \}\)/.test(SRC));
   }
 
   console.log(results.join('\n'));
