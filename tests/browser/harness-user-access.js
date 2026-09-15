@@ -63,7 +63,8 @@
  *        per catalog role, and (49-50) the level read from the STORED
  *        capabilities with no branch that turns "neither" into a level.
  *
- * 54-59. THE RESPONSIVE RULES, read out of assets/css/def-core-admin.css. Below
+ * 54-60. THE RESPONSIVE RULES AND THE HIDDEN INPUTS, read out of
+ *        assets/css/def-core-admin.css. Below
  *        782px the table presentation is REPLACED by stacked blocks with visible
  *        cell labels. Check 56 is subtle and was a real bug: the stacked layout
  *        sets display:block on every tr, `hidden` is only display:none in the UA
@@ -71,7 +72,11 @@
  *        on a laptop and hid nobody on a phone. Check 59 is the one that
  *        outlives this PR: this screen must not reach for the sideways-scroll
  *        wrapper S1 gave the Connection Logs table. There is no row left to be
- *        wider than the screen.
+ *        wider than the screen. Check 60 came out of the wp-env canary and is
+ *        the same shape as 56 from the other side: core's own forms.css gives
+ *        every checkbox an author-level display:inline-block, so the capability
+ *        inputs the chips drive rendered as bare checkboxes beside them. Core's
+ *        rule is not media-scoped, so 60 pins that ours is not either.
  *
  *        ruleIn() below allows either line ending on purpose. Its grouped
  *        selector carries the newlines the stylesheet has, and core.autocrlf
@@ -101,10 +106,10 @@
  *   - make the pill click always select (`setAccessLevel(row, pair[0])`) instead
  *     of clearing the lit one, and checks 4-7 go red.
  *
- * Checks 43-59 read the working tree rather than the block, so they bite by
+ * Checks 43-60 read the working tree rather than the block, so they bite by
  * editing the scripts, the template and the stylesheet instead.
  *
- * 59 checks.
+ * 60 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -822,6 +827,51 @@ check('User Access uses NO sideways-scroll workaround: no floor on the table, no
 	!/<div class="def-core-table-scroll"[\s\S]{0,400}?<table class="def-core-roles-table"/.test(TEMPLATE) &&
 	!/overflow-x/.test(PHONE.slice(PHONE.indexOf('.def-core-roles-table'))),
 	floored.length ? 'floored: ' + floored.map(r => r.selector).join(', ') : 'a scroller wraps the table');
+
+// 60 — the canary check. Every capability is carried by a .def-core-role-cb
+// input and all but DEF Admin are `hidden`, driven by the chips and the pills.
+// WordPress core's forms.css sets display:inline-block on EVERY checkbox input
+// — an author rule, which beats the UA stylesheet's [hidden] { display: none }
+// — so in wp-admin those inputs came back as bare checkboxes beside the chips
+// they are driven by. Same collision as check 56, reached from core's
+// stylesheet rather than ours, and core's rule is NOT media-scoped: an answer
+// that lives inside the phone query leaves the laptop broken, which is where
+// the canary saw it. The `[hidden]` in the selector is load-bearing too —
+// unqualified, this rule would take the DEF Admin tick off the screen as well.
+{
+	const SELECTOR = '.def-core-roles-table .def-core-role-cb[hidden]';
+	const body = ruleIn(ADMIN_CSS, SELECTOR);
+	const at = ADMIN_CSS.indexOf(SELECTOR + ' {');
+	const phoneAt = ADMIN_CSS.indexOf(PHONE);
+	const atEveryWidth = at !== -1 && (at < phoneAt || at > phoneAt + PHONE.length);
+	const all = extract.cssRules(ADMIN_CSS);
+	const blanket = Array.from(all.byClass.get('def-core-role-cb') || [])
+		.map(i => all.rules[i])
+		.filter(r => /display:\s*none/.test(r.body) && !/\[hidden\]/.test(r.selector));
+	// The rule's premise, read off the shipped template: the inputs it is for
+	// really do carry `hidden`, and the DEF Admin tick really does not. Sliced
+	// tag by tag rather than matched with [^>]*, because every one of these
+	// carries a <?php … ?> with a > of its own inside it. The two access-level
+	// inputs are read here; the per-role ones are check 52's.
+	const tags = TEMPLATE.split('<input').slice(1)
+		.map(t => t.slice(0, t.indexOf('/>') + 2))
+		.filter(t => /class="def-core-role-cb/.test(t));
+	const cbFor = cap => tags.find(t => t.indexOf('data-cap="' + cap + '"') !== -1);
+	const staffCb = cbFor('def_staff_access');
+	const mgmtCb = cbFor('def_management_access');
+	const adminCb = cbFor('def_admin_access');
+	const premise =
+		!!staffCb && /\bhidden\b/.test(staffCb) &&
+		!!mgmtCb && /\bhidden\b/.test(mgmtCb) &&
+		!!adminCb && !/\bhidden\b/.test(adminCb);
+	check('the hidden capability inputs stay hidden against wp-admin\'s own checkbox rule, at every width',
+		!!body && /display:\s*none/.test(body) && atEveryWidth && blanket.length === 0 && premise,
+		!body ? 'no rule for ' + SELECTOR
+			: !/display:\s*none/.test(body) ? 'got: ' + body.replace(/\s+/g, ' ').trim()
+			: !atEveryWidth ? 'the rule sits inside the 782px query — the laptop is still broken'
+			: blanket.length ? 'hides .def-core-role-cb unqualified, DEF Admin with it: ' + blanket.map(r => r.selector).join(', ')
+			: 'the template no longer marks the access-level inputs hidden, or DEF Admin now is');
+}
 
 console.log('\nSettings → User Access — one row per person, roles as chips (S3)\n');
 results.forEach(r => console.log(r));

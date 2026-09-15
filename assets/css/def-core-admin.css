@@ -481,6 +481,20 @@
 	background: #f6f7f7;
 }
 
+/* Every capability this screen stores is still carried by a .def-core-role-cb
+   input; the chips and the pills drive them, so all but DEF Admin are marked
+   `hidden`. WordPress core's forms.css gives EVERY checkbox input a
+   display:inline-block, and that is an AUTHOR rule — it beats the UA
+   stylesheet's [hidden] { display: none }, so in wp-admin those inputs came
+   back as bare checkboxes sitting beside the chips they are driven by. Same
+   collision the phone `tr[hidden]` rule answers further down, reached from
+   core's stylesheet instead of ours: core's rule is not media-scoped, so this
+   one must not be either. `[hidden]` is load-bearing — the DEF Admin tick
+   carries no `hidden` and has to stay on screen. */
+.def-core-roles-table .def-core-role-cb[hidden] {
+	display: none;
+}
+
 @keyframes def-row-flash {
 	0%   { background: #d4edda; }
 	100% { background: transparent; }
