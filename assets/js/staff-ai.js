@@ -4659,7 +4659,32 @@ function t(key, fallback) {
 	// it." Sue reads the text through `read_my_document`; a human gets the file.
 	// A picture (8.1.0, images runsheet I-4) is looked at, not read: the page shows
 	// it from its download address, which the proxy serves inline.
-	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx'].concat(IMAGE_EXTENSIONS);
+	// An artifact (8.2.x, artifacts runsheet A-2) is an html page Sue made; the page
+	// opens it inside a sandboxed frame — never in the console's own DOM (D-A3).
+	const VIEWABLE_TYPES = ['md', 'markdown', 'txt', 'csv', 'docx', 'pptx', 'html'].concat(IMAGE_EXTENSIONS);
+	const ARTIFACT_TYPE = 'html';
+	// D-A3, verbatim from docs/staff-ai-artifacts-runsheet.md: inline script and style
+	// run, Google Fonts load, images are the data the page carries, and nothing else
+	// is fetched. Prepended to the artifact as a <meta> before srcdoc is set.
+	const ARTIFACT_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src data: blob:; media-src data:";
+
+	// The document the frame loads: the artifact's own text with the policy in front.
+	// A sandboxed frame can still navigate ITSELF, and no CSP directive governs a
+	// document's own navigation, so a link inside the page would replace the artifact
+	// with another site. <base target="_blank"> sends every link and form to a new
+	// window instead, which the sandbox (no allow-popups) refuses — links are inert
+	// (runsheet §5). Both tags go at the top of <head> when the page has one, so
+	// they precede every script and style; A-1 gives every artifact a head.
+	function artifactDocument(html) {
+		var policy = '<meta http-equiv="Content-Security-Policy" content="' + ARTIFACT_CSP + '">'
+			+ '<base target="_blank">';
+		var head = /<head(?:\s[^>]*)?>/i.exec(html);
+		if (head) {
+			var at = head.index + head[0].length;
+			return html.slice(0, at) + policy + html.slice(at);
+		}
+		return policy + html;
+	}
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
@@ -4712,6 +4737,7 @@ function t(key, fallback) {
 		const moreBtn = document.getElementById('documentViewerMore');
 		const dlLink = document.getElementById('documentViewerDownload');
 		const imgEl = document.getElementById('documentViewerImage');
+		const frameEl = document.getElementById('documentViewerFrame');
 		// The hand-off the Documents menu makes: installed on iOS the link lands on
 		// the document-preview sheet (row 8 canary, 2026-09-14), so the share sheet
 		// takes the file instead. Everywhere else the link is the browser's.
@@ -4751,10 +4777,17 @@ function t(key, fallback) {
 			// enough. Writing anyway would append THIS document's text, title and
 			// download link to THAT one, and hand it this one's next offset.
 			if (!current || current.id !== asked) return;
-			textEl.textContent += (typeof data.content === 'string') ? data.content : '';
-			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
-			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
 			var doc = data.document || {};
+			var chunk = (typeof data.content === 'string') ? data.content : '';
+			// An artifact (A-2, D-A3) is read to the END before the frame sees it — a
+			// half page has an unclosed <style> or <script> — and it goes into srcdoc,
+			// never the <pre>: the frame is the containment, the console's DOM is not.
+			var artifact = String(doc.file_type || '').toLowerCase() === ARTIFACT_TYPE;
+			if (artifact) { current.html = (current.html || '') + chunk; }
+			else { textEl.textContent += chunk; }
+			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
+			if (artifact && current.nextOffset !== null) { return fetchChunk(current.nextOffset); }
+			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
 			if (doc.title) { titleEl.textContent = doc.title; }
 			// C4: the download link comes from the document's OWN response, so the
 			// page carries it however it was reached — a card, a project tile, a
@@ -4772,12 +4805,14 @@ function t(key, fallback) {
 				imgEl.alt = doc.title || '';
 			}
 			imgEl.style.display = picture && href ? '' : 'none';
-			textEl.style.display = picture ? 'none' : '';
+			if (artifact) { frameEl.srcdoc = artifactDocument(current.html); }
+			frameEl.style.display = artifact ? '' : 'none';
+			textEl.style.display = picture || artifact ? 'none' : '';
 			if (picture) { current.nextOffset = null; moreBtn.style.display = 'none'; }
 			statusEl.textContent = [
-				(doc.file_type || '').toUpperCase(),
+				artifact ? t('documentsArtifact', 'ARTIFACT') : (doc.file_type || '').toUpperCase(),
 				doc.version ? 'v' + doc.version : '',
-				(typeof data.total_chars === 'number' && !picture) ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
+				(typeof data.total_chars === 'number' && !picture && !artifact) ? t('documentViewerChars', '%s characters').replace('%s', String(data.total_chars)) : ''
 			].filter(Boolean).join(' · ');
 			statusEl.className = 'console-page-desc documents-status documents-status-muted';
 		}
@@ -4797,6 +4832,8 @@ function t(key, fallback) {
 				titleEl.textContent = t('documentViewerTitle', 'Document');
 				textEl.textContent = '';
 				imgEl.style.display = 'none';
+				frameEl.removeAttribute('srcdoc');
+				frameEl.style.display = 'none';
 				moreBtn.style.display = 'none';
 				dlLink.style.display = 'none';
 				statusEl.textContent = t('documentViewerFailed', 'Could not read the document.');
@@ -4810,6 +4847,10 @@ function t(key, fallback) {
 			textEl.style.display = '';
 			imgEl.style.display = 'none';
 			imgEl.removeAttribute('src');
+			// The last artifact's page must not sit in the frame while the next document
+			// loads — and an md document never shows a frame at all.
+			frameEl.removeAttribute('srcdoc');
+			frameEl.style.display = 'none';
 			moreBtn.style.display = 'none';
 			dlLink.style.display = 'none';
 			statusEl.textContent = t('documentViewerLoading', 'Loading…');
@@ -5028,8 +5069,10 @@ function t(key, fallback) {
 			// than as a type the viewer will not show. The answer goes on the line that
 			// already names the type — that is where someone looks when a type is why.
 			const viewable = VIEWABLE_TYPES.indexOf((doc.file_type || '').toLowerCase()) !== -1;
+			// An artifact says so where the type is named, and its action is Open (D-A4).
+			const artifact = (doc.file_type || '').toLowerCase() === ARTIFACT_TYPE;
 			meta.textContent = [
-				(doc.file_type || '').toUpperCase(),
+				artifact ? t('documentsArtifact', 'ARTIFACT') : (doc.file_type || '').toUpperCase(),
 				formatSize(doc.size_bytes),
 				formatTime(doc.created_at),
 				viewable ? '' : t('documentsDownloadToOpen', 'download to open')
@@ -5061,7 +5104,7 @@ function t(key, fallback) {
 				const view = document.createElement('button');
 				view.type = 'button';
 				view.className = 'modal-btn modal-btn-primary document-view-btn';
-				view.textContent = t('documentsView', 'View');
+				view.textContent = artifact ? t('documentsOpen', 'Open') : t('documentsView', 'View');
 				view.addEventListener('click', function () { openDocumentViewer(doc.document_id, doc.title); });
 				actions.appendChild(view);
 			}
@@ -5294,6 +5337,105 @@ function t(key, fallback) {
 	// =============================================
 	// PROJECTS PAGE (the 7.8.0 card workspace on the console shell — C2)
 	// =============================================
+
+	// Artifacts (A-2, D-A4): the Documents list filtered to html, grouped by DAY, each
+	// card the title, the project chip and the time, opening the artifact. No search,
+	// no project filter, no ⋯ menu — management stays on Documents, which lists them
+	// too. The share marks (globe / lock) arrive with the share link (A-3).
+	(function initArtifacts() {
+		const pane = document.getElementById('artifactsPane');
+		if (!pane) return;
+		const statusEl = document.getElementById('artifactsStatus');
+		const listEl = document.getElementById('artifactsGrid');
+		let loading = false;
+
+		consolePages.push({
+			route: 'artifacts',
+			el: pane,
+			title: document.getElementById('artifactsTitle'),
+			onEnter: function () { loadList(); }
+		});
+
+		function setStatus(message, kind) {
+			statusEl.textContent = message || '';
+			statusEl.className = 'console-status' + (message ? ' console-status-' + (kind || 'muted') : '');
+		}
+
+		function dayLabel(iso) {
+			var d = iso ? new Date(iso) : null;
+			if (!d || isNaN(d.getTime())) return t('documentsUndated', 'Undated');
+			return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+		}
+
+		function renderRow(doc) {
+			const row = document.createElement('article');
+			row.className = 'console-card';
+			const head = document.createElement('div');
+			head.className = 'console-card-head';
+			row.appendChild(head);
+			const info = document.createElement('div');
+			info.className = 'document-info';
+			const name = document.createElement('span');
+			name.className = 'document-name';
+			name.textContent = doc.title || doc.document_id;
+			info.appendChild(name);
+			const meta = document.createElement('span');
+			meta.className = 'document-meta';
+			meta.textContent = [doc.version ? 'v' + doc.version : '', formatTime(doc.created_at)].filter(Boolean).join(' · ');
+			info.appendChild(meta);
+			if (doc.project_id && doc.project_name) {
+				const chip = document.createElement('span');
+				chip.className = 'document-project-chip';
+				chip.textContent = doc.project_name;  // user text: textContent only
+				info.appendChild(chip);
+			}
+			head.appendChild(info);
+			const actions = document.createElement('div');
+			actions.className = 'console-card-actions';
+			const open = document.createElement('button');
+			open.type = 'button';
+			open.className = 'modal-btn modal-btn-primary document-view-btn';
+			open.textContent = t('documentsOpen', 'Open');
+			open.addEventListener('click', function () { openDocumentViewer(doc.document_id, doc.title); });
+			actions.appendChild(open);
+			head.appendChild(actions);
+			return row;
+		}
+
+		async function loadList() {
+			if (loading) return;
+			loading = true;
+			setStatus(t('artifactsLoading', 'Loading your artifacts…'), 'muted');
+			listEl.innerHTML = '';
+			try {
+				const data = await apiRequest('/documents');
+				const docs = (Array.isArray(data.documents) ? data.documents : []).filter(function (doc) {
+					return (doc.file_type || '').toLowerCase() === ARTIFACT_TYPE;
+				});
+				if (docs.length === 0) {
+					setStatus(t('artifactsEmpty', 'No artifacts yet. Ask for a mock-up, a style kit or a one-pager and it appears here.'), 'muted');
+					return;
+				}
+				setStatus('', 'muted');
+				var lastLabel = null;
+				docs.forEach(function (doc) {
+					var label = dayLabel(doc.created_at);
+					if (label !== lastLabel) {
+						var h = document.createElement('h2');
+						h.className = 'documents-month';
+						h.textContent = label;
+						listEl.appendChild(h);
+						lastLabel = label;
+					}
+					listEl.appendChild(renderRow(doc));
+				});
+			} catch (e) {
+				setStatus((e && e.message) || t('artifactsLoadFailed', 'Could not load your artifacts.'), 'error');
+			} finally {
+				loading = false;
+			}
+		}
+	})();
 
 	(function initProjects() {
 		const pane = document.getElementById('projectsPane');

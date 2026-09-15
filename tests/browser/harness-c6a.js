@@ -159,7 +159,7 @@ function boot(opts) {
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
     'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
     'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-    'isIOS', 'shareFile',
+    'isIOS', 'shareFile', 'ARTIFACT_TYPE',
     MENU + '\n' + DOCUMENTS
   )(
     window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
@@ -171,7 +171,7 @@ function boot(opts) {
     function (e) { return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey; },
     // Not an iPhone or iPad: Download stays the link it was. The share-sheet
     // shape is harness-ios-download.js's subject.
-    function () { return false; }, function () {}
+    function () { return false; }, function () {}, 'html'
   );
 
   return {

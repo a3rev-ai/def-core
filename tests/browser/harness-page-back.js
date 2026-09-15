@@ -100,7 +100,9 @@ function check(label, cond, detail) {
 		const heads = (TEMPLATE.match(/class="console-page-head"/g) || []).length;
 		const backs = (TEMPLATE.match(/console-page-back"/g) || []).length;
 		check('every shipped page carries the control — one per head, no head without',
-			heads === 7 && backs === heads, 'heads=' + heads + ' backs=' + backs);
+			// Eight since A-2: Projects, Documents, Artifacts, the viewer, Memories, Usage,
+			// Connections, Scheduled.
+			heads === 8 && backs === heads, 'heads=' + heads + ' backs=' + backs);
 	}
 	{
 		const t = boot();

@@ -93,7 +93,7 @@ function bootDocuments(opts) {
 		'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
 		'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
 		'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-		'isIOS', 'shareFile', 'navigator',
+		'isIOS', 'shareFile', 'navigator', 'ARTIFACT_TYPE',
 		MENU + '\n' + DOCUMENTS
 	)(
 		window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
@@ -102,7 +102,7 @@ function bootDocuments(opts) {
 		function () {}, ['md', 'txt'], null, api.showPage,
 		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
 		function (e) { return e.button === 0; },
-		s.isIOS, s.shareFile, window.navigator
+		s.isIOS, s.shareFile, window.navigator, 'html'
 	);
 	return { window, document, api, shared: s.shared };
 }
@@ -148,10 +148,11 @@ function bootViewer(opts) {
 	}
 	const viewer = new window.Function('window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
 		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile', 'navigator',
+		'ARTIFACT_TYPE', 'artifactDocument',
 		VIEWER + '\n\treturn { open: openDocumentViewer };'
 	)(window, document, api.consolePages, api.showPage, function (key, def) { return def; }, apiRequest,
 		'/def/v1', function (u) { return /^https?:\/\//i.test(u || '') ? u : ''; }, null,
-		s.isIOS, s.shareFile, window.navigator);
+		s.isIOS, s.shareFile, window.navigator, 'html', function (h) { return h; });
 	return { window, document, open: viewer.open, shared: s.shared, link: () => document.getElementById('documentViewerDownload') };
 }
 
