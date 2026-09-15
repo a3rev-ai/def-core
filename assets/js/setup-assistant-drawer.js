@@ -1309,13 +1309,25 @@
 
 		var row = tbody.querySelector('tr[data-user-id="' + userId + '"]');
 		if (row) {
-			// Update existing row checkboxes.
+			// Update existing row checkboxes. The inputs are the row's state, but
+			// since S3 they are no longer all visible — the vault roles are chips
+			// and the access level a two-way control drawn over the hidden ones.
+			// Writing .checked fires nothing, so the change is announced: User
+			// Access listens and redraws the row it belongs to.
 			var checkboxes = row.querySelectorAll('input[type="checkbox"]');
+			var written = null;
 			for (var i = 0; i < checkboxes.length; i++) {
 				var cap = checkboxes[i].getAttribute('data-cap');
 				if (cap && caps.hasOwnProperty(cap)) {
 					checkboxes[i].checked = !!caps[cap];
+					written = checkboxes[i];
 				}
+			}
+			// Announced from an input that was actually written, not from
+			// whichever checkbox happens to be first in the row — the listener
+			// on the other side only acts on a .def-core-role-cb.
+			if (written) {
+				written.dispatchEvent(new Event('change', { bubbles: true }));
 			}
 		} else if (window.DEFAdmin && window.DEFAdmin.addUserRow) {
 			// New user — add row via existing admin function.

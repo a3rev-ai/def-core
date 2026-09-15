@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.1.3
+Stable tag: 8.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.0 - 2026-09-15 =
+* New Feature - Settings → User Access: the list is now one row per person instead of a grid with a tick-box column for every role. Staff or Management sets what a person can reach in the Staff AI console — one or the other, never both and never neither. Their roles are shown as chips you add with "+ Add role" and remove with the × on the chip, so adding a sixth or a twelfth role no longer makes the page wider. DEF Admin stays its own tick, and still controls who can open this settings page. A new filter above the list narrows it to the people who hold one role, and tells you how many that is — it only changes what you are looking at, never anyone's permissions. On a phone each person is now a stacked card with labelled fields, so the page no longer scrolls sideways.
 
 = 8.1.3 - 2026-09-15 =
 * Fix - Customer Chat: when an attached image finishes uploading, the widget now tells the platform which conversation it belongs to, so the platform can check the image is yours before your assistant reads it. Nothing changes on screen. Ships ahead of the platform release that makes that check.

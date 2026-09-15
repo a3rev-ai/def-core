@@ -926,31 +926,70 @@ $first_tab = 'branding';
 		<div class="def-core-card">
 			<h2><?php esc_html_e( 'User Access', 'digital-employees' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'Staff and Management both grant login access to Staff AI but at different document authority levels — Management users can access documents that Staff users cannot. DEF Admin grants access to this settings page.', 'digital-employees' ); ?>
+				<?php esc_html_e( 'Staff and Management both open the Staff AI console, at different document authority: a Management user can read documents a Staff user cannot. Roles give a person the vaults and tools that role holds. DEF Admin opens this settings page.', 'digital-employees' ); ?>
 			</p>
 
+			<?php // S3: narrow the list by vault role. Presentation only — filtering changes nothing a save writes. ?>
+			<div class="def-core-access-toolbar">
+				<label for="def-core-role-filter"><?php esc_html_e( 'Show people with role', 'digital-employees' ); ?></label>
+				<select id="def-core-role-filter" class="def-core-role-filter">
+					<option value=""><?php esc_html_e( 'All roles', 'digital-employees' ); ?></option>
+					<?php foreach ( $roles_catalog as $def_role ) : ?>
+						<option value="<?php echo esc_attr( $def_role['slug'] ); ?>"><?php echo esc_html( $def_role['name'] ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<span id="def-core-access-count" class="def-core-access-count" aria-live="polite"></span>
+			</div>
+
+			<?php
+			// S3: one row per person. The vault roles are chips in the Roles cell, never one
+			// column per role — the old grid was eleven columns wide at a3rev's five roles,
+			// and unreadable past eight. Every capability the save writes is still carried by
+			// a .def-core-role-cb input (the role ones hidden, driven by the chips), so the
+			// payload this screen submits is the payload the checkbox grid submitted.
+			?>
 			<table class="def-core-roles-table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'User', 'digital-employees' ); ?></th>
-						<th><?php esc_html_e( 'WordPress Role', 'digital-employees' ); ?></th>
-						<th class="def-core-role-col"><?php esc_html_e( 'Staff', 'digital-employees' ); ?></th>
-						<th class="def-core-role-col"><?php esc_html_e( 'Management', 'digital-employees' ); ?></th>
-						<?php // Custom roles (R4): one column per catalog role, defined in the DEFHO portal. ?>
-						<?php foreach ( $roles_catalog as $def_role ) : ?>
-							<th class="def-core-role-col"><?php echo esc_html( $def_role['name'] ); ?></th>
-						<?php endforeach; ?>
-						<th class="def-core-role-col"><?php esc_html_e( 'DEF Admin', 'digital-employees' ); ?></th>
-						<th class="def-core-role-col"><?php esc_html_e( 'Actions', 'digital-employees' ); ?></th>
+						<th><?php esc_html_e( 'WordPress role', 'digital-employees' ); ?></th>
+						<th><?php esc_html_e( 'Access level', 'digital-employees' ); ?></th>
+						<th><?php esc_html_e( 'Roles', 'digital-employees' ); ?></th>
+						<th><?php esc_html_e( 'DEF Admin', 'digital-employees' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'digital-employees' ); ?></th>
 					</tr>
 				</thead>
 				<tbody id="def-core-roles-tbody">
-					<?php foreach ( $def_users as $u ) :
+					<?php
+					foreach ( $def_users as $u ) :
 						$is_last_admin = $u->has_cap( 'def_admin_access' ) && $def_admin_count <= 1;
 						$is_locked     = $is_last_admin;
+						// map_def_capabilities() is filtered onto map_meta_cap, so
+						// has_cap('def_staff_access') answers TRUE for every Management and
+						// DEF-Admin user and cannot be asked what is STORED. allcaps is the raw
+						// merged capability array, which map_meta_cap never touches — the same
+						// stored reading DEF_Core_Staff_Roster::build_roster() takes.
+						//
+						// Management wins if both are somehow stored. Neither stored stays
+						// NEITHER: a DEF Admin who never uses the console is a supported setup
+						// ("DEF-Admin alone is NOT a roster row"), and defaulting those rows to
+						// Staff here would grant every one of them a console login the moment
+						// anyone pressed Save — for someone else entirely.
+						$level = '';
+						if ( ! empty( $u->allcaps['def_management_access'] ) ) {
+							$level = 'management';
+						} elseif ( ! empty( $u->allcaps['def_staff_access'] ) ) {
+							$level = 'staff';
+						}
+						$held  = array();
+						foreach ( $roles_catalog as $def_role ) {
+							if ( $u->has_cap( 'def_role_' . $def_role['slug'] ) ) {
+								$held[] = $def_role['slug'];
+							}
+						}
 						?>
-						<tr data-user-id="<?php echo esc_attr( $u->ID ); ?>">
-							<td>
+						<tr class="def-core-user-row" data-user-id="<?php echo esc_attr( $u->ID ); ?>" data-roles="<?php echo esc_attr( implode( ' ', $held ) ); ?>">
+							<td class="def-core-cell-user" data-label="<?php esc_attr_e( 'User', 'digital-employees' ); ?>">
 								<?php
 								echo get_avatar( $u->ID, 24, '', '', array( 'class' => 'def-core-user-avatar' ) );
 								$first = get_user_meta( $u->ID, 'first_name', true );
@@ -965,42 +1004,23 @@ $first_tab = 'branding';
 								?>
 								<span class="def-core-user-email"><?php echo esc_html( $u->user_email ); ?></span>
 							</td>
-							<td><?php echo esc_html( implode( ', ', array_map( 'ucfirst', $u->roles ) ) ); ?></td>
-							<td class="def-core-role-col">
-								<input
-									type="checkbox"
-									class="def-core-role-cb"
-									data-user="<?php echo esc_attr( $u->ID ); ?>"
-									data-cap="def_staff_access"
-									<?php checked( $u->has_cap( 'def_staff_access' ) ); ?>
-								/>
+							<td class="def-core-cell-wp" data-label="<?php esc_attr_e( 'WordPress role', 'digital-employees' ); ?>"><?php echo esc_html( implode( ', ', array_map( 'ucfirst', $u->roles ) ) ); ?></td>
+							<td class="def-core-cell-access" data-label="<?php esc_attr_e( 'Access level', 'digital-employees' ); ?>">
+								<input type="checkbox" class="def-core-role-cb" data-user="<?php echo esc_attr( $u->ID ); ?>" data-cap="def_staff_access" <?php checked( 'staff' === $level ); ?> hidden />
+								<input type="checkbox" class="def-core-role-cb" data-user="<?php echo esc_attr( $u->ID ); ?>" data-cap="def_management_access" <?php checked( 'management' === $level ); ?> hidden />
 							</td>
-							<td class="def-core-role-col">
-								<input
-									type="checkbox"
-									class="def-core-role-cb"
-									data-user="<?php echo esc_attr( $u->ID ); ?>"
-									data-cap="def_management_access"
-									<?php checked( $u->has_cap( 'def_management_access' ) ); ?>
-								/>
+							<td class="def-core-cell-roles" data-label="<?php esc_attr_e( 'Roles', 'digital-employees' ); ?>">
+								<?php foreach ( $roles_catalog as $def_role ) : ?>
+									<input type="checkbox" class="def-core-role-cb" data-user="<?php echo esc_attr( $u->ID ); ?>" data-cap="<?php echo esc_attr( 'def_role_' . $def_role['slug'] ); ?>" <?php checked( $u->has_cap( 'def_role_' . $def_role['slug'] ) ); ?> hidden />
+								<?php endforeach; ?>
 							</td>
-							<?php foreach ( $roles_catalog as $def_role ) : ?>
-								<td class="def-core-role-col">
-									<input
-										type="checkbox"
-										class="def-core-role-cb"
-										data-user="<?php echo esc_attr( $u->ID ); ?>"
-										data-cap="<?php echo esc_attr( 'def_role_' . $def_role['slug'] ); ?>"
-										<?php checked( $u->has_cap( 'def_role_' . $def_role['slug'] ) ); ?>
-									/>
-								</td>
-							<?php endforeach; ?>
-							<td class="def-core-role-col">
+							<td class="def-core-cell-admin" data-label="<?php esc_attr_e( 'DEF Admin', 'digital-employees' ); ?>">
 								<input
 									type="checkbox"
-									class="def-core-role-cb"
+									class="def-core-role-cb def-core-admin-cb"
 									data-user="<?php echo esc_attr( $u->ID ); ?>"
 									data-cap="def_admin_access"
+									aria-label="<?php esc_attr_e( 'DEF Admin', 'digital-employees' ); ?>"
 									<?php checked( $u->has_cap( 'def_admin_access' ) ); ?>
 									<?php disabled( $is_locked ); ?>
 								/>
@@ -1008,7 +1028,7 @@ $first_tab = 'branding';
 									<span class="def-core-locked-label" title="<?php esc_attr_e( 'At least one DEF Admin is required', 'digital-employees' ); ?>"><?php esc_html_e( 'locked', 'digital-employees' ); ?></span>
 								<?php endif; ?>
 							</td>
-							<td class="def-core-role-col">
+							<td class="def-core-cell-actions<?php echo $is_locked ? ' is-empty' : ''; ?>" data-label="<?php esc_attr_e( 'Actions', 'digital-employees' ); ?>">
 								<?php if ( ! $is_locked ) : ?>
 									<button type="button" class="def-core-remove-user-btn" data-user-id="<?php echo esc_attr( $u->ID ); ?>" title="<?php esc_attr_e( 'Remove all DEF access', 'digital-employees' ); ?>">&times;</button>
 								<?php endif; ?>

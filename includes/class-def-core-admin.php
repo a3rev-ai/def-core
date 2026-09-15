@@ -396,6 +396,30 @@ final class DEF_Core_Admin {
 			'cachedConnection' => $cached_connection ? $cached_connection : null,
 			// Custom roles (R4): the just-refreshed catalog — same array the PHP columns render.
 			'rolesCatalog'     => $roles_catalog,
+			// S3: the User Access strings the script writes into the page. The
+			// checkbox grid put all of these in the markup, where esc_html_e()
+			// reached them; the chips and the two-way control are built in JS, so
+			// they would ship as English on a translated site without this.
+			'userAccessI18n'   => array(
+				'staff'        => __( 'Staff', 'digital-employees' ),
+				'management'   => __( 'Management', 'digital-employees' ),
+				'accessLevel'  => __( 'Access level', 'digital-employees' ),
+				/* translators: %s: the name of the person. */
+				'accessFor'    => __( 'Access level for %s', 'digital-employees' ),
+				'addRole'      => __( '+ Add role', 'digital-employees' ),
+				'allRolesOn'   => __( 'Every role is on', 'digital-employees' ),
+				/* translators: %s: the name of the role. */
+				'removeRole'   => __( 'Remove role %s', 'digital-employees' ),
+				'onePerson'    => __( '1 person', 'digital-employees' ),
+				/* translators: %d: how many people match the filter. */
+				'manyPeople'   => __( '%d people', 'digital-employees' ),
+				'colUser'      => __( 'User', 'digital-employees' ),
+				'colWpRole'    => __( 'WordPress role', 'digital-employees' ),
+				'colRoles'     => __( 'Roles', 'digital-employees' ),
+				'colDefAdmin'  => __( 'DEF Admin', 'digital-employees' ),
+				'colActions'   => __( 'Actions', 'digital-employees' ),
+				'removeAccess' => __( 'Remove all DEF access', 'digital-employees' ),
+			),
 		) );
 
 		// Connection status data (for status indicator).

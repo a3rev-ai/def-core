@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -26,6 +26,7 @@ const REPO = path.resolve(__dirname, '..', '..');
 const JS_PATH = path.join(REPO, 'assets/js/staff-ai.js');
 const CC_PATH = path.join(REPO, 'assets/js/def-core-customer-chat.js');
 const VOICE_PATH = path.join(REPO, 'assets/js/def-core-voice.js');
+const ADMIN_PATH = path.join(REPO, 'assets/js/def-core-admin.js');
 
 function slice(label, startMatch, endMatch, needs, envVar, file) {
 	if (envVar && process.env[envVar]) {
@@ -369,6 +370,26 @@ function customerChatSource() {
 	return fs.readFileSync(CC_PATH, 'utf8');
 }
 
+// ── Settings → User Access (S3) ─────────────────────────────────────────
+// The access level, the role chips, the + Add role listbox, the filter, the
+// save payload and the wiring that joins them — out of the ADMIN script rather
+// than the console's. Sliced by the S3 markers so a harness runs the shipped
+// controls over the shipped inputs. `needs` names every function in the block,
+// not just the ones a harness calls by name: a rename that moves any of them out
+// is a hard error here rather than a check that quietly stops covering anything.
+function userAccess() {
+	return slice('user access',
+		l => l.includes('S3: User Access — access level, role chips, filter'),
+		l => l.includes('end S3: User Access'),
+		['function accessCatalog', 'function accessText', 'function accessFill',
+			'function accessRoleName', 'function accessCapInput',
+			'function accessLevelOf', 'function setAccessLevel', 'function buildAccessLevel',
+			'function accessRolesOf', 'function accessRolesAvailable', 'function setAccessRole',
+			'function renderRolesCell', 'function buildAddRole', 'function renderAccessRow',
+			'function initAccessRows', 'function applyRoleFilter', 'function accessPayload'],
+		'USER_ACCESS', ADMIN_PATH);
+}
+
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
 // A harness that hand-writes its own copy of a <section> tests the copy: the
 // page can be renamed, lose an id, change a description or take the wrong
@@ -479,7 +500,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,

@@ -55,6 +55,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-admin-tables-phone.js` | The wp-admin tables on a phone (v8.1.1): the Connection Logs table scrolls inside its own box rather than making the page wider than the screen, and every `.def-core-*-table` given a `min-width` is wrapped somewhere in the shipped markup |
 | `harness-attachment-line.js` | The line a wordless message sends (v8.1.2): one picture, several, one document, several and a mix — pictures first, each half singular or plural on its own count; the filename goes in whole (a `$&` in it is not expanded, nothing is quoted or trimmed, a control character is flattened); a translated map entry is what ships; and typed words are never replaced |
 | `harness-conversation-list.js` | The history list keeps its place (v8.1.2): the redraw reads the offset before the rows go and writes it back after they return — a chat opened, loaded, renamed, deleted, and the empty list — but a send that brings the open chat back to the TOP scrolls it into view rather than holding an offset it has left. jsdom does no layout, so the harness stands a modelled scroller on the element and clamps it to its content as a browser does |
+| `harness-user-access.js` | Settings → User Access, one row per person (v8.2.0): choosing Staff or Management always lands exactly one, while a person who stores NEITHER keeps neither (a DEF Admin with no console seat is a supported setup, and the render must not stage a grant — including when the Setup Assistant has just revoked one); the vault roles as chips a + Add role listbox adds and removes, keyboard and all (Escape, arrows, Enter, focus back on + Add role); the role filter and the count that follows it; the save payload still the one the checkbox matrix submitted; and — read off the template and the stylesheet — the six columns with no per-role column, a label on every cell, and a real stacked phone layout in which a filtered-out row is still hidden |
 
 ## Bite checks
 
@@ -82,11 +83,18 @@ SCHEDULED=/tmp/old-scheduled.js node tests/browser/harness-c6b.js  # initSchedul
 CONSOLE_MENU=/tmp/old-menu.js node tests/browser/harness-c6c.js   # the ⋯ menu, shared by all four pages
 ATTACHMENT_PROMPT=/tmp/old-prompt.js DISPLAY_TEXT=/tmp/old-display.js node tests/browser/harness-attachment-line.js  # the attachment line / the send path's one statement
 CONVERSATION_LIST=/tmp/old-list.js node tests/browser/harness-conversation-list.js  # renderConversationList
+USER_ACCESS=/tmp/old-user-access.js node tests/browser/harness-user-access.js  # the User Access controls
 ```
 
-`harness-c5.js`, `harness-c6a.js` and `harness-c6b.js` read the stylesheet and the
-template from the working tree, so their CSS and markup checks bite by editing those
-files (a scratch `git worktree` keeps that off your branch).
+`harness-c5.js`, `harness-c6a.js`, `harness-c6b.js`, `harness-admin-tables-phone.js` and
+`harness-user-access.js` read the stylesheet and the template from the working tree, so
+their CSS and markup checks bite by editing those files (a scratch `git worktree` keeps
+that off your branch). `USER_ACCESS` reaches only `harness-user-access.js`'s first 38
+checks — the behaviour half. Pointed at the 8.1.3 screen's logic behind the same names it
+fails 32 of them. The six it leaves green are the right six: three are the payload, which
+S3 deliberately did not change, and three are the neither-level row, a bug introduced on
+the S3 branch and caught by the review panel — 8.1.3 got that one right, so a fixture of
+the old code is not what proves it.
 
 The env var names match the extractor names in `extract.js`. `ASK_ENTRY` reaches
 further than its own harness: `extract.buildAskEntry` hands the shipped helper to
