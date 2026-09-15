@@ -346,6 +346,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</div>
 				<div class="console-status" id="artifactsStatus"></div>
 				<div class="documents-grid" id="artifactsGrid"></div>
+				<!-- The empty state IS the entry point (Documents' rule, 2026-09-03). -->
+				<div class="documents-empty" id="artifactsEmptyState" style="display:none;">
+					<button type="button" class="modal-btn modal-btn-primary" id="artifactsAskAssistant"><?php echo esc_html__( 'Ask your assistant to make an artifact', 'digital-employees' ); ?></button>
+				</div>
 			</section>
 
 			<!-- The document viewer — the P-D3 modal's body on the shared .console-page
@@ -1140,8 +1144,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsOpen: <?php echo wp_json_encode( __( 'Open', 'digital-employees' ) ); ?>,
 			documentsArtifact: <?php echo wp_json_encode( __( 'ARTIFACT', 'digital-employees' ) ); ?>,
 			artifactsLoading: <?php echo wp_json_encode( __( 'Loading your artifacts…', 'digital-employees' ) ); ?>,
-			artifactsEmpty: <?php echo wp_json_encode( __( 'No artifacts yet. Ask for a mock-up, a style kit or a one-pager and it appears here.', 'digital-employees' ) ); ?>,
+			artifactsEmpty: <?php echo wp_json_encode( __( 'No artifacts yet. A mock-up, a style kit, a one-pager or a dashboard appears here once you ask for one.', 'digital-employees' ) ); ?>,
 			artifactsLoadFailed: <?php echo wp_json_encode( __( 'Could not load your artifacts.', 'digital-employees' ) ); ?>,
+			artifactsAsk: <?php echo wp_json_encode( __( 'Ask your assistant to make an artifact', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
+			artifactsAskNamed: <?php echo wp_json_encode( __( 'Ask %s to make an artifact', 'digital-employees' ) ); ?>,
+			artifactsAskPrompt: <?php echo wp_json_encode( __( 'Make me an artifact — ask me what it is for (a mock-up of a screen, a style kit, a one-pager, a dashboard), then build it as a page and save it to my documents.', 'digital-employees' ) ); ?>,
+			documentViewerArtifactClosed: <?php echo wp_json_encode( __( 'This artifact tried to open another page and was closed.', 'digital-employees' ) ); ?>,
 			documentsNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
 			save: <?php echo wp_json_encode( __( 'Save', 'digital-employees' ) ); ?>,
 			documentsMoveFailed: <?php echo wp_json_encode( __( 'Could not move the document.', 'digital-employees' ) ); ?>,

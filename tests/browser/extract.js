@@ -202,7 +202,7 @@ function artifacts() {
 	return slice('initArtifacts',
 		l => l.startsWith('\t(function initArtifacts() {'),
 		l => l.startsWith('\t(function initProjects() {'),
-		['consolePages.push', 'function renderRow', 'async function loadList', 'ARTIFACT_TYPE'],
+		['consolePages.push', 'function renderRow', 'async function loadList', 'ARTIFACT_TYPE', 'askEntry('],
 		'ARTIFACTS');
 }
 
@@ -246,8 +246,8 @@ function askEntryCalls() {
 		calls.push({ base: base[1], source: source, line: i + 1 });
 		i = end;
 	}
-	if (calls.length !== 7) {
-		throw new Error('askEntry calls: EXPECTED SEVEN, FOUND ' + calls.length +
+	if (calls.length !== 8) {
+		throw new Error('askEntry calls: EXPECTED EIGHT, FOUND ' + calls.length +
 			' (' + calls.map(c => c.base).join(', ') + ')');
 	}
 	return calls;

@@ -6036,7 +6036,13 @@ JS;
 		// the effective policy is their intersection — so a policy carrying
 		// nothing but frame-ancestors can only ever tighten, and can never
 		// clobber a policy the site set for itself.
-		$emit( "Content-Security-Policy: frame-ancestors 'self';", false );
+		// frame-src 'self' (artifacts A-2, D-A3): the console renders an artifact in a
+		// sandboxed srcdoc frame — allowed by 'self' — and a page inside that frame can
+		// still navigate ITSELF, which no sandbox flag prevents. This directive refuses
+		// that navigation at the request, before it leaves the browser (measured
+		// 2026-09-15). Still nothing but frame directives: it cannot loosen a policy
+		// the site set for itself.
+		$emit( "Content-Security-Policy: frame-ancestors 'self'; frame-src 'self';", false );
 	}
 
 	/**

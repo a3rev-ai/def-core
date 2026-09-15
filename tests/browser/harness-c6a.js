@@ -245,8 +245,9 @@ const item = (menu, label) => menu
     const error = writes.filter(w => w === "statusEl.className = 'console-page-desc documents-status documents-status-error'").length;
     const rules = /\.console-page-desc\.documents-status-error\s*\{\s*color:\s*var\(--banner-error-text\);\s*\}/.test(CSS) &&
       /\.console-page-desc\.documents-status-muted\s*\{\s*color:\s*var\(--text-tertiary\);\s*\}/.test(CSS);
-    check(++n, "the document viewer's status writes are UNCHANGED — all five its own compound, none the kit's, and the rules behind them intact",
-      writes.length === 5 && muted === 2 && error === 3 && !/console-status/.test(VIEWER) && rules,
+    // Six since A-2: the artifact watchdog's "closed" line is the viewer's own compound too.
+    check(++n, "the document viewer's status writes are UNCHANGED — all six its own compound, none the kit's, and the rules behind them intact",
+      writes.length === 6 && muted === 2 && error === 4 && !/console-status/.test(VIEWER) && rules,
       'writes=' + writes.length + ' muted=' + muted + ' error=' + error + ' rules=' + rules);
   }
 

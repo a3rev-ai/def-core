@@ -13,7 +13,7 @@
  * console's own DOM; the Artifacts page lists html documents only; the Documents
  * card says ARTIFACT and Open for html, View for the rest.
  *
- * 19 checks.
+ * 26 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -100,7 +100,7 @@ function boot(opts) {
 		try { const u = new window.URL(url, 'https://e.test'); return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : ''; }
 		catch (e) { return ''; }
 	};
-	const formatTime = function (iso) { return iso ? iso.slice(11, 16) : ''; };
+	const formatTime = function (iso) { return iso ? iso.slice(11, 16) : ''; };  // Documents' card only
 
 	const viewer = new window.Function('window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
 		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile', 'ARTIFACT_TYPE', 'artifactDocument',
@@ -125,13 +125,17 @@ function boot(opts) {
 		function (e) { return e.button === 0; }, function () { return false; }, function () {}, frame.ARTIFACT_TYPE
 	);
 
-	new window.Function('window', 'document', 'consolePages', 't', 'apiRequest', 'formatTime',
-		'openDocumentViewer', 'ARTIFACT_TYPE', ARTIFACTS)(
-		window, document, api.consolePages, t, apiRequest, formatTime, openSpy, frame.ARTIFACT_TYPE);
+	const filtered = [];
+	new window.Function('window', 'document', 'consolePages', 't', 'apiRequest',
+		'openDocumentViewer', 'openDocumentsForProject', 'askEntry', 'ARTIFACT_TYPE', ARTIFACTS)(
+		window, document, api.consolePages, t, apiRequest, openSpy,
+		function (projectId) { filtered.push(projectId); },
+		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
+		frame.ARTIFACT_TYPE);
 
 	const $ = (id) => document.getElementById(id);
 	return {
-		window, document, api, frame, requests, opened,
+		window, document, api, frame, requests, opened, filtered,
 		open: viewer.open,
 		iframe: () => $('documentViewerFrame'),
 		srcdoc: () => $('documentViewerFrame').getAttribute('srcdoc'),
@@ -178,12 +182,23 @@ function check(label, ok, detail) {
 		check('the shipped CSP is the D-A3 string, verbatim', t.frame.ARTIFACT_CSP === CSP, t.frame.ARTIFACT_CSP);
 		const built = t.frame.artifactDocument('<!doctype html>\n<html><head><meta charset="utf-8"><title>K</title></head><body>b</body></html>');
 		const at = built.indexOf(META);
-		check('the CSP meta goes at the top of <head>, before the page\'s own charset, title, styles and scripts',
-			at !== -1 && built.indexOf('<head>') + '<head>'.length === at && at < built.indexOf('<meta charset'), built.slice(0, 120));
+		check('the policy goes right after the doctype — before the page\'s own head, charset, title, styles and scripts',
+			at === '<!doctype html>'.length && built.startsWith('<!doctype html>') && at < built.indexOf('<html>'), built.slice(0, 120));
 		check('links are inert: <base target="_blank"> follows the meta, and the sandbox refuses the window it asks for',
 			built.indexOf('<base target="_blank">') === at + META.length);
 		const bare = t.frame.artifactDocument('<h1>fragment</h1>');
-		check('a page with no head gets the policy in front', bare.indexOf(META) === 0 && bare.endsWith('<h1>fragment</h1>'));
+		check('a page with no doctype gets the policy in front', bare.indexOf(META) === 0 && bare.endsWith('<h1>fragment</h1>'));
+		// Panel round 2: a comment carrying "<head>" ahead of the real head moved a
+		// head-anchored insert into the comment, and the page ran with no policy.
+		const tricked = t.frame.artifactDocument('<!--<head>--><!doctype html><html><head><script>x()</script></head></html>');
+		check('nothing the page contains can move the policy: a comment holding "<head>" leaves the meta first, ahead of every script',
+			tricked.indexOf(META) === 0 && tricked.indexOf(META) < tricked.indexOf('<script>'), tricked.slice(0, 100));
+		const noHead = t.frame.artifactDocument('<!DOCTYPE html><html lang="en"><body>b</body></html>');
+		check('a page with a doctype and no head keeps its doctype first (standards mode) and the policy next',
+			noHead.startsWith('<!DOCTYPE html>' + META), noHead.slice(0, 80));
+		check('the console page refuses the frame\'s own navigation at the request: its CSP carries frame-src \'self\'',
+			/Content-Security-Policy: frame-ancestors 'self'; frame-src 'self';/.test(
+				require('fs').readFileSync(require('path').join(extract.REPO, 'includes', 'class-def-core-staff-ai.php'), 'utf8')));
 	}
 
 	// ── Opening an artifact ───────────────────────────────────────────────
@@ -204,6 +219,12 @@ function check(label, ok, detail) {
 			&& t.iframe().style.display === '' && t.more().style.display === 'none');
 		check('the status names it an artifact, not an HTML file', /^ARTIFACT/.test(t.status()), t.status());
 
+		// The watchdog: a load the viewer did not ask for is the page inside navigating.
+		t.iframe().dispatchEvent(new t.window.Event('load'));
+		t.iframe().dispatchEvent(new t.window.Event('load'));
+		check('a second load of the frame closes the artifact and says so',
+			t.srcdoc() === null && t.iframe().style.display === 'none' && /closed/.test(t.status()), t.status());
+
 		t.open('doc-1', 'Runsheet');
 		await settle(t.window);
 		check('an md document after it: the frame is put away with its srcdoc, the text well shows the text',
@@ -221,10 +242,18 @@ function check(label, ok, detail) {
 			cards.length === 2 && t.headings('artifactsGrid').length === 2
 			&& cards[0].querySelector('.document-name').textContent === 'Smith Lane style kit'
 			&& cards[0].querySelector('.document-project-chip').textContent === 'Smith Lane'
-			&& cards[0].querySelector('button').textContent === 'Open',
+			&& cards[0].querySelector('.document-view-btn').textContent === 'Open',
 			cards.length + ' card(s), ' + t.headings('artifactsGrid').length + ' heading(s)');
-		t.click(cards[0].querySelector('button'));
+		check('the card carries the time of day (the day is the heading)',
+			/\d{1,2}:\d{2}/.test(cards[0].querySelector('.document-meta').textContent), cards[0].querySelector('.document-meta').textContent);
+		t.click(cards[0].querySelector('.document-view-btn'));
 		check('Open opens the artifact', t.opened.length === 1 && t.opened[0].id === 'art-1');
+		const chip = cards[0].querySelector('.document-project-chip');
+		t.click(chip);
+		check('the project chip is a button, and it opens Documents filtered to the project',
+			chip.tagName === 'BUTTON' && t.filtered.length === 1 && t.filtered[0] === 'p1');
+		check('with artifacts listed, the empty state stays put away',
+			t.document.getElementById('artifactsEmptyState').style.display === 'none');
 
 		t.api.showPage('documents');
 		await settle(t.window);
@@ -241,8 +270,10 @@ function check(label, ok, detail) {
 		const t = boot({ docs: DOCS.filter(d => d.file_type !== 'html') });
 		t.api.showPage('artifacts');
 		await settle(t.window);
-		check('no artifacts: the page says so and shows no card',
-			t.cards('artifactsGrid').length === 0 && /No artifacts yet/.test(t.document.getElementById('artifactsStatus').textContent));
+		check('no artifacts: the page says so, shows no card, and offers the Ask button — the entry point',
+			t.cards('artifactsGrid').length === 0 && /No artifacts yet/.test(t.document.getElementById('artifactsStatus').textContent)
+			&& t.document.getElementById('artifactsEmptyState').style.display === ''
+			&& /make an artifact/.test(t.document.getElementById('artifactsAskAssistant').textContent));
 	}
 
 	console.log('harness-artifacts (A-2: the sandboxed frame, the Artifacts page, ARTIFACT + Open)');

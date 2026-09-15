@@ -3,7 +3,7 @@
  *
  * Two things this PR touched, run against the SHIPPED code:
  *
- *  1. `askEntry` and the SEVEN calls to it. The helper is sliced by its markers;
+ *  1. `askEntry` and the EIGHT calls to it. The helper is sliced by its markers;
  *     the calls are found by pattern (tests/browser/extract.js) and each is
  *     EXECUTED here against a real button, so a page that loses its entry, or
  *     asks for the wrong key, fails loudly. Named and unnamed both: a tenant that
@@ -270,10 +270,10 @@ const clickIf = (t, el) => { if (el) click(t.window, el); return !!el; };
 (async () => {
   let n = 0;
 
-  // ---- the seven entries ---------------------------------------------------
-  check(++n, 'the console wires exactly SEVEN Ask entries, one per surface that has one',
-    CALLS.length === 7 &&
-    ['connections', 'documents', 'projects', 'memories', 'usage', 'scheduleResults', 'scheduled']
+  // ---- the eight entries ---------------------------------------------------
+  check(++n, 'the console wires exactly EIGHT Ask entries, one per surface that has one',
+    CALLS.length === 8 &&
+    ['connections', 'documents', 'artifacts', 'projects', 'memories', 'usage', 'scheduleResults', 'scheduled']
       .every(b => CALLS.some(c => c.base === b)),
     'found: ' + CALLS.map(c => c.base).join(', '));
 
@@ -323,11 +323,11 @@ const clickIf = (t, el) => { if (el) click(t.window, el); return !!el; };
       leftovers.length === 0, leftovers.join(' | '));
     check(++n, 'the unnamed label carries neither the placeholder nor a name it was never given',
       unnamedHasName.length === 0, unnamedHasName.join(' | '));
-    check(++n, 'all seven prompts are real, distinct English sentences',
-      new Set(prompts).size === 7 && prompts.every(p => p.length > 30 && /[?.]$/.test(p)),
+    check(++n, 'all eight prompts are real, distinct English sentences',
+      new Set(prompts).size === 8 && prompts.every(p => p.length > 30 && /[?.]$/.test(p)),
       'distinct=' + new Set(prompts).size + ' shortest=' + Math.min.apply(null, prompts.map(p => p.length)));
-    check(++n, 'all seven labels are distinct — no two entries offer the same words',
-      new Set(labels).size === 7, 'distinct=' + new Set(labels).size);
+    check(++n, 'all eight labels are distinct — no two entries offer the same words',
+      new Set(labels).size === 8, 'distinct=' + new Set(labels).size);
   }
 
   // The reason the subscriber list exists: on a real page the buttons are wired
@@ -345,7 +345,7 @@ const clickIf = (t, el) => { if (el) click(t.window, el); return !!el; };
         stuck.push(call.base + '=' + before + '→' + t.btns[0].textContent);
       }
     });
-    check(++n, 'a name that arrives AFTER the buttons are wired relabels every one of the seven',
+    check(++n, 'a name that arrives AFTER the buttons are wired relabels every one of the eight',
       stuck.length === 0, stuck.join(' | '));
   }
 
@@ -414,7 +414,7 @@ const clickIf = (t, el) => { if (el) click(t.window, el); return !!el; };
     const left = (JS.match(/function labelAsk\(/g) || []).length +
       (JS.match(/function labelResultsAsk\(/g) || []).length +
       (JS.match(/function labelScheduledAsk\(/g) || []).length;
-    check(++n, 'no hand-rolled Ask block survives in the shipped JS — all seven go through the helper',
+    check(++n, 'no hand-rolled Ask block survives in the shipped JS — all eight go through the helper',
       left === 0, 'left=' + left);
   }
 

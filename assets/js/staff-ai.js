@@ -37,7 +37,7 @@ function t(key, fallback) {
 	// relabels itself when it lands; until then, or for a tenant that has not
 	// named the assistant, it says "your assistant".
 	// Every Ask entry point names the assistant, so they subscribe rather than
-	// each owning a module-level relabel hook (seven of them now, eight buttons).
+	// each owning a module-level relabel hook (eight of them now, nine buttons).
 	let assistantName = '';
 	const assistantNameSubscribers = [];
 	function onAssistantName(relabel) {
@@ -46,8 +46,8 @@ function t(key, fallback) {
 	}
 
 	// ── The "Ask X how this works" entry (D-C3: the assistant IS the help layer) ──
-	// Seven of these across the console — Projects, Documents, Memories, Usage,
-	// Connections, Scheduled, and the task creator's delivery line — each the same
+	// Eight of these across the console — Projects, Documents, Artifacts, Memories,
+	// Usage, Connections, Scheduled, and the task creator's delivery line — each the same
 	// sixteen lines: relabel when the tenant's name for the assistant lands, then on
 	// click leave any project, open a fresh chat and send one fixed question.
 	//
@@ -4669,21 +4669,24 @@ function t(key, fallback) {
 	const ARTIFACT_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src data: blob:; media-src data:";
 
 	// The document the frame loads: the artifact's own text with the policy in front.
-	// A sandboxed frame can still navigate ITSELF, and no CSP directive governs a
-	// document's own navigation, so a link inside the page would replace the artifact
-	// with another site. <base target="_blank"> sends every link and form to a new
-	// window instead, which the sandbox (no allow-popups) refuses — links are inert
-	// (runsheet §5). Both tags go at the top of <head> when the page has one, so
-	// they precede every script and style; A-1 gives every artifact a head.
+	// A sandboxed frame can still navigate ITSELF — no sandbox flag and no CSP fetch
+	// directive governs a document's own navigation (measured 2026-09-15: a script's
+	// location.href replaced the artifact with another site). Three things close it:
+	// the console page's own CSP carries frame-src 'self', which refuses the request
+	// before it leaves the browser (send_console_frame_headers); <base target="_blank">
+	// sends a plain link or form to a new window the sandbox (no allow-popups) refuses;
+	// and the viewer closes an artifact whose frame loads a second time (the watchdog).
+	// The tags go in FRONT of the text — after a leading doctype, else at the very
+	// start — never at a <head> found by searching: a comment carrying "<head>" earlier
+	// in the page moved the policy into the comment (panel round 2). The parser puts a
+	// leading <meta> into the head it implies, and an iframe srcdoc document never
+	// enters quirks mode, so the policy governs every script and style that follows.
 	function artifactDocument(html) {
 		var policy = '<meta http-equiv="Content-Security-Policy" content="' + ARTIFACT_CSP + '">'
 			+ '<base target="_blank">';
-		var head = /<head(?:\s[^>]*)?>/i.exec(html);
-		if (head) {
-			var at = head.index + head[0].length;
-			return html.slice(0, at) + policy + html.slice(at);
-		}
-		return policy + html;
+		var doctype = /^\s*<!doctype[^>]*>/i.exec(html);
+		var at = doctype ? doctype[0].length : 0;
+		return html.slice(0, at) + policy + html.slice(at);
 	}
 	let projectsCache = [];
 
@@ -4738,6 +4741,19 @@ function t(key, fallback) {
 		const dlLink = document.getElementById('documentViewerDownload');
 		const imgEl = document.getElementById('documentViewerImage');
 		const frameEl = document.getElementById('documentViewerFrame');
+		// The watchdog (D-A3): the frame loads once per artifact — the srcdoc the viewer
+		// set. A second load with a srcdoc still in place means the page inside
+		// navigated (frame-src refuses the request, and a refused navigation still
+		// loads an error page): the artifact is closed and the reader is told.
+		let frameLoadsExpected = 0;
+		frameEl.addEventListener('load', function () {
+			if (frameLoadsExpected > 0) { frameLoadsExpected -= 1; return; }
+			if (!frameEl.getAttribute('srcdoc')) return;
+			frameEl.removeAttribute('srcdoc');
+			frameEl.style.display = 'none';
+			statusEl.textContent = t('documentViewerArtifactClosed', 'This artifact tried to open another page and was closed.');
+			statusEl.className = 'console-page-desc documents-status documents-status-error';
+		});
 		// The hand-off the Documents menu makes: installed on iOS the link lands on
 		// the document-preview sheet (row 8 canary, 2026-09-14), so the share sheet
 		// takes the file instead. Everywhere else the link is the browser's.
@@ -4786,6 +4802,9 @@ function t(key, fallback) {
 			if (artifact) { current.html = (current.html || '') + chunk; }
 			else { textEl.textContent += chunk; }
 			current.nextOffset = data.truncated && typeof data.next_offset === 'number' ? data.next_offset : null;
+			// An artifact continues by itself, and only forward: an offset that did not
+			// advance would loop the tab.
+			if (artifact && current.nextOffset !== null && current.nextOffset <= (data.offset || 0)) { current.nextOffset = null; }
 			if (artifact && current.nextOffset !== null) { return fetchChunk(current.nextOffset); }
 			moreBtn.style.display = current.nextOffset !== null ? '' : 'none';
 			if (doc.title) { titleEl.textContent = doc.title; }
@@ -4805,7 +4824,7 @@ function t(key, fallback) {
 				imgEl.alt = doc.title || '';
 			}
 			imgEl.style.display = picture && href ? '' : 'none';
-			if (artifact) { frameEl.srcdoc = artifactDocument(current.html); }
+			if (artifact) { frameLoadsExpected = 1; frameEl.srcdoc = artifactDocument(current.html); }
 			frameEl.style.display = artifact ? '' : 'none';
 			textEl.style.display = picture || artifact ? 'none' : '';
 			if (picture) { current.nextOffset = null; moreBtn.style.display = 'none'; }
@@ -5335,18 +5354,18 @@ function t(key, fallback) {
 	})();
 
 	// =============================================
-	// PROJECTS PAGE (the 7.8.0 card workspace on the console shell — C2)
-	// =============================================
-
-	// Artifacts (A-2, D-A4): the Documents list filtered to html, grouped by DAY, each
-	// card the title, the project chip and the time, opening the artifact. No search,
-	// no project filter, no ⋯ menu — management stays on Documents, which lists them
-	// too. The share marks (globe / lock) arrive with the share link (A-3).
+	// Artifacts (A-2, D-A4): the Documents list filtered to html, grouped by DAY (the
+	// runsheet's word; Documents groups by month), each card the title, the project
+	// chip and the time, opening the artifact. No search, no project filter, no ⋯
+	// menu — management stays on Documents, which lists them too. The share marks
+	// (globe / lock) arrive with the share link (A-3).
 	(function initArtifacts() {
 		const pane = document.getElementById('artifactsPane');
 		if (!pane) return;
 		const statusEl = document.getElementById('artifactsStatus');
 		const listEl = document.getElementById('artifactsGrid');
+		const emptyEl = document.getElementById('artifactsEmptyState');
+		const askBtn = document.getElementById('artifactsAskAssistant');
 		let loading = false;
 
 		consolePages.push({
@@ -5367,6 +5386,13 @@ function t(key, fallback) {
 			return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 		}
 
+		// The day is the heading; the card carries the time of day.
+		function timeOf(iso) {
+			var d = iso ? new Date(iso) : null;
+			if (!d || isNaN(d.getTime())) return '';
+			return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		}
+
 		function renderRow(doc) {
 			const row = document.createElement('article');
 			row.className = 'console-card';
@@ -5381,12 +5407,17 @@ function t(key, fallback) {
 			info.appendChild(name);
 			const meta = document.createElement('span');
 			meta.className = 'document-meta';
-			meta.textContent = [doc.version ? 'v' + doc.version : '', formatTime(doc.created_at)].filter(Boolean).join(' · ');
+			meta.textContent = [doc.version ? 'v' + doc.version : '', timeOf(doc.created_at)].filter(Boolean).join(' · ');
 			info.appendChild(meta);
+			// The chip is Documents' chip: it opens Documents filtered to the project.
 			if (doc.project_id && doc.project_name) {
-				const chip = document.createElement('span');
+				const chip = document.createElement('button');
+				chip.type = 'button';
 				chip.className = 'document-project-chip';
 				chip.textContent = doc.project_name;  // user text: textContent only
+				chip.addEventListener('click', function () {
+					if (openDocumentsForProject) openDocumentsForProject(doc.project_id);
+				});
 				info.appendChild(chip);
 			}
 			head.appendChild(info);
@@ -5407,13 +5438,17 @@ function t(key, fallback) {
 			loading = true;
 			setStatus(t('artifactsLoading', 'Loading your artifacts…'), 'muted');
 			listEl.innerHTML = '';
+			if (emptyEl) emptyEl.style.display = 'none';
 			try {
 				const data = await apiRequest('/documents');
 				const docs = (Array.isArray(data.documents) ? data.documents : []).filter(function (doc) {
 					return (doc.file_type || '').toLowerCase() === ARTIFACT_TYPE;
 				});
 				if (docs.length === 0) {
-					setStatus(t('artifactsEmpty', 'No artifacts yet. Ask for a mock-up, a style kit or a one-pager and it appears here.'), 'muted');
+					// The empty state IS the entry point (Documents' rule): the button below
+					// asks for one rather than telling the reader to.
+					setStatus(t('artifactsEmpty', 'No artifacts yet. A mock-up, a style kit, a one-pager or a dashboard appears here once you ask for one.'), 'muted');
+					if (emptyEl) emptyEl.style.display = '';
 					return;
 				}
 				setStatus('', 'muted');
@@ -5435,7 +5470,16 @@ function t(key, fallback) {
 				loading = false;
 			}
 		}
+
+		askEntry(askBtn, 'artifacts', {
+			named: 'Ask %s to make an artifact',
+			plain: 'Ask your assistant to make an artifact',
+			prompt: 'Make me an artifact — ask me what it is for (a mock-up of a screen, a style kit, a one-pager, a dashboard), then build it as a page and save it to my documents.'
+		});
 	})();
+
+	// PROJECTS PAGE (the 7.8.0 card workspace on the console shell — C2)
+	// =============================================
 
 	(function initProjects() {
 		const pane = document.getElementById('projectsPane');
