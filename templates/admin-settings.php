@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin settings page template — 6-tab layout.
+ * Admin settings page template — 5-tab layout.
  * Phase 7 D-I: Foundation tabbed layout with AJAX save.
  * Connection Config Migration: Connection moved to last tab with status dot indicator.
  *
@@ -24,7 +24,6 @@ $tabs = array(
 	'chat-settings'   => __( 'Chat Settings', 'digital-employees' ),
 	'escalation'      => __( 'Escalation', 'digital-employees' ),
 	'user-roles'      => __( 'User Roles', 'digital-employees' ),
-	'knowledge-base'  => __( 'Knowledge Base', 'digital-employees' ),
 	'connection'      => __( 'Connection', 'digital-employees' ),
 );
 
@@ -1062,42 +1061,6 @@ $first_tab = 'branding';
 		</div>
 	</div>
 
-	<?php // ─── Knowledge Base Tab (read-only) ─────────────────────────── ?>
-	<div
-		id="panel-knowledge-base"
-		role="tabpanel"
-		aria-labelledby="tab-knowledge-base"
-		class="def-core-panel"
-		tabindex="0"
-		hidden
-	>
-		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Knowledge Base Sync Status', 'digital-employees' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'This shows the current state of your AI knowledge base. Content sync is managed from the Tenant Portal.', 'digital-employees' ); ?>
-			</p>
-
-			<div id="def-core-kb-status" class="def-core-kb-status">
-				<p class="def-core-kb-loading"><?php esc_html_e( 'Loading sync status...', 'digital-employees' ); ?></p>
-			</div>
-
-			<?php
-			$defho_url = '';
-			if ( class_exists( 'DEF_Core_OAuth' ) && method_exists( 'DEF_Core_OAuth', 'get_defho_url' ) ) {
-				$defho_url = DEF_Core_OAuth::get_defho_url();
-			}
-			if ( ! empty( $defho_url ) ) :
-			?>
-			<p style="margin-top: 16px;">
-				<a href="<?php echo esc_url( $defho_url ); ?>" target="_blank" rel="noopener" class="button">
-					<?php esc_html_e( 'Open Tenant Portal', 'digital-employees' ); ?>
-					<span class="dashicons dashicons-external" style="margin-top: 3px;"></span>
-				</a>
-			</p>
-			<?php endif; ?>
-		</div>
-	</div>
-
 	<?php // ─── Connection Tab ─────────────────────────────────────────── ?>
 	<div
 		id="panel-connection"
@@ -1136,6 +1099,23 @@ $first_tab = 'branding';
 					<span id="def-core-connection-result" class="def-core-connection-result"></span>
 				</div>
 			</div>
+
+			<?php
+			// The way through to the Tenant Portal, where content sync and the rest
+			// of the tenant's settings live.
+			$defho_url = '';
+			if ( class_exists( 'DEF_Core_OAuth' ) && method_exists( 'DEF_Core_OAuth', 'get_defho_url' ) ) {
+				$defho_url = DEF_Core_OAuth::get_defho_url();
+			}
+			if ( ! empty( $defho_url ) ) :
+			?>
+			<p style="margin-top: 16px;">
+				<a href="<?php echo esc_url( $defho_url ); ?>" target="_blank" rel="noopener" class="button">
+					<?php esc_html_e( 'Open Tenant Portal', 'digital-employees' ); ?>
+					<span class="dashicons dashicons-external" style="margin-top: 3px;"></span>
+				</a>
+			</p>
+			<?php endif; ?>
 
 			<?php if ( ! $is_connected || $has_encryption_error ) : ?>
 				<?php // ─── One-Click Connect / Reconnect (also shown on credential error) ── ?>
