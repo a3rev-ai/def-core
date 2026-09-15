@@ -983,6 +983,25 @@ body {
 	background: #135e96;
 }
 
+/* Artifacts (8.2.2): the chat's card for an artifact offers Open beside Download.
+   Same size and shape as Download, in the card's own surface colours — the blue
+   stays on one action so the pair does not read as two primaries. */
+.tool-output-open {
+	background: transparent;
+	border: 1px solid var(--border-light);
+	color: var(--text-heading);
+	padding: 6px 12px;
+	border-radius: 4px;
+	font-size: 12px;
+	flex-shrink: 0;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.tool-output-open:hover {
+	background: var(--hover-bg);
+}
+
 .welcome-message {
 	text-align: left;
 	max-width: 480px;

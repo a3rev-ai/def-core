@@ -183,6 +183,18 @@ function installedShare() {
 		'INSTALLED_SHARE');
 }
 
+// Artifacts (8.2.2): the card a tool result renders IN the conversation — the
+// one the chat shows when Sue makes a file. An html document is an artifact
+// here too: ARTIFACT where the type is named, Open beside Download.
+function toolOutputCard() {
+	return slice('createToolOutputCard',
+		l => l.startsWith('\t// Create tool output card'),
+		l => l.includes('// Scheme-validate a URL to http(s)'),
+		['function createToolOutputCard', 'ARTIFACT_TYPE', "t('documentsArtifact'",
+			"t('documentsOpen'", 'tool-output-download'],
+		'TOOL_OUTPUT_CARD');
+}
+
 // C6a: initDocuments on the card kit — the cards, the ⋯ menu and its touch
 // sheet, the inline "Move to project…" editor and Delete.
 function documents() {
@@ -520,7 +532,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,

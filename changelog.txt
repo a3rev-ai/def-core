@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.2.2 - 2026/09/16 =
+* Fix - A new release now appears in WordPress when it is published, instead of up to twelve hours later. The plugin remembers the latest release for twelve hours so it does not hammer GitHub, but nothing ever cleared that memory: on a day when four releases went out, updating to one of them refilled it with the version you had just installed, and your sites could not see the next one until the following morning - the zip had to be uploaded by hand. Updating this plugin now forgets the remembered release straight away, and "Check again" on Dashboard → Updates asks GitHub afresh.
+* Tweak - Staff AI console: when your assistant makes an artifact, the card in the conversation now says ARTIFACT rather than "html", and offers Open beside Download so you can read the page where you asked for it instead of finding it again on Artifacts. Cards for other file types are unchanged. Needs the platform release that carries the artifact's id into the chat.
+
 = 8.2.1 - 2026/09/15 =
 * New - Staff AI console: your assistant can now make an artifact - a self-contained page rather than a file: a mock-up of a screen, a style or brand kit, a one-pager, a dashboard - and the console opens it rendered, inside a sealed frame that can reach nothing on your site. Ask for one the way you ask for a document ("mock up the User Access page with roles as chips"); it is revised by reference ("make the chips smaller"). A new Artifacts entry in the sidebar lists them by day; on My documents an artifact says ARTIFACT and opens with Open. Download still saves it as a file. Needs the platform release that carries the format.
 

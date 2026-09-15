@@ -11,9 +11,11 @@
  * frame's srcdoc is built from the content route's JSON, read to the end, and
  * never from a download address; no path puts an artifact's text into the
  * console's own DOM; the Artifacts page lists html documents only; the Documents
- * card says ARTIFACT and Open for html, View for the rest.
+ * card says ARTIFACT and Open for html, View for the rest. 8.2.2 adds the chat's
+ * own card — the one a tool result renders in the conversation — over the SHIPPED
+ * createToolOutputCard and the same viewer.
  *
- * 26 checks.
+ * 31 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -24,6 +26,7 @@ const MENU = extract.consoleMenu();
 const DOCUMENTS = extract.documents();
 const ARTIFACTS = extract.artifacts();
 const FRAME = extract.artifactFrame();
+const CHAT_CARD = extract.toolOutputCard();
 const TEMPLATE = extract.templateSource();
 const JS = require('fs').readFileSync(extract.JS_PATH, 'utf8');
 
@@ -133,9 +136,16 @@ function boot(opts) {
 		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
 		frame.ARTIFACT_TYPE);
 
+	// 8.2.2: the chat's own card, over the same viewer the two pages open.
+	const toolCard = new window.Function('window', 'document', 't', 'rewriteDownloadUrl', 'saveHref',
+		'isIOS', 'shareFile', 'IMAGE_EXTENSIONS', 'ARTIFACT_TYPE', 'openDocumentViewer',
+		CHAT_CARD + '\n\treturn createToolOutputCard;')(
+		window, document, t, (u) => u, (u) => u, () => false, () => {},
+		IMAGE_EXTENSIONS, frame.ARTIFACT_TYPE, openSpy);
+
 	const $ = (id) => document.getElementById(id);
 	return {
-		window, document, api, frame, requests, opened, filtered,
+		window, document, api, frame, requests, opened, filtered, toolCard,
 		open: viewer.open,
 		iframe: () => $('documentViewerFrame'),
 		srcdoc: () => $('documentViewerFrame').getAttribute('srcdoc'),
@@ -266,6 +276,44 @@ function check(label, ok, detail) {
 			&& !!md && /^MD/.test(md.querySelector('.document-meta').textContent)
 			&& md.querySelector('.document-view-btn').textContent === 'View');
 	}
+	// ── The chat's own document card (8.2.2) ──────────────────────────────
+	{
+		const t = boot();
+		const card = (tool) => t.toolCard(tool);
+		const art = card({ file_name: 'style-kit.html', file_type: 'html', document_id: 'art-1',
+			download_url: DOWNLOAD('art-1', 'html') });
+		check('the chat card for an artifact says ARTIFACT where it named the type, and keeps Download',
+			art.querySelector('.tool-output-type').textContent === 'ARTIFACT'
+			&& art.querySelector('.tool-output-download').textContent === 'Download',
+			art.querySelector('.tool-output-type').textContent);
+		const open = art.querySelector('.tool-output-open');
+		const order = Array.from(art.children).map(el => el.className);
+		check('Open is a button, and it sits ahead of Download',
+			!!open && open.tagName === 'BUTTON' && open.textContent === 'Open'
+			&& order.indexOf('tool-output-open') < order.indexOf('tool-output-download'), order.join(','));
+
+		if (open) { t.click(open); await settle(t.window); }
+		check('Open hands THAT document to the same viewer the pages use, and the artifact reaches the frame',
+			t.opened.length === 1 && t.opened[0].id === 'art-1'
+			&& (t.srcdoc() || '').indexOf(META) !== -1
+			&& !t.requests.some(u => /staff-ai-download/.test(u)), t.opened.map(o => o.id).join(','));
+
+		const docx = card({ file_name: 'Runsheet.docx', file_type: 'docx', document_id: 'doc-1',
+			download_url: DOWNLOAD('doc-1', 'docx') });
+		check('a docx card is untouched: its own type, its Download, and no Open',
+			docx.querySelector('.tool-output-type').textContent === 'docx'
+			&& docx.querySelector('.tool-output-download').textContent === 'Download'
+			&& docx.querySelector('.tool-output-open') === null,
+			docx.querySelector('.tool-output-type').textContent);
+
+		// The id is what the viewer opens: a payload without one must not grow a
+		// button that leads nowhere. The badge is read off the type and still lands.
+		const noId = card({ file_name: 'style-kit.html', file_type: 'html',
+			download_url: DOWNLOAD('art-1', 'html') });
+		check('an html card carrying no library id says ARTIFACT and offers no Open',
+			noId.querySelector('.tool-output-type').textContent === 'ARTIFACT'
+			&& noId.querySelector('.tool-output-open') === null);
+	}
 	{
 		const t = boot({ docs: DOCS.filter(d => d.file_type !== 'html') });
 		t.api.showPage('artifacts');
@@ -276,7 +324,7 @@ function check(label, ok, detail) {
 			&& /make an artifact/.test(t.document.getElementById('artifactsAskAssistant').textContent));
 	}
 
-	console.log('harness-artifacts (A-2: the sandboxed frame, the Artifacts page, ARTIFACT + Open)');
+	console.log('harness-artifacts (A-2: the sandboxed frame, the Artifacts page, ARTIFACT + Open — pages and chat)');
 	results.forEach(r => console.log(r));
 	console.log(pass + ' passed, ' + fail + ' failed');
 	process.exit(fail ? 1 : 0);

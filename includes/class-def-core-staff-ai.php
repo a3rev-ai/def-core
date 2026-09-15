@@ -4579,10 +4579,20 @@ final class DEF_Core_Staff_AI
 						}
 					}
 
+					// Artifacts (8.2.2): the chat card's Open needs the library id to
+					// reach the content route. Charset-checked to the same alphabet the
+					// documents routes accept, so the two ends cannot disagree on a
+					// valid id; absent when DEF sends none, and the card stays as it was.
+					$document_id = $tool_output['document_id'] ?? null;
+					if (!is_string($document_id) || !preg_match('/^[a-zA-Z0-9-]+$/', $document_id)) {
+						$document_id = null;
+					}
+
 					$tool_outputs[] = array(
 						'file_name'    => $tool_output['file_name'] ?? '',
 						'file_type'    => $tool_output['file_type'] ?? '',
 						'download_url' => $download_url,
+						'document_id'  => $document_id,
 						'expires_at'   => $tool_output['expires_at'] ?? null,
 					);
 				}
