@@ -1,7 +1,7 @@
 *** Digital Employee Framework - Core Changelog ***
 
 = 8.2.2 - 2026/09/16 =
-* Fix - A new release now appears in WordPress when it is published, instead of up to twelve hours later. The plugin remembers the latest release for twelve hours so it does not hammer GitHub, but nothing ever cleared that memory: on a day when four releases went out, updating to one of them refilled it with the version you had just installed, and your sites could not see the next one until the following morning - the zip had to be uploaded by hand. Updating this plugin now forgets the remembered release straight away, and "Check again" on Dashboard → Updates asks GitHub afresh.
+* Fix - A new release now shows on your Plugins screen within a minute of being published, instead of up to an hour later. That screen only looked for a new version once an hour, so on a day when four releases went out one after another it kept showing the version you already had and the zip had to be uploaded by hand; it now looks again each time you open the page, at most once a minute. And when you update this plugin on its own - or it updates itself overnight - the row no longer keeps offering you the version you have just installed.
 * Tweak - Staff AI console: when your assistant makes an artifact, the card in the conversation now says ARTIFACT rather than "html", and offers Open beside Download so you can read the page where you asked for it instead of finding it again on Artifacts. Cards for other file types are unchanged. Needs the platform release that carries the artifact's id into the chat.
 
 = 8.2.1 - 2026/09/15 =

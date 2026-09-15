@@ -26,7 +26,6 @@ final class GitHubUpdaterTest extends TestCase {
 		$_wp_test_transients       = array();
 		$_wp_test_remote_responses = array();
 		$_wp_test_active_plugins   = array();
-		unset( $_GET['force-check'] );
 
 		$this->config = array(
 			'file'    => '/tmp/wp-plugins/digital-employees/def-core.php',
@@ -135,81 +134,6 @@ final class GitHubUpdaterTest extends TestCase {
 		$basename = 'digital-employees/def-core.php';
 		$this->assertArrayHasKey( $basename, $result->response );
 		$this->assertSame( '3.0.0', $result->response[ $basename ]->new_version );
-	}
-
-	// ── The cache is emptied when the release it holds is stale ──────────
-
-	public function test_update_of_this_plugin_drops_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_after_update( null, array(
-			'action' => 'update',
-			'type'   => 'plugin',
-			'plugin' => 'digital-employees/def-core.php',
-		) );
-
-		$this->assertFalse( get_transient( 'def_gh_update_digital-employees' ) );
-	}
-
-	public function test_bulk_update_including_this_plugin_drops_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_after_update( null, array(
-			'action'  => 'update',
-			'type'    => 'plugin',
-			'bulk'    => true,
-			'plugins' => array( 'akismet/akismet.php', 'digital-employees/def-core.php' ),
-		) );
-
-		$this->assertFalse( get_transient( 'def_gh_update_digital-employees' ) );
-	}
-
-	public function test_update_of_another_plugin_keeps_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_after_update( null, array(
-			'action'  => 'update',
-			'type'    => 'plugin',
-			'bulk'    => true,
-			'plugins' => array( 'akismet/akismet.php' ),
-		) );
-
-		$this->assertSame( array( 'version' => '1.8.0' ), get_transient( 'def_gh_update_digital-employees' ) );
-	}
-
-	public function test_theme_update_keeps_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_after_update( null, array(
-			'action' => 'update',
-			'type'   => 'theme',
-			'themes' => array( 'twentytwentyfive' ),
-		) );
-
-		$this->assertSame( array( 'version' => '1.8.0' ), get_transient( 'def_gh_update_digital-employees' ) );
-	}
-
-	public function test_force_check_drops_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-		$_GET['force-check'] = '1';
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_on_force_check();
-
-		$this->assertFalse( get_transient( 'def_gh_update_digital-employees' ) );
-	}
-
-	public function test_updates_screen_without_force_check_keeps_the_cached_release(): void {
-		set_transient( 'def_gh_update_digital-employees', array( 'version' => '1.8.0' ) );
-
-		$updater = new DEF_Core_GitHub_Updater( $this->config );
-		$updater->clear_cache_on_force_check();
-
-		$this->assertSame( array( 'version' => '1.8.0' ), get_transient( 'def_gh_update_digital-employees' ) );
 	}
 
 	// ── post_install: only fires for matching basename ───────────────────

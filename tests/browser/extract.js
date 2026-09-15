@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, TOOL_OUTPUT_CARD) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */

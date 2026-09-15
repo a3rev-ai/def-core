@@ -63,5 +63,34 @@ $def_core_update_checker->addResultFilter( function ( $plugin_info ) {
 	return $plugin_info;
 } );
 
+// ── The update row keeps up with the release (8.2.2) ────────────────────
+// PUC's scheduler checks every 12 hours, and only ONCE AN HOUR on the Plugins
+// screen (Scheduler::getEffectiveCheckPeriod gives load-plugins.php 3600s, while
+// Dashboard → Updates already gets 60s). On 2026-09-15 four releases shipped in
+// one day: the 21:35 update to 8.2.0 ran a check, 8.2.1 published ten minutes
+// later, and both production sites were throttled for the rest of that hour —
+// the zip went up by hand. These two put the Plugins screen on the same
+// 60-second ceiling PUC already accepts for Dashboard → Updates, and close the
+// single-update path PUC's own handler skips.
+add_action( 'load-plugins.php', function () use ( $def_core_update_checker ) {
+	if ( get_transient( 'def_core_puc_recheck' ) ) {
+		return;
+	}
+	set_transient( 'def_core_puc_recheck', 1, MINUTE_IN_SECONDS );
+	$def_core_update_checker->checkForUpdates();
+} );
+
+// Scheduler::upgraderProcessComplete returns unless $hook_extra carries the BULK
+// 'plugins' list, so a single "Update now" — and every background auto-update —
+// left the row still offering the version that had just been installed.
+add_action( 'upgrader_process_complete', function ( $upgrader, $hook_extra ) use ( $def_core_update_checker ) {
+	if ( ! is_array( $hook_extra ) || isset( $hook_extra['plugins'] )
+		|| DEF_CORE_PLUGIN_NAME !== ( $hook_extra['plugin'] ?? '' ) ) {
+		return;
+	}
+	$def_core_update_checker->resetUpdateState();
+	$def_core_update_checker->checkForUpdates();
+}, 10, 2 );
+
 // Main plugin class.
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core.php';

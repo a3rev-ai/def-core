@@ -93,67 +93,6 @@ final class DEF_Core_GitHub_Updater {
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
 		add_filter( 'plugins_api', array( $this, 'plugin_info' ), 20, 3 );
 		add_filter( 'upgrader_post_install', array( $this, 'post_install' ), 10, 3 );
-		add_action( 'upgrader_process_complete', array( $this, 'clear_cache_after_update' ), 10, 2 );
-		// Priority 9: wp-includes/update.php registers wp_update_plugins() on this same
-		// screen-load action at 10, and that is what runs check_update(). Ours has to
-		// empty the cache BEFORE it, or the forced check reads the release we already
-		// have. See clear_cache_on_force_check() for why the flag is read by hand.
-		add_action( 'load-update-core.php', array( $this, 'clear_cache_on_force_check' ), 9 );
-	}
-
-	/**
-	 * Drop the cached release once THIS plugin has been updated.
-	 *
-	 * The 12-hour TTL in get_remote_info() is what keeps us inside GitHub's
-	 * unauthenticated rate limit, and it stays. What was missing is that nothing
-	 * ever emptied the cache: on 8.2.x, four releases shipped in one day, the
-	 * 21:35 update to 8.2.0 refilled the cache with 8.2.0, and both production
-	 * sites were blind to 8.2.1 until the next morning — the owner uploaded the
-	 * zip by hand. The release we just installed is known-stale the moment it
-	 * lands, so the next check starts from GitHub rather than from it.
-	 *
-	 * @param WP_Upgrader $upgrader   The upgrader that ran (unused).
-	 * @param array       $hook_extra What it upgraded.
-	 * @return void
-	 */
-	public function clear_cache_after_update( $upgrader, $hook_extra ): void {
-		if ( ! is_array( $hook_extra )
-			|| 'plugin' !== ( $hook_extra['type'] ?? '' )
-			|| 'update' !== ( $hook_extra['action'] ?? '' ) ) {
-			return;
-		}
-
-		// Bulk_upgrade() names every plugin in 'plugins'; upgrade() — the single
-		// update and every background auto-update — names one in 'plugin'.
-		$updated = isset( $hook_extra['plugins'] ) && is_array( $hook_extra['plugins'] )
-			? $hook_extra['plugins']
-			: array( $hook_extra['plugin'] ?? '' );
-
-		if ( in_array( $this->basename, $updated, true ) ) {
-			delete_transient( $this->cache_key );
-		}
-	}
-
-	/**
-	 * Honour "Check again" on the Updates screen by emptying the cache first.
-	 *
-	 * WordPress offers no action or filter for a forced check: wp-admin/update-core.php
-	 * reads $_GET['force-check'] itself and passes it only to wp_version_check(), which
-	 * forces CORE. Plugins are re-checked because loading that screen also runs
-	 * wp_update_plugins() (on a one-minute timeout), which knows nothing about the
-	 * request that asked for it. So the same flag is read on the same screen-load hook
-	 * core uses — gated on it rather than clearing on every visit to the screen, because
-	 * an unconditional clear would turn the 12-hour cache into one GitHub call per page
-	 * view and put the rate limit back in play. A read of one query flag, no state
-	 * changed, nothing echoed — hence no nonce.
-	 *
-	 * @return void
-	 */
-	public function clear_cache_on_force_check(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! empty( $_GET['force-check'] ) ) {
-			delete_transient( $this->cache_key );
-		}
 	}
 
 	/**
