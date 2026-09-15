@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.1.2
+Stable tag: 8.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.1.3 - 2026-09-15 =
+* Fix - Customer Chat: when an attached image finishes uploading, the widget now tells the platform which conversation it belongs to, so the platform can check the image is yours before your assistant reads it. Nothing changes on screen. Ships ahead of the platform release that makes that check.
 
 = 8.1.2 - 2026-09-15 =
 * Fix - Staff AI console: attach a picture or a file and send it without typing anything, and the message now says what it carries - "Describe this picture: garden.png." instead of the same "Please analyze the attached file(s)." every time. Your assistant could not tell a second picture from the first and read it in the first one's context; now each attachment is asked about by name, pictures first, then files. The conversation list also keeps its place: opening an older chat from far down your history no longer throws the list back to the top while it loads.
