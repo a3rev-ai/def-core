@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.0
+Stable tag: 8.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.1 - 2026-09-15 =
+* New - Staff AI console: your assistant can now make an artifact - a self-contained page rather than a file: a mock-up of a screen, a style or brand kit, a one-pager, a dashboard - and the console opens it rendered, inside a sealed frame that can reach nothing on your site. Ask for one the way you ask for a document ("mock up the User Access page with roles as chips"); it is revised by reference ("make the chips smaller"). A new Artifacts entry in the sidebar lists them by day; on My documents an artifact says ARTIFACT and opens with Open. Download still saves it as a file. Needs the platform release that carries the format.
 
 = 8.2.0 - 2026-09-15 =
 * New Feature - Settings → User Access: the list is now one row per person instead of a grid with a tick-box column for every role. Staff or Management sets what a person can reach in the Staff AI console — one or the other, never both and never neither. Their roles are shown as chips you add with "+ Add role" and remove with the × on the chip, so adding a sixth or a twelfth role no longer makes the page wider. DEF Admin stays its own tick, and still controls who can open this settings page. A new filter above the list narrows it to the people who hold one role, and tells you how many that is — it only changes what you are looking at, never anyone's permissions. On a phone each person is now a stacked card with labelled fields, so the page no longer scrolls sideways.
