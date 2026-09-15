@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.1
+Stable tag: 8.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.2 - 2026-09-16 =
+* Fix - A new release now shows on your Plugins screen within a few minutes of being published, instead of up to an hour later. That screen only looked for a new version once an hour, so on a day when four releases went out one after another it kept showing the version you already had and the zip had to be uploaded by hand; it now looks again when you open the page, at most once every five minutes. And when you update this plugin on its own - or it updates itself overnight - the row no longer keeps offering you the version you have just installed.
+* Tweak - Staff AI console: when your assistant makes an artifact, the card in the conversation now says ARTIFACT rather than "html", and offers Open beside Download so you can read the page where you asked for it instead of finding it again on Artifacts. Cards for other file types are unchanged. Needs the platform release that carries the artifact's id into the chat.
 
 = 8.2.1 - 2026-09-15 =
 * New - Staff AI console: your assistant can now make an artifact - a self-contained page rather than a file: a mock-up of a screen, a style or brand kit, a one-pager, a dashboard - and the console opens it rendered, inside a sealed frame that can reach nothing on your site. Ask for one the way you ask for a document ("mock up the User Access page with roles as chips"); it is revised by reference ("make the chips smaller"). A new Artifacts entry in the sidebar lists them by day; on My documents an artifact says ARTIFACT and opens with Open. Download still saves it as a file. Needs the platform release that carries the format.

@@ -1649,7 +1649,11 @@ function t(key, fallback) {
 
 		const type = document.createElement('div');
 		type.className = 'tool-output-type';
-		type.textContent = tool.file_type || t('file', 'File');
+		// An html document is an artifact here too (8.2.2): the card Sue's answer
+		// renders says what the Documents card says, rather than leaving the reader
+		// to recognise "html" as the page they just asked for.
+		const artifact = String(tool.file_type || '').toLowerCase() === ARTIFACT_TYPE;
+		type.textContent = artifact ? t('documentsArtifact', 'ARTIFACT') : (tool.file_type || t('file', 'File'));
 
 		info.appendChild(name);
 		info.appendChild(type);
@@ -1674,6 +1678,20 @@ function t(key, fallback) {
 
 		card.appendChild(icon);
 		card.appendChild(info);
+		// Open reads the artifact in the console's sandboxed viewer — the same Open the
+		// Documents page offers, through the same content route (D-A3); Download stays
+		// beside it. The id is what the viewer opens, so a payload without one keeps the
+		// card it always had rather than offering a button that leads nowhere.
+		if (artifact && openDocumentViewer && tool.document_id) {
+			const open = document.createElement('button');
+			open.type = 'button';
+			open.className = 'tool-output-open';
+			open.textContent = t('documentsOpen', 'Open');
+			open.addEventListener('click', function () {
+				openDocumentViewer(tool.document_id, tool.file_name || '');
+			});
+			card.appendChild(open);
+		}
 		card.appendChild(download);
 
 		// An image shows as itself (7.6.8): the picture above the card, served inline

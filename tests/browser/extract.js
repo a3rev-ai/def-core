@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, TOOL_OUTPUT_CARD) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -181,6 +181,18 @@ function installedShare() {
 		l => l.startsWith('\t// Create tool output card'),
 		['function isIOS', 'async function shareFile', 'navigator.share'],
 		'INSTALLED_SHARE');
+}
+
+// Artifacts (8.2.2): the card a tool result renders IN the conversation — the
+// one the chat shows when Sue makes a file. An html document is an artifact
+// here too: ARTIFACT where the type is named, Open beside Download.
+function toolOutputCard() {
+	return slice('createToolOutputCard',
+		l => l.startsWith('\t// Create tool output card'),
+		l => l.includes('// Scheme-validate a URL to http(s)'),
+		['function createToolOutputCard', 'ARTIFACT_TYPE', "t('documentsArtifact'",
+			"t('documentsOpen'", 'tool-output-download'],
+		'TOOL_OUTPUT_CARD');
 }
 
 // C6a: initDocuments on the card kit — the cards, the ⋯ menu and its touch
@@ -520,7 +532,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
