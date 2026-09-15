@@ -102,6 +102,36 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
+	 * The DEF capabilities a user actually STORES, as a cap => bool map.
+	 *
+	 * Reads `allcaps` — the raw merged capability array — rather than has_cap().
+	 * DEF_Core_Admin::map_def_capabilities() is filtered onto map_meta_cap, so
+	 * has_cap( 'def_staff_access' ) answers TRUE for every Management and
+	 * DEF-Admin user whether or not the cap is stored. That is fine for "may
+	 * this person open the console" and wrong for "what does this person have",
+	 * and this map is the second kind: it is mirrored back to the Setup
+	 * Assistant drawer, which writes it straight onto the User Access row.
+	 *
+	 * With has_cap(), revoking Staff from a user who also holds DEF Admin
+	 * removed the stored cap and then reported it as still true, so the drawer
+	 * re-ticked Staff and the next Save granted back exactly what Sam had just
+	 * taken away. Same reading as DEF_Core_Staff_Roster::build_roster() and the
+	 * User Access row renderer.
+	 *
+	 * Takes the array rather than the user so it can be exercised directly.
+	 *
+	 * @param array $allcaps The user's `allcaps` array.
+	 * @return array<string, bool> Capability name => stored.
+	 */
+	public static function stored_def_caps( array $allcaps ): array {
+		$caps = array();
+		foreach ( self::def_capabilities() as $cap ) {
+			$caps[ $cap ] = ! empty( $allcaps[ $cap ] );
+		}
+		return $caps;
+	}
+
+	/**
 	 * HMAC timestamp tolerance in seconds.
 	 *
 	 * @var int
@@ -1149,11 +1179,10 @@ final class DEF_Core_Admin_API {
 		// fail because a push did.
 		DEF_Core_Staff_Roster::schedule_push();
 
-		// Build current capabilities for this user.
-		$user_caps = array();
-		foreach ( self::def_capabilities() as $cap ) {
-			$user_caps[ $cap ] = $user->has_cap( $cap );
-		}
+		// Build current capabilities for this user — from what is STORED, not
+		// from has_cap(). This map is written straight onto the User Access row
+		// by the drawer, so a lying read here re-grants what was just revoked.
+		$user_caps = self::stored_def_caps( (array) $user->allcaps );
 
 		$ui_actions = array(
 			array(

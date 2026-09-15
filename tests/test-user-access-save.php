@@ -23,6 +23,10 @@
  * - a def_role_* capability the browser invents is NOT written: the writable set
  *   is built from the cached catalog server-side, never from the submitted keys
  * - the last-DEF-Admin lockout guard still refuses the save
+ * - the Setup Assistant's capability mirror reports what is STORED. Built with
+ *   has_cap() it claimed def_staff_access for every DEF Admin, so Sam revoking
+ *   a seat mirrored it back as still held, the drawer re-ticked it, and the next
+ *   Save granted back what Sam had just taken away.
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -75,11 +79,16 @@ class WP_User_Stub {
 	public $ID;
 	public $display_name;
 	public $caps;
+	// What WordPress fills from the wp_capabilities meta. map_meta_cap — where
+	// the def_staff_access lie below lives — never touches it, which is exactly
+	// why the stored reads use it.
+	public $allcaps = array();
 
 	public function __construct( int $id, array $row ) {
 		$this->ID           = $id;
 		$this->display_name = $row['display_name'];
 		$this->caps         = $row['caps'];
+		$this->allcaps      = array_fill_keys( $row['caps'], true );
 	}
 
 	/**
@@ -111,6 +120,7 @@ class WP_User_Stub {
 	private function persist(): void {
 		global $_test_users;
 		$_test_users[ $this->ID ]['caps'] = $this->caps;
+		$this->allcaps                    = array_fill_keys( $this->caps, true );
 	}
 }
 
@@ -231,6 +241,9 @@ if ( ! function_exists( 'wp_send_json_error' ) ) {
 }
 
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
+// Section 6 only: the class carries no load-time code beyond its constants, so
+// requiring it here costs nothing and gives the mirror's stored read directly.
+require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php';
 
 // ── Tiny assertion helper (house style) ─────────────────────────────────
 
@@ -540,6 +553,66 @@ save( array(
 	50 => row( 'management', array( 'legal' ), false ),
 ) );
 assert_equals( 1, count( $_test_cron ), 'a save through the new screen queues exactly one roster push' );
+
+// ── 6. The Setup Assistant mirror reads STORED caps ─────────────────────
+echo "\n[6] Sam's mirror reports what is stored, not what is implied\n";
+
+// The revoke loop, outside the page renderer. rest_update_user_role() answers
+// with a capability map that the Setup Assistant drawer writes straight onto the
+// User Access row. Built with has_cap(), that map reported def_staff_access as
+// TRUE for anyone holding DEF Admin — so Sam removing Staff from a DEF Admin
+// removed the stored cap, mirrored it back as still present, the drawer re-ticked
+// Staff, and the next Save granted back exactly what Sam had just taken away.
+//
+// The handler itself needs the whole REST/HMAC/rate-limit surface to invoke, so
+// what is exercised here is the READ it performs — the shipped
+// DEF_Core_Admin_API::stored_def_caps(), called directly — and the handler is
+// pinned to using it by the source assertions at the end of this section.
+$_test_users = array();
+seed_user( 13, 'Alice Admin', array( 'def_admin_access' ) );
+$alice = get_userdata( 13 );
+
+// First: the lie is real. This is the question the mirror used to ask.
+assert_true(
+	$alice->has_cap( 'def_staff_access' ),
+	'has_cap() claims a DEF-Admin-only user holds def_staff_access (the lie)'
+);
+assert_true(
+	! in_array( 'def_staff_access', $_test_users[13]['caps'], true ),
+	'while nothing of the sort is stored'
+);
+
+// And the mirror, asked the honest way.
+$mirror = DEF_Core_Admin_API::stored_def_caps( (array) $alice->allcaps );
+assert_equals( false, $mirror['def_staff_access'], 'the mirror reports Staff FALSE for a DEF-Admin-only user' );
+assert_equals( true, $mirror['def_admin_access'], 'and reports DEF Admin TRUE, which IS stored' );
+assert_equals( false, $mirror['def_management_access'], 'and Management false' );
+
+// A real Staff user still mirrors as Staff — this is a correction, not a
+// blanket false.
+seed_user( 14, 'Sam Staff', array( 'def_staff_access' ) );
+$mirror_staff = DEF_Core_Admin_API::stored_def_caps( (array) get_userdata( 14 )->allcaps );
+assert_equals( true, $mirror_staff['def_staff_access'], 'a stored Staff cap still mirrors as true' );
+assert_equals( false, $mirror_staff['def_admin_access'], 'and DEF Admin false where it is not stored' );
+
+// The vault roles ride the same map, out of the same catalog.
+seed_user( 15, 'Rosa Roles', array( 'def_staff_access', 'def_role_finance' ) );
+$mirror_roles = DEF_Core_Admin_API::stored_def_caps( (array) get_userdata( 15 )->allcaps );
+assert_equals( true, $mirror_roles['def_role_finance'], 'a stored vault role mirrors as true' );
+assert_equals( false, $mirror_roles['def_role_hr'], 'and one that is not stored mirrors as false' );
+
+// The handler is what must USE that read. It cannot be invoked standalone, so
+// it is asserted against its source — the house pattern for code this suite
+// cannot execute (see test-staff-roster.php on maybe_upgrade()).
+$api_src = (string) file_get_contents( DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin-api.php' );
+assert_true(
+	false !== strpos( $api_src, 'self::stored_def_caps( (array) $user->allcaps )' ),
+	'rest_update_user_role builds its mirror from the stored read'
+);
+assert_true(
+	false === strpos( $api_src, '$user_caps[ $cap ] = $user->has_cap( $cap );' ),
+	'and no longer builds it from has_cap()'
+);
 
 echo "\n--- User Access Save Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

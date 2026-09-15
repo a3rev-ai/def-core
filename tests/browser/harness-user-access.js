@@ -3,15 +3,17 @@
  *
  * The screen was a checkbox matrix with one column per vault role — eleven
  * columns wide at a3rev's five roles, and one column wider with every role
- * anyone adds. It is now one row per person: Staff | Management as a two-way
- * control, the vault roles as wrapping chips with a + Add role listbox, and a
- * filter above the list. The capability state did NOT move: every capability is
- * still carried by a .def-core-role-cb input, and the payload the save submits
- * is the payload the matrix submitted. That is the claim this file holds.
+ * anyone adds. It is now one row per person: Staff | Management | neither as a
+ * pill control, the vault roles as wrapping chips with a + Add role listbox, and
+ * a filter above the list. The capability state did NOT move: every capability
+ * is still carried by a .def-core-role-cb input, and the payload the save
+ * submits is the payload the matrix submitted. That is the claim this file
+ * holds — and it holds it by calling the SHIPPED accessPayload(), not by
+ * rebuilding the loop, because a rebuilt loop only ever tests its own copy.
  *
  * Four parts, because the screen has four:
  *
- *  1-38. THE BEHAVIOUR, in jsdom, over the SHIPPED block — sliced out of
+ *  1-42. THE BEHAVIOUR, in jsdom, over the SHIPPED block — sliced out of
  *        assets/js/def-core-admin.js by the S3 markers (extract.userAccess), so
  *        these are the shipped lines and not a copy that can drift. Every check
  *        drives the DOM the way a person would, through the shipped
@@ -19,72 +21,90 @@
  *        the screen's back, which is what lets a control that redraws itself
  *        without re-running the filter show up as a failure.
  *
- *        Three groups are worth reading before the rest:
+ *        Four groups are worth reading before the rest:
  *
- *        5-8 and 16-17 — the review panel's two. "Exactly one selected" is a
- *        property of the INTERACTION: nobody can click their way to neither. It
- *        is NOT a licence to invent a level for a row that stores none. A DEF
- *        Admin who never opens the console is a supported setup ("DEF-Admin
- *        alone is NOT a roster row", class-def-core-staff-roster.php), so a
- *        render that defaults such rows to Staff hands every one of them a
- *        console login the moment anyone presses Save — for someone else, with
- *        nothing on screen to show for it. 16-17 are the same bug reached from
- *        the Setup Assistant: it revokes a level, the server commits it, the
- *        drawer mirrors "neither" onto the inputs, and a render that re-derives
- *        a level puts the revoked one straight back on.
+ *        1-8 — the access level is Staff, Management, OR NEITHER. Clicking a
+ *        pill writes both inputs, so "both" is unreachable; clicking the LIT
+ *        pill again clears it, which is the only way to take a Staff-AI seat
+ *        away without also stripping the person's DEF Admin and vault roles
+ *        with the × . 5-7 pin that the clearing is surgical.
  *
- *        24-26 — the list and its count say "people who hold this role". A chip
+ *        9-12 and 20-21 — the render must not INVENT a level for a row that
+ *        stores none. A DEF Admin who never opens the console is a supported
+ *        setup ("DEF-Admin alone is NOT a roster row",
+ *        class-def-core-staff-roster.php), so a render that defaults such rows
+ *        to Staff hands every one of them a console login the moment anyone
+ *        presses Save — for someone else, with nothing on screen to show for it.
+ *        20-21 are the same bug reached from the Setup Assistant: it revokes a
+ *        level, the server commits it, the drawer mirrors "neither" onto the
+ *        inputs, and a render that re-derives a level puts the revoked one
+ *        straight back on.
+ *
+ *        28-30 — the list and its count say "people who hold this role". A chip
  *        edit changes who that is, so a chip that only redraws its own cell
  *        leaves the screen asserting something that stopped being true. Nothing
  *        in those three touches the filter; the shipped listener must react.
  *
- *        30-35 — the listbox. Opened with the mouse nothing is highlighted, or
+ *        34-39 — the listbox. Opened with the mouse nothing is highlighted, or
  *        the first Arrow Down steps past the option it just highlighted. Options
  *        are out of the tab order and Enter reads the option under FOCUS, or Tab
  *        and the arrows disagree about which role Enter takes. And a redraw
  *        under an open menu closes it, or its outside-click listener outlives
  *        the element it closes over.
  *
- * 39-40. THE JOINS the slice cannot contain: initUserRoles' one call into the
+ * 43-44. THE JOINS the slice cannot contain: initUserRoles' one call into the
  *        block, and the drawer's own file announcing the capabilities it writes.
  *        Read off the source, because neither end is inside the block.
  *
- * 41-49. THE SHIPPED MARKUP, read out of templates/admin-settings.php. The
+ * 45-53. THE SHIPPED MARKUP, read out of templates/admin-settings.php. The
  *        fixture below is only as honest as the template it mirrors, so the
  *        template is asserted to emit what the fixture assumes: the six columns
  *        and no per-role column, a data-label on every cell, one hidden input
- *        per catalog role, and (45-46) the level read from the STORED
+ *        per catalog role, and (49-50) the level read from the STORED
  *        capabilities with no branch that turns "neither" into a level.
  *
- * 50-55. THE RESPONSIVE RULES, read out of assets/css/def-core-admin.css. Below
+ * 54-59. THE RESPONSIVE RULES, read out of assets/css/def-core-admin.css. Below
  *        782px the table presentation is REPLACED by stacked blocks with visible
- *        cell labels. Check 52 is subtle and was a real bug: the stacked layout
+ *        cell labels. Check 56 is subtle and was a real bug: the stacked layout
  *        sets display:block on every tr, `hidden` is only display:none in the UA
  *        stylesheet, and an author rule beats a UA rule — so the filter worked
- *        on a laptop and hid nobody on a phone. Check 55 is the one that
+ *        on a laptop and hid nobody on a phone. Check 59 is the one that
  *        outlives this PR: this screen must not reach for the sideways-scroll
  *        wrapper S1 gave the Connection Logs table. There is no row left to be
  *        wider than the screen.
  *
- * Bite check: the extractor takes USER_ACCESS, naming a file to load instead of
- * the shipped block. Point it at the 8.1.3 screen's logic behind the same names
- * — initAccessRows binding the two access checkboxes to each other and nothing
- * else, renderRolesCell and renderAccessRow as no-ops (the matrix rendered its
- * checkboxes server-side and decorated nothing), applyRoleFilter returning the
- * row count without hiding anything (the old screen had no filter), and
- * accessPayload unchanged:
+ *        ruleIn() below allows either line ending on purpose. Its grouped
+ *        selector carries the newlines the stylesheet has, and core.autocrlf
+ *        puts a \r before each of them on a Windows checkout — check 54 went red
+ *        on the line endings of the file it was reading rather than on the rule
+ *        it was checking.
+ *
+ * Bite checks. The extractor takes USER_ACCESS, naming a file to load instead of
+ * the shipped block:
  *
  *   USER_ACCESS=/tmp/old-user-access.js node tests/browser/harness-user-access.js
  *
- * That fixture fails 32 of the 38 behaviour checks. The six it leaves green are
- * the right six, and worth naming rather than counting: 22, 27 and 28 are the
- * payload, which S3 deliberately did not change; 5, 6 and 16 are the
- * neither-level row, which 8.1.3 also got right — that bug was introduced on
- * this branch and caught by the panel, so a fixture of the old code is not what
- * proves it. Checks 39-55 read the working tree rather than the block, so they
- * bite by editing the scripts, the template and the stylesheet instead.
+ * Against the 8.1.3 screen's logic behind the same names — initAccessRows
+ * binding the two access checkboxes to each other and nothing else,
+ * renderRolesCell and renderAccessRow as no-ops, applyRoleFilter returning the
+ * row count without hiding anything, accessPayload unchanged — that fails 36 of
+ * the 42 behaviour checks. The six it leaves green are the right six: 26, 31 and
+ * 32 are the payload, which S3 deliberately did not change, and 9, 10 and 20 are
+ * the neither-level row, which 8.1.3 also got right.
  *
- * 55 checks.
+ * Two targeted mutations of the CURRENT block, which are the ones to re-run
+ * after touching either area:
+ *
+ *   - narrow accessPayload's selector to `.def-core-role-cb:not([hidden])` —
+ *     which would revoke every access level and every vault role on Save, those
+ *     inputs being exactly the hidden ones — and 12 checks go red.
+ *   - make the pill click always select (`setAccessLevel(row, pair[0])`) instead
+ *     of clearing the lit one, and checks 4-7 go red.
+ *
+ * Checks 43-59 read the working tree rather than the block, so they bite by
+ * editing the scripts, the template and the stylesheet instead.
+ *
+ * 59 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -116,7 +136,7 @@ const CATALOG = [
 	{ slug: 'legal', name: 'Legal' },
 ];
 
-// One row, in the shape templates/admin-settings.php renders it. Checks 41-49
+// One row, in the shape templates/admin-settings.php renders it. Checks 45-53
 // hold the template to this shape, which is what stops the fixture drifting into
 // a DOM the screen never produces.
 function rowMarkup(u) {
@@ -168,7 +188,7 @@ function boot(users) {
 	window.defCoreAdmin = { rolesCatalog: CATALOG };
 
 	const api = new window.Function('window', 'document',
-		BLOCK + '\nreturn { initAccessRows: initAccessRows };'
+		BLOCK + '\nreturn { initAccessRows: initAccessRows, accessPayload: accessPayload };'
 	)(window, document);
 
 	const tbody = document.getElementById('def-core-roles-tbody');
@@ -183,11 +203,14 @@ function boot(users) {
 	api.initAccessRows(tbody, filterEl, countEl);
 
 	const row = id => tbody.querySelector('tr[data-user-id="' + id + '"]');
+	// The SHIPPED accessPayload, not a re-implementation of it. A harness that
+	// rebuilds the payload loop tests its own copy and nothing else: narrow the
+	// real selector to `.def-core-role-cb:not([hidden])` — which revokes every
+	// access level and every vault role on Save, those inputs being exactly the
+	// hidden ones — and a copied loop stays green straight through it.
 	const payload = () => {
 		const out = {};
-		tbody.querySelectorAll('.def-core-role-cb').forEach(cb => {
-			out['roles[' + cb.dataset.user + '][' + cb.dataset.cap + ']'] = cb.checked ? '1' : '0';
-		});
+		api.accessPayload(document).forEach(pair => { out[pair[0]] = pair[1]; });
 		return out;
 	};
 	return {
@@ -260,11 +283,54 @@ const PEOPLE = [
 		t.row(3).querySelector('[data-cap="def_management_access"]').checked === false,
 		'selected=' + opts(3).join());
 
-	// Clicking the option already selected must not clear it — there is no
-	// "neither" state to fall into, by construction.
+	// A seat has to be REVOCABLE. Clicking the lit pill clears it, leaving
+	// neither — otherwise the only way to take away a person's Staff AI access
+	// is the × that strips their DEF Admin and every vault role with it, which
+	// is a different decision than the one being made.
 	t.click(t.row(3).querySelector('.def-core-access-opt[data-level="staff"]'));
-	check('clicking the selected option again keeps exactly one selected',
-		opts(3).length === 1 && opts(3)[0] === 'staff', 'selected=' + opts(3).join());
+	check('clicking the lit pill again clears it, leaving neither selected',
+		opts(3).length === 0 &&
+		t.row(3).querySelector('[data-cap="def_staff_access"]').checked === false &&
+		t.row(3).querySelector('[data-cap="def_management_access"]').checked === false,
+		'selected=' + opts(3).join());
+
+	check('and the cleared level submits both capabilities as 0',
+		t.payload()['roles[3][def_staff_access]'] === '0' &&
+		t.payload()['roles[3][def_management_access]'] === '0',
+		'staff=' + t.payload()['roles[3][def_staff_access]'] +
+		' mgmt=' + t.payload()['roles[3][def_management_access]']);
+
+	// Revoking the seat is not revoking everything else.
+	{
+		const t2 = boot(PEOPLE);
+		const before = t2.payload();
+		t2.click(t2.row(2).querySelector('.def-core-access-opt[data-level="staff"]'));
+		const after = t2.payload();
+		check('clearing the level leaves DEF Admin and the vault roles untouched',
+			after['roles[2][def_role_finance]'] === before['roles[2][def_role_finance]'] &&
+			after['roles[2][def_admin_access]'] === before['roles[2][def_admin_access]'] &&
+			t2.chips(2).join() === 'finance' &&
+			after['roles[2][def_staff_access]'] === '0',
+			'finance=' + after['roles[2][def_role_finance]'] + ' chips=' + t2.chips(2));
+
+		// Management clears the same way — it is the pill, not the level.
+		const t3 = boot(PEOPLE);
+		t3.click(t3.row(1).querySelector('.def-core-access-opt[data-level="management"]'));
+		check('Management clears on a second click too',
+			t3.row(1).querySelectorAll('.def-core-access-opt[aria-checked="true"]').length === 0 &&
+			t3.payload()['roles[1][def_management_access]'] === '0' &&
+			t3.payload()['roles[1][def_staff_access]'] === '0' &&
+			t3.payload()['roles[1][def_admin_access]'] === '1',
+			'mgmt=' + t3.payload()['roles[1][def_management_access]']);
+	}
+
+	// And out of neither, a pill still lands exactly one.
+	t.click(t.row(3).querySelector('.def-core-access-opt[data-level="management"]'));
+	check('selecting from neither lands exactly one again',
+		opts(3).join() === 'management' &&
+		t.payload()['roles[3][def_management_access]'] === '1' &&
+		t.payload()['roles[3][def_staff_access]'] === '0',
+		'selected=' + opts(3).join());
 
 	// THE ONE THE PANEL CAUGHT. A row that stores neither level must render as
 	// neither and, far more importantly, must SURVIVE the render: the decorator
@@ -698,8 +764,16 @@ function mediaBlock(css, re) {
 }
 const PHONE = mediaBlock(ADMIN_CSS, /@media screen and \(max-width: 782px\)/);
 const ruleIn = (css, selector) => {
-	const m = new RegExp('(?:^|[}\\n])\\s*' +
-		selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}').exec(css);
+	// A grouped selector is written below with the newlines the stylesheet has.
+	// git's core.autocrlf puts a \r before every one of them on a Windows
+	// checkout, so a literal \n here matches nothing, and the check then goes red
+	// on the line endings of the file it is reading rather than on the rule it is
+	// meant to be checking. Escape the metacharacters, then let each newline
+	// match either ending.
+	const pattern = selector
+		.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+		.replace(/\n/g, '\\r?\\n');
+	const m = new RegExp('(?:^|[}\\r\\n])\\s*' + pattern + '\\s*\\{([^}]*)\\}').exec(css);
 	return m ? m[1] : null;
 };
 

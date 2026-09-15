@@ -793,17 +793,20 @@
 		return row.querySelector('.def-core-role-cb[data-cap="' + cap + '"]');
 	}
 
-	// ── Access level: choosing one always leaves exactly one ──
+	// ── Access level: Staff, Management, or neither ──
 	//
-	// Clicking a pill writes BOTH inputs, so the control cannot express "both"
-	// and a reader cannot click their way to "neither". What it must NOT do is
-	// invent a level for a row that stores none: a DEF Admin who never uses the
-	// console is a supported setup, not a gap (class-def-core-staff-roster.php:
-	// "DEF-Admin alone is NOT a roster row — it is an access grant, not a
-	// Staff-AI seat"). Defaulting those rows to Staff would hand every one of
-	// them a console login the first time anyone pressed Save, for someone else.
-	// So '' is a real state here: rendered as neither pill selected, left alone
-	// until a person picks one.
+	// Three states, not two. Clicking a pill writes BOTH inputs, so the control
+	// can never express "both"; clicking the LIT pill again clears it, which is
+	// how a Staff-AI seat is taken away. Without that the page could grant a
+	// seat and never revoke one without also stripping the person's DEF Admin
+	// and vault roles, which is a different decision entirely.
+	//
+	// '' is therefore a state a reader can reach AND one the render must
+	// preserve. A DEF Admin who never uses the console is a supported setup, not
+	// a gap (class-def-core-staff-roster.php: "DEF-Admin alone is NOT a roster
+	// row — it is an access grant, not a Staff-AI seat"), so inventing a level
+	// for such a row would hand every one of them a console login the first time
+	// anyone pressed Save, for someone else.
 	function accessLevelOf(row) {
 		var staff = accessCapInput(row, 'def_staff_access');
 		var mgmt = accessCapInput(row, 'def_management_access');
@@ -855,7 +858,9 @@
 			btn.setAttribute('role', 'radio');
 			btn.textContent = pair[1];
 			btn.addEventListener('click', function () {
-				setAccessLevel(row, pair[0]);
+				// The lit pill clears; any other pill selects. Buttons fire click
+				// from Enter and Space too, so the keyboard clears the same way.
+				setAccessLevel(row, accessLevelOf(row) === pair[0] ? '' : pair[0]);
 			});
 			btn.addEventListener('keydown', function (e) {
 				if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' &&
@@ -1158,6 +1163,13 @@
 	// The shape the checkbox grid submitted, unchanged: roles[<user>][<cap>] =
 	// '1'|'0' for every capability input on the page, hidden ones included.
 	// Returned as pairs so the payload can be read without a FormData.
+	//
+	// "hidden ones included" is the whole of it. The access level and every vault
+	// role are hidden inputs now, so a selector that skipped them would submit
+	// '0' for nothing at all — it would submit them as absent, and absent means
+	// off, which revokes every level and every role on the next Save. The harness
+	// calls THIS function rather than rebuilding the loop, so narrowing the
+	// selector turns it red.
 	function accessPayload(root) {
 		var pairs = [];
 		(root || document).querySelectorAll('.def-core-role-cb').forEach(function (cb) {
