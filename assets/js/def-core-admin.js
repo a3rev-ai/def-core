@@ -747,6 +747,442 @@
 		);
 	}
 
+	// ─── S3: User Access — access level, role chips, filter ───────────
+	//
+	// One row per person. The capability state a row carries lives where it has
+	// always lived — a .def-core-role-cb input per capability, read by the save
+	// handler below — and these functions are the visible controls over it. The
+	// role inputs are hidden and driven by the chips; Staff/Management are hidden
+	// and driven by the two-way control; DEF Admin is its own visible checkbox.
+	//
+	// Nothing here builds markup by string concatenation: every chip, option and
+	// label is created as an element with its text set through textContent, so a
+	// role name out of the DEFHO catalog cannot reach the page as markup.
+
+	// The tenant's role catalog, server-resolved. A slug the browser invents is
+	// not in it, and the save handler on the PHP side does not iterate it either.
+	function accessCatalog() {
+		return (window.defCoreAdmin && window.defCoreAdmin.rolesCatalog) || [];
+	}
+
+	// Every visible string this block writes, from the server. The checkbox grid
+	// put all of them in the markup where esc_html_e() reached them, so building
+	// the controls in JS without this would have shipped English into a
+	// translated page. The fallback is the English, so a missing key degrades to
+	// what the old grid said rather than to nothing.
+	function accessText(key, fallback) {
+		var map = (window.defCoreAdmin && window.defCoreAdmin.userAccessI18n) || {};
+		return map[key] || fallback;
+	}
+
+	// The one substitution these strings take. Written as a function replacement
+	// so a name containing $& or $' goes in as itself.
+	function accessFill(template, value) {
+		return String(template).replace(/%[sd]/, function () { return String(value); });
+	}
+
+	function accessRoleName(slug) {
+		var catalog = accessCatalog();
+		for (var i = 0; i < catalog.length; i++) {
+			if (catalog[i].slug === slug) return catalog[i].name || slug;
+		}
+		return slug;
+	}
+
+	function accessCapInput(row, cap) {
+		return row.querySelector('.def-core-role-cb[data-cap="' + cap + '"]');
+	}
+
+	// ── Access level: Staff, Management, or neither ──
+	//
+	// Three states, not two. Clicking a pill writes BOTH inputs, so the control
+	// can never express "both"; clicking the LIT pill again clears it, which is
+	// how a Staff-AI seat is taken away. Without that the page could grant a
+	// seat and never revoke one without also stripping the person's DEF Admin
+	// and vault roles, which is a different decision entirely.
+	//
+	// '' is therefore a state a reader can reach AND one the render must
+	// preserve. A DEF Admin who never uses the console is a supported setup, not
+	// a gap (class-def-core-staff-roster.php: "DEF-Admin alone is NOT a roster
+	// row — it is an access grant, not a Staff-AI seat"), so inventing a level
+	// for such a row would hand every one of them a console login the first time
+	// anyone pressed Save, for someone else.
+	function accessLevelOf(row) {
+		var staff = accessCapInput(row, 'def_staff_access');
+		var mgmt = accessCapInput(row, 'def_management_access');
+		// Management wins if a row somehow carries both — the same precedence
+		// the roster builder and the save handler already apply.
+		if (mgmt && mgmt.checked) return 'management';
+		if (staff && staff.checked) return 'staff';
+		return '';
+	}
+
+	function setAccessLevel(row, level) {
+		var staff = accessCapInput(row, 'def_staff_access');
+		var mgmt = accessCapInput(row, 'def_management_access');
+		if (staff) staff.checked = level === 'staff';
+		if (mgmt) mgmt.checked = level === 'management';
+		var opts = row.querySelectorAll('.def-core-access-opt');
+		for (var i = 0; i < opts.length; i++) {
+			var on = level !== '' && opts[i].dataset.level === level;
+			opts[i].classList.toggle('is-selected', on);
+			opts[i].setAttribute('aria-checked', on ? 'true' : 'false');
+			// One stop in the tab order per group — on the selected option, or
+			// on the first one when nothing is selected yet, so a keyboard can
+			// still reach a group that has never been chosen.
+			opts[i].tabIndex = on || (level === '' && 0 === i) ? 0 : -1;
+		}
+	}
+
+	function buildAccessLevel(row) {
+		var cell = row.querySelector('.def-core-cell-access');
+		if (!cell || cell.querySelector('.def-core-access-level')) return;
+		var group = document.createElement('div');
+		group.className = 'def-core-access-level';
+		group.setAttribute('role', 'radiogroup');
+		// Named for the person, not just the column: a list of rows all
+		// announcing "Access level" tells a screen reader whose it is nowhere.
+		var who = row.querySelector('.def-core-cell-user strong');
+		group.setAttribute('aria-label',
+			who && who.textContent
+				? accessFill(accessText('accessFor', 'Access level for %s'), who.textContent)
+				: accessText('accessLevel', 'Access level'));
+		[
+			['staff', accessText('staff', 'Staff')],
+			['management', accessText('management', 'Management')]
+		].forEach(function (pair) {
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'def-core-access-opt';
+			btn.dataset.level = pair[0];
+			btn.setAttribute('role', 'radio');
+			btn.textContent = pair[1];
+			btn.addEventListener('click', function () {
+				// The lit pill clears; any other pill selects. Buttons fire click
+				// from Enter and Space too, so the keyboard clears the same way.
+				setAccessLevel(row, accessLevelOf(row) === pair[0] ? '' : pair[0]);
+			});
+			btn.addEventListener('keydown', function (e) {
+				if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' &&
+					e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+				e.preventDefault();
+				// From Staff to Management, from anything else to Staff — which
+				// makes an arrow on a row that has neither pick the lower one.
+				var next = accessLevelOf(row) === 'staff' ? 'management' : 'staff';
+				setAccessLevel(row, next);
+				var target = row.querySelector('.def-core-access-opt[data-level="' + next + '"]');
+				if (target) target.focus();
+			});
+			group.appendChild(btn);
+		});
+		cell.appendChild(group);
+		setAccessLevel(row, accessLevelOf(row));
+	}
+
+	// ── Roles: the chips, and the roles still available to add ──
+
+	function accessRolesOf(row) {
+		var held = [];
+		accessCatalog().forEach(function (role) {
+			var cb = accessCapInput(row, 'def_role_' + role.slug);
+			if (cb && cb.checked) held.push(role.slug);
+		});
+		return held;
+	}
+
+	function accessRolesAvailable(row) {
+		var held = accessRolesOf(row);
+		return accessCatalog().filter(function (role) {
+			return held.indexOf(role.slug) === -1;
+		});
+	}
+
+	// Announced, not redrawn in place. Calling renderRolesCell() here would draw
+	// the right chips and leave the FILTER and its count describing a state that
+	// is no longer true — remove a Finance chip while filtering by Finance and
+	// the person stays on a list of people who hold it. One door: the row
+	// listener redraws the cell and re-runs the filter together.
+	function setAccessRole(row, slug, on) {
+		var cb = accessCapInput(row, 'def_role_' + slug);
+		if (!cb) return;
+		cb.checked = !!on;
+		// window.Event, not a bare Event: the block already takes window as its
+		// one global handle (accessCatalog reads window.defCoreAdmin), and a
+		// bare Event picks up the HOST realm's constructor when this runs
+		// outside a browser, which the DOM then refuses.
+		cb.dispatchEvent(new window.Event('change', { bubbles: true }));
+	}
+
+	// The Roles cell, redrawn from the inputs. data-roles is what the filter
+	// reads, so it is written here and nowhere else: the chips and the filter
+	// cannot disagree about who holds what.
+	function renderRolesCell(row) {
+		var cell = row.querySelector('.def-core-cell-roles');
+		if (!cell) return;
+		// A menu open on this row is about to be detached along with its wrap,
+		// and its outside-click listener is on the DOCUMENT — it would outlive
+		// the element it closes over. Close it before the cell goes.
+		if (row._defCloseRoleMenu) {
+			row._defCloseRoleMenu(false);
+		}
+		var held = accessRolesOf(row);
+		row.dataset.roles = held.join(' ');
+
+		var old = cell.querySelector('.def-core-chips');
+		if (old) old.remove();
+		var oldAdd = cell.querySelector('.def-core-add-role-wrap');
+		if (oldAdd) oldAdd.remove();
+
+		var chips = document.createElement('div');
+		chips.className = 'def-core-chips';
+		held.forEach(function (slug) {
+			var name = accessRoleName(slug);
+			var chip = document.createElement('span');
+			chip.className = 'def-core-chip';
+			chip.dataset.role = slug;
+			var label = document.createElement('span');
+			label.className = 'def-core-chip-label';
+			label.textContent = name;
+			var x = document.createElement('button');
+			x.type = 'button';
+			x.className = 'def-core-chip-remove';
+			x.setAttribute('aria-label', accessFill(accessText('removeRole', 'Remove role %s'), name));
+			x.textContent = '×';
+			x.addEventListener('click', function () {
+				setAccessRole(row, slug, false);
+				var add = row.querySelector('.def-core-add-role');
+				if (add) add.focus();
+			});
+			chip.appendChild(label);
+			chip.appendChild(x);
+			chips.appendChild(chip);
+		});
+		cell.appendChild(chips);
+		cell.appendChild(buildAddRole(row));
+	}
+
+	// ── + Add role: a hand-rolled listbox, keyboard usable ──
+	//
+	// Escape closes, Arrow Up/Down move the active option, Enter takes it, and
+	// focus lands back on + Add role every way it closes — selected, escaped, or
+	// clicked away from. No framework, no <select>: the same control has to sit
+	// among wrapping chips on a phone.
+	function buildAddRole(row) {
+		var wrap = document.createElement('div');
+		wrap.className = 'def-core-add-role-wrap';
+
+		var available = accessRolesAvailable(row);
+		if (!available.length) {
+			var done = document.createElement('span');
+			done.className = 'def-core-roles-all-on';
+			done.textContent = accessText('allRolesOn', 'Every role is on');
+			wrap.appendChild(done);
+			return wrap;
+		}
+
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'def-core-add-role';
+		btn.textContent = accessText('addRole', '+ Add role');
+		btn.setAttribute('aria-haspopup', 'listbox');
+		btn.setAttribute('aria-expanded', 'false');
+
+		var menu = document.createElement('div');
+		menu.className = 'def-core-role-menu';
+		menu.setAttribute('role', 'listbox');
+		menu.hidden = true;
+
+		var active = -1;
+		var options = available.map(function (role, i) {
+			var opt = document.createElement('button');
+			opt.type = 'button';
+			opt.className = 'def-core-role-option';
+			opt.setAttribute('role', 'option');
+			opt.setAttribute('aria-selected', 'false');
+			// Out of the tab order: an option is reached with the arrows, never
+			// by Tab. Tabbing INTO the menu left focus and `active` on different
+			// options, and Enter took the one the arrows had highlighted.
+			opt.tabIndex = -1;
+			opt.dataset.role = role.slug;
+			opt.textContent = role.name || role.slug;
+			opt.addEventListener('click', function () {
+				choose(i);
+			});
+			menu.appendChild(opt);
+			return opt;
+		});
+
+		function setActive(i) {
+			active = i;
+			options.forEach(function (opt, j) {
+				opt.classList.toggle('is-active', j === i);
+				opt.setAttribute('aria-selected', j === i ? 'true' : 'false');
+			});
+		}
+
+		function open() {
+			menu.hidden = false;
+			btn.setAttribute('aria-expanded', 'true');
+			// Nothing highlighted yet. Seeding 0 here while focus stayed on the
+			// button made the first Arrow Down step PAST the option it had just
+			// highlighted; the arrow branch seeds it instead, in its direction.
+			setActive(-1);
+			document.addEventListener('click', onOutside, true);
+			// So a redraw under an open menu can close it — the listener above
+			// is on the document and outlives this wrap otherwise.
+			row._defCloseRoleMenu = close;
+		}
+
+		function close(refocus) {
+			menu.hidden = true;
+			btn.setAttribute('aria-expanded', 'false');
+			setActive(-1);
+			document.removeEventListener('click', onOutside, true);
+			if (row._defCloseRoleMenu === close) {
+				row._defCloseRoleMenu = null;
+			}
+			if (refocus && btn.isConnected) btn.focus();
+		}
+
+		function onOutside(e) {
+			if (!wrap.contains(e.target)) close(false);
+		}
+
+		// A selection redraws the cell, so this wrap and its button are detached
+		// by the time focus is placed: the focus goes to the + Add role of the
+		// REDRAWN row, which is a different element with the same job.
+		function choose(i) {
+			var slug = available[i] && available[i].slug;
+			close(false);
+			if (!slug) return;
+			setAccessRole(row, slug, true);
+			var live = row.querySelector('.def-core-add-role');
+			if (live) live.focus();
+		}
+
+		btn.addEventListener('click', function () {
+			if (menu.hidden) open(); else close(true);
+		});
+
+		wrap.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape') {
+				if (menu.hidden) return;
+				e.preventDefault();
+				close(true);
+				return;
+			}
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault();
+				if (menu.hidden) { open(); return; }
+				var step = e.key === 'ArrowDown' ? 1 : -1;
+				if (active < 0) {
+					setActive(step > 0 ? 0 : options.length - 1);
+				} else {
+					setActive((active + step + options.length) % options.length);
+				}
+				options[active].focus();
+				return;
+			}
+			if (e.key === 'Enter' || e.key === ' ') {
+				if (menu.hidden) return;
+				// Focus is the truth when it is on an option; `active` is what
+				// the arrows last highlighted. Reading focus first means the two
+				// can never disagree about which role is being taken.
+				var focused = options.indexOf(document.activeElement);
+				var pick = focused > -1 ? focused : active;
+				if (pick < 0) return;
+				e.preventDefault();
+				choose(pick);
+			}
+		});
+
+		wrap.appendChild(btn);
+		wrap.appendChild(menu);
+		return wrap;
+	}
+
+	// One row, decorated. Both the PHP-rendered rows and a row added by the
+	// search go through this, so there is one renderer and no second copy of it
+	// to drift.
+	function renderAccessRow(row) {
+		buildAccessLevel(row);
+		renderRolesCell(row);
+	}
+
+	// The screen, wired. Every capability write on a row — a chip, the Setup
+	// Assistant drawer, the DEF Admin tick — arrives here as one 'change', and
+	// this is the only place that decides what the screen does about it. Returns
+	// the refresher so the paths that add and remove whole rows can re-run it.
+	function initAccessRows(tbody, filterEl, countEl) {
+		function refresh() {
+			applyRoleFilter(tbody, filterEl ? filterEl.value : '', countEl);
+		}
+		if (tbody) {
+			tbody.querySelectorAll('tr.def-core-user-row').forEach(renderAccessRow);
+			tbody.addEventListener('change', function (e) {
+				var row = e.target.closest && e.target.closest('tr.def-core-user-row');
+				if (!row || !e.target.classList.contains('def-core-role-cb')) return;
+				// setAccessLevel writes inputs, but assigning .checked fires
+				// nothing, so this cannot re-enter.
+				setAccessLevel(row, accessLevelOf(row));
+				renderRolesCell(row);
+				refresh();
+			});
+		}
+		if (filterEl) {
+			filterEl.addEventListener('change', refresh);
+		}
+		refresh();
+		return refresh;
+	}
+
+	// ── The filter, and the count that follows it ──
+	//
+	// Client-side: every row is already on the page, and hiding one changes no
+	// capability. A hidden row still submits — filtering is not deselecting.
+	function applyRoleFilter(tbody, slug, countEl) {
+		if (!tbody) return 0;
+		var rows = tbody.querySelectorAll('tr.def-core-user-row');
+		var shown = 0;
+		for (var i = 0; i < rows.length; i++) {
+			var held = (rows[i].dataset.roles || '').split(' ').filter(Boolean);
+			var match = !slug || held.indexOf(slug) !== -1;
+			rows[i].hidden = !match;
+			if (match) shown++;
+		}
+		if (countEl) {
+			countEl.textContent = 1 === shown
+				? accessText('onePerson', '1 person')
+				: accessFill(accessText('manyPeople', '%d people'), shown);
+		}
+		return shown;
+	}
+
+	// ── The save payload ──
+	//
+	// The shape the checkbox grid submitted, unchanged: roles[<user>][<cap>] =
+	// '1'|'0' for every capability input on the page, hidden ones included.
+	// Returned as pairs so the payload can be read without a FormData.
+	//
+	// "hidden ones included" is the whole of it. The access level and every vault
+	// role are hidden inputs now, so a selector that skipped them would submit
+	// '0' for nothing at all — it would submit them as absent, and absent means
+	// off, which revokes every level and every role on the next Save. The harness
+	// calls THIS function rather than rebuilding the loop, so narrowing the
+	// selector turns it red.
+	function accessPayload(root) {
+		var pairs = [];
+		(root || document).querySelectorAll('.def-core-role-cb').forEach(function (cb) {
+			pairs.push([
+				'roles[' + cb.dataset.user + '][' + cb.dataset.cap + ']',
+				cb.checked ? '1' : '0'
+			]);
+		});
+		return pairs;
+	}
+
+	// ─── end S3: User Access ──────────────────────────────────────────
+
 	// ─── D-II: User Roles ─────────────────────────────────────────
 
 	function initUserRoles() {
@@ -774,18 +1210,12 @@
 			formData.append('action', 'def_core_save_user_roles');
 			formData.append('nonce', defCoreAdmin.rolesNonce);
 
-			document
-				.querySelectorAll('.def-core-role-cb')
-				.forEach(function (cb) {
-					formData.append(
-						'roles[' +
-							cb.dataset.user +
-							'][' +
-							cb.dataset.cap +
-							']',
-						cb.checked ? '1' : '0'
-					);
-				});
+			// Every capability input on the page, hidden ones included — the
+			// chips and the two-way access control write these, so the payload
+			// is the same shape the checkbox grid submitted.
+			accessPayload(document).forEach(function (pair) {
+				formData.append(pair[0], pair[1]);
+			});
 
 			fetch(defCoreAdmin.ajaxUrl, {
 				method: 'POST',
@@ -845,43 +1275,14 @@
 			});
 		}
 
-		// ── Staff / Management mutual exclusivity ──
-		// Only one of Staff or Management can be checked at a time.
-		// When one is checked, the other is disabled. Uncheck to switch.
-		if (tbody) {
-			tbody.addEventListener('change', function (e) {
-				var cb = e.target;
-				if (!cb.classList.contains('def-core-role-cb')) return;
-				var cap = cb.dataset.cap;
-				if (cap !== 'def_staff_access' && cap !== 'def_management_access') return;
-
-				var row = cb.closest('tr');
-				var otherCap = cap === 'def_staff_access' ? 'def_management_access' : 'def_staff_access';
-				var otherCb = row.querySelector('input[data-cap="' + otherCap + '"]');
-				if (!otherCb) return;
-
-				otherCb.disabled = cb.checked;
-				if (cb.checked) {
-					otherCb.checked = false;
-				}
-			});
-
-			// Apply initial state for existing rows.
-			// If both are checked (legacy), prefer Management and uncheck Staff.
-			tbody.querySelectorAll('tr').forEach(function (row) {
-				var staffCb = row.querySelector('input[data-cap="def_staff_access"]');
-				var mgmtCb = row.querySelector('input[data-cap="def_management_access"]');
-				if (!staffCb || !mgmtCb) return;
-				if (staffCb.checked && mgmtCb.checked) {
-					staffCb.checked = false;
-					staffCb.disabled = true;
-				} else if (staffCb.checked) {
-					mgmtCb.disabled = true;
-				} else if (mgmtCb.checked) {
-					staffCb.disabled = true;
-				}
-			});
-		}
+		// ── The rows, wired ──
+		//
+		// One call: decorate every row, listen for capability writes, and keep the
+		// filter and its count following them. initAccessRows() lives in the S3
+		// block above so a harness runs this exact listener.
+		var countEl = document.getElementById('def-core-access-count');
+		var filterEl = document.getElementById('def-core-role-filter');
+		var refreshFilter = initAccessRows(tbody, filterEl, countEl);
 
 		function doSearch(term) {
 			var formData = new FormData();
@@ -962,63 +1363,110 @@
 		}
 
 		function addUserRow(u) {
-			var tr = document.createElement('tr');
-			tr.setAttribute('data-user-id', u.id);
-			tr.setAttribute('data-wp-role', (u.role || '').toLowerCase());
-			var avatarHtml = u.avatar
-				? '<img class="def-core-user-avatar" src="' + escHtml(u.avatar) + '" width="24" height="24" alt="" />'
-				: '';
-			var rowNameHtml = '<strong>' + escHtml(u.display_name) + '</strong>';
-			if (u.user_login && u.user_login !== u.display_name) {
-				rowNameHtml += ' <span class="def-core-user-login">(' + escHtml(u.user_login) + ')</span>';
+			// The id becomes part of a POST field name (roles[<id>][<cap>]), and
+			// it arrives from the search response or — through the DEFAdmin
+			// bridge — from the Setup Assistant stream. A non-numeric one could
+			// close the bracket and name a second key, so it is an integer here
+			// or the row is not built at all.
+			var uid = parseInt(u.id, 10);
+			if (!uid || uid < 1) {
+				return;
 			}
-			// Custom roles (R4): the catalog drives one cell per role, matching the PHP-rendered
-			// column order (Staff, Management, <custom roles…>, DEF Admin, Actions).
-			var rolesCatalog = (window.defCoreAdmin && defCoreAdmin.rolesCatalog) || [];
-			var customCellsHtml = '';
-			rolesCatalog.forEach(function (role) {
-				customCellsHtml +=
-					'<td class="def-core-role-col">' +
-					'<input type="checkbox" class="def-core-role-cb" data-user="' +
-					u.id +
-					'" data-cap="def_role_' + escHtml(role.slug) + '" />' +
-					'</td>';
+
+			var tr = document.createElement('tr');
+			tr.className = 'def-core-user-row';
+			tr.setAttribute('data-user-id', uid);
+			tr.setAttribute('data-wp-role', (u.role || '').toLowerCase());
+			tr.setAttribute('data-roles', '');
+
+			// A cell with the label the phone layout reveals. The six columns are
+			// the six the PHP renders, in the same order.
+			function cell(cls, label) {
+				var td = document.createElement('td');
+				td.className = cls;
+				td.setAttribute('data-label', label);
+				tr.appendChild(td);
+				return td;
+			}
+
+			// One hidden capability input. These ARE the row's state — the chips
+			// and the access control read and write them, the save reads them all.
+			function capInput(td, cap, hidden) {
+				var input = document.createElement('input');
+				input.type = 'checkbox';
+				input.className = 'def-core-role-cb';
+				input.dataset.user = uid;
+				input.dataset.cap = cap;
+				if (hidden) input.hidden = true;
+				td.appendChild(input);
+				return input;
+			}
+
+			var userCell = cell('def-core-cell-user', accessText('colUser', 'User'));
+			if (u.avatar) {
+				var img = document.createElement('img');
+				img.className = 'def-core-user-avatar';
+				img.src = u.avatar;
+				img.width = 24;
+				img.height = 24;
+				img.alt = '';
+				userCell.appendChild(img);
+			}
+			var name = document.createElement('strong');
+			name.textContent = u.display_name || '';
+			userCell.appendChild(name);
+			if (u.user_login && u.user_login !== u.display_name) {
+				userCell.appendChild(document.createTextNode(' '));
+				var login = document.createElement('span');
+				login.className = 'def-core-user-login';
+				login.textContent = '(' + u.user_login + ')';
+				userCell.appendChild(login);
+			}
+			var email = document.createElement('span');
+			email.className = 'def-core-user-email';
+			email.textContent = u.email || '';
+			userCell.appendChild(email);
+
+			cell('def-core-cell-wp', accessText('colWpRole', 'WordPress role')).textContent = u.role || '';
+
+			// A new row grants NOTHING until someone picks a level — which is what
+			// the checkbox grid did too (every box started unticked). Pre-selecting
+			// Staff here would stage a console login on a row that was added for a
+			// vault role, and the reader never asked for it.
+			var accessCell = cell('def-core-cell-access', accessText('accessLevel', 'Access level'));
+			capInput(accessCell, 'def_staff_access', true);
+			capInput(accessCell, 'def_management_access', true);
+
+			// Custom roles (R4): one hidden input per catalog role, none held yet.
+			var rolesCell = cell('def-core-cell-roles', accessText('colRoles', 'Roles'));
+			accessCatalog().forEach(function (role) {
+				capInput(rolesCell, 'def_role_' + role.slug, true);
 			});
-			tr.innerHTML =
-				'<td>' +
-				avatarHtml +
-				rowNameHtml +
-				'<span class="def-core-user-email">' +
-				escHtml(u.email) +
-				'</span>' +
-				'</td>' +
-				'<td>' +
-				escHtml(u.role) +
-				'</td>' +
-				'<td class="def-core-role-col">' +
-				'<input type="checkbox" class="def-core-role-cb" data-user="' +
-				u.id +
-				'" data-cap="def_staff_access" />' +
-				'</td>' +
-				'<td class="def-core-role-col">' +
-				'<input type="checkbox" class="def-core-role-cb" data-user="' +
-				u.id +
-				'" data-cap="def_management_access" />' +
-				'</td>' +
-				customCellsHtml +
-				'<td class="def-core-role-col">' +
-				'<input type="checkbox" class="def-core-role-cb" data-user="' +
-				u.id +
-				'" data-cap="def_admin_access" />' +
-				'</td>' +
-				'<td class="def-core-role-col">' +
-				'<button type="button" class="def-core-remove-user-btn" data-user-id="' +
-				u.id +
-				'" title="Remove all DEF access">&times;</button>' +
-				'</td>';
+
+			var adminCell = cell('def-core-cell-admin', accessText('colDefAdmin', 'DEF Admin'));
+			var adminCb = capInput(adminCell, 'def_admin_access', false);
+			adminCb.classList.add('def-core-admin-cb');
+			adminCb.setAttribute('aria-label', accessText('colDefAdmin', 'DEF Admin'));
+
+			var actionsCell = cell('def-core-cell-actions', accessText('colActions', 'Actions'));
+			var removeBtn = document.createElement('button');
+			removeBtn.type = 'button';
+			removeBtn.className = 'def-core-remove-user-btn';
+			removeBtn.dataset.userId = uid;
+			removeBtn.title = accessText('removeAccess', 'Remove all DEF access');
+			removeBtn.innerHTML = '&times;';
+			actionsCell.appendChild(removeBtn);
 
 			tbody.appendChild(tr);
-			bindRemoveButton(tr.querySelector('.def-core-remove-user-btn'));
+			renderAccessRow(tr);
+			bindRemoveButton(removeBtn);
+			// A new row holds no roles, so any role filter would hide the person
+			// who was just added. The filter goes back to All roles rather than
+			// swallowing them.
+			if (filterEl) {
+				filterEl.value = '';
+			}
+			refreshFilter();
 		}
 
 		// ── Remove handler ──
@@ -1077,6 +1525,7 @@
 					.then(function (data) {
 						if (data.success) {
 							row.remove();
+							refreshFilter();
 							showToast(data.data.message, 'success');
 						} else {
 							showToast(
@@ -1120,7 +1569,9 @@
 				role: u.wp_role || '',
 				avatar: u.avatar || '',
 			});
-			// Pre-check capabilities from Setup Assistant response.
+			// Pre-check capabilities from Setup Assistant response, then redraw
+			// the row's controls over them — the drawer writes the inputs, the
+			// chips and the access level are what the reader sees of them.
 			var row = tbody.querySelector('tr[data-user-id="' + u.id + '"]');
 			if (row && u.caps) {
 				var cbs = row.querySelectorAll('input[type="checkbox"]');
@@ -1130,6 +1581,9 @@
 						cbs[i].checked = !!u.caps[cap];
 					}
 				}
+				setAccessLevel(row, accessLevelOf(row));
+				renderRolesCell(row);
+				refreshFilter();
 			}
 		};
 	}

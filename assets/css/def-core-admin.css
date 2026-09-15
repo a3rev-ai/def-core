@@ -481,6 +481,20 @@
 	background: #f6f7f7;
 }
 
+/* Every capability this screen stores is still carried by a .def-core-role-cb
+   input; the chips and the pills drive them, so all but DEF Admin are marked
+   `hidden`. WordPress core's forms.css gives EVERY checkbox input a
+   display:inline-block, and that is an AUTHOR rule — it beats the UA
+   stylesheet's [hidden] { display: none }, so in wp-admin those inputs came
+   back as bare checkboxes sitting beside the chips they are driven by. Same
+   collision the phone `tr[hidden]` rule answers further down, reached from
+   core's stylesheet instead of ours: core's rule is not media-scoped, so this
+   one must not be either. `[hidden]` is load-bearing — the DEF Admin tick
+   carries no `hidden` and has to stay on screen. */
+.def-core-roles-table .def-core-role-cb[hidden] {
+	display: none;
+}
+
 @keyframes def-row-flash {
 	0%   { background: #d4edda; }
 	100% { background: transparent; }
@@ -488,11 +502,6 @@
 
 .def-core-roles-table tbody tr.def-core-row-flash {
 	animation: def-row-flash 2s ease-out;
-}
-
-.def-core-role-col {
-	text-align: center;
-	width: 80px;
 }
 
 .def-core-user-avatar {
@@ -634,6 +643,172 @@
 	color: #646970;
 	font-size: 13px;
 	text-align: center;
+}
+
+/* ─── User Access: the filter and its count (S3) ──────────── */
+
+.def-core-access-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.def-core-access-toolbar label {
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+}
+
+.def-core-access-count {
+	color: #646970;
+	font-size: 13px;
+}
+
+/* ─── User Access: access level, role chips (S3) ──────────── */
+
+/* Two options, exactly one selected. A segmented control rather than a pair of
+   checkboxes: the shape says "choose one" before anything is read. */
+.def-core-access-level {
+	display: inline-flex;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.def-core-access-opt {
+	background: #fff;
+	border: 0;
+	border-right: 1px solid #c3c4c7;
+	color: #50575e;
+	cursor: pointer;
+	font-size: 12px;
+	font-family: inherit;
+	line-height: 1.6;
+	padding: 4px 10px;
+	white-space: nowrap;
+}
+
+.def-core-access-opt:last-child {
+	border-right: 0;
+}
+
+.def-core-access-opt.is-selected {
+	background: #2271b1;
+	color: #fff;
+	font-weight: 600;
+}
+
+.def-core-access-opt:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: -2px;
+}
+
+/* Chips wrap onto more lines; they never widen the row. */
+.def-core-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.def-core-chip {
+	align-items: center;
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 12px;
+	color: #1d2327;
+	display: inline-flex;
+	font-size: 12px;
+	gap: 4px;
+	line-height: 1.6;
+	max-width: 100%;
+	padding: 2px 4px 2px 10px;
+}
+
+.def-core-chip-label {
+	overflow-wrap: anywhere;
+}
+
+.def-core-chip-remove {
+	background: none;
+	border: 0;
+	border-radius: 50%;
+	color: #646970;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+	padding: 2px 5px;
+}
+
+.def-core-chip-remove:hover {
+	background: #d63638;
+	color: #fff;
+}
+
+.def-core-add-role-wrap {
+	display: inline-block;
+	margin-top: 6px;
+	position: relative;
+}
+
+.def-core-add-role {
+	background: none;
+	border: 1px dashed #8c8f94;
+	border-radius: 12px;
+	color: #2271b1;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 12px;
+	line-height: 1.6;
+	padding: 2px 10px;
+}
+
+.def-core-add-role:hover {
+	border-color: #2271b1;
+	border-style: solid;
+}
+
+.def-core-roles-all-on {
+	color: #646970;
+	font-size: 12px;
+	font-style: italic;
+}
+
+/* The hand-rolled listbox. Absolute so it never grows the row, and floored at
+   the width of the control it hangs off rather than the width of a name. */
+.def-core-role-menu {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+	left: 0;
+	max-height: 220px;
+	min-width: 180px;
+	overflow-y: auto;
+	position: absolute;
+	top: 100%;
+	z-index: 20;
+}
+
+.def-core-role-option {
+	background: none;
+	border: 0;
+	color: #1d2327;
+	cursor: pointer;
+	display: block;
+	font-family: inherit;
+	font-size: 13px;
+	padding: 6px 12px;
+	text-align: left;
+	white-space: nowrap;
+	width: 100%;
+}
+
+.def-core-role-option:hover,
+.def-core-role-option.is-active {
+	background: #2271b1;
+	color: #fff;
 }
 
 /* ─── Placeholder Tabs ─────────────────────────────────────── */
@@ -896,10 +1071,104 @@
 		align-items: stretch;
 	}
 
-	.def-core-roles-table th.def-core-role-col,
-	.def-core-roles-table td.def-core-role-col {
+	/* User Access on a phone (S3): the table stops being a table. Each person
+	   is a block, each cell carries the heading the <thead> used to give it, and
+	   the chips wrap inside it. No wrapper, no min-width, no sideways scroll —
+	   there is no row left to be wider than the screen. */
+	.def-core-roles-table,
+	.def-core-roles-table tbody,
+	.def-core-roles-table tr,
+	.def-core-roles-table td {
+		display: block;
 		width: auto;
-		padding: 8px 6px;
+	}
+
+	.def-core-roles-table thead {
+		display: none;
+	}
+
+	/* `hidden` is display:none in the UA stylesheet, and an author rule beats a
+	   UA rule — so the display:block above would un-hide every row the filter
+	   hid, on a phone only. This puts it back, at a specificity that wins. */
+	.def-core-roles-table tr[hidden] {
+		display: none;
+	}
+
+	.def-core-roles-table tbody tr {
+		background: #fff;
+		border: 1px solid #dcdcde;
+		border-radius: 6px;
+		margin-bottom: 12px;
+		padding: 10px 12px;
+	}
+
+	.def-core-roles-table td {
+		padding: 6px 0;
+	}
+
+	/* The last DEF Admin has no × to show, and a heading over nothing reads as
+	   something missing. The cell goes rather than standing empty. */
+	.def-core-roles-table td.is-empty {
+		display: none;
+	}
+
+	.def-core-roles-table td::before {
+		content: attr(data-label);
+		display: block;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		color: #646970;
+		text-transform: uppercase;
+		margin-bottom: 4px;
+	}
+
+	/* The name is the block's heading; it needs no label of its own. */
+	.def-core-roles-table td.def-core-cell-user::before {
+		display: none;
+	}
+
+	/* DEF Admin reads as a control with its label beside it, not under it. */
+	.def-core-roles-table td.def-core-cell-admin {
+		align-items: center;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.def-core-roles-table td.def-core-cell-admin::before {
+		margin-bottom: 0;
+		order: 2;
+	}
+
+	.def-core-access-level {
+		width: 100%;
+	}
+
+	.def-core-access-opt {
+		flex: 1;
+		padding: 8px 10px;
+	}
+
+	/* Room for a thumb, and a menu that cannot run off the right-hand edge. */
+	.def-core-chip-remove,
+	.def-core-add-role {
+		padding: 6px 12px;
+	}
+
+	.def-core-add-role-wrap {
+		display: block;
+	}
+
+	.def-core-role-menu {
+		max-width: 100%;
+		min-width: 0;
+		right: 0;
+	}
+
+	.def-core-role-option {
+		padding: 10px 12px;
+		white-space: normal;
 	}
 
 	.def-core-radio-group {
