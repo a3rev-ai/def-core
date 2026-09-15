@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.2
+Stable tag: 8.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.3 - 2026-09-16 =
+* Tweak - Settings: the Knowledge Base tab is gone. It only ever said "Loading sync status..." - nothing in the plugin ever filled it in - and what it was there to show is managed on your tenant portal's Knowledge page, which is where your content sync actually lives. The Open Tenant Portal button from that tab has moved to the Connection tab, beside your connection status, so the way through to the portal is still one click from Settings.
 
 = 8.2.2 - 2026-09-16 =
 * Fix - A new release now shows on your Plugins screen within a few minutes of being published, instead of up to an hour later. That screen only looked for a new version once an hour, so on a day when four releases went out one after another it kept showing the version you already had and the zip had to be uploaded by hand; it now looks again when you open the page, at most once every five minutes. And when you update this plugin on its own - or it updates itself overnight - the row no longer keeps offering you the version you have just installed.
