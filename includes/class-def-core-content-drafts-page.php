@@ -78,11 +78,16 @@ final class DEF_Core_Content_Drafts_Page {
 		$can_create  = current_user_can( $create_cap );
 
 		// This is the Creator's page, and she is named by the tenant. The name
-		// only arrives with the first list response, so PHP renders the default
-		// and the JS repaints these same strings once it knows her — which is
-		// why the name is a placeholder in each of them rather than a word
-		// glued on: a sentence built by concatenation cannot survive a rename.
-		$creator_name  = DEF_Core_Staff_AI::CREATOR_DEFAULT_NAME;
+		// arrives with a list response, which is why it is a placeholder in each
+		// of these strings rather than a word glued on: a sentence built by
+		// concatenation cannot survive a rename. The BFF remembers the name DEF
+		// last sent, so the page renders THAT at first paint (8.2.8) — read back
+		// through the BFF's own sanitiser, and the platform default until DEF
+		// has ever answered. The JS repaint then does nothing unless she has
+		// been renamed since the last visit.
+		$creator_name  = DEF_Core_Staff_AI::creator_name_from(
+			array( 'creator_name' => get_option( 'def_core_creator_name', DEF_Core_Staff_AI::CREATOR_DEFAULT_NAME ) )
+		);
 		/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
 		$creator_title = __( '%s - Creator', 'digital-employees' );
 		$creator_copy  = array(

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.7
+Stable tag: 8.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.8 - 2026-09-16 =
+* Fix - Content AI: the page opens already showing the name you gave your content creator, instead of showing "Carol" first and swapping a moment later on every visit. It remembers the name the platform last sent; after a rename in the tenant portal the swap happens once, on the next visit.
 
 = 8.2.7 - 2026-09-16 =
 * Fix - Staff AI as an app: the home-screen icon on iPhone and iPad now uses the icon your site set (Branding → Web App Icon), or your logo, or your site icon, or the Digital Employees icon — full-bleed, no white frame. The icon must be a square, opaque PNG with no rounded corners; remove and re-add the app after changing it.

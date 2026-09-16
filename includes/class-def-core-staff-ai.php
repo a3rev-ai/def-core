@@ -1575,6 +1575,26 @@ final class DEF_Core_Staff_AI
 			: substr( $name, 0, self::CREATOR_NAME_MAX );
 	}
 
+	/**
+	 * Remember the name DEF last gave the Creator (8.2.8).
+	 *
+	 * The page draws before any list response lands, so without this it renders
+	 * the platform default and the JS swaps it a moment later — on every single
+	 * visit, for every tenant who has renamed her. Stored, the page opens
+	 * already showing her name and only a rename repaints, once.
+	 *
+	 * Written only when it has changed: a list runs on every page load and a
+	 * rename is rare. Not autoloaded — one admin page reads it.
+	 *
+	 * @param string $name A name already through creator_name_from().
+	 */
+	public static function remember_creator_name( string $name ): void
+	{
+		if ( get_option( 'def_core_creator_name', '' ) !== $name ) {
+			update_option( 'def_core_creator_name', $name, false );
+		}
+	}
+
 	public static function rest_list_content_drafts( \WP_REST_Request $request )
 	{
 		$result = self::backend_request( 'GET', '/api/staff-ai/content/drafts' );
@@ -1601,12 +1621,16 @@ final class DEF_Core_Staff_AI
 		}
 		unset( $draft );
 
+		// The page titles itself with her name, so it travels with the list —
+		// and is remembered, so the next visit renders it at first paint.
+		$creator_name = self::creator_name_from( $result );
+		self::remember_creator_name( $creator_name );
+
 		return new \WP_REST_Response(
 			array(
 				'success'      => true,
 				'drafts'       => $drafts,
-				// The page titles itself with her name, so it travels with the list.
-				'creator_name' => self::creator_name_from( $result ),
+				'creator_name' => $creator_name,
 			),
 			200
 		);
@@ -4085,12 +4109,16 @@ final class DEF_Core_Staff_AI
 			return $result;
 		}
 		$targets = ( isset( $result['targets'] ) && is_array( $result['targets'] ) ) ? $result['targets'] : array();
+
+		// Whichever list lands first names her on the page, and remembers her.
+		$creator_name = self::creator_name_from( $result );
+		self::remember_creator_name( $creator_name );
+
 		return new \WP_REST_Response(
 			array(
 				'success'      => true,
 				'targets'      => $targets,
-				// Whichever list lands first names her on the page.
-				'creator_name' => self::creator_name_from( $result ),
+				'creator_name' => $creator_name,
 			),
 			200
 		);

@@ -85,15 +85,19 @@ if ( ! defined( 'DEF_CORE_PLUGIN_DIR' ) ) {
 }
 
 // ── In-memory option store ──────────────────────────────────────────────
-global $_wp_test_options;
-$_wp_test_options = array();
+// $_wp_test_option_writes counts update_option calls, so a test can prove a
+// write did NOT happen — "the value is unchanged" is also true of a needless one.
+global $_wp_test_options, $_wp_test_option_writes;
+$_wp_test_options       = array();
+$_wp_test_option_writes = 0;
 
 /**
  * Reset all options between tests.
  */
 function _wp_test_reset_options(): void {
-	global $_wp_test_options;
-	$_wp_test_options = array();
+	global $_wp_test_options, $_wp_test_option_writes;
+	$_wp_test_options       = array();
+	$_wp_test_option_writes = 0;
 }
 
 if ( ! function_exists( 'get_option' ) ) {
@@ -105,8 +109,9 @@ if ( ! function_exists( 'get_option' ) ) {
 
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( string $key, $value, $autoload = null ): bool {
-		global $_wp_test_options;
+		global $_wp_test_options, $_wp_test_option_writes;
 		$_wp_test_options[ $key ] = $value;
+		$_wp_test_option_writes++;
 		return true;
 	}
 }

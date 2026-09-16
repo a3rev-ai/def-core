@@ -35,14 +35,23 @@
  *        strings localized for it, all four reaching a translator, and nothing
  *        user-visible still naming the Content Agent.
  *
+ * 24-25. THE FLASH, gone (v8.2.8). PHP renders the name DEF last sent rather
+ *        than always the default, so the block must repaint only when the name
+ *        has actually changed — a MutationObserver, because a write is a write
+ *        even when the text written is identical. What a tenant who renamed her
+ *        used to see on EVERY visit now happens once, on the visit after the
+ *        rename. (That PHP remembers and re-validates the name is PHP's half:
+ *        tests/test-creator-name-remembered.php.)
+ *
  * Bite checks. The extractor takes CREATOR, naming a file to load instead of
  * the shipped block:
  *
  *   CREATOR=/tmp/old-creator.js node tests/browser/harness-carol-drafts.js
  *
- * There is no old block — the page never had one — so the bites are three
- * targeted mutations of the CURRENT one, and they are the ones to re-run after
- * touching it:
+ * The 8.2.6 block IS an old block — it repainted unconditionally — and putting
+ * it back turns check 24 red on its own. The other three bites are targeted
+ * mutations of the CURRENT one, and they are the ones to re-run after touching
+ * it:
  *
  *   - title.textContent = …  ->  title.innerHTML = …   : check 8 goes red (a
  *     name carrying markup would be parsed as markup).
@@ -51,7 +60,7 @@
  *   - replace(/%(?:\d+\$)?s/g, creatorName) — the STRING form: check 9 goes red
  *     (a name holding $& would be expanded rather than inserted).
  *
- * 23 checks.
+ * 25 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -91,17 +100,21 @@ const DEFAULT_NAME = phpString(/CREATOR_DEFAULT_NAME = '([^']*)'/) ||
 // so the block is checked against something other than itself.
 const filled = (tpl, name) => String(tpl).replace(/%(?:\d+\$)?s/g, () => name);
 
-const FIXTURE = '<div class="wrap def-core-wrap">' +
-	'<h1><span id="def-creator-title">' + filled(TITLE_TPL, DEFAULT_NAME) + '</span>' +
+// PHP renders whichever name it last saw and localizes that same name (8.2.8),
+// so a boot takes one: the default on a site DEF has never answered for, her
+// own name on every visit after that.
+const fixture = name => '<div class="wrap def-core-wrap">' +
+	'<h1><span id="def-creator-title">' + filled(TITLE_TPL, name) + '</span>' +
 	'<button type="button" id="def-setup-assistant-trigger"></button></h1>' +
 	Object.keys(COPY_TPL).map(k =>
-		'<p class="description" id="def-creator-copy-' + k + '">' + filled(COPY_TPL[k], DEFAULT_NAME) + '</p>'
+		'<p class="description" id="def-creator-copy-' + k + '">' + filled(COPY_TPL[k], name) + '</p>'
 	).join('') + '</div>';
 
-function boot() {
-	const dom = new JSDOM('<!doctype html><html><body>' + FIXTURE + '</body></html>');
+function boot(rendered) {
+	const name = rendered || DEFAULT_NAME;
+	const dom = new JSDOM('<!doctype html><html><body>' + fixture(name) + '</body></html>');
 	const window = dom.window, document = window.document;
-	const cfg = { creator: { name: DEFAULT_NAME, title: TITLE_TPL, copy: COPY_TPL } };
+	const cfg = { creator: { name: name, title: TITLE_TPL, copy: COPY_TPL } };
 	const api = new window.Function('window', 'document', 'cfg',
 		BLOCK + '\nreturn { setCreatorName: setCreatorName, withName: withName };'
 	)(window, document, cfg);
@@ -245,6 +258,35 @@ check('the same strings are localized onto DefDraftCards for the repaint',
 
 check('all four sentences reach a translator, whole',
 	(PAGE.match(/__\( '[^']*%(?:1\$)?s[^']*', 'digital-employees' \)/g) || []).length === 4);
+
+// ── 24-25. An unchanged name touches nothing (8.2.8) ────────────────────────
+//
+// PHP now renders the name DEF last sent, so the ordinary load hands the block
+// the name already on screen. Repainting it anyway is invisible when the name
+// matches the default and was the whole defect when it did not — "Carol -
+// Creator" flashing into the tenant's own name on every single visit. A
+// MutationObserver is the honest test: a write is a write even when the text
+// written is identical, and takeRecords() reads it back synchronously.
+function writesDuring(b, name) {
+	const obs = new b.window.MutationObserver(() => {});
+	obs.observe(b.window.document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+	b.api.setCreatorName(name);
+	const records = obs.takeRecords();
+	obs.disconnect();
+	return records.length;
+}
+
+const settled = boot('Caz');
+check('the name PHP rendered comes back on the list and nothing is written',
+	writesDuring(settled, 'Caz') === 0 && settled.title().textContent === 'Caz - Creator',
+	'wrote ' + writesDuring(boot('Caz'), 'Caz') + ' time(s), title ' + JSON.stringify(settled.title().textContent));
+
+const renamed = boot();
+check('a name that differs repaints, and repaints once — the visit after a rename',
+	writesDuring(renamed, 'Caz') > 0 &&
+	renamed.title().textContent === 'Caz - Creator' &&
+	writesDuring(renamed, 'Caz') === 0,
+	JSON.stringify(renamed.title().textContent));
 
 console.log('\n' + results.join('\n'));
 console.log('\n=== ' + pass + ' passed, ' + fail + ' failed (of ' + (pass + fail) + ') ===');

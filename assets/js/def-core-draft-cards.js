@@ -52,10 +52,10 @@
 
 	// ── The page is Carol's ─────────────────────────────────────────────────
 	// The page is the Creator's, and the tenant names her: DEF sends the stored
-	// name on BOTH content list responses. PHP has already rendered the default
-	// under the same strings, so the first response to land repaints the title
-	// and the three tab descriptions from them. textContent only — the name is
-	// backend data, and nothing here is a markup path.
+	// name on BOTH content list responses. PHP has already rendered the name it
+	// last saw under the same strings, so the first response to land repaints
+	// the title and the three tab descriptions from them only if it differs.
+	// textContent only — the name is backend data, not a markup path.
 	var CREATOR = cfg.creator || {};
 	var creatorName = (typeof CREATOR.name === 'string' && CREATOR.name) ? CREATOR.name : 'Carol';
 
@@ -68,7 +68,12 @@
 
 	function setCreatorName(name) {
 		if (typeof name !== 'string' || !name.trim()) { return; }
-		creatorName = name.trim();
+		// PHP now renders the name DEF last sent, so the ordinary load already
+		// says the right thing: repaint only on a change, and the swap a tenant
+		// used to see every visit happens once, the visit after a rename.
+		var next = name.trim();
+		if (next === creatorName) { return; }
+		creatorName = next;
 		var title = document.getElementById('def-creator-title');
 		if (title) { title.textContent = withName(CREATOR.title || '%s - Creator'); }
 		var copy = CREATOR.copy || {};
