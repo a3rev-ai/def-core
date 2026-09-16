@@ -27,6 +27,9 @@ $options = array(
 	'def_core_external_jwks_url',
 	'def_core_external_issuer',
 	'def_core_db_version',
+	// The name DEF last gave the Creator — the connected tenant's, so it goes
+	// when the connection does.
+	'def_core_creator_name',
 );
 
 // Branding options.

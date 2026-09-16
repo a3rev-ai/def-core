@@ -550,6 +550,8 @@ final class DEF_Core_OAuth {
 		delete_option( DEF_CORE_OPTION_ALLOWED_ORIGINS );
 		delete_option( 'def_core_external_jwks_url' );
 		delete_option( 'def_core_external_issuer' );
+		// The Creator's name belongs to the tenant we were connected to.
+		delete_option( 'def_core_creator_name' );
 
 		// Clear cached data.
 		delete_transient( 'def_core_connection_test' );

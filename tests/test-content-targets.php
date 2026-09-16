@@ -17,6 +17,8 @@
  *    source_route from the type's rest_base, and never searches attachments.
  *  - Both content LIST responses carry the Creator's name (8.2.6) — the same
  *    dropped-in-the-remap failure, on the field the page titles itself with.
+ *  - Both remember it (8.2.8), so the page can render it at first paint, and
+ *    neither writes the option when the name has not changed.
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -706,6 +708,52 @@ assert_same( 'Ro wena', $name_of( "Ro\nwena" ), 'a newline cannot break the titl
 assert_same( 'Rowena', $name_of( "\t Rowena \x00" ), 'control characters and padding go' );
 assert_same( 100, strlen( $name_of( str_repeat( 'a', 250 ) ) ), 'an over-long name is capped at 100' );
 assert_same( 100, mb_strlen( $name_of( str_repeat( 'é', 250 ) ) ), 'capped in CHARACTERS, not bytes' );
+
+// ── 12. And both handlers remember her (8.2.8) ──────────────────────────
+//
+// The page draws before any list lands, so the name it renders at first paint
+// is the one the last list left behind. A list runs on every page load and a
+// rename is rare, so an unchanged name must not write.
+echo "[12] creator_name remembered by both list handlers, written only on change\n";
+
+// Forget the name and start counting writes from zero — the whole option store
+// cannot be reset here, the API key backend_request needs lives in it.
+$forget_creator = function () {
+	unset( $GLOBALS['_wp_test_options']['def_core_creator_name'] );
+	$GLOBALS['_wp_test_option_writes'] = 0;
+};
+
+$forget_creator();
+http_reset( 200, array( 'drafts' => array(), 'creator_name' => 'Rowena' ) );
+DEF_Core_Staff_AI::rest_list_content_drafts( req_json( array() ) );
+assert_same( 'Rowena', get_option( 'def_core_creator_name' ), 'the drafts list stores the name' );
+assert_same( 1, $GLOBALS['_wp_test_option_writes'], 'a name the plugin had not seen is written once' );
+
+// The same name again — the ordinary load, on every visit.
+http_reset( 200, array( 'drafts' => array(), 'creator_name' => 'Rowena' ) );
+DEF_Core_Staff_AI::rest_list_content_drafts( req_json( array() ) );
+http_reset( 200, array( 'targets' => array(), 'creator_name' => 'Rowena' ) );
+DEF_Core_Staff_AI::rest_list_content_targets( req_json( array() ) );
+assert_same( 1, $GLOBALS['_wp_test_option_writes'], 'an unchanged name is not written again, by either list' );
+
+// The rename.
+http_reset( 200, array( 'targets' => array(), 'creator_name' => 'Caz' ) );
+DEF_Core_Staff_AI::rest_list_content_targets( req_json( array() ) );
+assert_same( 'Caz', get_option( 'def_core_creator_name' ), 'the targets list stores the rename' );
+assert_same( 2, $GLOBALS['_wp_test_option_writes'], 'a rename is written once' );
+
+// What is stored is what the page may render, so it is the SANITISED name.
+$forget_creator();
+http_reset( 200, array( 'drafts' => array(), 'creator_name' => "Ca\nz\x00" ) );
+DEF_Core_Staff_AI::rest_list_content_drafts( req_json( array() ) );
+assert_same( 'Ca z', get_option( 'def_core_creator_name' ), 'the stored name is the one creator_name_from returned' );
+
+// An older DEF that sends no name stores the default rather than nothing —
+// the page then renders the default it would have rendered anyway.
+$forget_creator();
+http_reset( 200, array( 'targets' => array() ) );
+DEF_Core_Staff_AI::rest_list_content_targets( req_json( array() ) );
+assert_same( 'Carol', get_option( 'def_core_creator_name' ), 'absent creator_name stores the default' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";
