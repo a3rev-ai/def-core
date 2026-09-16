@@ -7,9 +7,11 @@
  * Template variables set by DEF_Core_Admin::render_settings_page():
  *   $conn_api_url    string  DEF API URL (pushed from DEFHO).
  *   $conn_revision   int     Current connection config revision.
- *   $conn_last_sync  string  ISO 8601 timestamp of when the connection was established
- *                            (written by the OAuth callback and by a manual save only —
- *                            it is not the content sync, which runs from the portal).
+ *   $conn_last_sync  string  When the connection was established. Site-local
+ *                            `Y-m-d H:i:s`, written by the OAuth callback and a manual
+ *                            save only — it is not the content sync, which runs from
+ *                            the portal. No offset in the string, so date_i18n() over
+ *                            strtotime() is right and wp_date() would apply it twice.
  *   $tools           array   Registered tools from API registry.
  *   $tools_status    array   Tool enable/disable status.
  *
@@ -1079,7 +1081,8 @@ $first_tab = 'branding';
 				<div class="def-core-conn-status-row">
 					<span class="def-core-conn-dot"></span>
 					<span class="def-core-conn-label"><?php echo esc_html( $status_label ); ?></span>
-					<?php if ( $is_connected && ! empty( $conn_last_sync ) ) : ?>
+					<?php // Same condition as $status_class above: on a salt-rotated site the label is "Credentials error — reconnect", which a bare "since" would attach itself to. ?>
+					<?php if ( $is_connected && ! $has_encryption_error && ! empty( $conn_last_sync ) ) : ?>
 						<span class="def-core-conn-sync">
 							<?php
 							printf(
