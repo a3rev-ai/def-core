@@ -83,10 +83,14 @@ final class DEF_Core_Content_Drafts_Page {
 		// why the name is a placeholder in each of them rather than a word
 		// glued on: a sentence built by concatenation cannot survive a rename.
 		$creator_name  = DEF_Core_Staff_AI::CREATOR_DEFAULT_NAME;
+		/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
 		$creator_title = __( '%s - Creator', 'digital-employees' );
 		$creator_copy  = array(
+			/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
 			'optimize' => __( 'Optimizations %s has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ),
+			/* translators: %1$s: the tenant's name for the Creator, e.g. Carol — the same name both times. */
 			'clusters' => __( 'Build topic clusters around your cornerstone content. Nominate your most important pages and products as cluster targets — realistically 5–20 cornerstones, not every product — curate the keyphrase queue %1$s derives for each, and %1$s writes the cluster posts from the approved queue. A healthy cluster is the cornerstone plus 6–12 supporting posts.', 'digital-employees' ),
+			/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
 			'create'   => __( 'Ask %s for a one-off post — events, promotions, standalone articles, or a cornerstone to build a cluster on. The draft appears below for review; approve it to create a WordPress draft.', 'digital-employees' ),
 		);
 
