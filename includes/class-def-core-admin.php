@@ -609,6 +609,9 @@ final class DEF_Core_Admin {
 			'clearUrl'       => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/clear' ) ),
 			'escalationUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/setup-assistant/send-escalation-email' ) ),
 			'userFirstName'  => $current_user->first_name ?: $current_user->display_name,
+			/* translators: %s: the admin's first name. */
+			'welcomeNamed'   => __( "Hi %s! I'm Sam, your Setup Assistant.", 'digital-employees' ),
+			'welcomeAnon'    => __( "Hi there! I'm Sam, your Setup Assistant.", 'digital-employees' ),
 		) );
 	}
 

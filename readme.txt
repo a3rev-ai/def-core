@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.3
+Stable tag: 8.2.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.4 - 2026-09-16 =
+* Tweak - Settings → Connection: the status line beside the green dot now says when this site was connected - "Connected since 14 July 2026" - instead of "Last sync: 2 months ago". That date was never a content sync. It is written the day your site is connected to the platform and then left alone, so "last sync" was telling you about something that had not happened; your content sync runs from your tenant portal's Knowledge page, which is where it is reported.
+* Tweak - Setup Assistant: he introduces himself as Sam. The drawer header reads "Sam - Setup Assistant" and his greeting is "Hi, I'm Sam, your Setup Assistant" - the same way Joe introduces himself in Customer Chat. Nothing else about the drawer changes.
 
 = 8.2.3 - 2026-09-16 =
 * Tweak - Settings: the Knowledge Base tab is gone. It only ever said "Loading sync status..." - nothing in the plugin ever filled it in - and what it was there to show is managed on your tenant portal's Knowledge page, which is where your content sync actually lives. The Open Tenant Portal button from that tab has moved to the Connection tab, beside your connection status, so the way through to the portal is still one click from Settings.

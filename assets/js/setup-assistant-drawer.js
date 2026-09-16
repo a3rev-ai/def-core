@@ -1037,7 +1037,12 @@
 		div.className = 'def-sa-welcome';
 
 		var intro = document.createElement('strong');
-		intro.textContent = (name ? 'Hi ' + name + '!' : 'Hi there!') + ' I\'m your Setup Assistant.';
+		// The function form of replace: a first name carrying `$&` or `$'` goes
+		// in as itself (staff-ai.js does the same with the assistant's name).
+		intro.textContent = name
+			? (config.welcomeNamed || 'Hi %s! I\'m Sam, your Setup Assistant.')
+				.replace('%s', function () { return name; })
+			: (config.welcomeAnon || 'Hi there! I\'m Sam, your Setup Assistant.');
 		div.appendChild(intro);
 
 		div.appendChild(document.createElement('br'));

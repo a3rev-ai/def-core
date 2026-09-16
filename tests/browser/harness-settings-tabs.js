@@ -1,5 +1,6 @@
 /*
- * Digital Employees → Settings: the tabs, and the way to the Tenant Portal (v8.2.3).
+ * Digital Employees → Settings: the tabs, the way to the Tenant Portal (v8.2.3),
+ * and the Connection status line (v8.2.4).
  *
  * The Knowledge Base tab shipped in 2026-03 with a "Knowledge Base Sync Status"
  * card whose status box was filled by nothing — no JS, no PHP, anywhere in the
@@ -15,7 +16,18 @@
  * $tabs keys and insists each one has a panel to open, so the next tab removed
  * without its panel (or added without one) is caught here.
  *
- * 6 checks.
+ * Checks 7-9 are the status line beside the green dot. It read "Last sync: 2
+ * months ago" off def_core_conn_last_sync_at — an option written only when the
+ * connection is established (the OAuth callback, or a manual save) and deleted
+ * on disconnect. Nothing about the content sync touches it, so the label named
+ * the wrong event: it is the date the site was connected, and now says so.
+ *
+ * Check 9 is the cost of a bare "since": it has no sentence of its own, so it
+ * reads off the label beside it. On a salt-rotated site that label is
+ * "Credentials error — reconnect", which $is_connected alone does not exclude —
+ * the line is held to the same condition $status_class is built from.
+ *
+ * 9 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -81,6 +93,24 @@ check(++n, 'every tab in the list has a panel to open (' + tabIds.length + ' tab
 	tabIds.length > 0 && orphans.length === 0,
 	tabIds.length === 0 ? 'no $tabs array found at all'
 		: 'no panel for: ' + orphans.join(', '));
+
+// ── 7-9. The status line says when the site was connected ───────────────────
+check(++n, 'the status line says "since <date>", and nothing says "Last sync"',
+	/esc_html__\( 'since %s', 'digital-employees' \)/.test(connection) &&
+	!/Last sync/.test(SRC),
+	/Last sync/.test(SRC) ? 'the old label is still in the template'
+		: 'no "since %s" in the Connection panel');
+
+check(++n, 'the date is the site\'s own date format, not a time-ago',
+	/date_i18n\( get_option\( 'date_format' \), strtotime\( \$conn_last_sync \) \)/.test(connection) &&
+	!/human_time_diff/.test(connection));
+
+// A bare "since" has to attach to the word beside it, so the line renders only
+// where that word is "Connected" — the SAME condition $status_class is built
+// from, credential error and all, not just $is_connected.
+check(++n, 'the line is held to the connected state $status_class is built from',
+	/if \( \$is_connected && ! \$has_encryption_error && ! empty\( \$conn_last_sync \) \)/.test(connection) &&
+	/\$status_class = \( \$is_connected && ! \$has_encryption_error \)/.test(SRC));
 
 console.log('\n' + results.join('\n'));
 console.log('\n=== ' + pass + ' passed, ' + fail + ' failed (of ' + (pass + fail) + ') ===');

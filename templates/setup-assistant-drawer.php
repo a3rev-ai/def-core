@@ -36,7 +36,7 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 	<div class="def-sa-panel" role="document">
 		<!-- Header -->
 		<div class="def-sa-header">
-			<h2 class="def-sa-title"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></h2>
+			<h2 class="def-sa-title"><?php esc_html_e( 'Sam - Setup Assistant', 'digital-employees' ); ?></h2>
 			<div class="def-sa-header-actions">
 				<button type="button" class="def-sa-clear" title="<?php esc_attr_e( 'Clear conversation', 'digital-employees' ); ?>">
 					<span class="dashicons dashicons-trash"></span>
