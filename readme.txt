@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.5
+Stable tag: 8.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.2.6 - 2026-09-16 =
+* Tweak - Content AI: the page is Carol's — its title reads "Carol - Creator" (your own name for her if you renamed her in the tenant portal) and the copy says Carol instead of "the Content Agent", matching the tenant portal.
 
 = 8.2.5 - 2026-09-16 =
 * New - Staff AI console: an artifact can be shared by link. Open one and press Share, and you get a link that opens the page for anyone who holds it - no login, no WordPress account, and it opens on your provider's own address rather than your site. Copy takes the link; Stop sharing revokes it and it stops working straight away, and sharing again gives you a new link the old one never becomes. Only artifacts can be shared this way - other documents are files, and are sent as attachments. Your Documents and Artifacts lists mark a shared artifact with a globe and an unshared one with a lock, so you can see at a glance what is out there. The link shows the version you shared: revising an artifact does not republish it, so the people holding your link keep seeing the version you gave them - open the new version and press Share to hand that one out. Treat a shared link as public - whoever holds it can read the artifact until you stop sharing. Needs the platform release that carries the link.
