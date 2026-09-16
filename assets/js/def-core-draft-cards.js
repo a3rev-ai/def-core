@@ -50,6 +50,39 @@
 		activate((location.hash || '').replace('#', ''));
 	})();
 
+	// ── The page is Carol's ─────────────────────────────────────────────────
+	// The page is the Creator's, and the tenant names her: DEF sends the stored
+	// name on BOTH content list responses. PHP has already rendered the default
+	// under the same strings, so the first response to land repaints the title
+	// and the three tab descriptions from them. textContent only — the name is
+	// backend data, and nothing here is a markup path.
+	var CREATOR = cfg.creator || {};
+	var creatorName = (typeof CREATOR.name === 'string' && CREATOR.name) ? CREATOR.name : 'Carol';
+
+	// Her name is the only value these strings take, so every placeholder in one
+	// is it (PHP writes %1$s where a sentence says it twice). The replacement is
+	// a FUNCTION: a name holding $& or $' must go in whole.
+	function withName(tpl) {
+		return String(tpl).replace(/%(?:\d+\$)?s/g, function () { return creatorName; });
+	}
+
+	function setCreatorName(name) {
+		if (typeof name !== 'string' || !name.trim()) { return; }
+		creatorName = name.trim();
+		var title = document.getElementById('def-creator-title');
+		if (title) { title.textContent = withName(CREATOR.title || '%s - Creator'); }
+		var copy = CREATOR.copy || {};
+		Object.keys(copy).forEach(function (k) {
+			var p = document.getElementById('def-creator-copy-' + k);
+			if (p) { p.textContent = withName(copy[k]); }
+		});
+	}
+
+	// The Clusters bundle reads the same field off its own list response and
+	// hands it here, so whichever of the two lands first names her.
+	window.DefCreator = { setName: setCreatorName, withName: withName };
+	// ── end the page is Carol's ─────────────────────────────────────────────
+
 	// Fields we render as rich HTML previews (Gutenberg/product content). Anything
 	// else is shown as escaped plain text.
 	var HTML_FIELDS = { description: 1, short_description: 1 };
@@ -599,7 +632,7 @@
 		});
 		if (!editDrafts.length) {
 			root.appendChild(el('p', 'def-draft-empty-state',
-				'No optimization drafts waiting for review. The Content Agent stages optimizations here after each scheduled run.'));
+				withName('No optimization drafts waiting for review. %s stages optimizations here after each scheduled run.')));
 		}
 		editDrafts.forEach(function (d) { root.appendChild(renderCard(d)); });
 		createDrafts.forEach(function (d) { createRoot.appendChild(renderCard(d)); });
@@ -864,11 +897,14 @@
 		});
 		if (!total) { return; }
 
+		// Whole sentences, one per count: the name is a placeholder in each, so
+		// the count goes in first and her name can never land on the %d.
+		var head = (total === 1)
+			? '%d item needs a focus keyphrase before %s can optimize it. Set one in your SEO plugin:'
+			: '%d items need a focus keyphrase before %s can optimize them. Set one in your SEO plugin:';
 		var panel = el('div', 'def-draft-needs-kp');
 		panel.appendChild(el('div', 'def-draft-needs-kp-head',
-			total + (total === 1 ? ' item needs' : ' items need') +
-			' a focus keyphrase before the Content Agent can optimize ' +
-			(total === 1 ? 'it' : 'them') + '. Set one in your SEO plugin:'));
+			withName(head.replace('%d', String(total)))));
 
 		typeOrder(seen).forEach(function (type) {
 			var groupItems = groups[type];
@@ -1434,6 +1470,7 @@
 	renderCreateControl();
 
 	api('/drafts', 'GET').then(function (res) {
+		setCreatorName(res && res.creator_name);
 		render((res && res.drafts) || []);
 	}).catch(function (e) {
 		root.removeAttribute('data-loading');

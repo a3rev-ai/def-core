@@ -15,6 +15,8 @@
  *  - Create forwards the optional notes field (and omits it when empty).
  *  - The local target-search picker returns nomination-shaped items with
  *    source_route from the type's rest_base, and never searches attachments.
+ *  - Both content LIST responses carry the Creator's name (8.2.6) — the same
+ *    dropped-in-the-remap failure, on the field the page titles itself with.
  *
  * Runs standalone (no WordPress bootstrap).
  *
@@ -669,6 +671,41 @@ $resp = DEF_Core_Staff_AI::rest_add_target_keyphrase( req_json(
 assert_true( is_wp_error( $resp ), 'backend 409 → WP_Error' );
 assert_same( 409, $resp->get_error_data()['status'] ?? null, '409 status preserved' );
 assert_true( false !== strpos( $resp->get_error_message(), 'phrase already queued' ), 'backend detail carried in the message' );
+
+// ── 11. The Creator's name rides both content list responses ────────────
+//
+// The page is Carol's and the tenant can rename her, so DEF puts the stored
+// name on both lists and the BFF has to carry it through the remap — the same
+// field-dropping this file exists to pin. It is tenant DATA on an admin screen:
+// printable, bounded, and never nothing.
+echo "[11] creator_name forwarded on /drafts and /targets\n";
+
+http_reset( 200, array( 'drafts' => array(), 'creator_name' => 'Rowena' ) );
+$resp = DEF_Core_Staff_AI::rest_list_content_drafts( req_json( array() ) );
+assert_same( 'Rowena', $resp->get_data()['creator_name'] ?? null, 'drafts list forwards the tenant name' );
+
+http_reset( 200, array( 'targets' => array(), 'creator_name' => 'Rowena' ) );
+$resp = DEF_Core_Staff_AI::rest_list_content_targets( req_json( array() ) );
+assert_same( 'Rowena', $resp->get_data()['creator_name'] ?? null, 'targets list forwards the tenant name' );
+
+// An older DEF, or a field that never arrives: the page is never nameless.
+http_reset( 200, array( 'drafts' => array() ) );
+$resp = DEF_Core_Staff_AI::rest_list_content_drafts( req_json( array() ) );
+assert_same( 'Carol', $resp->get_data()['creator_name'] ?? null, 'drafts: absent creator_name → the default' );
+
+http_reset( 200, array( 'targets' => array() ) );
+$resp = DEF_Core_Staff_AI::rest_list_content_targets( req_json( array() ) );
+assert_same( 'Carol', $resp->get_data()['creator_name'] ?? null, 'targets: absent creator_name → the default' );
+
+// The sanitiser both handlers share, over what a name can carry.
+$name_of = function ( $v ) { return DEF_Core_Staff_AI::creator_name_from( array( 'creator_name' => $v ) ); };
+assert_same( 'Carol', DEF_Core_Staff_AI::creator_name_from( 'not-an-array' ), 'non-array payload → the default' );
+assert_same( 'Carol', $name_of( 42 ), 'a non-string name → the default' );
+assert_same( 'Carol', $name_of( '   ' ), 'a blank name → the default' );
+assert_same( 'Ro wena', $name_of( "Ro\nwena" ), 'a newline cannot break the title out of its line' );
+assert_same( 'Rowena', $name_of( "\t Rowena \x00" ), 'control characters and padding go' );
+assert_same( 100, strlen( $name_of( str_repeat( 'a', 250 ) ) ), 'an over-long name is capped at 100' );
+assert_same( 100, mb_strlen( $name_of( str_repeat( 'é', 250 ) ) ), 'capped in CHARACTERS, not bytes' );
 
 // ── Summary ─────────────────────────────────────────────────────────────
 echo "\n$pass passed, $fail failed\n";

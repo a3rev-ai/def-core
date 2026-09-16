@@ -191,6 +191,10 @@ const CAPS_REGISTRY = array(
 		'class' => 'system',
 		'why'   => 'Prompt-size bound on pasted reference text — LLM context protection.',
 	),
+	'includes/class-def-core-staff-ai.php::CREATOR_NAME_MAX' => array(
+		'class' => 'ui_chrome',
+		'why'   => 'Bound on a name DEF already bounds, read back into a page title; nothing breaks at any value.',
+	),
 );
 
 // ── [1] Every cap-shaped constant is classified ──────────────────────────────

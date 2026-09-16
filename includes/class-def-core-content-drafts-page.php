@@ -77,6 +77,23 @@ final class DEF_Core_Content_Drafts_Page {
 		$create_cap  = ( $post_type && isset( $post_type->cap->create_posts ) ) ? $post_type->cap->create_posts : 'edit_posts';
 		$can_create  = current_user_can( $create_cap );
 
+		// This is the Creator's page, and she is named by the tenant. The name
+		// only arrives with the first list response, so PHP renders the default
+		// and the JS repaints these same strings once it knows her — which is
+		// why the name is a placeholder in each of them rather than a word
+		// glued on: a sentence built by concatenation cannot survive a rename.
+		$creator_name  = DEF_Core_Staff_AI::CREATOR_DEFAULT_NAME;
+		/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
+		$creator_title = __( '%s - Creator', 'digital-employees' );
+		$creator_copy  = array(
+			/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
+			'optimize' => __( 'Optimizations %s has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ),
+			/* translators: %1$s: the tenant's name for the Creator, e.g. Carol — the same name both times. */
+			'clusters' => __( 'Build topic clusters around your cornerstone content. Nominate your most important pages and products as cluster targets — realistically 5–20 cornerstones, not every product — curate the keyphrase queue %1$s derives for each, and %1$s writes the cluster posts from the approved queue. A healthy cluster is the cornerstone plus 6–12 supporting posts.', 'digital-employees' ),
+			/* translators: %s: the tenant's name for the Creator, e.g. Carol. */
+			'create'   => __( 'Ask %s for a one-off post — events, promotions, standalone articles, or a cornerstone to build a cluster on. The draft appears below for review; approve it to create a WordPress draft.', 'digital-employees' ),
+		);
+
 		wp_localize_script(
 			'def-core-draft-cards',
 			'DefDraftCards',
@@ -85,12 +102,18 @@ final class DEF_Core_Content_Drafts_Page {
 				'restBase'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/content' ) ),
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'canCreate' => $can_create ? 1 : 0,
+				// The same strings the markup below renders, for the repaint.
+				'creator'   => array(
+					'name'  => $creator_name,
+					'title' => $creator_title,
+					'copy'  => $creator_copy,
+				),
 			)
 		);
 
 		?>
 		<div class="wrap def-core-wrap" style="max-width: 1000px;">
-			<h1><?php esc_html_e( 'Content Drafts', 'digital-employees' ); ?>
+			<h1><span id="def-creator-title"><?php echo esc_html( sprintf( $creator_title, $creator_name ) ); ?></span>
 				<?php if ( current_user_can( 'def_admin_access' ) ) : ?>
 				<!-- Setup Assistant trigger button (same id the drawer JS binds) -->
 				<button
@@ -112,24 +135,24 @@ final class DEF_Core_Content_Drafts_Page {
 				<a href="#create" class="nav-tab" data-def-tab="create"><?php esc_html_e( 'Create', 'digital-employees' ); ?></a>
 			</h2>
 			<div id="def-tab-optimize" class="def-draft-tab-panel">
-				<p class="description">
-					<?php esc_html_e( 'Optimizations the Content Agent has drafted for your existing content. Review each one and approve to apply it, or dismiss it. Nothing is changed on your site until you approve it.', 'digital-employees' ); ?>
+				<p class="description" id="def-creator-copy-optimize">
+					<?php echo esc_html( sprintf( $creator_copy['optimize'], $creator_name ) ); ?>
 				</p>
 				<div id="def-draft-cards-root" data-loading="1">
 					<p class="def-draft-loading"><?php esc_html_e( 'Loading drafts…', 'digital-employees' ); ?></p>
 				</div>
 			</div>
 			<div id="def-tab-clusters" class="def-draft-tab-panel" style="display:none;">
-				<p class="description">
-					<?php esc_html_e( 'Build topic clusters around your cornerstone content. Nominate your most important pages and products as cluster targets — realistically 5–20 cornerstones, not every product — curate the keyphrase queue the Content Agent derives for each, and the agent writes the cluster posts from the approved queue. A healthy cluster is the cornerstone plus 6–12 supporting posts.', 'digital-employees' ); ?>
+				<p class="description" id="def-creator-copy-clusters">
+					<?php echo esc_html( sprintf( $creator_copy['clusters'], $creator_name ) ); ?>
 				</p>
 				<div id="def-cluster-root" data-loading="1">
 					<p class="def-draft-loading"><?php esc_html_e( 'Loading targets…', 'digital-employees' ); ?></p>
 				</div>
 			</div>
 			<div id="def-tab-create" class="def-draft-tab-panel" style="display:none;">
-				<p class="description">
-					<?php esc_html_e( 'Ask the Content Agent for a one-off post — events, promotions, standalone articles, or a cornerstone to build a cluster on. The draft appears below for review; approve it to create a WordPress draft.', 'digital-employees' ); ?>
+				<p class="description" id="def-creator-copy-create">
+					<?php echo esc_html( sprintf( $creator_copy['create'], $creator_name ) ); ?>
 				</p>
 				<div id="def-draft-create"></div>
 				<div id="def-draft-create-cards-root"></div>

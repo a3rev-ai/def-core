@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, TOOL_OUTPUT_CARD) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -425,6 +425,20 @@ function userAccess() {
 		'USER_ACCESS', ADMIN_PATH);
 }
 
+// ── Content Drafts: the page is Carol's (8.2.6) ─────────────────────────
+// The Creator's name off a content list response, and the title + tab copy it
+// repaints. Out of the DRAFT CARDS bundle, which owns both for the page: the
+// Clusters bundle calls into the same block through window.DefCreator.
+const DRAFT_CARDS_PATH = path.join(REPO, 'assets/js/def-core-draft-cards.js');
+
+function creator() {
+	return slice('creator name',
+		l => l.includes("── The page is Carol's"),
+		l => l.includes("end the page is Carol's"),
+		['function withName', 'function setCreatorName', 'window.DefCreator'],
+		'CREATOR', DRAFT_CARDS_PATH);
+}
+
 // ── The shipped TEMPLATE, sliced the same way ───────────────────────────
 // A harness that hand-writes its own copy of a <section> tests the copy: the
 // page can be renamed, lose an id, change a description or take the wrong
@@ -535,7 +549,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
