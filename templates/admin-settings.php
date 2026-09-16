@@ -271,7 +271,7 @@ $first_tab = 'branding';
 					</div>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'Upload a square PNG icon (512×512px recommended) for the Staff AI desktop app. If not set, an icon is auto-generated from your site name.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'The icon for the Staff AI app. Upload a square PNG at least 512×512px, opaque and full-bleed with no rounded corners — the phone rounds it for you. If not set, your logo is used, then your site icon, then the Digital Employees icon. After changing it, remove the app from your phone and add it again: phones cache the icon.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>

@@ -60,6 +60,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-user-access.js` | Settings → User Access, one row per person (v8.2.0): the access level is Staff, Management **or neither** — a pill lights exactly one, clicking the lit one clears it (the only way to take a Staff-AI seat away without stripping DEF Admin and the vault roles too), and a person who stores neither keeps neither, including when the Setup Assistant has just revoked one; the vault roles as chips a + Add role listbox adds and removes, keyboard and all (Escape, arrows, Enter, focus back on + Add role); the role filter and the count, which follow a chip edit with nobody touching the filter; the **shipped** `accessPayload()` still submitting what the checkbox matrix submitted; and — read off the template and the stylesheet — the six columns with no per-role column, a label on every cell, and a real stacked phone layout in which a filtered-out row is still hidden |
 | `harness-settings-tabs.js` | Settings → the tabs (v8.2.3): the Knowledge Base tab is gone, along with the status box no JS or PHP ever filled; the Open Tenant Portal button renders on the **Connection** panel behind the same `get_defho_url()` guard it always had; and — enumerated, not listed — every tab in `$tabs` has a panel to open. v8.2.4 adds the status line beside the green dot: it says "since &lt;date&gt;" in the site's own date format — the date the site was connected — and the word "Last sync", which never named the content sync, is gone from the template |
 | `harness-carol-drafts.js` | The Content Drafts page is Carol's (v8.2.6): the tenant's name for the Creator arrives on both content list responses, and the shipped block repaints the title and the three tab descriptions from the strings PHP localized — as `textContent`, so a name carrying markup stays a name, and with a function replacement, so one carrying `$&` goes in whole. An absent or malformed name leaves the rendered default standing rather than titling the page "undefined - Creator". Plus the joins the slice cannot hold: each bundle naming her off its OWN list response, the Clusters bundle's dependency on the block, the five sentences that used to say "the Content Agent", and the page rendering the default under the ids the block repaints |
+| `harness-pwa-icon.js` | Staff AI as an app (v8.2.7): the shell's head — which skips `wp_head()` — carries `apple-touch-icon` — href AND declared size both from the shared resolver, never an SVG — plus the app's name and the standalone hint; `render_shell()` fills it; and the generated-SVG icon route that iOS was masking onto white is gone entirely |
 | `harness-sam.js` | The Setup Assistant is Sam (v8.2.4): the drawer header takes the house "Name - Role" form, the greeting introduces him named and unnamed through two strings localized on `defSetupAssistant`, nothing in the drawer still says "I'm your Setup Assistant" — and the two aria-labels still name the panel's ROLE, which is what a screen reader announces |
 
 ## Bite checks
@@ -93,8 +94,8 @@ CREATOR=/tmp/old-creator.js   node tests/browser/harness-carol-drafts.js  # the 
 ```
 
 `harness-c5.js`, `harness-c6a.js`, `harness-c6b.js`, `harness-admin-tables-phone.js`,
-`harness-user-access.js` and `harness-carol-drafts.js` read the stylesheet, the template
-or the page's PHP from the working tree, so
+`harness-pwa-icon.js`, `harness-user-access.js` and `harness-carol-drafts.js` read the
+stylesheet, the template or the page's PHP from the working tree, so
 their CSS and markup checks bite by editing those files (a scratch `git worktree` keeps
 that off your branch). `USER_ACCESS` reaches only `harness-user-access.js`'s first 42
 checks — the behaviour half. Pointed at the 8.1.3 screen's logic behind the same names it

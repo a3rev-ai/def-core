@@ -12,6 +12,7 @@
  * @var string  $api_base  REST API base URL
  * @var string  $nonce     WordPress REST nonce
  * @var string  $logo_html Pre-built HTML for header logo
+ * @var array   $apple_touch_icon The home-screen icon iOS installs: src and its true sizes
  *
  * @package def-core
  */
@@ -29,6 +30,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<title><?php echo esc_html__( 'Staff AI', 'digital-employees' ); ?> - <?php bloginfo( 'name' ); ?></title>
 	<link rel="manifest" href="<?php echo esc_url( home_url( '/staff-ai/manifest.json' ) ); ?>">
 	<meta name="theme-color" content="#6366f1">
+	<?php // The head skips wp_head(), so the install tags are emitted here. iOS reads ONLY apple-touch-icon. ?>
+	<link rel="apple-touch-icon" sizes="<?php echo esc_attr( $apple_touch_icon['sizes'] ); ?>" href="<?php echo esc_url( $apple_touch_icon['src'] ); ?>">
+	<meta name="apple-mobile-web-app-title" content="<?php echo esc_attr__( 'Staff AI', 'digital-employees' ); ?>">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
 	<link rel="stylesheet" href="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/css/staff-ai.css' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>">
 	<link rel="stylesheet" href="<?php echo esc_url( DEF_CORE_PLUGIN_URL . 'assets/css/def-core-product-cards.css' ); ?>?ver=<?php echo esc_attr( DEF_CORE_VERSION ); ?>">
 	<script>
