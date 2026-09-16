@@ -7,7 +7,9 @@
  * Template variables set by DEF_Core_Admin::render_settings_page():
  *   $conn_api_url    string  DEF API URL (pushed from DEFHO).
  *   $conn_revision   int     Current connection config revision.
- *   $conn_last_sync  string  ISO 8601 timestamp of last sync.
+ *   $conn_last_sync  string  ISO 8601 timestamp of when the connection was established
+ *                            (written by the OAuth callback and by a manual save only —
+ *                            it is not the content sync, which runs from the portal).
  *   $tools           array   Registered tools from API registry.
  *   $tools_status    array   Tool enable/disable status.
  *
@@ -1081,9 +1083,9 @@ $first_tab = 'branding';
 						<span class="def-core-conn-sync">
 							<?php
 							printf(
-								/* translators: %s: human-readable time difference */
-								esc_html__( 'Last sync: %s ago', 'digital-employees' ),
-								esc_html( human_time_diff( strtotime( $conn_last_sync ), current_time( 'timestamp' ) ) )
+								/* translators: %s: date this site was connected, in the site's date format */
+								esc_html__( 'since %s', 'digital-employees' ),
+								esc_html( date_i18n( get_option( 'date_format' ), strtotime( $conn_last_sync ) ) )
 							);
 							?>
 						</span>

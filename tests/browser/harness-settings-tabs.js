@@ -1,5 +1,6 @@
 /*
- * Digital Employees → Settings: the tabs, and the way to the Tenant Portal (v8.2.3).
+ * Digital Employees → Settings: the tabs, the way to the Tenant Portal (v8.2.3),
+ * and the Connection status line (v8.2.4).
  *
  * The Knowledge Base tab shipped in 2026-03 with a "Knowledge Base Sync Status"
  * card whose status box was filled by nothing — no JS, no PHP, anywhere in the
@@ -15,7 +16,13 @@
  * $tabs keys and insists each one has a panel to open, so the next tab removed
  * without its panel (or added without one) is caught here.
  *
- * 6 checks.
+ * Checks 7-8 are the status line beside the green dot. It read "Last sync: 2
+ * months ago" off def_core_conn_last_sync_at — an option written only when the
+ * connection is established (the OAuth callback, or a manual save) and deleted
+ * on disconnect. Nothing about the content sync touches it, so the label named
+ * the wrong event: it is the date the site was connected, and now says so.
+ *
+ * 8 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -81,6 +88,18 @@ check(++n, 'every tab in the list has a panel to open (' + tabIds.length + ' tab
 	tabIds.length > 0 && orphans.length === 0,
 	tabIds.length === 0 ? 'no $tabs array found at all'
 		: 'no panel for: ' + orphans.join(', '));
+
+// ── 7-8. The status line says when the site was connected ───────────────────
+check(++n, 'the status line says "since <date>", and nothing says "Last sync"',
+	/esc_html__\( 'since %s', 'digital-employees' \)/.test(connection) &&
+	!/Last sync/.test(SRC),
+	/Last sync/.test(SRC) ? 'the old label is still in the template'
+		: 'no "since %s" in the Connection panel');
+
+check(++n, 'the date is the site\'s own date format, still behind the connected guard',
+	/date_i18n\( get_option\( 'date_format' \), strtotime\( \$conn_last_sync \) \)/.test(connection) &&
+	!/human_time_diff/.test(connection) &&
+	/if \( \$is_connected && ! empty\( \$conn_last_sync \) \)/.test(connection));
 
 console.log('\n' + results.join('\n'));
 console.log('\n=== ' + pass + ' passed, ' + fail + ' failed (of ' + (pass + fail) + ') ===');
