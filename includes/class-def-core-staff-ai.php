@@ -5418,11 +5418,6 @@ final class DEF_Core_Staff_AI
 			'index.php?staff_ai_pwa=sw',
 			'top'
 		);
-		add_rewrite_rule(
-			'^' . self::ENDPOINT_SLUG . '/icon\.svg$',
-			'index.php?staff_ai_pwa=icon',
-			'top'
-		);
 
 		// File download endpoint (uses cookie auth, not REST nonce).
 		add_rewrite_rule(
@@ -5484,7 +5479,7 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function handle_endpoint(): void
 	{
-		// Handle PWA assets (manifest, service worker, icon) — no auth required.
+		// Handle PWA assets (manifest, service worker) — no auth required.
 		$pwa_asset = get_query_var('staff_ai_pwa');
 		if ($pwa_asset) {
 			self::handle_pwa_asset($pwa_asset);
@@ -6019,7 +6014,7 @@ final class DEF_Core_Staff_AI
 	// ─── PWA Support ────────────────────────────────────────────────
 
 	/**
-	 * Handle PWA asset requests (manifest.json, sw.js, icon.svg).
+	 * Handle PWA asset requests (manifest.json, sw.js).
 	 *
 	 * @param string $asset The asset type to serve.
 	 */
@@ -6032,9 +6027,6 @@ final class DEF_Core_Staff_AI
 			case 'sw':
 				self::serve_pwa_service_worker();
 				break;
-			case 'icon':
-				self::serve_pwa_icon();
-				break;
 			default:
 				status_header(404);
 				exit;
@@ -6042,9 +6034,138 @@ final class DEF_Core_Staff_AI
 	}
 
 	/**
+	 * The best app icon this site has at a requested size (8.2.7).
+	 *
+	 * Chain: Branding → Web App Icon, Branding → logo, the WordPress site
+	 * icon, then the icon bundled with the plugin. One resolver, because the
+	 * manifest and the shell's apple-touch-icon must agree about which icon
+	 * this site's app wears.
+	 *
+	 * @param int $size Pixels wanted, square.
+	 * @return array{src:string,sizes:string,type:string} URL, the size the
+	 *                                                    file REALLY is, and its type.
+	 */
+	private static function app_icon(int $size): array
+	{
+		$ids = array(
+			(int) get_option('def_core_app_icon_id', 0),
+			(int) get_option('def_core_logo_id', 0),
+			(int) get_option('site_icon', 0),
+		);
+		foreach ($ids as $id) {
+			$icon = $id ? self::attachment_icon($id, $size) : null;
+			if ($icon) {
+				return $icon;
+			}
+		}
+		return self::bundled_icon($size);
+	}
+
+	/**
+	 * One attachment as an app icon, at its TRUE pixel size.
+	 *
+	 * wp_get_attachment_image_url($id, array(192, 192)) returns the NEAREST
+	 * registered size, not a 192 crop — on a site whose thumbnail is 250 it
+	 * hands back a 250 file, which the manifest then declared as 192x192.
+	 * So: pick the smallest cut WordPress actually made that is genuinely big
+	 * enough, and declare what the metadata says it measures.
+	 *
+	 * An attachment that cannot serve the size asked for moves the chain along
+	 * rather than becoming the icon anyway. def_core_logo_id is a WORDMARK
+	 * option: a 300x120 logo — or a 150x150 site icon — offered as both the 192
+	 * and the 512 entry is two identical icons and none at 192 square, which is
+	 * how a site loses the Install button in Chrome and Edge. The same goes for
+	 * anything that is not a raster every browser reads: the media picker admits
+	 * SVGs, wp_attachment_is_image() passes them, and an SVG can carry
+	 * width/height metadata — but iOS ignores one as an apple-touch-icon.
+	 *
+	 * @param int $id   Attachment ID.
+	 * @param int $size Pixels wanted, square.
+	 * @return array{src:string,sizes:string,type:string}|null
+	 */
+	private static function attachment_icon(int $id, int $size): ?array
+	{
+		$mime = get_post_mime_type($id);
+		if (!in_array($mime, array('image/png', 'image/jpeg', 'image/webp'), true)) {
+			return null;
+		}
+
+		$meta = wp_get_attachment_metadata($id);
+		if (empty($meta['width']) || empty($meta['height'])) {
+			return null;
+		}
+
+		$cuts = array(array('full', (int) $meta['width'], (int) $meta['height']));
+		foreach ((array) ($meta['sizes'] ?? array()) as $name => $cut) {
+			if (!empty($cut['width']) && !empty($cut['height'])) {
+				$cuts[] = array($name, (int) $cut['width'], (int) $cut['height']);
+			}
+		}
+
+		// The smallest cut that is genuinely big enough on BOTH axes, or nothing.
+		$best = null;
+		foreach ($cuts as $cut) {
+			if (min($cut[1], $cut[2]) < $size) {
+				continue;
+			}
+			if (null === $best || $cut[1] * $cut[2] < $best[1] * $best[2]) {
+				$best = $cut;
+			}
+		}
+		if (null === $best) {
+			return null;
+		}
+
+		$url = wp_get_attachment_image_url($id, $best[0]);
+		if (!$url) {
+			return null;
+		}
+		return array(
+			'src'   => $url,
+			'sizes' => $best[1] . 'x' . $best[2],
+			'type'  => $mime,
+		);
+	}
+
+	/**
+	 * The icon that ships with the plugin — square, opaque, full-bleed.
+	 *
+	 * @param int $size Pixels wanted, square.
+	 * @return array{src:string,sizes:string,type:string}
+	 */
+	private static function bundled_icon(int $size): array
+	{
+		$px = 512;
+		foreach (array(180, 192, 512) as $bundled) {
+			if ($bundled >= $size) {
+				$px = $bundled;
+				break;
+			}
+		}
+		return array(
+			'src'   => DEF_CORE_PLUGIN_URL . 'assets/images/staff-ai-icon-' . $px . '.png',
+			'sizes' => $px . 'x' . $px,
+			'type'  => 'image/png',
+		);
+	}
+
+	/**
 	 * Serve the PWA web app manifest.
 	 */
 	private static function serve_pwa_manifest(): void
+	{
+		nocache_headers();
+		header('Content-Type: application/manifest+json');
+		echo wp_json_encode(self::pwa_manifest(), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+		exit;
+	}
+
+	/**
+	 * The manifest itself — built without the response, so it can be read.
+	 *
+	 * @return array The web app manifest.
+	 */
+	private static function pwa_manifest(): array
 	{
 		$display_name = get_option('def_core_display_name', '');
 		if (empty($display_name)) {
@@ -6052,41 +6173,13 @@ final class DEF_Core_Staff_AI
 		}
 		$app_name = __('Staff AI', 'digital-employees');
 
-		// Icon priority: 1. Uploaded app icon, 2. WordPress site icon, 3. Generated SVG.
+		// app_icon() holds the chain. `any maskable` is what gets Android to crop the
+		// icon to its own shape instead of dropping it in a white plate first.
 		$icons = array();
-
-		// 1. Uploaded app icon (from Branding > Web App Icon).
-		$app_icon_id = (int) get_option('def_core_app_icon_id', 0);
-		if ($app_icon_id) {
-			$icon_192 = wp_get_attachment_image_url($app_icon_id, array(192, 192));
-			$icon_512 = wp_get_attachment_image_url($app_icon_id, array(512, 512));
-			if ($icon_192) {
-				$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
-			}
-			if ($icon_512) {
-				$icons[] = array('src' => $icon_512, 'sizes' => '512x512', 'type' => 'image/png');
-			}
-		}
-
-		// 2. WordPress site icon.
-		if (empty($icons)) {
-			$site_icon_id = get_option('site_icon');
-			if ($site_icon_id) {
-				$icon_192 = wp_get_attachment_image_url((int) $site_icon_id, array(192, 192));
-				$icon_512 = wp_get_attachment_image_url((int) $site_icon_id, array(512, 512));
-				if ($icon_192) {
-					$icons[] = array('src' => $icon_192, 'sizes' => '192x192', 'type' => 'image/png');
-				}
-				if ($icon_512) {
-					$icons[] = array('src' => $icon_512, 'sizes' => '512x512', 'type' => 'image/png');
-				}
-			}
-		}
-
-		// 3. Fallback: generated SVG icon with site initials.
-		if (empty($icons)) {
-			$icon_url = home_url('/staff-ai/icon.svg');
-			$icons[] = array('src' => $icon_url, 'sizes' => 'any', 'type' => 'image/svg+xml', 'purpose' => 'any');
+		foreach (array(192, 512) as $size) {
+			$icon            = self::app_icon($size);
+			$icon['purpose'] = 'any maskable';
+			$icons[]         = $icon;
 		}
 
 		$manifest = array(
@@ -6104,15 +6197,12 @@ final class DEF_Core_Staff_AI
 			'theme_color'      => '#6366f1',
 			'icons'            => $icons,
 			// C3b: the installed app reads this to notice a release it is not running.
-			// A non-standard member, which browsers ignore — and this response already
-			// sends nocache_headers() below, so the check always sees the live version.
+			// A non-standard member, which browsers ignore — and the response sends
+			// nocache_headers(), so the check always sees the live version.
 			'version'          => DEF_CORE_VERSION,
 		);
 
-		nocache_headers();
-		header('Content-Type: application/manifest+json');
-		echo wp_json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-		exit;
+		return $manifest;
 	}
 
 	/**
@@ -6150,32 +6240,6 @@ self.addEventListener('fetch', function(event) {
 	);
 });
 JS;
-		exit;
-	}
-
-	/**
-	 * Serve a generated SVG icon with site initials.
-	 * Used as fallback when no site icon is configured.
-	 */
-	private static function serve_pwa_icon(): void
-	{
-		$display_name = get_option('def_core_display_name', get_bloginfo('name'));
-		// Get first 2 initials from display name.
-		$words    = preg_split('/\s+/', trim($display_name));
-		$initials = '';
-		foreach (array_slice($words, 0, 2) as $word) {
-			$initials .= mb_strtoupper(mb_substr($word, 0, 1));
-		}
-		if (empty($initials)) {
-			$initials = 'AI';
-		}
-
-		header('Content-Type: image/svg+xml');
-		header('Cache-Control: public, max-age=86400');
-		echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">';
-		echo '<rect width="512" height="512" rx="96" fill="#6366f1"/>';
-		echo '<text x="256" y="280" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="200" font-weight="700" fill="#fff">' . esc_html($initials) . '</text>';
-		echo '</svg>';
 		exit;
 	}
 
@@ -6269,7 +6333,13 @@ JS;
 		// INLINE max-height, so the size must be built here, not styled later.
 		$welcome_logo_html = $show_logo ? DEF_Core_Admin::get_logo_html( 40 ) : $logo_html;
 
-		// Template expects: $channel, $user, $api_base, $nonce, $logo_html, $welcome_logo_html.
+		// The home-screen icon (8.2.7). iOS reads ONLY the apple-touch-icon tag —
+		// with none it fell back to a manifest icon and masked the uploaded
+		// artwork's transparent corners onto white.
+		$apple_touch_icon = self::app_icon( 180 );
+
+		// Template expects: $channel, $user, $api_base, $nonce, $logo_html,
+		// $welcome_logo_html, $apple_touch_icon.
 		$template = DEF_CORE_PLUGIN_DIR . 'templates/staff-ai-shell.php';
 		if ( ! file_exists( $template ) ) {
 			wp_die(
