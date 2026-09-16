@@ -3356,6 +3356,35 @@ html {
 	border-radius: 6px;
 	background: #fff;
 }
+/* Artifacts A-3 (D-A7): the share link, above the frame it belongs to. The row
+   wraps on a phone so the link keeps a readable width rather than the buttons
+   squeezing it to nothing. */
+.document-share-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin: 0 0 10px;
+}
+.document-share-link {
+	flex: 1 1 260px;
+	min-width: 0;
+	padding: 6px 10px;
+	border: 1px solid var(--border-light);
+	border-radius: 6px;
+	/* --bg-input and --text-primary, because both are defined in BOTH themes
+	   (:root and .dark-theme). A token this sheet never declares falls back
+	   silently while the colour beside it does not: a light literal under the
+	   dark theme's #ececf1 text is the one field the feature exists to read,
+	   at about 1:1. The harness pins every token this rule names. */
+	background: var(--bg-input);
+	color: var(--text-primary);
+	font-size: 13px;
+}
+/* D-A4: the globe / lock beside a card's type line. */
+.document-share-mark {
+	margin-left: 6px;
+}
 /* Images runsheet I-4 (8.1.0): a picture is looked at, not read. */
 .document-viewer-image {
 	display: block;

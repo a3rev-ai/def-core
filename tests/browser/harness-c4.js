@@ -108,7 +108,7 @@ function boot(startUrl, opts) {
 	// and the builder is the identity.
 	const names = ['window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
 		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile',
-		'ARTIFACT_TYPE', 'artifactDocument'];
+		'ARTIFACT_TYPE', 'artifactDocument', 'shareOrigin'];
 	const viewer = new window.Function(...names, VIEWER + VIEWER_TAIL)(
 		window, document, api.consolePages, api.showPage,
 		function (key, def) { return def; },
@@ -125,7 +125,9 @@ function boot(startUrl, opts) {
 		// Not an iPhone or iPad: Download is the browser's link. The share-sheet
 		// shape is harness-ios-download.js's subject.
 		function () { return false; }, function () {},
-		'html', function (h) { return h; });
+		// A-3: the share link is harness-artifact-share.js's subject; this one only
+		// has to run the block, so the origin is a stand-in.
+		'html', function (h) { return h; }, 'https://defho.test');
 
 	const $ = (id) => document.getElementById(id);
 	return {

@@ -93,7 +93,7 @@ function bootDocuments(opts) {
 		'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
 		'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
 		'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-		'isIOS', 'shareFile', 'navigator', 'ARTIFACT_TYPE',
+		'isIOS', 'shareFile', 'navigator', 'ARTIFACT_TYPE', 'artifactShareMark',
 		MENU + '\n' + DOCUMENTS
 	)(
 		window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
@@ -102,7 +102,9 @@ function bootDocuments(opts) {
 		function () {}, ['md', 'txt'], null, api.showPage,
 		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
 		function (e) { return e.button === 0; },
-		s.isIOS, s.shareFile, window.navigator, 'html'
+		// A-3's globe/lock is harness-artifact-share.js's subject, not this one's.
+		s.isIOS, s.shareFile, window.navigator, 'html',
+		function () { return document.createElement('span'); }
 	);
 	return { window, document, api, shared: s.shared };
 }
@@ -148,11 +150,11 @@ function bootViewer(opts) {
 	}
 	const viewer = new window.Function('window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
 		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile', 'navigator',
-		'ARTIFACT_TYPE', 'artifactDocument',
+		'ARTIFACT_TYPE', 'artifactDocument', 'shareOrigin',
 		VIEWER + '\n\treturn { open: openDocumentViewer };'
 	)(window, document, api.consolePages, api.showPage, function (key, def) { return def; }, apiRequest,
 		'/def/v1', function (u) { return /^https?:\/\//i.test(u || '') ? u : ''; }, null,
-		s.isIOS, s.shareFile, window.navigator, 'html', function (h) { return h; });
+		s.isIOS, s.shareFile, window.navigator, 'html', function (h) { return h; }, 'https://defho.test');
 	return { window, document, open: viewer.open, shared: s.shared, link: () => document.getElementById('documentViewerDownload') };
 }
 

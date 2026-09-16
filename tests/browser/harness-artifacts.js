@@ -48,7 +48,8 @@ const SHELL_TAIL = `
 	return { showPage: showPage, showChat: showChat, consolePages: consolePages,
 		open: function () { return openPage ? openPage.route : null; } };`;
 const FRAME_TAIL = `
-	return { ARTIFACT_TYPE: ARTIFACT_TYPE, ARTIFACT_CSP: ARTIFACT_CSP, artifactDocument: artifactDocument };`;
+	return { ARTIFACT_TYPE: ARTIFACT_TYPE, ARTIFACT_CSP: ARTIFACT_CSP, artifactDocument: artifactDocument,
+		artifactShareMark: artifactShareMark };`;
 const VIEWER_TAIL = `
 	return { open: openDocumentViewer };`;
 
@@ -79,7 +80,10 @@ function boot(opts) {
 		document.getElementById('composerContainer'),
 		document.getElementById('conversationList'), []);
 
-	const frame = new window.Function(FRAME + FRAME_TAIL)();
+	// A-3: artifactShareMark draws a real element and reads its labels through t(),
+	// so the frame block takes the realm's document and the translator now.
+	const t = function (key, def) { return def; };
+	const frame = new window.Function('document', 't', FRAME + FRAME_TAIL)(document, t);
 
 	async function apiRequest(url, init) {
 		requests.push(url);
@@ -97,7 +101,6 @@ function boot(opts) {
 		return { document: doc, content: 'Body of ' + id + ' <b>not markup</b>', offset: 0,
 			total_chars: 30, truncated: false, next_offset: null };
 	}
-	const t = function (key, def) { return def; };
 	const safeHttpHref = function (url) {
 		if (typeof url !== 'string') return '';
 		try { const u = new window.URL(url, 'https://e.test'); return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : ''; }
@@ -107,9 +110,11 @@ function boot(opts) {
 
 	const viewer = new window.Function('window', 'document', 'consolePages', 'showPage', 't', 'apiRequest',
 		'apiBase', 'safeHttpHref', 'openDocumentViewer', 'isIOS', 'shareFile', 'ARTIFACT_TYPE', 'artifactDocument',
+		'shareOrigin',
 		VIEWER + VIEWER_TAIL)(
 		window, document, api.consolePages, api.showPage, t, apiRequest, '/def/v1', safeHttpHref, null,
-		function () { return false; }, function () {}, frame.ARTIFACT_TYPE, frame.artifactDocument);
+		function () { return false; }, function () {}, frame.ARTIFACT_TYPE, frame.artifactDocument,
+		'https://defho.test');
 
 	const opened = [];
 	const openSpy = function (id, title) { opened.push({ id: id, title: title }); viewer.open(id, title); };
@@ -120,21 +125,24 @@ function boot(opts) {
 		'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
 		'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
 		'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick', 'isIOS', 'shareFile', 'ARTIFACT_TYPE',
+		'artifactShareMark',
 		MENU + '\n' + DOCUMENTS
 	)(
 		window, document, api.consolePages, t, apiRequest, '/def/v1', [], formatTime, safeHttpHref, openSpy,
 		VIEWABLE_TYPES, null, api.showPage,
 		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
-		function (e) { return e.button === 0; }, function () { return false; }, function () {}, frame.ARTIFACT_TYPE
+		function (e) { return e.button === 0; }, function () { return false; }, function () {}, frame.ARTIFACT_TYPE,
+		frame.artifactShareMark
 	);
 
 	const filtered = [];
 	new window.Function('window', 'document', 'consolePages', 't', 'apiRequest',
-		'openDocumentViewer', 'openDocumentsForProject', 'askEntry', 'ARTIFACT_TYPE', ARTIFACTS)(
+		'openDocumentViewer', 'openDocumentsForProject', 'askEntry', 'ARTIFACT_TYPE', 'artifactShareMark',
+		ARTIFACTS)(
 		window, document, api.consolePages, t, apiRequest, openSpy,
 		function (projectId) { filtered.push(projectId); },
 		extract.buildAskEntry(window, { composerInput: document.getElementById('composerInput') }),
-		frame.ARTIFACT_TYPE);
+		frame.ARTIFACT_TYPE, frame.artifactShareMark);
 
 	// 8.2.2: the chat's own card, over the same viewer the two pages open.
 	const toolCard = new window.Function('window', 'document', 't', 'rewriteDownloadUrl', 'saveHref',

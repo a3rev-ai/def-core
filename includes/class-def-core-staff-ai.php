@@ -655,6 +655,26 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Artifacts A-3 (D-A7): the owner's share link. Same permission callback
+		// and id pattern as the sibling document routes — DEF enforces ownership
+		// from the forwarded identity, so a foreign id is the uniform 404.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/share',
+			array(
+				array(
+					'methods'             => 'POST',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_share_document'),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+					'callback'            => array(__CLASS__, 'rest_unshare_document'),
+				),
+			)
+		);
+
 		// "Memories" panel (privacy slice B). Memories are per-user: DEF scopes
 		// every query to the identity in the X-DEF-User header that
 		// backend_request() already forwards — nothing user-scoped rides in the URL
@@ -2195,6 +2215,8 @@ final class DEF_Core_Staff_AI
 				'project_name' => ( isset( $doc['project_name'] ) && is_string( $doc['project_name'] ) ) ? $doc['project_name'] : null,
 				'slot'         => ( isset( $doc['slot'] ) && is_string( $doc['slot'] )
 					&& in_array( $doc['slot'], array( 'instructions', 'runsheet', 'session_notes' ), true ) ) ? $doc['slot'] : null,
+				// Artifacts A-3 (D-A4): null is the lock mark, a token is the globe.
+				'share'        => self::document_share( $doc ),
 			);
 		}
 
@@ -2235,6 +2257,30 @@ final class DEF_Core_Staff_AI
 		// instead of saving it. See download_disposition_for().
 		return home_url( '/staff-ai-download/' . rawurlencode( rawurldecode( $m[1] ) )
 			. '/' . rawurlencode( rawurldecode( $m[2] ) ) ) . '?staff_ai_save=1';
+	}
+
+	/**
+	 * The live share on a row DEF returned, or null (Artifacts A-3, D-A7).
+	 *
+	 * DEF mints the token as 22 url-safe base64 characters (128 bits). It is
+	 * charset-checked here for the same reason every id on these routes is: the
+	 * console builds a public address out of it, and anything that is not a
+	 * token is no share at all — never a link with rubbish in it.
+	 *
+	 * @param array $row A document summary, or the share route's own body.
+	 * @return array|null {token, created_at}, or null when nothing is shared.
+	 */
+	private static function document_share( array $row )
+	{
+		$share = isset( $row['share'] ) && is_array( $row['share'] ) ? $row['share'] : array();
+		if ( empty( $share['token'] ) || ! is_string( $share['token'] )
+			|| ! preg_match( '/^[A-Za-z0-9_-]{22}$/', $share['token'] ) ) {
+			return null;
+		}
+		return array(
+			'token'      => $share['token'],
+			'created_at' => ( isset( $share['created_at'] ) && is_string( $share['created_at'] ) ) ? $share['created_at'] : '',
+		);
 	}
 
 	/**
@@ -2286,6 +2332,8 @@ final class DEF_Core_Staff_AI
 					// link, so it cannot rely on an opener to hand it the download
 					// URL. DEF already sends the path; this stops dropping it.
 					'download_url' => self::document_download_href( $doc ),
+					// Artifacts A-3 (D-A7): the page opens on the share state it is in.
+					'share'        => self::document_share( $doc ),
 				),
 				'content'     => ( isset( $result['content'] ) && is_string( $result['content'] ) ) ? $result['content'] : '',
 				'offset'      => isset( $result['offset'] ) ? (int) $result['offset'] : 0,
@@ -2296,6 +2344,81 @@ final class DEF_Core_Staff_AI
 				// and no text, and the viewer shows it from the download address instead
 				// of reading. Two values only; anything else, an older DEF included, reads.
 				'kind'        => ( isset( $result['kind'] ) && 'image' === $result['kind'] ) ? 'image' : 'text',
+			),
+			200
+		);
+	}
+
+	/**
+	 * REST handler: share one of the current user's artifacts by link (A-3, D-A7).
+	 *
+	 * Proxies DEF POST /api/staff-ai/documents/{id}/share. Idempotent while the
+	 * share is live — pressing Share again returns the token already out there.
+	 * DEF's own refusals surface as they arrive: its 409 sentence ("Only an
+	 * artifact can be shared by link…") IS the copy the console shows, so it
+	 * rides through backend_request's routine-refusal path rather than being
+	 * replaced here. Only the 404 is rewritten, because backend_request's is a
+	 * diagnostic carrying the internal DEF URL.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, share}).
+	 */
+	public static function rest_share_document( \WP_REST_Request $request )
+	{
+		return self::document_share_request( $request, 'POST' );
+	}
+
+	/**
+	 * REST handler: stop sharing one of the current user's artifacts (A-3, D-A7).
+	 *
+	 * Proxies DEF DELETE /api/staff-ai/documents/{id}/share. Idempotent: DEF
+	 * reports the end state, so revoking a link that was never minted is the
+	 * same success. Sharing again mints a NEW token; the old link stays dead.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, share}).
+	 */
+	public static function rest_unshare_document( \WP_REST_Request $request )
+	{
+		return self::document_share_request( $request, 'DELETE' );
+	}
+
+	/**
+	 * The one call both share buttons make.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @param string           $method  POST to share, DELETE to revoke.
+	 * @return \WP_REST_Response|\WP_Error Response ({success, share}).
+	 */
+	private static function document_share_request( \WP_REST_Request $request, string $method )
+	{
+		// Charset-check the id HERE, not only in the route pattern: get_param()
+		// resolves JSON → POST → GET → URL, so a query string outranks the path
+		// segment the regex matched (the rest_delete_memory rule).
+		$id = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		if ( ! preg_match( '/^[a-zA-Z0-9-]+$/', $id ) ) {
+			return new \WP_Error(
+				'invalid_document_id',
+				__( 'A document id is required.', 'digital-employees' ),
+				array( 'status' => 400 )
+			);
+		}
+		$result = self::backend_request( $method, '/api/staff-ai/documents/' . rawurlencode( $id ) . '/share' );
+		if ( is_wp_error( $result ) ) {
+			if ( 'staff_ai_not_found' === $result->get_error_code() ) {
+				return new \WP_Error(
+					'staff_ai_not_found',
+					__( 'That document no longer exists.', 'digital-employees' ),
+					array( 'status' => 404 )
+				);
+			}
+			return $result;
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'share'   => self::document_share( is_array( $result ) ? $result : array() ),
 			),
 			200
 		);

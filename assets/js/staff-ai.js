@@ -20,6 +20,10 @@ function t(key, fallback) {
 	const userEmail = StaffAIConfig.userEmail;
 	const apiBase = StaffAIConfig.apiBase;
 	const nonce = StaffAIConfig.nonce;
+	// Artifacts A-3 (D-A7): the DEFHO origin a share link opens on, decided in PHP
+	// from the site's own DEFHO connection. Empty is a site with no origin to build
+	// one from, and the viewer offers no Share at all rather than a broken link.
+	const shareOrigin = StaffAIConfig.shareOrigin || '';
 
 	// SSE streaming config — BFF proxy (WordPress handles auth)
 	const chatStreamUrl = StaffAIConfig.chatStreamUrl || '';
@@ -4706,6 +4710,26 @@ function t(key, fallback) {
 		var at = doctype ? doctype[0].length : 0;
 		return html.slice(0, at) + policy + html.slice(at);
 	}
+
+	// A-3 (D-A4): a shared artifact carries the globe mark, one that is not a lock.
+	// Module-level beside the frame builder because the Documents card and the
+	// Artifacts card draw the same mark — the two lists must never disagree on what
+	// is out there. The token itself is never drawn: it says shared, not which link.
+	function artifactShareMark(doc) {
+		const shared = !!(doc.share && doc.share.token);
+		const mark = document.createElement('span');
+		mark.className = 'document-share-mark';
+		// role="img" so the label below is announced: ARIA prohibits aria-label on a
+		// bare <span>, and a screen reader discards it — the glyph would read as
+		// nothing at all, or as whatever the reader calls that emoji.
+		mark.setAttribute('role', 'img');
+		mark.textContent = shared ? '🌐' : '🔒';
+		mark.title = shared
+			? t('documentsSharedMark', 'Shared by link')
+			: t('documentsNotSharedMark', 'Not shared');
+		mark.setAttribute('aria-label', mark.title);
+		return mark;
+	}
 	let projectsCache = [];
 
 	// Projects P-B: "New chat in this project". The chip shows which project a
@@ -4759,6 +4783,13 @@ function t(key, fallback) {
 		const dlLink = document.getElementById('documentViewerDownload');
 		const imgEl = document.getElementById('documentViewerImage');
 		const frameEl = document.getElementById('documentViewerFrame');
+		// A-3 (D-A7): the share controls. `shareToggle` and not `shareBtn` — the
+		// chat's own Share button already holds that name in the outer scope.
+		const shareToggle = document.getElementById('documentViewerShare');
+		const shareRow = document.getElementById('documentViewerShareRow');
+		const shareLinkEl = document.getElementById('documentViewerShareLink');
+		const shareCopyBtn = document.getElementById('documentViewerShareCopy');
+		const shareStopBtn = document.getElementById('documentViewerShareStop');
 		// The watchdog (D-A3): the frame loads once per artifact — the srcdoc the viewer
 		// set. A second load with a srcdoc still in place means the page inside
 		// navigated (frame-src refuses the request, and a refused navigation still
@@ -4780,6 +4811,78 @@ function t(key, fallback) {
 			ev.preventDefault();
 			shareFile(dlLink.href);
 		});
+		// ── Artifacts A-3 (D-A7): Share / Stop sharing on the artifact's page ──
+		// The link is DEF's token on the DEFHO origin PHP handed the console. It is
+		// set as a field VALUE, never as markup, and the token is drawn nowhere else.
+		// The share pins the version it was minted on: a revision is a new document
+		// with no share of its own, which is why this reads the document's `share`
+		// on every load rather than remembering one.
+		function renderShare(share, artifact) {
+			const token = (artifact && share && share.token) ? share.token : '';
+			const href = token ? shareOrigin + '/a/' + encodeURIComponent(token) : '';
+			// Only an artifact is offered Share, and only on a site that knows the
+			// origin its links live on — never a link built from a guessed host.
+			shareToggle.style.display = (artifact && shareOrigin && !href) ? '' : 'none';
+			shareRow.style.display = href ? '' : 'none';
+			shareLinkEl.value = href;
+		}
+
+		// Both buttons are the same call: DEF reports the END state, so the answer
+		// is what gets rendered rather than what was asked for.
+		async function setShare(method) {
+			if (!current) return;
+			const asked = current.id;
+			shareToggle.disabled = true;
+			shareStopBtn.disabled = true;
+			try {
+				const data = await apiRequest('/documents/' + encodeURIComponent(asked) + '/share', { method: method });
+				// One page, many documents (fetchChunk's rule): by the time this lands
+				// the reader may be on another artifact, which must not be shown this
+				// one's link.
+				if (!current || current.id !== asked) return;
+				renderShare(data.share, true);
+			} catch (e) {
+				// DEF's own sentence reaches the reader, inside the console's standard
+				// refusal frame: apiRequest prefixes the WP error code when the body
+				// carries no `detail`, so a 409 on a document that is not an artifact
+				// reads "[staff_ai_http_409] The assistant service declined this request
+				// (HTTP 409): Only an artifact can be shared by link…". The content
+				// route's 415 surfaces the same way. It is a backstop either way —
+				// Share is only ever offered on an artifact.
+				statusEl.textContent = (e && e.message) || t('documentShareFailed', 'Could not change sharing for this artifact.');
+				statusEl.className = 'console-page-desc documents-status documents-status-error';
+			} finally {
+				shareToggle.disabled = false;
+				shareStopBtn.disabled = false;
+			}
+		}
+
+		shareToggle.addEventListener('click', function () { setShare('POST'); });
+		shareStopBtn.addEventListener('click', function () { setShare('DELETE'); });
+		// Read ONCE, off the template's own localised label — not at click time, which
+		// on a second click inside the two seconds would capture "Copied!" and keep it.
+		const copyLabel = shareCopyBtn.textContent;
+		let copiedTimer = null;
+		shareCopyBtn.addEventListener('click', async function () {
+			if (!shareLinkEl.value) return;
+			try {
+				await navigator.clipboard.writeText(shareLinkEl.value);
+				// Say so: a clipboard write leaves nothing on screen, and on a phone
+				// there is no paste target in sight to check it against — silence is
+				// a dead button. The admin screens' own pattern (def-core-admin.js).
+				clearTimeout(copiedTimer);
+				shareCopyBtn.textContent = t('documentShareCopied', 'Copied!');
+				copiedTimer = setTimeout(function () {
+					shareCopyBtn.textContent = copyLabel;
+				}, 2000);
+			} catch (e) {
+				// No clipboard API, no permission, or an insecure context: select the
+				// link so it can be copied by hand rather than nothing happening.
+				shareLinkEl.focus();
+				shareLinkEl.select();
+			}
+		});
+
 		let current = null;  // { id, nextOffset }
 		// The title the opener already knows, shown while the document loads so
 		// the page is not headed "Document" for a beat. Entering by ROUTE — a
@@ -4844,6 +4947,8 @@ function t(key, fallback) {
 			imgEl.style.display = picture && href ? '' : 'none';
 			if (artifact) { frameLoadsExpected = 1; frameEl.srcdoc = artifactDocument(current.html); }
 			frameEl.style.display = artifact ? '' : 'none';
+			// A-3: the page opens on the share state DEF just reported for THIS row.
+			renderShare(doc.share, artifact);
 			textEl.style.display = picture || artifact ? 'none' : '';
 			if (picture) { current.nextOffset = null; moreBtn.style.display = 'none'; }
 			statusEl.textContent = [
@@ -4873,6 +4978,7 @@ function t(key, fallback) {
 				frameEl.style.display = 'none';
 				moreBtn.style.display = 'none';
 				dlLink.style.display = 'none';
+				renderShare(null, false);
 				statusEl.textContent = t('documentViewerFailed', 'Could not read the document.');
 				statusEl.className = 'console-page-desc documents-status documents-status-error';
 				return;
@@ -4890,6 +4996,9 @@ function t(key, fallback) {
 			frameEl.style.display = 'none';
 			moreBtn.style.display = 'none';
 			dlLink.style.display = 'none';
+			// The last artifact's link must not sit on the page while the next
+			// document loads — one page, many documents.
+			renderShare(null, false);
 			statusEl.textContent = t('documentViewerLoading', 'Loading…');
 			statusEl.className = 'console-page-desc documents-status documents-status-muted';
 			try { await fetchChunk(0); }
@@ -5114,6 +5223,10 @@ function t(key, fallback) {
 				formatTime(doc.created_at),
 				viewable ? '' : t('documentsDownloadToOpen', 'download to open')
 			].filter(Boolean).join(' · ');
+			// A-3 (D-A4): only an artifact can be shared, so only an artifact wears
+			// the mark — on any other type a lock would claim a state that has no
+			// meaning for it. It goes on the meta line, which already names the type.
+			if (artifact) { meta.appendChild(artifactShareMark(doc)); }
 			info.appendChild(meta);
 			// Projects P-A (D-P10): the badge answers "which project" at a glance
 			// and clicking it applies the filter. textContent only — the name is
@@ -5375,8 +5488,8 @@ function t(key, fallback) {
 	// Artifacts (A-2, D-A4): the Documents list filtered to html, grouped by DAY (the
 	// runsheet's word; Documents groups by month), each card the title, the project
 	// chip and the time, opening the artifact. No search, no project filter, no ⋯
-	// menu — management stays on Documents, which lists them too. The share marks
-	// (globe / lock) arrive with the share link (A-3).
+	// menu — management stays on Documents, which lists them too. Each row wears
+	// the A-3 share mark: a globe when it is shared by link, a lock when it is not.
 	(function initArtifacts() {
 		const pane = document.getElementById('artifactsPane');
 		if (!pane) return;
@@ -5426,6 +5539,9 @@ function t(key, fallback) {
 			const meta = document.createElement('span');
 			meta.className = 'document-meta';
 			meta.textContent = [doc.version ? 'v' + doc.version : '', timeOf(doc.created_at)].filter(Boolean).join(' · ');
+			// A-3 (D-A4): every row here IS an artifact, so every row wears the mark —
+			// the same one Documents draws, from the same `share` field.
+			meta.appendChild(artifactShareMark(doc));
 			info.appendChild(meta);
 			// The chip is Documents' chip: it opens Documents filtered to the project.
 			if (doc.project_id && doc.project_name) {
