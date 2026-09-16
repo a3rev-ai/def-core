@@ -60,6 +60,19 @@ final class DEF_Core_Staff_AI
 	const CREATE_ALLOWED_FILE_EXT         = array( 'pdf', 'docx', 'txt', 'csv', 'xlsx' );
 
 	/**
+	 * The Creator's name when the tenant has not given her another one. DEF's
+	 * own default for the content_creator employee — the Content Drafts page
+	 * renders it before any list response has arrived.
+	 */
+	const CREATOR_DEFAULT_NAME = 'Carol';
+
+	/**
+	 * Longest creator name the page will show. DEF already bounds it; this is
+	 * the BFF's own floor so the title can never grow without limit.
+	 */
+	const CREATOR_NAME_MAX = 100;
+
+	/**
 	 * Initialize the Staff AI endpoint.
 	 */
 	public static function init(): void
@@ -1533,6 +1546,35 @@ final class DEF_Core_Staff_AI
 		return new \WP_REST_Response( $payload, 200 );
 	}
 
+	/**
+	 * The tenant's name for the Creator, off a content list response.
+	 *
+	 * DEF puts `creator_name` on both list payloads (the stored name, else its
+	 * own default). It is tenant DATA, not markup, and the page renders it as
+	 * text — so this only has to make it printable: control characters (a
+	 * newline that would break the title out of its line included) go, it is
+	 * capped, and anything unusable falls back to the default rather than
+	 * leaving the page nameless.
+	 *
+	 * @param mixed $payload Decoded backend response.
+	 * @return string Display name, never empty.
+	 */
+	public static function creator_name_from( $payload ): string
+	{
+		$raw = ( is_array( $payload ) && isset( $payload['creator_name'] ) && is_string( $payload['creator_name'] ) )
+			? $payload['creator_name']
+			: '';
+		// Byte class, no /u: these bytes never occur inside a UTF-8 sequence, so
+		// this cannot cut one in half and cannot fail on invalid input.
+		$name = trim( (string) preg_replace( '/[\x00-\x1F\x7F]+/', ' ', $raw ) );
+		if ( '' === $name ) {
+			return self::CREATOR_DEFAULT_NAME;
+		}
+		return function_exists( 'mb_substr' )
+			? (string) mb_substr( $name, 0, self::CREATOR_NAME_MAX )
+			: substr( $name, 0, self::CREATOR_NAME_MAX );
+	}
+
 	public static function rest_list_content_drafts( \WP_REST_Request $request )
 	{
 		$result = self::backend_request( 'GET', '/api/staff-ai/content/drafts' );
@@ -1559,7 +1601,15 @@ final class DEF_Core_Staff_AI
 		}
 		unset( $draft );
 
-		return new \WP_REST_Response( array( 'success' => true, 'drafts' => $drafts ), 200 );
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'drafts'       => $drafts,
+				// The page titles itself with her name, so it travels with the list.
+				'creator_name' => self::creator_name_from( $result ),
+			),
+			200
+		);
 	}
 
 	/**
@@ -4024,7 +4074,7 @@ final class DEF_Core_Staff_AI
 	 * REST handler: list cluster targets. Proxies DEF GET /content/targets and
 	 * passes the target objects through unchanged (id, item_type, item_id,
 	 * source_route, title, url, reference_urls, focus_keyphrase, status,
-	 * keyphrase_counts, created_at).
+	 * keyphrase_counts, created_at), plus the Creator's name for the page.
 	 *
 	 * @return \WP_REST_Response|\WP_Error Response.
 	 */
@@ -4035,7 +4085,15 @@ final class DEF_Core_Staff_AI
 			return $result;
 		}
 		$targets = ( isset( $result['targets'] ) && is_array( $result['targets'] ) ) ? $result['targets'] : array();
-		return new \WP_REST_Response( array( 'success' => true, 'targets' => $targets ), 200 );
+		return new \WP_REST_Response(
+			array(
+				'success'      => true,
+				'targets'      => $targets,
+				// Whichever list lands first names her on the page.
+				'creator_name' => self::creator_name_from( $result ),
+			),
+			200
+		);
 	}
 
 	/**

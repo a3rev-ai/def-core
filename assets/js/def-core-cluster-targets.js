@@ -16,8 +16,11 @@
 	'use strict';
 
 	var cfg = window.DefDraftCards || {};
+	// The drafts bundle (this one's declared dependency) owns the Creator's name
+	// and the repaint; this tab's own copy names her through it.
+	var creator = window.DefCreator;
 	var root = document.getElementById('def-cluster-root');
-	if (!root || !cfg.restBase) {
+	if (!root || !cfg.restBase || !creator) {
 		return;
 	}
 
@@ -589,7 +592,7 @@
 
 		if (!rows.length) {
 			box.appendChild(el('p', 'def-cluster-kp-empty',
-				'No keyphrases queued yet. Click Derive to have the Content Agent propose some, or add your own below.'));
+				creator.withName('No keyphrases queued yet. Click Derive to have %s propose some, or add your own below.')));
 		}
 
 		// Manual add (born approved — human-added IS curation).
@@ -646,7 +649,7 @@
 		setStatus(card.queueStatus, 'Requesting derive…');
 		api('/targets/' + encodeURIComponent(target.id) + '/derive', 'POST').then(function () {
 			setStatus(card.queueStatus,
-				'Deriving — the agent is reading the target, your reference URLs and the market. New suggestions appear as proposed rows (15–60s)…');
+				creator.withName('Deriving — %s is reading the target, your reference URLs and the market. New suggestions appear as proposed rows (15–60s)…'));
 			// Snapshot current row ids via a fresh fetch, then poll for additions.
 			var knownIds = {};
 			api('/targets/' + encodeURIComponent(target.id) + '/keyphrases').then(function (res) {
@@ -992,6 +995,7 @@
 
 	function loadTargets() {
 		return api('/targets').then(function (res) {
+			creator.setName(res && res.creator_name);
 			allTargets = ((res && res.targets) || []).filter(function (t) {
 				return t && typeof t === 'object';
 			});
