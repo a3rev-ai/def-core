@@ -159,7 +159,7 @@ function boot(opts) {
     'window', 'document', 'consolePages', 't', 'apiRequest', 'apiBase', 'projectsCache',
     'formatTime', 'safeHttpHref', 'openDocumentViewer', 'VIEWABLE_TYPES',
     'openDocumentsForProject', 'showPage', 'askEntry', 'isPlainClick',
-    'isIOS', 'shareFile', 'ARTIFACT_TYPE',
+    'isIOS', 'shareFile', 'ARTIFACT_TYPE', 'artifactShareMark',
     MENU + '\n' + DOCUMENTS
   )(
     window, document, api.consolePages, function (key, def) { return def; }, apiRequest, '/def/v1', [],
@@ -171,7 +171,9 @@ function boot(opts) {
     function (e) { return e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey; },
     // Not an iPhone or iPad: Download stays the link it was. The share-sheet
     // shape is harness-ios-download.js's subject.
-    function () { return false; }, function () {}, 'html'
+    // A-3's globe/lock is harness-artifact-share.js's subject, not this one's.
+    function () { return false; }, function () {}, 'html',
+    function () { return document.createElement('span'); }
   );
 
   return {
@@ -245,9 +247,10 @@ const item = (menu, label) => menu
     const error = writes.filter(w => w === "statusEl.className = 'console-page-desc documents-status documents-status-error'").length;
     const rules = /\.console-page-desc\.documents-status-error\s*\{\s*color:\s*var\(--banner-error-text\);\s*\}/.test(CSS) &&
       /\.console-page-desc\.documents-status-muted\s*\{\s*color:\s*var\(--text-tertiary\);\s*\}/.test(CSS);
-    // Six since A-2: the artifact watchdog's "closed" line is the viewer's own compound too.
-    check(++n, "the document viewer's status writes are UNCHANGED — all six its own compound, none the kit's, and the rules behind them intact",
-      writes.length === 6 && muted === 2 && error === 4 && !/console-status/.test(VIEWER) && rules,
+    // Six since A-2 (the artifact watchdog's "closed" line is the viewer's own
+    // compound too), seven since A-3 — a refused Share writes to the same line.
+    check(++n, "the document viewer's status writes are UNCHANGED — all seven its own compound, none the kit's, and the rules behind them intact",
+      writes.length === 7 && muted === 2 && error === 5 && !/console-status/.test(VIEWER) && rules,
       'writes=' + writes.length + ' muted=' + muted + ' error=' + error + ' rules=' + rules);
   }
 

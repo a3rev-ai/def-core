@@ -261,6 +261,10 @@ $expected_routes = array(
 	'a3-ai/v1/staff-ai/tools',
 	'a3-ai/v1/staff-ai/documents',
 	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)',
+	// Artifacts A-3 (D-A7): the owner's share link, on the SAME id pattern as its
+	// sibling document routes — the two ends of the console must never disagree on
+	// what a valid id is.
+	'a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/share',
 	'a3-ai/v1/staff-ai/memories',
 	'a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)',
 	// Own-week token usage (D-U7). Own-identity like memories, so it takes no
@@ -311,6 +315,21 @@ assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/tools']['methods'
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/status']['methods'], 'status = GET' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents']['methods'], 'documents = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'documents delete = DELETE' );
+// A-3: Share and Stop sharing are one route, two handlers — and the [2] loop above
+// has already asserted a permission callback on each of them.
+$_share_handlers = $_wp_test_rest_routes['a3-ai/v1/staff-ai/documents/(?P<id>[a-zA-Z0-9-]+)/share'];
+assert_equals( 'POST', $_share_handlers[0]['methods'] ?? '', 'share handler 0 = POST' );
+assert_equals( 'DELETE', $_share_handlers[1]['methods'] ?? '', 'share handler 1 = DELETE' );
+assert_equals(
+	array( 'DEF_Core_Staff_AI', 'rest_permission_check' ),
+	$_share_handlers[0]['permission_callback'] ?? null,
+	'Share takes the same permission callback as every other document route'
+);
+assert_equals(
+	array( 'DEF_Core_Staff_AI', 'rest_permission_check' ),
+	$_share_handlers[1]['permission_callback'] ?? null,
+	'Stop sharing takes it too'
+);
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/usage']['methods'], 'usage = GET' );
@@ -790,6 +809,76 @@ assert_equals( 'image', _def_test_content_kind( 'image' ), 'a picture\'s kind ri
 assert_equals( 'text', _def_test_content_kind( 'weird' ), 'any other kind is text - the viewer reads it' );
 assert_equals( 'text', _def_test_content_kind( null ), 'no kind at all (an older DEF) is text' );
 
+// ── 28b. Artifacts A-3 (D-A7): `share` rides both document responses ────
+// The two handlers rebuild their responses field by field, so a field DEF adds
+// is DROPPED until the plugin forwards it — which is exactly why DEF #1255 could
+// merge ahead of this PR. These pin that it now arrives, and that anything that
+// is not a 22-character url-safe token is no share at all: the console builds a
+// public address out of this value.
+echo "\n[28b] rest_list_documents / rest_document_content forward `share`\n";
+
+function _def_test_list_share( $share ) {
+	$row = array(
+		'document_id' => 'abc123-def',
+		'title'       => 'Style kit',
+		'file_type'   => 'html',
+		'version'     => 1,
+		'size_bytes'  => 10,
+		'created_at'  => '2026-09-16T00:00:00',
+	);
+	if ( null !== $share ) {
+		$row['share'] = $share;
+	}
+	$GLOBALS['_def_test_get_body'] = json_encode( array( 'success' => true, 'documents' => array( $row ) ) );
+	$resp = DEF_Core_Staff_AI::rest_list_documents( new WP_REST_Request() );
+	unset( $GLOBALS['_def_test_get_body'] );
+	$data = is_object( $resp ) ? $resp->data : $resp;
+	return $data['documents'][0];
+}
+
+$_live = array( 'token' => 'Kf3xQ9zL2mNpR7sTvW1yZa', 'created_at' => '2026-09-16T04:00:00Z' );
+assert_equals(
+	$_live,
+	_def_test_list_share( $_live )['share'],
+	'a live share rides each row — the globe mark (D-A4)'
+);
+$_row = _def_test_list_share( null );
+assert_true(
+	array_key_exists( 'share', $_row ) && null === $_row['share'],
+	'a row DEF sent no share for carries share = null — the lock mark, never a missing key'
+);
+assert_equals( null, _def_test_list_share( array( 'token' => null ) )['share'], 'an explicit null share stays null' );
+foreach ( array(
+	'short'                       => 'tooshort',
+	'over-long'                   => 'Kf3xQ9zL2mNpR7sTvW1yZaXX',
+	'not url-safe base64'         => 'Kf3xQ9zL2mNpR7sTvW1y/+',
+	'a path fragment'             => '../../../etc/passwd22',
+) as $why => $bad ) {
+	assert_equals(
+		null,
+		_def_test_list_share( array( 'token' => $bad, 'created_at' => 'x' ) )['share'],
+		"a token that is $why is no share at all"
+	);
+}
+assert_equals(
+	array( 'token' => 'Kf3xQ9zL2mNpR7sTvW1yZa', 'created_at' => '' ),
+	_def_test_list_share( array( 'token' => 'Kf3xQ9zL2mNpR7sTvW1yZa', 'created_at' => array( 'nope' ) ) )['share'],
+	'a created_at that is not a string is dropped, and the token still rides'
+);
+
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'  => true,
+	'document' => array( 'document_id' => 'abc123-def', 'title' => 'Style kit', 'file_type' => 'html',
+		'version' => 1, 'share' => $_live ),
+	'content'  => '<h1>page</h1>',
+) );
+$_request = new WP_REST_Request();
+$_request->set_param( 'id', 'abc123-def' );
+$_resp = DEF_Core_Staff_AI::rest_document_content( $_request );
+unset( $GLOBALS['_def_test_get_body'] );
+$_data = is_object( $_resp ) ? $_resp->data : $_resp;
+assert_equals( $_live, $_data['document']['share'], 'the document page opens on the share state DEF reported' );
+
 // ── 29. rest_list_memories — field allowlist round trip ─────────────────
 // The proxy remaps field by field, so an unlisted field vanishes silently and
 // the panel renders a blank column with no error anywhere. DEF returns exactly
@@ -943,6 +1032,84 @@ foreach ( array( 404 => 'staff_ai_not_found', 409 => 'staff_ai_conflict' ) as $c
 		"$code message does not leak the backend URL"
 	);
 }
+
+// ── 31b. Artifacts A-3: the two share buttons on the DEF rail ───────────
+echo "\n[31b] rest_share_document / rest_unshare_document\n";
+
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'success' => true, 'channel' => 'staff_ai',
+	'share'   => array( 'token' => 'Kf3xQ9zL2mNpR7sTvW1yZa', 'created_at' => '2026-09-16T04:00:00Z' ),
+) );
+$req = new WP_REST_Request();
+$req->set_param( 'id', 'abc123-def' );
+$resp = DEF_Core_Staff_AI::rest_share_document( $req );
+assert_equals(
+	'https://def-api.test/api/staff-ai/documents/abc123-def/share',
+	$GLOBALS['_def_test_last_request']['url'] ?? '',
+	'Share posts to DEF\'s own share route for that document'
+);
+assert_equals( 'POST', $GLOBALS['_def_test_last_request']['method'] ?? '', 'Share = POST' );
+assert_equals(
+	array( 'token' => 'Kf3xQ9zL2mNpR7sTvW1yZa', 'created_at' => '2026-09-16T04:00:00Z' ),
+	( is_object( $resp ) ? $resp->data : $resp )['share'] ?? null,
+	'the token DEF minted reaches the console'
+);
+
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'channel' => 'staff_ai', 'share' => null ) );
+$resp = DEF_Core_Staff_AI::rest_unshare_document( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_equals( 'DELETE', $GLOBALS['_def_test_last_request']['method'] ?? '', 'Stop sharing = DELETE, same path' );
+// array_key_exists, not ??: the null-coalesce treats a present null and an absent
+// key identically, and "the share is gone" is exactly a present null.
+$_unshared = is_object( $resp ) ? $resp->data : $resp;
+assert_true(
+	array_key_exists( 'share', $_unshared ) && null === $_unshared['share'],
+	'a revoked share reads as a present null - the page goes back to offering Share'
+);
+
+// The id is charset-checked in the HANDLER, not only in the route pattern:
+// get_param() resolves a query string ahead of the path segment the regex matched.
+$GLOBALS['_def_test_last_request'] = array();
+foreach ( array( '../../anything', 'abc 123', 'abc/def', '' ) as $bad_id ) {
+	$req = new WP_REST_Request();
+	$req->set_param( 'id', $bad_id );
+	foreach ( array( 'rest_share_document', 'rest_unshare_document' ) as $handler ) {
+		$result = DEF_Core_Staff_AI::$handler( $req );
+		assert_equals(
+			'invalid_document_id',
+			is_wp_error( $result ) ? $result->get_error_code() : '',
+			"$handler refuses the id '$bad_id'"
+		);
+	}
+}
+assert_equals( array(), $GLOBALS['_def_test_last_request'], 'no refused id ever reached the backend' );
+
+// DEF's 409 is user-facing copy (the non-artifact refusal), so it rides through
+// with its status intact; only the 404 is rewritten, because backend_request's
+// carries the internal DEF URL.
+$GLOBALS['_def_test_request_code'] = 409;
+$GLOBALS['_def_test_request_body'] = json_encode( array(
+	'detail' => 'Only an artifact can be shared by link. Other documents are files — send one as an attachment instead.',
+) );
+$req = new WP_REST_Request();
+$req->set_param( 'id', 'abc123-def' );
+$result = DEF_Core_Staff_AI::rest_share_document( $req );
+unset( $GLOBALS['_def_test_request_code'], $GLOBALS['_def_test_request_body'] );
+assert_true( is_wp_error( $result ), 'a non-artifact is refused' );
+assert_equals( 409, is_wp_error( $result ) ? ( $result->get_error_data()['status'] ?? 0 ) : 0, '409 status preserved' );
+assert_true(
+	false !== strpos( is_wp_error( $result ) ? $result->get_error_message() : '', 'Only an artifact can be shared by link' ),
+	'DEF\'s own sentence is what the console shows'
+);
+
+$GLOBALS['_def_test_request_code'] = 404;
+$result = DEF_Core_Staff_AI::rest_share_document( $req );
+unset( $GLOBALS['_def_test_request_code'] );
+assert_equals( 'staff_ai_not_found', is_wp_error( $result ) ? $result->get_error_code() : '', 'a foreign or vanished id is the uniform 404' );
+assert_true(
+	false === strpos( is_wp_error( $result ) ? $result->get_error_message() : '', 'def-api.test' ),
+	'and its message does not leak the backend URL'
+);
 
 // Cleanup.
 $_wp_test_current_user = null;

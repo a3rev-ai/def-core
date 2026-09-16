@@ -368,8 +368,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<p class="console-page-desc documents-status" id="documentViewerStatus"></p>
 					</div>
 					<div class="console-page-actions">
+						<?php /* Artifacts A-3 (D-A7): only an artifact is shown these — the
+						       viewer reveals them on an html document and puts them away on
+						       every other type. The link is read-only: it is minted by DEF and
+						       copied, never typed. */ ?>
+						<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerShare" style="display:none;"><?php echo esc_html__( 'Share', 'digital-employees' ); ?></button>
 						<a class="modal-btn modal-btn-secondary" id="documentViewerDownload" href="#" style="display:none;"><?php echo esc_html__( 'Download', 'digital-employees' ); ?></a>
 					</div>
+				</div>
+				<div class="document-share-row" id="documentViewerShareRow" style="display:none;">
+					<input type="text" class="document-share-link" id="documentViewerShareLink" readonly aria-label="<?php echo esc_attr__( 'Share link', 'digital-employees' ); ?>">
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerShareCopy"><?php echo esc_html__( 'Copy', 'digital-employees' ); ?></button>
+					<button type="button" class="modal-btn modal-btn-secondary" id="documentViewerShareStop"><?php echo esc_html__( 'Stop sharing', 'digital-employees' ); ?></button>
 				</div>
 				<img class="document-viewer-image" id="documentViewerImage" alt="" style="display:none;">
 				<!-- Artifacts A-2 (D-A3): an html document renders ONLY in here. The sandbox
@@ -846,6 +856,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 		// a page process alive for days, that is the version it is actually RUNNING.
 		version: <?php echo wp_json_encode( DEF_CORE_VERSION ); ?>,
 		homeUrl: <?php echo wp_json_encode( home_url( '/' ) ); ?>,
+		// Artifacts A-3 (D-A7): a share link opens on the DEFHO origin this site is
+		// connected to, never on this site — `{shareOrigin}/a/{token}`. This is the
+		// same value every other DEFHO address the plugin builds comes from (the
+		// OAuth consent redirect, Settings → Open Tenant Portal): the DEF_DEFHO_URL
+		// constant a partner-hosted site sets, else the apex. `def_core_oauth_defho_url`
+		// is written FROM this function at connect and read only as a connected flag,
+		// so it carries nothing this does not. Built HERE, never in the browser: the
+		// console must not hold a host of its own to fall back to.
+		shareOrigin: <?php echo wp_json_encode( DEF_Core_OAuth::get_defho_url() ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
 		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
 		userName: <?php echo wp_json_encode( $first_name ); ?>,
@@ -1151,6 +1170,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 			artifactsAskNamed: <?php echo wp_json_encode( __( 'Ask %s to make an artifact', 'digital-employees' ) ); ?>,
 			artifactsAskPrompt: <?php echo wp_json_encode( __( 'Make me an artifact — ask me what it is for (a mock-up of a screen, a style kit, a one-pager, a dashboard), then build it as a page and save it to my documents.', 'digital-employees' ) ); ?>,
 			documentViewerArtifactClosed: <?php echo wp_json_encode( __( 'This artifact tried to open another page and was closed.', 'digital-employees' ) ); ?>,
+			documentsSharedMark: <?php echo wp_json_encode( __( 'Shared by link', 'digital-employees' ) ); ?>,
+			documentsNotSharedMark: <?php echo wp_json_encode( __( 'Not shared', 'digital-employees' ) ); ?>,
+			documentShareFailed: <?php echo wp_json_encode( __( 'Could not change sharing for this artifact.', 'digital-employees' ) ); ?>,
+			documentShareCopied: <?php echo wp_json_encode( __( 'Copied!', 'digital-employees' ) ); ?>,
 			documentsNoProject: <?php echo wp_json_encode( __( 'No project', 'digital-employees' ) ); ?>,
 			save: <?php echo wp_json_encode( __( 'Save', 'digital-employees' ) ); ?>,
 			documentsMoveFailed: <?php echo wp_json_encode( __( 'Could not move the document.', 'digital-employees' ) ); ?>,

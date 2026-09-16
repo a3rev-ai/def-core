@@ -113,12 +113,14 @@ function integrations() {
 
 // C4: the document viewer as a PAGE — its registry entry with the id-carrying
 // route, the chunked load, "Show more", and the download link off the response.
+// A-3 adds Share / Stop sharing and the link the page shows, which live in the
+// same block: name them here so a rename out of it is a hard error.
 function documentViewer() {
 	return slice('document viewer',
 		l => l.startsWith('\t(function initDocumentViewer() {'),
 		l => l.startsWith('\t(function initDocuments() {'),
 		['consolePages.push', 'async function load', 'async function fetchChunk',
-			'openDocumentViewer ='],
+			'openDocumentViewer =', 'function renderShare', 'async function setShare'],
 		'DOCVIEWER');
 }
 
@@ -221,11 +223,12 @@ function artifacts() {
 // Artifacts A-2 (D-A3): the frame's document — the type, the CSP string and
 // artifactDocument(), module-level so the viewer, the Documents card and the
 // Artifacts page share them. A harness that boots the viewer injects these.
+// A-3 (D-A4) adds artifactShareMark(), the globe/lock the two lists both draw.
 function artifactFrame() {
 	return slice('artifact frame',
 		l => l.startsWith('\tconst ARTIFACT_TYPE = '),
 		l => l.startsWith('\tlet projectsCache = '),
-		['ARTIFACT_CSP', 'function artifactDocument'],
+		['ARTIFACT_CSP', 'function artifactDocument', 'function artifactShareMark'],
 		'ARTIFACT_FRAME');
 }
 
