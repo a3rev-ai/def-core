@@ -29,7 +29,12 @@
  * that reason, so the enumeration holds across both pages and not just this one —
  * which is what will catch S3 if it floors the roles grid and forgets the wrapper.
  *
- * 11 checks.
+ * Checks 10-11 were re-pointed by S4 (the column collapses to a rail): the close
+ * button is no longer hidden above 783px, it is the Collapse control, so the check
+ * that used to insist the dock was the only thing hiding it now insists nothing
+ * hides it at all. 11 asserts the column it collapses from is still 380px wide.
+ *
+ * 12 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -161,23 +166,10 @@ check(++n, 'every .def-core-*-table given a min-width is wrapped in a scroller (
 // drawer's stylesheet needed to change once the document fits.
 
 // A media block by brace depth, so the rules inside it can be told from the rules
-// outside it — which is the whole question for the close button below.
-function mediaBlock(css, mediaRe) {
-	const start = css.search(mediaRe);
-	if (start < 0) throw new Error('media query not found: ' + mediaRe);
-	let depth = 0;
-	for (let j = css.indexOf('{', start); j < css.length; j++) {
-		if (css[j] === '{') depth++;
-		else if (css[j] === '}' && --depth === 0) return { start: start, end: j, text: css.slice(start, j) };
-	}
-	throw new Error('unterminated media query: ' + mediaRe);
-}
-const RULE_START = '(?:^|[}\\n])\\s*';
-function ruleBody(css, selector) {
-	const m = new RegExp(RULE_START + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-		'\\s*\\{([^}]*)\\}').exec(css);
-	return m ? m[1] : null;
-}
+// outside it — which is the whole question for the close button below. Both this
+// and ruleBody moved into extract.js with S4, which reads the same stylesheet for
+// the collapse rules: one reader, so the two files cannot disagree about it.
+const { mediaBlock, ruleBody, RULE_START } = extract;
 
 const PHONE = mediaBlock(DRAWER_CSS, /@media \(max-width: 600px\)/);
 const phonePanel = ruleBody(PHONE.text, '.def-sa-panel');
@@ -192,22 +184,34 @@ check(++n, 'the drawer container takes its size from its four edges, not from a 
 		!/(?:^|;)\s*width:/.test(inset),
 	'got: ' + inset.replace(/\s+/g, ' ').trim());
 
-// The close button. Above 783px the drawer is the docked desktop column and
-// deliberately has none — a band a phone reaches in landscape, which is called out
-// in the PR rather than changed here. Below it the × must be reachable, so assert
-// the ONLY rule that hides it is the desktop dock's.
-const DOCK = mediaBlock(DRAWER_CSS, /@media \(min-width: 783px\)/);
+// The close button. It used to be display: none above 783px — the docked column
+// had nothing to collapse to, so the desktop deliberately had no ×, and this check
+// held that the dock was the ONLY thing hiding it, because below the breakpoint the
+// × must be reachable (a band a phone reaches in landscape).
+//
+// S4 gave the column a rail to collapse to, so that rule is gone and the same button
+// is the desktop Collapse control. The line this check exists to hold is unchanged and
+// now simply stricter: NOTHING may hide it, at any width. A future breakpoint that
+// reaches for display: none on it fails here whichever side of 783px it sits.
+const DOCK = mediaBlock(DRAWER_CSS, /@media \(min-width: 783px\) \{/);
 const hides = [];
-const CLOSE_RULE = new RegExp(RULE_START + '\\.def-sa-close\\s*\\{([^}]*)\\}', 'g');
+// String.raw, not a quoted string: '\.def-sa-close\s*\{' is silently the same
+// as 'sdef-sa-closes*{' once JS has read the escapes, which compiles to a regex
+// that matches nothing and leaves this check passing on an empty result set.
+const CLOSE_RULE = new RegExp(RULE_START + String.raw`\.def-sa-close\s*\{([^}]*)\}`, 'g');
 let cm;
 while ((cm = CLOSE_RULE.exec(DRAWER_CSS)) !== null) {
 	if (/(?:^|;)\s*display:\s*none/.test(cm[1])) hides.push(cm.index);
 }
-check(++n, 'nothing below the 783px desktop dock hides the drawer\'s close button',
-	hides.length > 0 && hides.every(i => i > DOCK.start && i < DOCK.end),
-	hides.length === 0 ? 'no .def-sa-close display:none rule found at all'
-		: 'hidden outside the dock at offsets: ' +
-			hides.filter(i => i < DOCK.start || i > DOCK.end).join(', '));
+check(++n, 'nothing in the drawer stylesheet hides the close button at any width',
+	hides.length === 0,
+	'hidden at offsets: ' + hides.join(', ') +
+		' (S4 made this button the desktop Collapse control — it is shown, not hidden)');
+
+// And the dock is still the dock: the column the rail collapses FROM.
+check(++n, 'the desktop column still reserves its width at 783px and up',
+	/(?:^|;)\s*margin-right:\s*380px/.test(ruleBody(DOCK.text, '#wpcontent') || ''),
+	'got: ' + String(ruleBody(DOCK.text, '#wpcontent')).replace(/\s+/g, ' ').trim());
 
 // And the drawer is actually reachable from this page at all — the trigger the
 // close button belongs to. Read off the shipped renderer, not the stylesheet.

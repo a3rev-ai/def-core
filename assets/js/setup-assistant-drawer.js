@@ -88,6 +88,137 @@
 	var LS_PREFIX     = 'def_sa_' + (config.restUrl || '').replace(/[^a-z0-9]/gi, '').slice(0, 32) + '_';
 	var LS_SEEN_KEY   = LS_PREFIX + 'seen';
 
+	// ── S4: the desktop column collapses to a rail ────────────────────────
+	//
+	// Above 782px the panel is a docked column reserving 380px of every page it
+	// rides on. Collapsed it is a 44px rail on the right edge carrying the Ask
+	// Sam entry, and #wpcontent's margin follows the state, so the page gets the
+	// width back. Sam is the help layer: collapsed is narrow, never absent.
+	//
+	// Everything here is a free function over an explicit element set rather
+	// than a prototype method, so the shipped lines can be run as they ship.
+	//
+	// What is NOT here is the point of it. Nothing below touches
+	// .def-sa-messages, the thread, the fetch or the reader: collapsing hides
+	// the panel, it does not unmount it, so a reply mid-flight keeps arriving
+	// into a panel that is off-screen and is all there when it comes back.
+	//
+	// Below 783px none of it runs. The phone's trigger chip, its slide-in and
+	// its x keep the open/close they have always had - the desktop listeners
+	// bound here and the phone listeners bound in bindEvents() are gated on
+	// opposite sides of the same breakpoint.
+	var LS_COLLAPSED_KEY = LS_PREFIX + 'collapsed';
+
+	// Default EXPANDED, and deliberately: only a stored '1' collapses. A first
+	// visit, a cleared store, a private window or a localStorage that throws all
+	// land on false, so nobody loses Sam without having chosen to.
+	function readCollapsed() {
+		try {
+			return localStorage.getItem(LS_COLLAPSED_KEY) === '1';
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function writeCollapsed(collapsed) {
+		try {
+			localStorage.setItem(LS_COLLAPSED_KEY, collapsed ? '1' : '0');
+		} catch (e) {
+			// A full or blocked store costs the preference, not the column.
+		}
+	}
+
+	// Paint the state. The body class is the whole of the visual change - the
+	// rail, the hidden panel and both #wpcontent margins hang off it in the
+	// stylesheet - and the two controls carry the disclosure state for anyone
+	// reading the page rather than looking at it.
+	// Both elements are taken as given, the way bindEvents() already takes them:
+	// init() returns before any of this when the drawer or the trigger is
+	// missing, and the close button ships with the drawer's own template.
+	function paintCollapsed(els, collapsed, labels) {
+		els.body.classList.toggle('def-sa-collapsed', collapsed);
+
+		// The header's button: Collapse while the column is open, Expand once it
+		// is a rail. Icon-only, so there is no visible text for the label to
+		// disagree with.
+		els.close.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+		els.close.setAttribute('aria-label', collapsed ? labels.expand : labels.collapse);
+		els.close.setAttribute('title', collapsed ? labels.expand : labels.collapse);
+
+		// The rail. Its name stays the label it renders ("Ask Sam"), so an
+		// aria-label is not put over the top of it; aria-expanded is what says
+		// the column behind it is shut.
+		els.trigger.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+	}
+
+	function setCollapsed(els, collapsed, labels) {
+		paintCollapsed(els, collapsed, labels);
+		writeCollapsed(collapsed);
+	}
+
+	// A fresh page: paint what was remembered, then arm the transitions one
+	// frame later. Armed any earlier and a page that opens collapsed would
+	// animate itself shut on every single visit.
+	function bootCollapsed(els, labels, afterPaint) {
+		paintCollapsed(els, readCollapsed(), labels);
+		if (afterPaint) {
+			afterPaint(function () {
+				els.body.classList.add('def-sa-ready');
+			});
+		}
+	}
+
+	// The two ends of the disclosure. Both listeners are gated on desktop() at
+	// CALL time, not bind time, so a window dragged across 782px changes which
+	// half answers without anything being re-bound.
+	function bindCollapse(els, labels, desktop, onExpand) {
+		els.close.addEventListener('click', function () {
+			if (!desktop()) {
+				return;
+			}
+			setCollapsed(els, true, labels);
+			// The button just clicked is inside the panel that is going away.
+			// Hand focus to the rail rather than dropping it on <body>.
+			els.trigger.focus();
+		});
+
+		els.trigger.addEventListener('click', function () {
+			if (!desktop()) {
+				return;
+			}
+			setCollapsed(els, false, labels);
+			if (onExpand) {
+				onExpand();
+			}
+		});
+	}
+
+	// Crossing the breakpoint. A desktop preference is remembered but never
+	// applied to a phone, where the class would hide the panel with no rail
+	// rule to bring it back; the preference itself is left alone, so the same
+	// window dragged wide again comes back to the state it was in.
+	//
+	// Going down, the class is not the only thing to undo. The button keeps
+	// whatever paintCollapsed last wrote on it, so a window dragged narrow
+	// after a collapse left a Close button announcing itself as "Expand", with
+	// a tooltip saying so and an aria-expanded that does not belong on a Close
+	// at all. Below the breakpoint it is the template's button again, exactly.
+	function syncCollapsedToViewport(els, labels, desktop) {
+		if (desktop()) {
+			paintCollapsed(els, readCollapsed(), labels);
+			// Past boot, so there is nothing left to flash: a window widened
+			// into the column arms the travel straight away. Without this a
+			// page that loaded narrow snaps for the rest of its life.
+			els.body.classList.add('def-sa-ready');
+		} else {
+			els.body.classList.remove('def-sa-collapsed');
+			els.close.setAttribute('aria-label', labels.phone);
+			els.close.removeAttribute('title');
+			els.close.removeAttribute('aria-expanded');
+		}
+	}
+	// end S4: the desktop column collapses to a rail
+
 	// ─── Constructor ─────────────────────────────────────────────
 
 	// Minimum visual pacing between SSE tool status updates (ms).
@@ -154,6 +285,11 @@
 		// Remove inline display:none (FOUC guard) — CSS visibility takes over.
 		this.drawerEl.style.display = '';
 
+		// The template's own label for the close button, before the desktop
+		// collapse ever relabels it (S4). This is what goes back on when a
+		// window is dragged below the breakpoint and it is a Close again.
+		this.closeLabel = this.closeEl.getAttribute('aria-label') || '';
+
 		// Bind events.
 		this.bindEvents();
 
@@ -162,6 +298,17 @@
 			this.drawerEl.setAttribute('aria-hidden', 'false');
 			document.body.classList.add('def-sa-drawer-open');
 			this.isOpen = true;
+
+			// ...as the column, or as the rail, whichever was remembered (S4).
+			// isOpen stays true either way: collapsed is a hidden panel, not a
+			// closed one, which is what lets a conversation survive the collapse.
+			bootCollapsed(this.collapseEls(), this.collapseLabels(), function (arm) {
+				if (window.requestAnimationFrame) {
+					window.requestAnimationFrame(arm);
+				} else {
+					arm();
+				}
+			});
 		}
 
 		// Dirty field tracking.
@@ -190,6 +337,20 @@
 			}
 		});
 
+		// The desktop half of the same two buttons (S4): above 783px the x is
+		// Collapse and the rail is Expand. Bound alongside the phone's handlers
+		// and gated on the other side of the breakpoint, so neither viewport
+		// ever runs the other's behaviour.
+		bindCollapse(this.collapseEls(), this.collapseLabels(), isDesktop, function () {
+			// Straight away, not on open()'s 350ms timer: the column is docked,
+			// so expanding only un-hides a panel that is already laid out. The
+			// rail the click landed on is gone by now, so a deferred focus would
+			// leave it on <body> while the panel slides.
+			if (self.inputEl) {
+				self.inputEl.focus();
+			}
+		});
+
 		if (this.backdropEl) {
 			this.backdropEl.addEventListener('click', function () {
 				if (!isDesktop()) {
@@ -206,7 +367,10 @@
 			self.handleSend();
 		});
 
-		// Keyboard events — Escape closes only on mobile (no collapse on desktop).
+		// Keyboard events — Escape closes on a phone only. There IS a collapse on
+		// a desktop now (S4), and it deliberately stays off this key: it is a
+		// remembered choice, not a dismissal, and Escape is what an admin hits to
+		// get rid of something else. It has its own control in the header.
 		document.addEventListener('keydown', function (e) {
 			if (e.key === 'Escape' && self.isOpen && !isDesktop()) {
 				e.preventDefault();
@@ -222,6 +386,12 @@
 				return;
 			}
 			prevDesktop = nowDesktop;
+
+			// The rail is a desktop state. Dragged narrow it comes off (a phone
+			// has no rule to bring the panel back from it); dragged wide again
+			// the remembered preference is re-applied (S4).
+			syncCollapsedToViewport(self.collapseEls(), self.collapseLabels(), isDesktop);
+
 			if (nowDesktop && !self.isOpen) {
 				// Transitioned to desktop: ensure the panel is open.
 				self.drawerEl.setAttribute('aria-hidden', 'false');
@@ -315,6 +485,11 @@
 			this.open();
 		}
 
+		// On a desktop the drawer is already open, so open() is a no-op and the
+		// seed would be rendered into a panel the admin collapsed out of view.
+		// Asking for help is asking to see Sam (S4).
+		this.expandIfCollapsed();
+
 		// Render the assistant greeting in the UI immediately. The same text
 		// is sent on the next outbound message so the backend persists it into
 		// the thread (see sendMessageStreaming).
@@ -330,6 +505,39 @@
 				self.inputEl.focus();
 			}
 		}, 360);
+	};
+
+	// The elements the S4 collapse block reads, and the labels it writes. Both
+	// gathered here so the three call sites (init, bindEvents, resize) hand it
+	// the same thing.
+	SetupAssistantDrawer.prototype.collapseEls = function () {
+		return {
+			body:    document.body,
+			close:   this.closeEl,
+			trigger: this.triggerEl
+		};
+	};
+
+	// The two desktop labels are localized in class-def-core-admin.php; the
+	// English is the fallback for a page that somehow ships without the config,
+	// not the shipped string. `phone` is not localized here at all — it is the
+	// label the TEMPLATE rendered, captured in init() before anything overwrites
+	// it, so putting the button back below the breakpoint puts back the exact
+	// translated string that page was served.
+	SetupAssistantDrawer.prototype.collapseLabels = function () {
+		return {
+			collapse: config.collapseLabel || 'Collapse Setup Assistant',
+			expand:   config.expandLabel   || 'Expand Setup Assistant',
+			phone:    this.closeLabel
+		};
+	};
+
+	// Anything that needs Sam in view rather than on the edge. On a phone the
+	// rail does not exist and open() is what does this job.
+	SetupAssistantDrawer.prototype.expandIfCollapsed = function () {
+		if (isDesktop() && document.body.classList.contains('def-sa-collapsed')) {
+			setCollapsed(this.collapseEls(), false, this.collapseLabels());
+		}
 	};
 
 	SetupAssistantDrawer.prototype.open = function () {

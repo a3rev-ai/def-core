@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.2.8
+Stable tag: 8.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.3.0 - 2026-09-17 =
+* New Feature - Setup Assistant: on a desktop, the Sam panel on the Digital Employees pages can be collapsed to a narrow rail on the right-hand edge, giving the page its full width back. Press Collapse in the panel's header; the rail keeps the Ask Sam entry, and one click on it opens the panel again. Your choice is remembered per browser and per site, and a conversation in progress is kept - a reply still arriving carries on arriving, and it is all there when you open the panel again. On a phone nothing changes.
 
 = 8.2.8 - 2026-09-16 =
 * Fix - Content AI: the page opens already showing the name you gave your content creator, instead of showing "Carol" first and swapping a moment later on every visit. It remembers the name the platform last sent; after a rename in the tenant portal the swap happens once, on the next visit.

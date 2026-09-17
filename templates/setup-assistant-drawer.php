@@ -41,8 +41,23 @@ if ( ! current_user_can( 'def_admin_access' ) ) {
 				<button type="button" class="def-sa-clear" title="<?php esc_attr_e( 'Clear conversation', 'digital-employees' ); ?>">
 					<span class="dashicons dashicons-trash"></span>
 				</button>
+				<?php
+				/*
+				 * One button, two jobs, decided by the viewport. Below 783px it is
+				 * Close and shows the x, exactly as before. At 783px and up the
+				 * stylesheet swaps in the chevron and the drawer script relabels it
+				 * Collapse and gives it aria-expanded — the desktop column has a
+				 * rail to collapse to now, so the button that used to be hidden
+				 * there is the control for it.
+				 *
+				 * The x and the chevron both ship; CSS picks one per breakpoint, so
+				 * the icon can never lag the label. The aria-label rendered here is
+				 * the phone's, which is the one that is right before any script runs.
+				 */
+				?>
 				<button type="button" class="def-sa-close" aria-label="<?php esc_attr_e( 'Close Setup Assistant', 'digital-employees' ); ?>">
-					<span class="dashicons dashicons-no-alt"></span>
+					<span class="dashicons dashicons-no-alt def-sa-close-icon"></span>
+					<span class="dashicons dashicons-arrow-right-alt2 def-sa-collapse-icon"></span>
 				</button>
 			</div>
 		</div>

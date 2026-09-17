@@ -62,6 +62,7 @@ Or one at a time: `node tests/browser/harness-c1.js`.
 | `harness-carol-drafts.js` | The Content Drafts page is Carol's (v8.2.6): the tenant's name for the Creator arrives on both content list responses, and the shipped block repaints the title and the three tab descriptions from the strings PHP localized — as `textContent`, so a name carrying markup stays a name, and with a function replacement, so one carrying `$&` goes in whole. An absent or malformed name leaves the rendered default standing rather than titling the page "undefined - Creator". Plus the joins the slice cannot hold: each bundle naming her off its OWN list response, the Clusters bundle's dependency on the block, the five sentences that used to say "the Content Agent", and the page rendering the default under the ids the block repaints. v8.2.8 removes the flash: PHP renders the name DEF last sent, so the repaint is watched with a MutationObserver — an unchanged name writes nothing at all, and a rename repaints once |
 | `harness-pwa-icon.js` | Staff AI as an app (v8.2.7): the shell's head — which skips `wp_head()` — carries `apple-touch-icon` — href AND declared size both from the shared resolver, never an SVG — plus the app's name and the standalone hint; `render_shell()` fills it; and the generated-SVG icon route that iOS was masking onto white is gone entirely |
 | `harness-sam.js` | The Setup Assistant is Sam (v8.2.4): the drawer header takes the house "Name - Role" form, the greeting introduces him named and unnamed through two strings localized on `defSetupAssistant`, nothing in the drawer still says "I'm your Setup Assistant" — and the two aria-labels still name the panel's ROLE, which is what a screen reader announces |
+| `harness-sam-rail.js` | The Setup Assistant column collapses to a rail on a desktop (v8.3.0): the header's close button, hidden above 783px because there was nothing to collapse to, is now the Collapse control; collapsing sets the one body class the stylesheet reads, writes the site-namespaced preference and flips `aria-expanded` on both ends of the disclosure. The default is EXPANDED reached from all five directions (nothing stored, a `'0'`, junk, a throwing read, a throwing write) — the other default would take Sam off the page for every admin who never asked. A fake stream keeps appending straight through a collapse and the whole reply is there on expand, the panel being hidden and never unmounted; the block's own code is asserted to name nothing in the message stream. Below 783px neither button answers, and a window dragged narrow drops the rail while keeping the preference AND putting the template's Close label back on the button — the class is not the only thing the desktop wrote. Read off the stylesheet one breakpoint at a time: both `#wpcontent` margins, the rail rule, the phone rules unchanged, reduced motion, and that no travel is armed before `.def-sa-ready` — the state is painted after first paint, so an early transition animates a remembered rail shut on every visit |
 
 ## Bite checks
 
@@ -91,11 +92,13 @@ ATTACHMENT_PROMPT=/tmp/old-prompt.js DISPLAY_TEXT=/tmp/old-display.js node tests
 CONVERSATION_LIST=/tmp/old-list.js node tests/browser/harness-conversation-list.js  # renderConversationList
 USER_ACCESS=/tmp/old-user-access.js node tests/browser/harness-user-access.js  # the User Access controls
 CREATOR=/tmp/old-creator.js   node tests/browser/harness-carol-drafts.js  # the Creator's name and the repaint
+SA_COLLAPSE=/tmp/old-collapse.js node tests/browser/harness-sam-rail.js  # the desktop collapse
 ```
 
 `harness-c5.js`, `harness-c6a.js`, `harness-c6b.js`, `harness-admin-tables-phone.js`,
-`harness-pwa-icon.js`, `harness-user-access.js` and `harness-carol-drafts.js` read the
-stylesheet, the template or the page's PHP from the working tree, so
+`harness-pwa-icon.js`, `harness-user-access.js`, `harness-carol-drafts.js` and
+`harness-sam-rail.js` read the stylesheet, the template or the page's PHP from the
+working tree, so
 their CSS and markup checks bite by editing those files (a scratch `git worktree` keeps
 that off your branch). `USER_ACCESS` reaches only `harness-user-access.js`'s first 42
 checks — the behaviour half. Pointed at the 8.1.3 screen's logic behind the same names it
