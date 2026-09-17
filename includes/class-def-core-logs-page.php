@@ -154,6 +154,8 @@ final class DEF_Core_Logs_Page {
 				>
 					<span class="dashicons dashicons-admin-comments"></span>
 					<span class="def-sa-trigger-label"><?php esc_html_e( 'Setup Assistant', 'digital-employees' ); ?></span>
+					<?php // The rail's label, shown only when the desktop column is collapsed. ?>
+					<span class="def-sa-trigger-rail"><?php esc_html_e( 'Ask Sam', 'digital-employees' ); ?></span>
 				</button>
 				<?php endif; ?>
 			</h1>

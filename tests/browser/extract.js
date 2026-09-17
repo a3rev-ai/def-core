@@ -425,6 +425,24 @@ function userAccess() {
 		'USER_ACCESS', ADMIN_PATH);
 }
 
+// ── Setup Assistant: the desktop column collapses to a rail (S4) ────
+// The remembered state, the paint, the two-ended disclosure and the breakpoint
+// sync - out of the SHIPPED drawer script by the S4 markers, so a harness runs
+// the collapse the admin gets. `needs` names every function in the block: a
+// rename that moves one out of it is a hard error here rather than a check that
+// quietly stops covering anything.
+const DRAWER_JS_PATH = path.join(REPO, 'assets/js/setup-assistant-drawer.js');
+
+function setupAssistantCollapse() {
+	return slice('setup assistant collapse',
+		l => l.includes('S4: the desktop column collapses to a rail'),
+		l => l.includes('end S4: the desktop column collapses to a rail'),
+		['var LS_COLLAPSED_KEY', 'function readCollapsed', 'function writeCollapsed',
+			'function paintCollapsed', 'function setCollapsed', 'function bootCollapsed',
+			'function bindCollapse', 'function syncCollapsedToViewport'],
+		'SA_COLLAPSE', DRAWER_JS_PATH);
+}
+
 // ── Content Drafts: the page is Carol's (8.2.6) ─────────────────────────
 // The Creator's name off a content list response, and the title + tab copy it
 // repaints. Out of the DRAFT CARDS bundle, which owns both for the page: the
@@ -528,6 +546,32 @@ function templateModal(id) {
 // not catch a kit name wired into the wrong half of a descendant pair. Every
 // such pair in the kit is one line apart from its twin, which is what makes
 // that readable by eye.
+// One @media block by BRACE DEPTH, so the rules inside a breakpoint can be told
+// from the rules outside it. cssRules() below indexes by class and drops the
+// at-rule, which cannot answer "at which breakpoint" - and for a stylesheet
+// whose desktop and phone halves say opposite things about the same selectors,
+// that is the whole question.
+function mediaBlock(css, mediaRe) {
+	const start = css.search(mediaRe);
+	if (start < 0) throw new Error('media query not found: ' + mediaRe);
+	let depth = 0;
+	for (let j = css.indexOf('{', start); j < css.length; j++) {
+		if (css[j] === '{') depth++;
+		else if (css[j] === '}' && --depth === 0) return { start: start, end: j, text: css.slice(start, j) };
+	}
+	throw new Error('unterminated media query: ' + mediaRe);
+}
+
+// A rule's declarations by its EXACT selector. Anchored at a rule boundary, so
+// `#wpcontent` does not also match the `body.def-sa-collapsed #wpcontent` that
+// overrides it - the two are a pair whose values must differ.
+const RULE_START = '(?:^|[}\\n])\\s*';
+function ruleBody(css, selector) {
+	const m = new RegExp(RULE_START + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+		'\\s*\\{([^}]*)\\}').exec(css);
+	return m ? m[1] : null;
+}
+
 function cssRules(css) {
 	const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
 	const byClass = new Map();
@@ -551,7 +595,8 @@ function cssRules(css) {
 
 module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
-	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
+	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
+	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

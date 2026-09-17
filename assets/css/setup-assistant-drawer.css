@@ -69,6 +69,12 @@
 	background: #135e96;
 }
 
+/* The rail's own label. Rendered in the trigger's markup at every call site so
+   it reaches a translator; shown only by the collapsed desktop rule below. */
+.def-sa-trigger-rail {
+	display: none;
+}
+
 /* Pulse animation for non-first-visit without thread */
 .def-sa-trigger-pulse {
 	animation: def-sa-pulse 2s ease-in-out 3;
@@ -188,6 +194,13 @@
 	width: 20px;
 	height: 20px;
 	line-height: 20px;
+}
+
+/* Below 783px the header's button is Close and shows the x; at 783px and up it
+   is Collapse and shows the chevron. Both ship in the markup and the breakpoint
+   picks one, so the icon can never lag the label. */
+.def-sa-collapse-icon {
+	display: none;
 }
 
 /* ─── Messages Area ───────────────────────────────────────────── */
@@ -681,21 +694,39 @@
 	border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
 }
 
-/* ─── Desktop Docked Sidebar (> 782px) ───────────────────
- * Above wp-admin's 782px breakpoint the panel is always open
- * as a fixed right column. The trigger chip and close button
- * are hidden; #wpcontent's right margin reserves the column
- * so page content never slides under the panel. */
+/* ─── Desktop Docked Column, and the rail it collapses to (> 782px) ───
+ * Above wp-admin's 782px breakpoint the panel is a fixed right column and
+ * #wpcontent's right margin reserves it, so page content never slides under
+ * the panel. The header's button is the Collapse control: it takes the column
+ * down to a 44px rail on the right edge carrying the Ask Sam entry, and the
+ * reserved margin follows the state, so the page gets the width back.
+ *
+ * Collapsed is expressed by ONE class on <body>, written by the drawer script
+ * from the remembered preference. Everything below hangs off it: the rail, the
+ * hidden panel and both margins. The panel is hidden, never unmounted — it
+ * keeps its layout box, so a reply arriving mid-collapse still appends and
+ * still scrolls, and it is all there when the column comes back. */
 
 @media (min-width: 783px) {
-	/* Trigger chip: hidden — no toggle on desktop */
+	/* Trigger chip: hidden while the column is expanded. The collapsed rule
+	   further down brings the same element back as the rail. */
 	.def-sa-trigger {
 		display: none;
 	}
 
-	/* Close button: no collapse on desktop */
+	/* Close button: this is the Collapse control on a desktop. It used to be
+	   display: none here — there was nothing to collapse to. */
 	.def-sa-close {
+		display: flex;
+	}
+
+	/* Collapse shows the chevron, not the phone's x. */
+	.def-sa-close-icon {
 		display: none;
+	}
+
+	.def-sa-collapse-icon {
+		display: flex;
 	}
 
 	/* Drawer container: no longer a full-screen overlay */
@@ -706,7 +737,10 @@
 		pointer-events: none;
 	}
 
-	/* Panel: fixed right column, always visible */
+	/* Panel: fixed right column. Expanded it sits in place. No transition until
+	   .def-sa-ready arms one further down — the state is painted from a
+	   remembered preference AFTER first paint, and an armed panel would slide
+	   itself shut on every visit for anyone who chose the rail. */
 	.def-sa-panel {
 		position: fixed;
 		top: 0;
@@ -734,11 +768,115 @@
 	.def-sa-backdrop {
 		display: none;
 	}
+
+	/* ── Collapsed: the column is a rail ────────────────────────
+	 *
+	 * The panel slides off the right edge and goes visibility: hidden, so it
+	 * leaves the tab order and the accessibility tree without leaving the
+	 * document: its box is still laid out, which is why a streaming reply keeps
+	 * appending and scrollHeight still means something while it is away.
+	 *
+	 * The selectors out-specify `.def-sa-drawer[aria-hidden="false"] .def-sa-panel`
+	 * (0,3,0) and the bare `#wpcontent` (1,0,0) on purpose — both are rules this
+	 * state has to beat, and a media query adds no specificity of its own. */
+	body.def-sa-collapsed .def-sa-drawer .def-sa-panel {
+		transform: translateX(100%);
+		visibility: hidden;
+	}
+
+	body.def-sa-collapsed #wpcontent {
+		margin-right: 44px;
+	}
+
+	/* The rail: the page's own trigger, lifted out of the h1 and pinned to the
+	   right edge. Ask Sam is the help layer — collapsed it is narrow, never
+	   absent. */
+	body.def-sa-collapsed .def-sa-trigger {
+		display: flex;
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: 44px;
+		margin: 0;
+		padding: 14px 0;
+		border-radius: 0;
+		z-index: 9999;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 12px;
+		box-shadow: -2px 0 8px rgba(0, 0, 0, 0.12);
+	}
+
+	body.def-sa-collapsed.admin-bar .def-sa-trigger {
+		top: 32px;
+	}
+
+	/* The chip's horizontal label is the wrong shape for a 44px rail; the rail
+	   carries its own, read bottom-to-top the way a side tab is read. */
+	body.def-sa-collapsed .def-sa-trigger-label {
+		display: none;
+	}
+
+	body.def-sa-collapsed .def-sa-trigger-rail {
+		display: block;
+		writing-mode: vertical-rl;
+		transform: rotate(180deg);
+		letter-spacing: 0.04em;
+		white-space: nowrap;
+	}
+
+	/* ── The travel, armed one frame after boot ──────────────────
+	 *
+	 * The state above is painted from localStorage by a footer script, which is
+	 * after the page has laid out. Armed any earlier and every visit by anyone
+	 * who chose the rail would open as the column and then animate itself shut.
+	 * So nothing here transitions until .def-sa-ready lands a frame later, and
+	 * all three — the panel, its visibility and the margin — are gated on it
+	 * together. The margin moves with the panel rather than snapping out from
+	 * under it, which is what keeps the content beneath from jumping.
+	 *
+	 * Two panel rules because the two directions are not symmetrical: going out
+	 * it must stay visible until it is off-screen, or the slide is never seen;
+	 * coming back it must be visible at once, or it slides in invisibly and
+	 * pops. The collapsed one carries the extra class so it wins the tie. */
+	body.def-sa-ready .def-sa-drawer .def-sa-panel {
+		transition: transform 0.3s ease, visibility 0s;
+	}
+
+	body.def-sa-ready.def-sa-collapsed .def-sa-drawer .def-sa-panel {
+		transition: transform 0.3s ease, visibility 0s linear 0.3s;
+	}
+
+	body.def-sa-ready #wpcontent {
+		transition: margin-right 0.3s ease;
+	}
 }
 
 /* Admin bar is 46px tall between 783px and 960px */
 @media (min-width: 783px) and (max-width: 960px) {
 	.admin-bar .def-sa-panel {
 		top: 46px;
+	}
+
+	body.def-sa-collapsed.admin-bar .def-sa-trigger {
+		top: 46px;
+	}
+}
+
+/* ─── Reduced motion ────────────────────
+ * Collapse and expand arrive at the same place with no travel. Scoped to the
+ * desktop breakpoint: below it there is no collapse, and the phone's slide-in
+ * is left exactly as it is. */
+
+@media (min-width: 783px) and (prefers-reduced-motion: reduce) {
+	body.def-sa-ready .def-sa-drawer .def-sa-panel,
+	body.def-sa-ready.def-sa-collapsed .def-sa-drawer .def-sa-panel {
+		transition: none;
+	}
+
+	body.def-sa-ready #wpcontent {
+		transition: none;
 	}
 }

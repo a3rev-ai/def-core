@@ -612,6 +612,13 @@ final class DEF_Core_Admin {
 			/* translators: %s: the admin's first name. */
 			'welcomeNamed'   => __( "Hi %s! I'm Sam, your Setup Assistant.", 'digital-employees' ),
 			'welcomeAnon'    => __( "Hi there! I'm Sam, your Setup Assistant.", 'digital-employees' ),
+			// The desktop Collapse control's two labels (S4). The button is
+			// icon-only and the template renders the phone's "Close Setup
+			// Assistant"; above 783px the drawer script swaps in whichever of
+			// these matches the state. Here rather than in the JS so both reach
+			// a translator.
+			'collapseLabel'  => __( 'Collapse Setup Assistant', 'digital-employees' ),
+			'expandLabel'    => __( 'Expand Setup Assistant', 'digital-employees' ),
 		) );
 	}
 
