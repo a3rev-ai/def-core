@@ -10,7 +10,7 @@
  *
  * Two halves, because the feature has two:
  *
- *  1-20. THE BEHAVIOUR, in jsdom, over the SHIPPED block — sliced out of
+ *  1-21. THE BEHAVIOUR, in jsdom, over the SHIPPED block — sliced out of
  *        assets/js/setup-assistant-drawer.js by the S4 markers
  *        (extract.setupAssistantCollapse), so these are the shipped lines and
  *        not a copy that can drift. Every check drives the DOM through the
@@ -32,18 +32,18 @@
  *        afterwards. 16 is the reason WHY, asserted off the block's own text —
  *        the collapse has no opinion about the message stream at all.
  *
- *        17-20 — the breakpoint. A remembered desktop collapse is never painted
+ *        17-21 — the breakpoint. A remembered desktop collapse is never painted
  *        onto a phone (below 783px there is no rail rule to bring the panel back
  *        from it), and neither listener answers on the wrong side of it, so the
  *        phone's trigger chip and × keep the open/close they have always had.
  *
- * 21-33. THE STYLESHEET AND THE MARKUP the block cannot contain, read out of the
+ * 22-34. THE STYLESHEET AND THE MARKUP the block cannot contain, read out of the
  *        shipped files. extract.mediaBlock reads one breakpoint at a time, which
  *        is the whole question here: the same selectors say opposite things on
  *        the two sides of 783px, and a rule indexed by class alone cannot tell
  *        you which side you are on.
  *
- *        25 came out of the canary and is the subtle one. The state is painted
+ *        26 came out of the canary and is the subtle one. The state is painted
  *        from localStorage by a footer script, which is after the page has laid
  *        out — so every transition has to be armed a frame LATER than the paint,
  *        or an admin who chose the rail watches the column animate itself shut on
@@ -51,11 +51,13 @@
  *        early rather than naming one, so the next declaration added in front of
  *        the gate fails here without anyone remembering to add a case.
  *
- *        27-29 are the phone's rules, unchanged, held here so the desktop rail
- *        can never be bought with the phone's slide-in.
+ *        28-30 are the phone's rules, unchanged, held here so the desktop rail
+ *        can never be bought with the phone's slide-in. 27 is not one of them —
+ *        it is a desktop rule, the rail's label turned vertical.
  *
- * Bite checks, all four run. The extractor takes SA_COLLAPSE, naming a file to
- * load instead of the shipped block:
+ * Bite checks, all six run. The first four take SA_COLLAPSE, which names a file
+ * to load instead of the shipped block; the last two are working-tree edits,
+ * because what they mutate is the shipped WIRING and so sits outside the slice:
  *
  *   SA_COLLAPSE=/tmp/old-collapse.js node tests/browser/harness-sam-rail.js
  *
@@ -69,11 +71,24 @@
  *  - paintCollapsed() emptying .def-sa-messages, a collapse that tears the
  *    conversation down instead of hiding it: 14, 15 and 16 go red.
  *  - And the stylesheet, which the CSS half reads out of the working tree rather
- *    than through the override. Put the 8.2.8 file back and 22-26, 30 and 31 go
- *    red while 27-29 stay green — which is the shape to expect, those three
- *    being the phone rules this PR deliberately leaves alone.
+ *    than through the override. Put the 8.2.8 file back and it measures
+ *    29 passed, 7 failed: 23, 24, 25, 26, 27, 31 and 32 go red, while 22, 28,
+ *    29 and 30 stay green. 28-30 are the phone rules this PR deliberately
+ *    leaves alone. 22 stays green for a different reason worth knowing: the
+ *    380px desktop dock margin already existed before S4. S4 collapses that
+ *    column, it did not introduce it — so only the 44px half of the pair is new.
+ *  - init()'s afterPaint callback with window.requestAnimationFrame(arm)
+ *    replaced by a bare arm(), i.e. a boot that arms the travel in the same
+ *    frame it paints the remembered state: 12 goes red. Nothing else moves,
+ *    which is the point — the fixture supplies its own deferral, so before this
+ *    round that mutation shipped green.
+ *  - els.body.classList.add('def-sa-ready') deleted from
+ *    syncCollapsedToViewport()'s desktop branch, a window widened into the
+ *    column that never arms and snaps for the rest of the page's life: 21 goes
+ *    red. This one CAN go through SA_COLLAPSE, the function being inside the
+ *    slice.
  *
- * 33 checks.
+ * 36 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -136,7 +151,7 @@ function fakeStore(initial, mode) {
 
 // The page, in the shape the three call sites render it: the trigger chip inside
 // the h1 carrying both labels, and the drawer with its header button carrying
-// both icons. Checks 32-33 hold the shipped markup to this shape.
+// both icons. Checks 33-34 hold the shipped markup to this shape.
 function boot(opts) {
 	opts = opts || {};
 	const desktopStart = opts.desktop !== false;
@@ -281,11 +296,24 @@ check('a fresh boot with a stored collapse opens as the rail',
 
 // The transitions are armed a frame LATER on purpose. Armed during the boot
 // paint, a page that opens collapsed would animate itself shut on every visit.
+//
+// Two halves, because the fixture can only see one of them. bootCollapsed()
+// takes the deferral as an afterPaint callback and this file passes one that
+// fires on demand, so the ORDERING below is real but the FRAME is not: init()
+// could hand it a straight arm() and everything here would still be green.
+// That is not hypothetical — it is what this check missed until now. So the
+// second half reads the shipped call site out of the drawer and holds it to
+// putting arm through requestAnimationFrame, with the bare call reachable only
+// on the no-rAF fallback. Bounded by [^;] so it cannot wander out of the one
+// statement it is about.
+const INIT_AFTER_PAINT = /bootCollapsed\([^;]*?function\s*\(arm\)\s*\{\s*if\s*\(window\.requestAnimationFrame\)\s*\{\s*window\.requestAnimationFrame\(arm\);\s*\}\s*else\s*\{\s*arm\(\);\s*\}\s*\}\s*\)\s*;/;
+
 const readyAtPaint = stored.ready();
 stored.arm();
-check('the boot paint lands before the transitions are armed',
-	!readyAtPaint && stored.ready(),
-	'ready at paint: ' + readyAtPaint + ', ready after arming: ' + stored.ready());
+check('the boot paint lands before the transitions are armed, and init defers the arming by a frame',
+	!readyAtPaint && stored.ready() && INIT_AFTER_PAINT.test(DRAWER_JS),
+	'ready at paint: ' + readyAtPaint + ', ready after arming: ' + stored.ready() +
+		', init passes arm through requestAnimationFrame: ' + INIT_AFTER_PAINT.test(DRAWER_JS));
 
 stored.click(stored.els.trigger);
 check('one click on the rail expands it again, and remembers that too',
@@ -324,7 +352,7 @@ check('nothing in the shipped collapse code reaches into the message stream',
 	!/def-sa-messages|messagesEl|threadId|EventSource|fetch\(|\.abort|innerHTML/i.test(BLOCK_CODE),
 	'the block reaches for the stream — a collapse that touches it can stop it');
 
-// ── 17-20. The breakpoint: the phone keeps exactly what it had ──────────────
+// ── 17-21. The breakpoint: the phone keeps exactly what it had ──────────────
 const phone = boot({ desktop: false });
 phone.click(phone.els.close);
 check('below 783px the header button collapses nothing — it is still Close',
@@ -356,12 +384,23 @@ check('and the header button is the template\'s Close again, with nothing of the
 		' title=' + dragged.els.close.getAttribute('title') +
 		' aria-expanded=' + dragged.els.close.getAttribute('aria-expanded'));
 
+// Widening puts the rail back AND arms the travel, and this is the only place
+// that can assert the second half: `dragged` booted on a desktop but nothing
+// ever called its arm(), so .def-sa-ready is still off here and can only have
+// arrived from the widen itself. Without that add, a page that loaded narrow
+// and was then widened never arms and snaps for the rest of its life.
+const readyBeforeWiden = dragged.ready();
 dragged.setViewport(true);
 dragged.sync();
-check('dragged wide again the remembered rail comes back',
-	dragged.collapsed() && dragged.els.close.getAttribute('aria-expanded') === 'false');
+check('dragged wide again the remembered rail comes back, and the travel is armed with it',
+	dragged.collapsed() &&
+	dragged.els.close.getAttribute('aria-expanded') === 'false' &&
+	!readyBeforeWiden && dragged.ready(),
+	'collapsed=' + dragged.collapsed() +
+		' aria-expanded=' + dragged.els.close.getAttribute('aria-expanded') +
+		' ready before widen=' + readyBeforeWiden + ' after widen=' + dragged.ready());
 
-// ── 21-26. The desktop rules, read at the desktop breakpoint ───────────────
+// ── 22-27. The desktop rules, read at the desktop breakpoint ───────────────
 // A breakpoint by brace depth, or an empty one. A media query that has gone
 // missing should fail the CHECKS that read it, naming the rule, rather than
 // killing the file before any of them report — which is exactly what happens
@@ -446,7 +485,7 @@ check('the rail label reads vertically, and the chip\'s horizontal one comes off
 	/display:\s*none/.test(
 		extract.ruleBody(DOCK.text, 'body.def-sa-collapsed .def-sa-trigger-label') || ''));
 
-// ── 27-29. The phone's rules, unchanged ─────────────────────────────────────
+// ── 28-30. The phone's rules, unchanged ─────────────────────────────────────
 //
 // The rail must never be bought with the phone's slide-in. These are the 8.2.8
 // rules, asserted still to be exactly what they were.
@@ -470,7 +509,7 @@ check('the base panel still slides in from off-screen at its own width',
 	'transform=' + decl(DRAWER_CSS, '.def-sa-panel', 'transform') +
 		' width=' + decl(DRAWER_CSS, '.def-sa-panel', 'width'));
 
-// ── 30-31. Reduced motion ───────────────────────────────────────────────────
+// ── 31-32. Reduced motion ───────────────────────────────────────────────────
 //
 // Matched with \s* rather than by exact selector text: the grouped selector
 // spans two lines, and a Windows checkout puts a \r before each of them.
@@ -486,7 +525,7 @@ check('prefers-reduced-motion takes the travel out of collapse and expand',
 check('the reduced-motion rule is scoped to the desktop breakpoint, not to the phone',
 	/min-width: 783px/.test(DRAWER_CSS.slice(RM.start, RM.start + 90)));
 
-// ── 32-33. The markup and the strings the block cannot contain ──────────────
+// ── 33-34. The markup and the strings the block cannot contain ──────────────
 //
 // The block paints a button and a rail it does not render. Both ends read off
 // the shipped files, because neither is inside the slice.
