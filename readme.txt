@@ -36,9 +36,9 @@ Digital Employees are AI agents that work alongside your team. They understand y
 
 This plugin is the bridge between WordPress and the Digital Employee Framework (DEF) backend. All AI logic, tool execution, employee orchestration, and governance enforcement happen server-side. WordPress provides the UI surface and authentication context.
 
-1. Sign up at [defho.ai](https://defho.ai/) and create a Tenant for your site
+1. Your Widrow partner sets up your tenancy in the Partner Portal at [defho.ai](https://defho.ai/) and invites you to your Tenant Portal — there is no self-serve sign-up
 2. Install this plugin on your WordPress site
-3. Connect — push config from DEFHO Tenant Portal or enter credentials manually
+3. Connect — One-Click Connect from your Tenant Portal, or enter credentials manually
 4. The Setup Assistant guides you through the rest
 
 = WooCommerce =
@@ -51,7 +51,7 @@ When WooCommerce is active, additional tools load automatically — product sear
 
 * WordPress 6.0 or greater
 * PHP version 8.0 or greater
-* A [DEFHO](https://defho.ai/) account (Digital Employee Framework platform)
+* A tenancy on the Digital Employee Framework, set up for you by a Widrow partner at [defho.ai](https://defho.ai/)
 
 = From GitHub =
 
@@ -85,7 +85,7 @@ A Digital Employee is an AI agent that operates within governance rules set by t
 
 = Do I need a DEFHO account? =
 
-Yes. This plugin is the WordPress connector — the AI intelligence runs on the Digital Employee Framework backend. Sign up at [defho.ai](https://defho.ai/) to create your account and connect your site.
+Yes — a tenancy, and a Widrow partner sets it up for you. This plugin is the WordPress connector; the AI intelligence runs on the Digital Employee Framework backend. Your partner (A3REV Software, or another Widrow partner) creates your tenancy in the Partner Portal at [defho.ai](https://defho.ai/) and invites you to your Tenant Portal; there is no self-serve sign-up. If you do not have a partner yet, write to hello@widrow.ai.
 
 = Is the Customer Chat visible to all visitors? =
 

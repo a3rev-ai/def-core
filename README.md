@@ -75,7 +75,7 @@ An intelligent configuration agent that lives in your wp-admin settings. Guides 
 
 - WordPress 6.2+
 - PHP 8.0+
-- A [DEFHO](https://defho.ai/) account (Digital Employee Framework platform)
+- A tenancy on the Digital Employee Framework, set up for you by a Widrow partner (A3REV Software or another partner) in the Partner Portal at [defho.ai](https://defho.ai/)
 
 ## Installation
 
@@ -100,10 +100,10 @@ Every release carries a dated entry in plain words in [changelog.txt](changelog.
 
 ## Getting Started
 
-1. **Sign up** at [defho.ai](https://defho.ai/) and create a Tenant for your site
+1. **Your partner sets up your tenancy** — a Widrow partner (A3REV Software or another) creates it in the Partner Portal at [defho.ai](https://defho.ai/) and invites you to your Tenant Portal. There is no self-serve sign-up.
 2. **Install** the plugin on your WordPress site
-3. **Connect** — push the connection from your DEFHO Tenant Portal (or enter credentials manually on the Connection tab)
-4. **Configure** — the Setup Assistant will guide you through branding, chat settings, and user roles
+3. **Connect** — One-Click Connect from your Tenant Portal (or enter credentials manually on the Connection tab)
+4. **Configure** — Sam, the Setup Assistant, guides you through branding, chat settings, and user roles
 
 Once connected, Customer Chat is available on your frontend and Staff AI is available in wp-admin.
 
