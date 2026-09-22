@@ -114,13 +114,13 @@ Once connected, Customer Chat is available on your frontend and Staff AI is avai
 Joe talks to a business's visitors. Some of them run businesses. The next business meets Widrow, and the ring closes.
 
 ```mermaid
-flowchart LR
+flowchart TD
     W["widrow.ai<br/>the public face"] --> P["defho.ai<br/>Partner Portal"]
     P --> T["Tenant Portal<br/>the business's settings, keys, knowledge, people"]
     T -- "One-Click Connect" --> C["Digital Employees plugin<br/>on the business's WordPress"]
-    C -- "Joe to the public;<br/>Suzie and Sam to staff" --> V["visitors and staff"]
+    C -- "Joe to the public; Suzie and Sam to staff" --> V["visitors and staff"]
     V -. "the next business" .-> W
-    D(("DEF<br/>the framework<br/>private, governed by<br/>the Constitution"))
+    D["DEF, the framework<br/>private, governed by the Constitution"]
     P <--> D
     T <--> D
     C <--> D
