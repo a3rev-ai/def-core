@@ -94,6 +94,10 @@ The plugin checks GitHub for updates automatically — you'll see standard WordP
 2. Upload the `def-core` folder to `/wp-content/plugins/`
 3. Activate via **Plugins > Installed Plugins**
 
+## What changed, and when
+
+Every release carries a dated entry in plain words in [changelog.txt](changelog.txt), and the same entries appear on the [Releases page](https://github.com/a3rev-ai/def-core/releases) beside the plugin zip. The engineering rules the plugin is built to are in [docs/](docs/), dated when adopted.
+
 ## Getting Started
 
 1. **Sign up** at [defho.ai](https://defho.ai/) and create a Tenant for your site
