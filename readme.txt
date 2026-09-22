@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.3.0
+Stable tag: 8.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.4.0 - 2026-09-22 =
+* New Feature - [def_changelog] shortcode: shows the plugin's own dated changelog on any page, newest first (versions="12" chooses how many), read from the readme that ships with the plugin - so a site can publish what changed and when without keeping a page by hand.
 
 = 8.3.0 - 2026-09-17 =
 * New Feature - Setup Assistant: on a desktop, the Sam panel on the Digital Employees pages can be collapsed to a narrow rail on the right-hand edge, giving the page its full width back. Press Collapse in the panel's header; the rail keeps the Ask Sam entry, and one click on it opens the panel again. Your choice is remembered per browser and per site, and a conversation in progress is kept - a reply still arriving carries on arriving, and it is all there when you open the panel again. On a phone nothing changes.
