@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Renders what changed and when, so any site with the plugin can publish it
  * without maintaining a page by hand. Reads the `== Changelog ==` section of
- * the readme.txt that ships in the plugin; never fetches anything.
+ * the readme.txt that ships in the plugin; never fetches anything, never caches.
  */
 class DEF_Core_Changelog {
 
@@ -25,9 +25,19 @@ class DEF_Core_Changelog {
 	 * @return string HTML, or '' when the changelog cannot be read.
 	 */
 	public static function render( $atts ): string {
-		$atts     = shortcode_atts( array( 'versions' => 12 ), $atts, 'def_changelog' );
-		$versions = max( 1, absint( $atts['versions'] ) );
-		$releases = array_slice( self::releases(), 0, $versions );
+		$atts = shortcode_atts( array( 'versions' => 12 ), $atts, 'def_changelog' );
+		return self::html( self::parse( self::readme() ), max( 1, absint( $atts['versions'] ) ) );
+	}
+
+	/**
+	 * The HTML for the newest releases: an h3 per version, its entries as a list.
+	 *
+	 * @param array<int, array{version: string, date: string, entries: string[]}> $releases Newest first.
+	 * @param int                                                                 $versions How many to show, at least 1.
+	 * @return string HTML, or '' when there is nothing to show.
+	 */
+	public static function html( array $releases, int $versions ): string {
+		$releases = array_slice( $releases, 0, max( 1, $versions ) );
 		if ( empty( $releases ) ) {
 			return '';
 		}
@@ -65,7 +75,9 @@ class DEF_Core_Changelog {
 
 		$releases = array();
 		$current  = null;
-		foreach ( preg_split( '/\R/', $section[1] ) as $line ) {
+		// Byte-safe split: `\R` without the u flag cuts UTF-8 characters that end
+		// in 0x85 (the check mark in release 4.5.0), and with it fails on a bad byte.
+		foreach ( preg_split( '/\r\n|\r|\n/', $section[1] ) as $line ) {
 			$line = trim( $line );
 			if ( preg_match( '/^= ([0-9][^\s=]*)(?:\s*-\s*(\d{4}-\d{2}-\d{2}))?[^=]*=$/', $line, $heading ) ) {
 				if ( null !== $current ) {
@@ -87,25 +99,15 @@ class DEF_Core_Changelog {
 	}
 
 	/**
-	 * The bundled readme's releases, parsed once per plugin version.
-	 *
-	 * @return array<int, array{version: string, date: string, entries: string[]}>
+	 * The readme.txt that ships in the plugin. A 150 KB read and parse costs well
+	 * under a millisecond, so there is nothing to cache.
 	 */
-	private static function releases(): array {
-		$key    = 'def_core_changelog_' . DEF_CORE_VERSION;
-		$cached = get_transient( $key );
-		if ( is_array( $cached ) ) {
-			return $cached;
+	private static function readme(): string {
+		$path = DEF_CORE_PLUGIN_DIR . 'readme.txt';
+		if ( ! is_readable( $path ) ) {
+			return '';
 		}
-
-		$path   = DEF_CORE_PLUGIN_DIR . 'readme.txt';
-		$readme = '';
-		if ( is_readable( $path ) ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- the plugin's own bundled file, never remote.
-			$readme = (string) file_get_contents( $path );
-		}
-		$releases = self::parse( $readme );
-		set_transient( $key, $releases, WEEK_IN_SECONDS );
-		return $releases;
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- the plugin's own bundled file, never remote.
+		return (string) file_get_contents( $path );
 	}
 }
