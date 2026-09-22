@@ -85,6 +85,7 @@ final class DEF_Core {
 
 		// Register [def_chat_button] shortcode and action hook.
 		add_shortcode( 'def_chat_button', array( $this, 'shortcode_chat_button' ) );
+		add_shortcode( 'def_changelog', array( 'DEF_Core_Changelog', 'render' ) );
 		add_action( 'def_core_chat_button', array( $this, 'action_chat_button' ) );
 
 		// Register AJAX handlers for inline login (Loop 6).
@@ -113,6 +114,7 @@ final class DEF_Core {
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-encryption.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-jwt.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-cache.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-changelog.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-admin.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
 
