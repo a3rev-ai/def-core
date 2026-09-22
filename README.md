@@ -4,11 +4,22 @@ AI-powered Digital Employees for your WordPress site. Customer-facing chat, inte
 
 [![Download Plugin](https://img.shields.io/badge/Download_Plugin-v8.3.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v8.3.0/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
 
+## Where this plugin sits
+
+def-core is the open-source WordPress bridge for the Digital Employee Framework (DEF), built and operated by A3REV Software (ABN 32 556 307 251, Golden Beach, Queensland, Australia). The framework itself is private; this plugin is the part that runs on your own server, so you can read exactly what it does.
+
+The framework is governed by a published constitution and reaches businesses through partners. A3REV's own product on it is Widrow, and that is where the framework's public documents live:
+
+- [The DEF Constitution, version 1.0](https://widrow.ai/the-def-constitution-version-1-0/)
+- [Privacy Statement](https://widrow.ai/privacy-statement/)
+- [Security and continuity](https://widrow.ai/security/) — where data runs, what is held, and what happens when you leave
+- The three Digital Employees this plugin delivers: [Joe](https://widrow.ai/digital-employees/joe/) (Customer Chat), [Suzie](https://widrow.ai/digital-employees/suzie/) (Staff AI) and [Sam](https://widrow.ai/digital-employees/sam/) (Setup Assistant)
+
 ## What Are Digital Employees?
 
 Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels:
 
-### Customer Chat
+### Customer Chat (Joe)
 A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering.
 
 **Digital Sales Assistant**
@@ -29,7 +40,7 @@ A chat widget for your site visitors. Floating button or embedded via shortcode.
 - Document extraction (PDF, DOCX, XLSX, CSV)
 - Escalation to human support
 
-### Staff AI
+### Staff AI (Suzie)
 An internal AI assistant in wp-admin for your team. Available to users with the appropriate role.
 
 **Digital Staff Assistant**
@@ -48,7 +59,7 @@ An internal AI assistant in wp-admin for your team. Available to users with the 
 - Management-level knowledge base access
 - Access to confidential and management documents
 
-### Setup Assistant
+### Setup Assistant (Sam)
 An intelligent configuration agent that lives in your wp-admin settings. Guides you through plugin setup conversationally — configures branding, chat settings, user roles, and connection status. Knows the current state of every setting.
 
 - Full setup status overview
@@ -92,17 +103,30 @@ The plugin checks GitHub for updates automatically — you'll see standard WordP
 
 Once connected, Customer Chat is available on your frontend and Staff AI is available in wp-admin.
 
-## How It Works
+## How the four surfaces connect
 
-```
-WordPress (UI + Authentication)
-        |
-    def-core (this plugin)
-        |
-Digital Employee Framework (AI, Tools, Governance)
+1. **widrow.ai** is the public face of the framework: the site partners, A3REV Software among them, use to explain Digital Employees to a business.
+2. **defho.ai** is the Partner Portal: a partner signs in, creates the tenant, and sets it up.
+3. **The Tenant Portal**, hosted on defho.ai under the partner's subdomain, is where the business's own settings, keys, knowledge and people live.
+4. **The Digital Employees plugin** (this repo) runs on the business's WordPress. One-Click Connect from the Tenant Portal links them. Joe serves the public; Suzie and Sam serve the business's own staff inside wp-admin.
+5. Every surface talks to the **Digital Employee Framework**, which runs the employees and enforces the governance. It is private and governed by the published Constitution.
+
+Joe talks to a business's visitors. Some of them run businesses. The next business meets Widrow, and the ring closes.
+
+```mermaid
+flowchart LR
+    W["widrow.ai<br/>the public face"] --> P["defho.ai<br/>Partner Portal"]
+    P --> T["Tenant Portal<br/>the business's settings, keys, knowledge, people"]
+    T -- "One-Click Connect" --> C["Digital Employees plugin<br/>on the business's WordPress"]
+    C -- "Joe to the public;<br/>Suzie and Sam to staff" --> V["visitors and staff"]
+    V -. "the next business" .-> W
+    D(("DEF<br/>the framework<br/>private, governed by<br/>the Constitution"))
+    P <--> D
+    T <--> D
+    C <--> D
 ```
 
-This plugin is the bridge. All AI logic, tool execution, employee orchestration, and governance enforcement happen server-side in the DEF backend. WordPress provides the user interface and authentication context.
+This plugin is the bridge. All AI logic, tool execution, employee orchestration and governance enforcement happen server-side in the framework. WordPress provides the user interface and the authentication context.
 
 ## Admin Settings
 
@@ -160,7 +184,7 @@ Tool endpoints (product search, cart operations, order lookup) are registered dy
 
 ## External Services
 
-This plugin connects to the Digital Employee Framework (DEF) API to power its AI features. Chat messages and user context are sent to the configured DEF server only when a user actively sends a message. No data is transmitted when chat features are not in use. See the [DEFHO Privacy Policy](https://defho.ai/privacy) and [Terms of Service](https://defho.ai/terms).
+This plugin connects to the Digital Employee Framework (DEF) API to power its AI features. Chat messages and user context are sent to the configured DEF server only when a user actively sends a message. No data is transmitted when chat features are not in use. See the [Widrow Privacy Statement](https://widrow.ai/privacy-statement/) for what is collected, where it is kept and for how long, and the [DEFHO Privacy Policy](https://defho.ai/privacy) and [Terms of Service](https://defho.ai/terms) for the platform's own terms.
 
 ## Contributing
 
