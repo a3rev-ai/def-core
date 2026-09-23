@@ -2,7 +2,7 @@
 
 AI-powered Digital Employees for your WordPress site. Customer-facing chat, internal staff assistant, and intelligent setup — all connected to the [Digital Employee Framework](https://defho.ai/).
 
-[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v8.6.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v8.6.0/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
+[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v8.7.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v8.7.0/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
 
 ## Where this plugin sits
 
@@ -158,6 +158,8 @@ When WooCommerce is active, additional tools load automatically:
 **Shortcode:**
 - `[def_chat_button]` — Render the Customer Chat button at a specific location; `prompt="…"` makes it open the chat with that question asked and answered (any element with `data-def-chat-trigger` can carry `data-def-chat-prompt` the same way)
 - `[def_changelog versions="12"]` — Render the plugin's own dated changelog, newest first
+
+**Block:** the *Chat Button* block (8.7.0), under *Digital Employees* in the inserter, is the no-code form of the shortcode: a themed button with a Label and a Question to ask in its sidebar.
 
 **Hooks:**
 - `def_core_chat_button` — Action to render the chat button in theme templates
