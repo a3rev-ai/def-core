@@ -462,43 +462,7 @@
 		var greetingEl = el('div', 'def-cc-message def-cc-message--assistant');
 		var greetingContent = el('div', 'def-cc-message-content');
 
-		// Per-tenant employee name from DEF (assistantName), falling back to the
-		// branding display name when DEF is unreachable / unset. textContent below
-		// keeps it safe (the name is sanitized upstream but not HTML-escaped).
-		var bizName = config.assistantName || config.displayName || '';
-		var userName = config.userFirstName || '';
-		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
-		var intro = document.createElement('strong');
-		intro.setAttribute('part', 'greeting-intro');
-		intro.textContent = bizName
-			? hi + ' I\'m ' + bizName + ', your AI Assistant.'
-			: hi + ' I\'m your AI Assistant.';
-		greetingContent.appendChild(intro);
-		greetingContent.appendChild(document.createElement('br'));
-		greetingContent.appendChild(document.createElement('br'));
-
-		var helpText = document.createTextNode('Here\'s how I can help you:');
-		greetingContent.appendChild(helpText);
-
-		var ul = el('ul', 'def-cc-greeting-list');
-		// Role-based capabilities — apply regardless of WooCommerce being
-		// active. Sales and Support are universal employee roles in DEF;
-		// the WC-vs-not branch was telling a non-WC tenant's visitors the
-		// wrong thing and a WC tenant's visitors a too-narrow thing.
-		var capabilities = [
-			'Be your personal Sales consultant',
-			'Be your Support specialist',
-			'Connect you with a human if you need extra help',
-		];
-		for (var i = 0; i < capabilities.length; i++) {
-			var li = el('li', 'def-cc-greeting-list-item');
-			li.textContent = capabilities[i];
-			ul.appendChild(li);
-		}
-		greetingContent.appendChild(ul);
-
-		var cta = document.createTextNode('What can I do for you today?');
-		greetingContent.appendChild(cta);
+		renderOpeningMessage(greetingContent);
 
 		greetingEl.appendChild(greetingContent);
 		els.greeting = greetingEl;
@@ -4648,6 +4612,63 @@
 		currentEscalationSubject = '';
 		currentEscalationReason = '';
 	}
+
+	// ── Opening message (8.6.0) ──
+	/**
+	 * The chat's first message. A site's own text (Chat Settings → Opening message)
+	 * replaces the whole built-in greeting, rendered as text with its line breaks;
+	 * blank keeps the built-in one, so a site that never set it sees no change.
+	 */
+	function renderOpeningMessage(greetingContent) {
+		var custom = String((config && config.openingMessage) || '').trim();
+		if (custom) {
+			var lines = custom.split(/\r?\n/);
+			for (var li = 0; li < lines.length; li++) {
+				if (li > 0) greetingContent.appendChild(document.createElement('br'));
+				greetingContent.appendChild(document.createTextNode(lines[li]));
+			}
+			return;
+		}
+
+		// Per-tenant employee name from DEF (assistantName), falling back to the
+		// branding display name when DEF is unreachable / unset. textContent below
+		// keeps it safe (the name is sanitized upstream but not HTML-escaped).
+		var bizName = config.assistantName || config.displayName || '';
+		var userName = config.userFirstName || '';
+		var hi = userName ? 'Hi ' + userName + '!' : 'Hi!';
+		var intro = document.createElement('strong');
+		intro.setAttribute('part', 'greeting-intro');
+		intro.textContent = bizName
+			? hi + ' I\'m ' + bizName + ', your AI Assistant.'
+			: hi + ' I\'m your AI Assistant.';
+		greetingContent.appendChild(intro);
+		greetingContent.appendChild(document.createElement('br'));
+		greetingContent.appendChild(document.createElement('br'));
+
+		var helpText = document.createTextNode('Here\'s how I can help you:');
+		greetingContent.appendChild(helpText);
+
+		var ul = el('ul', 'def-cc-greeting-list');
+		// Role-based capabilities — apply regardless of WooCommerce being
+		// active. Sales and Support are universal employee roles in DEF;
+		// the WC-vs-not branch was telling a non-WC tenant's visitors the
+		// wrong thing and a WC tenant's visitors a too-narrow thing.
+		var capabilities = [
+			'Be your personal Sales consultant',
+			'Be your Support specialist',
+			'Connect you with a human if you need extra help',
+		];
+		for (var i = 0; i < capabilities.length; i++) {
+			var li = el('li', 'def-cc-greeting-list-item');
+			li.textContent = capabilities[i];
+			ul.appendChild(li);
+		}
+		greetingContent.appendChild(ul);
+
+		var cta = document.createTextNode('What can I do for you today?');
+		greetingContent.appendChild(cta);
+	}
+	// ── end opening message ──
 
 	// ── Ask on the visitor's behalf (8.5.0) ──
 	/**

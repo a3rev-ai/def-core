@@ -109,6 +109,12 @@ final class DEF_Core_Admin {
 				'type'     => 'string',
 				'sanitize' => 'sanitize_greeting_bubble_text',
 			),
+			// Opening message (8.6.0): the first message in the chat, per site. Same
+			// shape as the bubble text — plain text, line breaks kept, no length cap.
+			'def_core_chat_opening_message' => array(
+				'type'     => 'string',
+				'sanitize' => 'sanitize_greeting_bubble_text',
+			),
 			'def_core_chat_button_icon_id' => array(
 				'type'     => 'int',
 				'sanitize' => 'sanitize_logo_id',
@@ -563,6 +569,7 @@ final class DEF_Core_Admin {
 			'show_floating' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			'greeting_bubble_enabled' => '0' !== get_option( 'def_core_chat_greeting_bubble_enabled', '1' ),
 			'greeting_bubble_text'    => get_option( 'def_core_chat_greeting_bubble_text', "Hi! I'm your AI assistant\nI'm here to help!" ),
+			'opening_message'         => get_option( 'def_core_chat_opening_message', '' ),
 		);
 
 		// Icon preview URL for admin.

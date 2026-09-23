@@ -629,6 +629,19 @@ $first_tab = 'branding';
 			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
 
 			<div class="def-core-field">
+				<label for="def_core_chat_opening_message"><?php esc_html_e( 'Opening message', 'digital-employees' ); ?></label>
+				<textarea
+					id="def_core_chat_opening_message"
+					data-setting="def_core_chat_opening_message"
+					rows="4"
+					class="large-text"
+				><?php echo esc_textarea( $button_settings['opening_message'] ); ?></textarea>
+				<p class="description">
+					<?php esc_html_e( 'The first message visitors see when the chat opens, in your assistant\'s words. Line breaks are preserved. Leave blank for the built-in message.', 'digital-employees' ); ?>
+				</p>
+			</div>
+
+			<div class="def-core-field">
 				<label for="def_core_chat_welcome_chip_1"><?php esc_html_e( 'Suggestion Chip 1', 'digital-employees' ); ?></label>
 				<input
 					type="text"

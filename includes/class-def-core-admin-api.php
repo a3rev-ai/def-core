@@ -289,6 +289,13 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
 			'read_mode' => 'value',
 		),
+		// Opening message (8.6.0) — the chat's first message, per site; blank = built-in.
+		'def_core_chat_opening_message' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_greeting_bubble_text',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
+			'read_mode' => 'value',
+		),
 		// Connection-log verbosity — lets the platform/Setup Assistant dial log
 		// noise remotely (debug | info | warning | error). Reuses the same
 		// sanitiser the admin AJAX save path uses.
