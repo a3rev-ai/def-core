@@ -1087,7 +1087,8 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Sanitize the greeting-bubble text. Uses sanitize_textarea_field so
+	 * Sanitize the greeting-bubble text (and, since 8.6.0, the opening message,
+	 * which the chat renders as text with <br> per line). Uses sanitize_textarea_field so
 	 * admin-entered line breaks are preserved (the loader renders the text
 	 * with CSS `white-space: pre-line`). Empty is preserved (admin's way to
 	 * hide the bubble without toggling the on/off switch).

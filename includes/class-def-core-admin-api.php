@@ -800,6 +800,7 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_spotlight_width'      => 'chat-settings',
 			'def_core_chat_spotlight_height'     => 'chat-settings',
+			'def_core_chat_opening_message'      => 'chat-settings',
 			'def_core_chat_welcome_chip_1'       => 'chat-settings',
 			'def_core_chat_welcome_chip_1_intro' => 'chat-settings',
 			'def_core_chat_welcome_chip_2'       => 'chat-settings',
@@ -1513,7 +1514,8 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
-	 * Validate the greeting bubble text — free-text with optional line breaks,
+	 * Validate the greeting bubble text (and, since 8.6.0, the opening message,
+	 * which has the same shape) — free-text with optional line breaks,
 	 * bounded at 200 characters. Empty is allowed (admin's way to hide the
 	 * bubble without toggling the on/off switch).
 	 *

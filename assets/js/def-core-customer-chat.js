@@ -4620,7 +4620,7 @@
 	 * blank keeps the built-in one, so a site that never set it sees no change.
 	 */
 	function renderOpeningMessage(greetingContent) {
-		var custom = String((config && config.openingMessage) || '').trim();
+		var custom = String(config.openingMessage || '').trim();
 		if (custom) {
 			var lines = custom.split(/\r?\n/);
 			for (var li = 0; li < lines.length; li++) {

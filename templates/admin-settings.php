@@ -629,7 +629,7 @@ $first_tab = 'branding';
 			<h2><?php esc_html_e( 'Welcome State', 'digital-employees' ); ?></h2>
 
 			<div class="def-core-field">
-				<label for="def_core_chat_opening_message"><?php esc_html_e( 'Opening message', 'digital-employees' ); ?></label>
+				<label for="def_core_chat_opening_message"><?php esc_html_e( 'Opening Message', 'digital-employees' ); ?></label>
 				<textarea
 					id="def_core_chat_opening_message"
 					data-setting="def_core_chat_opening_message"
