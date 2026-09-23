@@ -392,6 +392,15 @@ function attachGate() {
 		'ATTACH_GATE', CC_PATH);
 }
 
+// ask(): a page trigger's question sent the way a welcome chip sends one (8.5.0).
+function chatAsk() {
+	return slice('chat ask',
+		l => l.includes('── Ask on the visitor\'s behalf (8.5.0)'),
+		l => l.includes('── end ask'),
+		['function ask(text)'],
+		'CHAT_ASK', CC_PATH);
+}
+
 // The staged-upload path, which is what actually names the conversation.
 function uploadStaged() {
 	return slice('uploadStagedFiles',
@@ -598,5 +607,5 @@ module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, c
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
-	attachGate, uploadStaged, customerChatSource, voice, chatVoice, chatStrings,
+	attachGate, uploadStaged, chatAsk, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

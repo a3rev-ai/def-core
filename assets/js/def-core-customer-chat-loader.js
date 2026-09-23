@@ -35,6 +35,8 @@
 	var moduleLoading = false;
 	var preloaded = false;
 	var abortController = null;
+	// 8.5.0: a question handed over by a trigger before the chat module was ready.
+	var pendingPrompt = null;
 
 	// ─── localStorage helpers ───────────────────────────────────────
 
@@ -475,7 +477,15 @@
 			var btn = e.target.closest('[data-def-chat-trigger]');
 			if (btn) {
 				e.preventDefault();
-				togglePanel();
+				// 8.5.0: a trigger may carry the question to ask. "Ask Joe what Widrow
+				// could do for you" opens the chat AND asks it, so the visitor gets an
+				// answer, not an empty composer. Without a prompt, the old toggle.
+				var prompt = (btn.getAttribute('data-def-chat-prompt') || '').trim();
+				if (prompt) {
+					askWhenReady(prompt);
+				} else {
+					togglePanel();
+				}
 			}
 		});
 	}
@@ -579,6 +589,31 @@
 		}
 	}
 
+	// 8.5.0: open the chat and ask the question once the module can take it. A second
+	// click before the module is ready replaces the pending question, never queues two.
+	function askWhenReady(text) {
+		pendingPrompt = text;
+		if (!isOpen) {
+			openPanel();
+		}
+		// A panel left open by a failed load never retries on its own; a prompt trigger does.
+		if (!moduleLoaded && !moduleLoading) {
+			loadChatModule();
+		}
+		if (moduleLoaded) {
+			flushPendingPrompt();
+		}
+	}
+
+	function flushPendingPrompt() {
+		if (!pendingPrompt) return;
+		var text = pendingPrompt;
+		pendingPrompt = null;
+		if (window.DEFCustomerChat && typeof window.DEFCustomerChat.ask === 'function') {
+			window.DEFCustomerChat.ask(text);
+		}
+	}
+
 	function openPanel() {
 		// Tear down the greeting bubble on any open path (launcher click, header
 		// trigger, restored state) — opening the chat is engagement, no need to
@@ -652,6 +687,7 @@
 		}
 
 		setStoredState(false);
+		pendingPrompt = null; // closing the chat cancels a question still waiting for the module
 	}
 
 	// ─── Lazy load chat module ──────────────────────────────────────
@@ -707,6 +743,7 @@
 							) {
 								window.DEFCustomerChat.init(shadowRoot, config);
 							}
+							flushPendingPrompt();
 						});
 					});
 				});
@@ -734,6 +771,7 @@
 
 		script.onerror = function () {
 			moduleLoading = false;
+			pendingPrompt = null;
 			var loading = panel && panel.querySelector('.def-cc-loading');
 			if (loading) {
 				loading.innerHTML =
@@ -806,6 +844,7 @@
 		isOpen = false;
 		moduleLoaded = false;
 		moduleLoading = false;
+		pendingPrompt = null;
 		preloaded = false;
 	}
 
