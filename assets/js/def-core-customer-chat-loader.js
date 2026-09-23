@@ -596,6 +596,10 @@
 		if (!isOpen) {
 			openPanel();
 		}
+		// A panel left open by a failed load never retries on its own; a prompt trigger does.
+		if (!moduleLoaded && !moduleLoading) {
+			loadChatModule();
+		}
 		if (moduleLoaded) {
 			flushPendingPrompt();
 		}
@@ -683,6 +687,7 @@
 		}
 
 		setStoredState(false);
+		pendingPrompt = null; // closing the chat cancels a question still waiting for the module
 	}
 
 	// ─── Lazy load chat module ──────────────────────────────────────
@@ -766,6 +771,7 @@
 
 		script.onerror = function () {
 			moduleLoading = false;
+			pendingPrompt = null;
 			var loading = panel && panel.querySelector('.def-cc-loading');
 			if (loading) {
 				loading.innerHTML =
@@ -838,6 +844,7 @@
 		isOpen = false;
 		moduleLoaded = false;
 		moduleLoading = false;
+		pendingPrompt = null;
 		preloaded = false;
 	}
 

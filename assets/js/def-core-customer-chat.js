@@ -4117,7 +4117,10 @@
 	// cleared user reloading the page should keep seeing the welcome state, not
 	// have the cleared thread silently re-adopted from the server.
 	function adoptMostRecentThreadIfNone() {
-		if (threadId) return;
+		// A turn already in flight (8.5.0: a seeded question sent at t=0) is a new
+		// conversation; adopting a prior thread under it would append that history
+		// below the fresh question.
+		if (threadId || isComposerDisabled) return;
 		try {
 			if (localStorage.getItem('def:cleared_session') === '1') return;
 		} catch (e) {}
@@ -4646,26 +4649,24 @@
 		currentEscalationReason = '';
 	}
 
+	// ── Ask on the visitor's behalf (8.5.0) ──
 	/**
-	 * Ask a question on the visitor's behalf (8.5.0): a page's "Ask Joe what…" trigger
-	 * hands the chat its question and the assistant answers it, the same path a welcome
-	 * chip takes. With a turn already in flight, or no API configured, the question is
-	 * left in the composer for the visitor to send. Returns true when it was sent.
+	 * A page's "Ask Joe what…" trigger hands the chat its question and the assistant
+	 * answers it: the welcome-chip path, made callable. A turn already in flight refuses
+	 * before touching the composer, exactly as a chip does (the offline widget disables
+	 * the composer too, so that case needs no branch of its own). Returns true when sent.
 	 */
 	function ask(text) {
 		text = String(text || '').trim();
-		if (destroyed || !els.input || !text) return false;
+		if (destroyed || !els.input || !text || isComposerDisabled) return false;
 		els.input.value = text;
 		setState(els.input, 'def-cc-suggestion-text', false);
 		autoResizeInput();
 		updateSendButton();
-		if (isComposerDisabled || !config || !config.apiBaseUrl) {
-			els.input.focus();
-			return false;
-		}
 		handleSubmit({ preventDefault: function () {} });
 		return true;
 	}
+	// ── end ask ──
 
 	// Expose public API.
 	window.DEFCustomerChat = {

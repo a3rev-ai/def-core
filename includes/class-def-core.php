@@ -816,7 +816,7 @@ final class DEF_Core {
 			$classes .= ' ' . sanitize_html_class( $atts['class'], '' );
 		}
 
-		$prompt = trim( (string) $atts['prompt'] );
+		$prompt      = trim( (string) $atts['prompt'] );
 		$prompt_attr = '' !== $prompt ? ' data-def-chat-prompt="' . esc_attr( $prompt ) . '"' : '';
 
 		return sprintf(
