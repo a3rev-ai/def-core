@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.4.0
+Stable tag: 8.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.5.0 - 2026-09-23 =
+* New Feature - Ask with the question ready: any button or link that opens the Customer Chat can now carry the question to ask. Add data-def-chat-prompt="What could Widrow do for my business?" beside data-def-chat-trigger, or prompt="..." on the [def_chat_button] shortcode, and the chat opens with that question sent and answered. Without it the button opens the chat as before.
 
 = 8.4.0 - 2026-09-22 =
 * New Feature - [def_changelog] shortcode: shows the plugin's own dated changelog on any page, newest first (versions="12" chooses how many), read from the readme that ships with the plugin - so a site can publish what changed and when without keeping a page by hand.

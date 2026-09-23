@@ -780,7 +780,10 @@ final class DEF_Core {
 	// ─── Customer Chat: Shortcode + Action Hook ──────────────────
 
 	/**
-	 * Shortcode: [def_chat_button label="Chat with us" class="my-class" icon="sparkle"]
+	 * Shortcode: [def_chat_button label="Chat with us" class="my-class" icon="sparkle" prompt="What could you do for my business?"]
+	 *
+	 * `prompt` (8.5.0) is the question the chat asks on the visitor's behalf when the
+	 * button is clicked; it rides as `data-def-chat-prompt`. Omit it for a plain open.
 	 *
 	 * Per-instance attributes override the corresponding Chat Settings
 	 * options. When `label`, `icon` are omitted, the saved option values
@@ -793,9 +796,10 @@ final class DEF_Core {
 	 */
 	public function shortcode_chat_button( $atts ): string {
 		$atts = shortcode_atts( array(
-			'label' => '',
-			'class' => '',
-			'icon'  => '',
+			'label'  => '',
+			'class'  => '',
+			'icon'   => '',
+			'prompt' => '',
 		), $atts, 'def_chat_button' );
 
 		// Resolve from the shortcode attr first, then fall back to the
@@ -812,9 +816,13 @@ final class DEF_Core {
 			$classes .= ' ' . sanitize_html_class( $atts['class'], '' );
 		}
 
+		$prompt = trim( (string) $atts['prompt'] );
+		$prompt_attr = '' !== $prompt ? ' data-def-chat-prompt="' . esc_attr( $prompt ) . '"' : '';
+
 		return sprintf(
-			'<button type="button" class="%s" data-def-chat-trigger>%s<span class="def-chat-trigger-btn-label">%s</span></button>',
+			'<button type="button" class="%s" data-def-chat-trigger%s>%s<span class="def-chat-trigger-btn-label">%s</span></button>',
 			esc_attr( $classes ),
+			$prompt_attr,
 			$this->render_chat_button_icon( $icon ),
 			esc_html( $label )
 		);

@@ -35,6 +35,8 @@
 	var moduleLoading = false;
 	var preloaded = false;
 	var abortController = null;
+	// 8.5.0: a question handed over by a trigger before the chat module was ready.
+	var pendingPrompt = null;
 
 	// ─── localStorage helpers ───────────────────────────────────────
 
@@ -475,7 +477,15 @@
 			var btn = e.target.closest('[data-def-chat-trigger]');
 			if (btn) {
 				e.preventDefault();
-				togglePanel();
+				// 8.5.0: a trigger may carry the question to ask. "Ask Joe what Widrow
+				// could do for you" opens the chat AND asks it, so the visitor gets an
+				// answer, not an empty composer. Without a prompt, the old toggle.
+				var prompt = (btn.getAttribute('data-def-chat-prompt') || '').trim();
+				if (prompt) {
+					askWhenReady(prompt);
+				} else {
+					togglePanel();
+				}
 			}
 		});
 	}
@@ -576,6 +586,27 @@
 			closePanel();
 		} else {
 			openPanel();
+		}
+	}
+
+	// 8.5.0: open the chat and ask the question once the module can take it. A second
+	// click before the module is ready replaces the pending question, never queues two.
+	function askWhenReady(text) {
+		pendingPrompt = text;
+		if (!isOpen) {
+			openPanel();
+		}
+		if (moduleLoaded) {
+			flushPendingPrompt();
+		}
+	}
+
+	function flushPendingPrompt() {
+		if (!pendingPrompt) return;
+		var text = pendingPrompt;
+		pendingPrompt = null;
+		if (window.DEFCustomerChat && typeof window.DEFCustomerChat.ask === 'function') {
+			window.DEFCustomerChat.ask(text);
 		}
 	}
 
@@ -707,6 +738,7 @@
 							) {
 								window.DEFCustomerChat.init(shadowRoot, config);
 							}
+							flushPendingPrompt();
 						});
 					});
 				});
