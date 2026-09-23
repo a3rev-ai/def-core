@@ -87,6 +87,9 @@ final class DEF_Core_Chat_Button_Block {
 					),
 				),
 				'supports'              => array( 'html' => false ),
+				// Core's button stylesheet: on a block theme it loads only when a core Button
+				// is on the page, so a page with just this block would lose inline-block + padding.
+				'style_handles'         => array( 'wp-block-button' ),
 				'editor_script_handles' => array( self::SCRIPT ),
 				'render_callback'       => array( __CLASS__, 'render' ),
 			)
@@ -95,8 +98,8 @@ final class DEF_Core_Chat_Button_Block {
 
 	/**
 	 * Front-end markup. Core button classes for the theme's styling; the loader's
-	 * trigger attributes for the behaviour (the loader calls preventDefault on the
-	 * click, so the `#` href never moves the page). A blank label falls back to the
+	 * trigger attributes for the behaviour; a <button>, as core renders a Button with
+	 * no destination, so nothing happens if the loader is not there. A blank label falls back to the
 	 * Chat Settings button label, as the shortcode does; a blank question opens the
 	 * chat with nothing sent.
 	 *
@@ -110,7 +113,7 @@ final class DEF_Core_Chat_Button_Block {
 		$prompt_attr = '' !== $prompt ? ' data-def-chat-prompt="' . esc_attr( $prompt ) . '"' : '';
 
 		return sprintf(
-			'<div %s><a class="wp-block-button__link wp-element-button" href="#" data-def-chat-trigger%s>%s</a></div>',
+			'<div %s><button type="button" class="wp-block-button__link wp-element-button" data-def-chat-trigger%s>%s</button></div>',
 			get_block_wrapper_attributes( array( 'class' => 'wp-block-button' ) ),
 			$prompt_attr,
 			esc_html( '' !== $label ? $label : self::default_label() )

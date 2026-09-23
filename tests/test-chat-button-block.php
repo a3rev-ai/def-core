@@ -54,11 +54,11 @@ echo "=== DEF_Core_Chat_Button_Block::render ===\n\n";
 _wp_test_reset_options();
 
 $html = DEF_Core_Chat_Button_Block::render( array( 'label' => 'Ask Joe', 'prompt' => 'What could Widrow do for my business?' ) );
-assert_test( false !== strpos( $html, '<div class="wp-block-button">' ), 'the wrapper carries the core button class' );
-assert_test( false !== strpos( $html, 'class="wp-block-button__link wp-element-button"' ), 'the link carries the core button link classes' );
-assert_test( false !== strpos( $html, ' data-def-chat-trigger' ), 'the link is a chat trigger' );
+assert_test( false !== strpos( $html, 'class="wp-block-button' ), 'the wrapper carries the core button class' );
+assert_test( false !== strpos( $html, '<button type="button" class="wp-block-button__link wp-element-button"' ), 'a button element with the core button link classes' );
+assert_test( false !== strpos( $html, ' data-def-chat-trigger' ), 'the button is a chat trigger' );
 assert_test( false !== strpos( $html, 'data-def-chat-prompt="What could Widrow do for my business?"' ), 'the question rides as the prompt attribute' );
-assert_test( false !== strpos( $html, '>Ask Joe</a>' ), 'the label is the link text' );
+assert_test( false !== strpos( $html, '>Ask Joe</button>' ), 'the label is the button text' );
 
 $html = DEF_Core_Chat_Button_Block::render( array( 'label' => 'Ask Joe', 'prompt' => '' ) );
 assert_test( false === strpos( $html, 'data-def-chat-prompt' ), 'a blank question sends nothing: no prompt attribute' );
@@ -66,10 +66,10 @@ $html = DEF_Core_Chat_Button_Block::render( array( 'label' => 'Ask Joe', 'prompt
 assert_test( false === strpos( $html, 'data-def-chat-prompt' ), 'a whitespace-only question counts as blank' );
 
 $html = DEF_Core_Chat_Button_Block::render( array() );
-assert_test( false !== strpos( $html, '>Chat</a>' ), 'no label and no option: the built-in "Chat"' );
+assert_test( false !== strpos( $html, '>Chat</button>' ), 'no label and no option: the built-in "Chat"' );
 update_option( 'def_core_chat_button_label', 'Talk to Sid' );
 $html = DEF_Core_Chat_Button_Block::render( array( 'label' => '   ' ) );
-assert_test( false !== strpos( $html, '>Talk to Sid</a>' ), 'a blank label falls back to the Chat Settings button label' );
+assert_test( false !== strpos( $html, '>Talk to Sid</button>' ), 'a blank label falls back to the Chat Settings button label' );
 
 $html = DEF_Core_Chat_Button_Block::render( array( 'label' => '<b>Ask</b>', 'prompt' => 'a" onmouseover="x() <script>' ) );
 assert_test( false === strpos( $html, '<b>' ) && false !== strpos( $html, '&lt;b&gt;Ask&lt;/b&gt;' ), 'markup in the label is escaped' );
