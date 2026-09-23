@@ -76,6 +76,7 @@ final class DEF_Core {
 		DEF_Core_Logs_Page::init();
 		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
+		DEF_Core_Chat_Button_Block::init();
 
 		// Schedule log cleanup cron.
 		DEF_Core_Logger::schedule_cleanup();
@@ -152,6 +153,7 @@ final class DEF_Core {
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logger.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-logs-page.php';
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-content-drafts-page.php';
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-chat-button-block.php';
 
 		// Knowledge export endpoints.
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-export.php';
