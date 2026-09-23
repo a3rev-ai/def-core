@@ -36,6 +36,7 @@
 		'chat_drawer_width':          { id: 'def_core_chat_drawer_width',  max_length: 5 },
 		'chat_spotlight_width':       { id: 'def_core_chat_spotlight_width',  max_length: 5 },
 		'chat_spotlight_height':      { id: 'def_core_chat_spotlight_height', max_length: 5 },
+		'chat_opening_message':       { id: 'def_core_chat_opening_message' },
 		'chat_welcome_chip_1':        { id: 'def_core_chat_welcome_chip_1' },
 		'chat_welcome_chip_1_intro':  { id: 'def_core_chat_welcome_chip_1_intro' },
 		'chat_welcome_chip_2':        { id: 'def_core_chat_welcome_chip_2' },

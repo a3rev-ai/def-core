@@ -392,6 +392,15 @@ function attachGate() {
 		'ATTACH_GATE', CC_PATH);
 }
 
+// renderOpeningMessage(): the chat's first message, a site's own or the built-in one (8.6.0).
+function chatOpening() {
+	return slice('chat opening message',
+		l => l.includes('── Opening message (8.6.0)'),
+		l => l.includes('── end opening message'),
+		['function renderOpeningMessage'],
+		'CHAT_OPENING', CC_PATH);
+}
+
 // ask(): a page trigger's question sent the way a welcome chip sends one (8.5.0).
 function chatAsk() {
 	return slice('chat ask',
@@ -607,5 +616,5 @@ module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, c
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
-	attachGate, uploadStaged, chatAsk, customerChatSource, voice, chatVoice, chatStrings,
+	attachGate, uploadStaged, chatAsk, chatOpening, customerChatSource, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

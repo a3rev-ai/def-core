@@ -289,6 +289,13 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
 			'read_mode' => 'value',
 		),
+		// Opening message (8.6.0) — the chat's first message, per site; blank = built-in.
+		'def_core_chat_opening_message' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_greeting_bubble_text',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
+			'read_mode' => 'value',
+		),
 		// Connection-log verbosity — lets the platform/Setup Assistant dial log
 		// noise remotely (debug | info | warning | error). Reuses the same
 		// sanitiser the admin AJAX save path uses.
@@ -793,6 +800,7 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_spotlight_width'      => 'chat-settings',
 			'def_core_chat_spotlight_height'     => 'chat-settings',
+			'def_core_chat_opening_message'      => 'chat-settings',
 			'def_core_chat_welcome_chip_1'       => 'chat-settings',
 			'def_core_chat_welcome_chip_1_intro' => 'chat-settings',
 			'def_core_chat_welcome_chip_2'       => 'chat-settings',
@@ -1506,7 +1514,8 @@ final class DEF_Core_Admin_API {
 	}
 
 	/**
-	 * Validate the greeting bubble text — free-text with optional line breaks,
+	 * Validate the greeting bubble text (and, since 8.6.0, the opening message,
+	 * which has the same shape) — free-text with optional line breaks,
 	 * bounded at 200 characters. Empty is allowed (admin's way to hide the
 	 * bubble without toggling the on/off switch).
 	 *

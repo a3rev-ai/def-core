@@ -52,6 +52,7 @@ $options[] = 'def_core_chat_button_icon_id';
 $options[] = 'def_core_chat_show_floating';
 $options[] = 'def_core_chat_greeting_bubble_enabled';
 $options[] = 'def_core_chat_greeting_bubble_text';
+$options[] = 'def_core_chat_opening_message';
 $options[] = 'def_core_chat_ai_notice';
 $options[] = 'def_core_chat_privacy_url';
 

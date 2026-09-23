@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.6.0 - 2026/09/23 =
+* New Feature - Opening message: Chat Settings has a new Opening message field, the first message visitors see when the chat opens, in your assistant's own words. Line breaks are preserved. Leave it blank and the chat opens with the built-in greeting as before.
+
 = 8.5.0 - 2026/09/23 =
 * New Feature - Ask with the question ready: any button or link that opens the Customer Chat can now carry the question to ask. Add data-def-chat-prompt="What could Widrow do for my business?" beside data-def-chat-trigger, or prompt="..." on the [def_chat_button] shortcode, and the chat opens with that question sent and answered. Without it the button opens the chat as before.
 

@@ -545,6 +545,8 @@ final class DEF_Core {
 			// Greeting Bubble (v3.12.0) — proactive pop-up above the launcher.
 			'greetingBubbleEnabled' => '0' !== get_option( 'def_core_chat_greeting_bubble_enabled', '1' ),
 			'greetingBubbleText'    => get_option( 'def_core_chat_greeting_bubble_text', "Hi! I'm your AI assistant\nI'm here to help!" ),
+			// Opening message (8.6.0) — the chat's first message; blank = the built-in one.
+			'openingMessage'        => get_option( 'def_core_chat_opening_message', '' ),
 			// WooCommerce context.
 			'wooActive'       => ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) ? '1' : '',
 			// AI Disclosure Notice — master toggle + link fields (rendered
