@@ -6669,8 +6669,10 @@ function t(key, fallback) {
 					: t('taskRunQueuedCard', 'Queued — starts on the next run cycle');
 			}
 			if (!lastRun || !lastRun.status) return '';
-			// Once delivered, the time shown is the send, not the run's finish.
-			var when = whenText((lastRun.delivered && lastRun.delivered_at) || lastRun.at);
+			// Once a SUCCEEDED run is delivered, the time shown is the send, not the run's
+			// finish. A failed run's notice is delivered too; its time stays the run's own.
+			var when = whenText((lastRun.status === 'succeeded' && lastRun.delivered
+				&& lastRun.delivered_at) || lastRun.at);
 			return t('taskLastRun', 'Last run: %s').replace('%s', runOutcomeText(row, lastRun))
 				+ (when ? ' · ' + when : '');
 		}

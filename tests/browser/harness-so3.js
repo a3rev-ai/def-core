@@ -10,7 +10,7 @@
  * renders the day BEFORE for exactly these readers. Under TZ=UTC or Brisbane
  * that bug is invisible.
  *
- * 20 checks.
+ * 21 checks.
  */
 process.env.TZ = 'America/New_York';
 const { JSDOM } = require('jsdom');
@@ -242,7 +242,9 @@ function check(label, ok, detail) {
 			last_run: { status: 'succeeded', at: at, delivered: false } });
 		const SENT = Object.assign({}, RAN, { id: 't-sent', name: 'Sent',
 			last_run: { status: 'succeeded', at: at, delivered: true, delivered_at: sentAt } });
-		const t = boot([PENDING, SENT, RAN]);
+		const FAILED = Object.assign({}, RAN, { id: 't-failed', name: 'Broke', last_run:
+			{ status: 'failed', at: at, delivered: true, delivered_at: sentAt } });
+		const t = boot([PENDING, SENT, RAN, FAILED]);
 		await t.load();
 		await tick(t.window);
 		const line = (name) => t.cards().find(c => c.textContent.includes(name))
@@ -256,6 +258,8 @@ function check(label, ok, detail) {
 			&& !line('Sent').includes(clock(at)), line('Sent'));
 		check('a run with no delivery facts (an older DEF) still reads Sent, as before',
 			line('Went off already').includes('Sent to you@example.test'), line('Went off already'));
+		check('a failed run whose notice was delivered keeps the time it failed',
+			line('Broke').includes(clock(at)) && !line('Broke').includes(clock(sentAt)), line('Broke'));
 	}
 
 	console.log('S-O3 — the once cadence on the Scheduled page');
