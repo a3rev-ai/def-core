@@ -411,6 +411,12 @@
 		messages.setAttribute('role', 'log');
 		messages.setAttribute('aria-live', 'polite');
 		messages.setAttribute('aria-relevant', 'additions');
+		// 8.7.1: a Tab stop of its own, named, so a keyboard can reach the
+		// conversation and scroll it with the arrow keys (axe
+		// scrollable-region-focusable). The panel's Tab trap takes any
+		// [tabindex] as a stop, so it sits between the header and the composer.
+		messages.setAttribute('tabindex', '0');
+		messages.setAttribute('aria-label', 'Conversation');
 		els.messages = messages;
 		panel.appendChild(messages);
 
