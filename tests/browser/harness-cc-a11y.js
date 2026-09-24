@@ -1,12 +1,13 @@
 /*
- * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 36 checks.
+ * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 38 checks.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
  *
  * What it holds:
  *  - Opening moves focus into the panel: the composer when the chat module has
- *    built it, the panel itself (tabindex="-1") while it is still loading.
+ *    built it, the panel itself (tabindex="-1") while it is still loading — and
+ *    on a phone always the panel, so a reopen does not raise the keyboard (#37).
  *  - Closing — X, Escape, the drawer's backdrop, a click outside — hands focus
  *    back to whoever opened the chat: a page trigger, else — or when the opener
  *    can no longer take focus — the launcher. Focus the visitor put on the page
@@ -16,7 +17,8 @@
  *  - Tab and Shift+Tab wrap at the panel's two ends and bring stray focus back in;
  *    between the ends the browser's own order is left alone.
  *  - Page scroll is locked on the element the viewport takes its overflow from,
- *    and closing puts back exactly the inline style that was there.
+ *    and closing puts back exactly the inline style that was there — unless the
+ *    page cleared our lock while the chat was open, when it is left alone (#38).
  *  - Over the SHIPPED chat module (def-core-customer-chat.js, run in the same
  *    page): every icon-only header control is named, and reopening focuses the
  *    module's own composer — the class the loader looks for is the one it builds.
@@ -26,7 +28,7 @@
  *  - The greeting bubble is two sibling buttons, not a control inside a control;
  *    both open/dismiss work from the keyboard and the 24h dismissal holds.
  *
- * Against 8.7.0 (the loader AND the chat module) it fails 24 of the 36. The 12 it leaves green are
+ * Against 8.7.0 (the loader AND the chat module) it fails 26 of the 38. The 12 it leaves green are
  * behaviour 8.7.0 already had (Escape and the backdrop returning to the launcher —
  * which it did whoever the opener was, so the stand-in check passes there too —
  * the named header, the 24h dismissal, the bubble's tail) and the checks that
@@ -422,6 +424,39 @@ function tag(el) {
   bubble.click(); // the box itself — its tail
   check(36, 'a click on the bubble box (its tail) still opens the chat',
     h.panel() && h.panel().classList.contains('def-cc-panel--open'));
+
+  // ── Review round 1 (appended, so the numbers the panel cites stay put) ──
+  // A phone: reopening with the module built must not focus the composer —
+  // that opens the on-screen keyboard over half the chat on every reopen.
+  h = await boot();
+  Object.defineProperty(h.w, 'innerWidth', { value: 390, configurable: true });
+  h.trigger.focus();
+  h.trigger.click();
+  s = h.buildModule();
+  h.key(h.active(), 'Escape');
+  h.trigger.focus();
+  h.trigger.click();
+  check(37, 'on a phone (390px) a reopen with the module built focuses the panel, not the composer (desktop keeps the composer: #3)',
+    h.active() === h.panel() && h.active() !== s.input, 'active=' + tag(h.active()));
+
+  // A theme's phone menu set <body> overflow:hidden inline, the chat opened
+  // over it, and the menu cleared that style while the chat was open — taking
+  // our lock with it. Closing must not write the menu's "hidden" back.
+  h = await boot({
+    head: '<style>html { overflow-x: visible; overflow-y: visible; }</style>',
+    bodyAttrs: ' style="overflow: hidden"',
+  });
+  h.doc.getElementById('cta').focus();
+  h.doc.getElementById('cta').click();
+  const lockedOverMenu = h.doc.body.style.getPropertyValue('overflow') === 'hidden' &&
+    h.doc.body.style.getPropertyPriority('overflow') === 'important';
+  h.doc.body.style.removeProperty('overflow'); // the menu folds away
+  h.key(h.active(), 'Escape');
+  check(38, 'a phone menu that cleared <body> overflow while the chat was open: closing leaves no inline overflow, and the page can scroll',
+    lockedOverMenu && !h.doc.body.style.getPropertyValue('overflow') &&
+    h.w.getComputedStyle(h.doc.body).overflowY !== 'hidden' &&
+    !h.doc.documentElement.style.getPropertyValue('overflow'),
+    'body style=' + JSON.stringify(h.doc.body.getAttribute('style')));
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));

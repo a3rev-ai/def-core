@@ -770,8 +770,11 @@
 	// otherwise the panel itself. On the first open the module is still
 	// loading here; its init() focuses the composer once it has built it
 	// (def-core-customer-chat.js), which moves focus on from the panel.
+	// On a phone, always the panel: focusing the composer inside the tap opens
+	// the on-screen keyboard over half the chat on every reopen, where 8.7.0
+	// only ever did that once, through the module's first-load timer.
 	function focusIntoPanel() {
-		var input = panel.querySelector('.def-cc-composer-input');
+		var input = !isMobile() && panel.querySelector('.def-cc-composer-input');
 		var target = input && isTabStop(input) ? input : panel;
 		target.focus({ preventScroll: true });
 	}
@@ -859,9 +862,9 @@
 
 	function unlockPageScroll() {
 		if (!scrollLock) return;
-		restoreInline(scrollLock.target, 'overflow', scrollLock.overflow);
+		restoreInline(scrollLock.target, 'overflow', 'hidden', scrollLock.overflow);
 		if (scrollLock.gutter) {
-			restoreInline(document.documentElement, 'scrollbar-gutter', scrollLock.gutter);
+			restoreInline(document.documentElement, 'scrollbar-gutter', 'stable', scrollLock.gutter);
 		}
 		scrollLock = null;
 	}
@@ -876,7 +879,14 @@
 		};
 	}
 
-	function restoreInline(el, prop, saved) {
+	// Only while our lock is still the value in place. A theme's phone menu that
+	// set <body>'s overflow inline and cleared it while the chat was open took
+	// our lock with it; writing its old "hidden" back would leave the page
+	// unable to scroll until a reload. Whatever the page wrote since is its own.
+	function restoreInline(el, prop, ours, saved) {
+		if (el.style.getPropertyValue(prop) !== ours || el.style.getPropertyPriority(prop) !== 'important') {
+			return;
+		}
 		if (saved.value) {
 			el.style.setProperty(prop, saved.value, saved.priority);
 		} else {
