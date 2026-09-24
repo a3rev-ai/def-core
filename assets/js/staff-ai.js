@@ -6624,7 +6624,8 @@ function t(key, fallback) {
 				d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 		}
 
-		function runOutcomeText(row, status) {
+		function runOutcomeText(row, lastRun) {
+			var status = lastRun.status;
 			// "Succeeded" never said WHERE the output went. The address is this
 			// page's own WordPress account — DEF's run record does not report
 			// where it delivered (the proxy withholds owner_email by design), so
@@ -6633,6 +6634,12 @@ function t(key, fallback) {
 			// status, rather than naming one and silently dropping the other.
 			var dests = Array.isArray(row.destinations) ? row.destinations : [];
 			if (status === 'succeeded' && userEmail && dests.length === 1 && dests[0] === 'email') {
+				// DEF says when the output was handed to the mailer (delivered). Until then
+				// it is on its way, not sent: the result goes out on the platform's next
+				// delivery pass. An older DEF sends no delivery facts and keeps "Sent".
+				if (lastRun.delivered === false) {
+					return t('runStatusDeliveringTo', 'Delivering to %s…').replace('%s', function () { return userEmail; });
+				}
 				return t('runStatusSentTo', 'Sent to %s').replace('%s', function () { return userEmail; });
 			}
 			return runStatusText(status);
@@ -6662,8 +6669,11 @@ function t(key, fallback) {
 					: t('taskRunQueuedCard', 'Queued — starts on the next run cycle');
 			}
 			if (!lastRun || !lastRun.status) return '';
-			var when = whenText(lastRun.at);
-			return t('taskLastRun', 'Last run: %s').replace('%s', runOutcomeText(row, lastRun.status))
+			// Once a SUCCEEDED run is delivered, the time shown is the send, not the run's
+			// finish. A failed run's notice is delivered too; its time stays the run's own.
+			var when = whenText((lastRun.status === 'succeeded' && lastRun.delivered
+				&& lastRun.delivered_at) || lastRun.at);
+			return t('taskLastRun', 'Last run: %s').replace('%s', runOutcomeText(row, lastRun))
 				+ (when ? ' · ' + when : '');
 		}
 

@@ -3204,7 +3204,7 @@ final class DEF_Core_Staff_AI
 	 * fields, they stay out of the card until someone decides they belong.
 	 *
 	 * @param mixed $row Raw last_run from DEF, or null when nothing has run.
-	 * @return array|null {status, at}, or null.
+	 * @return array|null {status, at, and delivered / delivered_at when DEF sends them}, or null.
 	 */
 	private static function allowlist_last_run( $row )
 	{
@@ -3216,7 +3216,16 @@ final class DEF_Core_Staff_AI
 		if ( '' === $status ) {
 			return null;
 		}
-		return array( 'status' => $status, 'at' => $at );
+		$out = array( 'status' => $status, 'at' => $at );
+		// The delivery facts (DEF 2026-09-24) pass through only when DEF sends them,
+		// typed; a caller whose DEF payload has none keeps exactly status + at.
+		if ( isset( $row['delivered'] ) && is_bool( $row['delivered'] ) ) {
+			$out['delivered'] = $row['delivered'];
+		}
+		if ( isset( $row['delivered_at'] ) && is_string( $row['delivered_at'] ) ) {
+			$out['delivered_at'] = $row['delivered_at'];
+		}
+		return $out;
 	}
 
 	/**

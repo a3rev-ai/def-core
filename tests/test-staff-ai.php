@@ -1404,6 +1404,26 @@ assert_true(
 	'the digest never rides along'
 );
 
+echo "\n[TS-10b] the delivery facts pass through when DEF sends them, typed - nothing else rides along\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success'  => true,
+	'schedule' => array( 'enabled' => true ),
+	'last_run' => array(
+		'status'       => 'succeeded',
+		'at'           => '2026-09-24T13:21:05+00:00',
+		'delivered'    => true,
+		'delivered_at' => '2026-09-24T13:30:38+00:00',
+		'digest'       => array( 'items' => array( 'secret subject' ) ),
+	),
+) );
+$resp = DEF_Core_Staff_AI::rest_get_triage_schedule();
+unset( $GLOBALS['_def_test_get_body'] );
+$last = $resp->get_data()['last_run'] ?? array();
+assert_equals( array( 'status', 'at', 'delivered', 'delivered_at' ), array_keys( $last ), 'status, at and the two delivery facts' );
+assert_true( true === ( $last['delivered'] ?? null ), 'delivered stays a boolean' );
+assert_equals( '2026-09-24T13:30:38+00:00', $last['delivered_at'] ?? '', 'delivered_at passed through' );
+assert_true( false === strpos( json_encode( $resp->get_data() ), 'secret subject' ), 'the digest still never rides along' );
+
 echo "\n[TS-11] no runs yet reads as null, never an invented status\n";
 $GLOBALS['_def_test_get_body'] = json_encode( array(
 	'success' => true, 'schedule' => array( 'enabled' => true ), 'last_run' => null,

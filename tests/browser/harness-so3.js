@@ -10,7 +10,7 @@
  * renders the day BEFORE for exactly these readers. Under TZ=UTC or Brisbane
  * that bug is invisible.
  *
- * 17 checks.
+ * 21 checks.
  */
 process.env.TZ = 'America/New_York';
 const { JSDOM } = require('jsdom');
@@ -231,6 +231,35 @@ function check(label, ok, detail) {
 		await tick(t.window);
 		check('and its card says Run now, never "Ran once at" a date it has not reached',
 			t.badge(0) === 'Runs when you press Run now', t.badge(0));
+	}
+
+	// ── "Sent" means sent: the card waits for DEF's delivery ack ────────────
+	// The a3rev canary (2026-09-24): the run finished 23:21, the email left on
+	// DEFHO's next pass at 23:30, and the card said "Sent … 11:21 PM" in between.
+	{
+		const at = '2026-12-24T09:30:00+10:00', sentAt = '2026-12-24T09:40:00+10:00';
+		const PENDING = Object.assign({}, RAN, { id: 't-pending', name: 'Pending',
+			last_run: { status: 'succeeded', at: at, delivered: false } });
+		const SENT = Object.assign({}, RAN, { id: 't-sent', name: 'Sent',
+			last_run: { status: 'succeeded', at: at, delivered: true, delivered_at: sentAt } });
+		const FAILED = Object.assign({}, RAN, { id: 't-failed', name: 'Broke', last_run:
+			{ status: 'failed', at: at, delivered: true, delivered_at: sentAt } });
+		const t = boot([PENDING, SENT, RAN, FAILED]);
+		await t.load();
+		await tick(t.window);
+		const line = (name) => t.cards().find(c => c.textContent.includes(name))
+			.querySelector('.task-last-run').textContent;
+		const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		check('a succeeded run DEF has not yet delivered says Delivering, never Sent',
+			line('Pending').includes('Delivering to you@example.test') && !line('Pending').includes('Sent'),
+			line('Pending'));
+		check('a delivered run says Sent, stamped with the DELIVERY time, not the run finish',
+			line('Sent').includes('Sent to you@example.test') && line('Sent').includes(clock(sentAt))
+			&& !line('Sent').includes(clock(at)), line('Sent'));
+		check('a run with no delivery facts (an older DEF) still reads Sent, as before',
+			line('Went off already').includes('Sent to you@example.test'), line('Went off already'));
+		check('a failed run whose notice was delivered keeps the time it failed',
+			line('Broke').includes(clock(at)) && !line('Broke').includes(clock(sentAt)), line('Broke'));
 	}
 
 	console.log('S-O3 — the once cadence on the Scheduled page');

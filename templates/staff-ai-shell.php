@@ -1066,6 +1066,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskRunRunningNow: <?php echo wp_json_encode( __( 'Running now…', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the WordPress account email a run's output is sent to. */ ?>
 			runStatusSentTo: <?php echo wp_json_encode( __( 'Sent to %s', 'digital-employees' ) ); ?>,
+			<?php /* translators: %s: the WordPress account email a run's output is on its way to. */ ?>
+			runStatusDeliveringTo: <?php echo wp_json_encode( __( 'Delivering to %s…', 'digital-employees' ) ); ?>,
 			taskDiscardForAsk: <?php echo wp_json_encode( __( 'Leave this task and open a chat? What you have typed here is not kept.', 'digital-employees' ) ); ?>,
 			scheduleResultsAsk: <?php echo wp_json_encode( __( 'Where do results go? Ask your assistant', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the assistant's name, e.g. Sue. */ ?>
