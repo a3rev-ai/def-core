@@ -20,7 +20,7 @@ The framework is governed by a published constitution and reaches businesses thr
 Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels:
 
 ### Customer Chat (Joe)
-A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering. It works from the keyboard and with screen readers (8.7.1): it opens as a dialog named "Chat" that takes focus, Tab stays inside it, and closing it puts focus back where the visitor was.
+A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering. It works from the keyboard and with screen readers (8.7.1): it opens as a dialog named "Chat" that takes focus, Tab stays inside it — the conversation included, which the arrow keys scroll — and closing it puts focus back where the visitor was.
 
 **Digital Sales Assistant**
 - Product inquiries, pricing, features, and comparisons

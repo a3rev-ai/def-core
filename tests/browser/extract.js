@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD, CC_LOADER) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD, CC_LOADER, CC_MODULE) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -421,7 +421,7 @@ function uploadStaged() {
 }
 
 function customerChatSource() {
-	return fs.readFileSync(CC_PATH, 'utf8');
+	return fs.readFileSync(process.env.CC_MODULE ? path.resolve(process.env.CC_MODULE) : CC_PATH, 'utf8');
 }
 
 // The Customer Chat LOADER, whole (8.7.1). It is one self-starting IIFE with no

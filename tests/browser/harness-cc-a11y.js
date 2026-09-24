@@ -1,5 +1,5 @@
 /*
- * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 33 checks.
+ * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 36 checks.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
@@ -20,10 +20,13 @@
  *  - Over the SHIPPED chat module (def-core-customer-chat.js, run in the same
  *    page): every icon-only header control is named, and reopening focuses the
  *    module's own composer — the class the loader looks for is the one it builds.
+ *    The message list stays role="log" and is a named Tab stop (tabindex="0",
+ *    aria-label="Conversation") in the Tab sequence between Close chat and the
+ *    composer, which the trap lets through while its two ends still wrap.
  *  - The greeting bubble is two sibling buttons, not a control inside a control;
  *    both open/dismiss work from the keyboard and the 24h dismissal holds.
  *
- * Against the 8.7.0 loader it fails 21 of the 33. The 12 it leaves green are
+ * Against 8.7.0 (the loader AND the chat module) it fails 24 of the 36. The 12 it leaves green are
  * behaviour 8.7.0 already had (Escape and the backdrop returning to the launcher —
  * which it did whoever the opener was, so the stand-in check passes there too —
  * the named header, the 24h dismissal, the bubble's tail) and the checks that
@@ -33,7 +36,8 @@
  * anything not display:none — which is all the loader's tab-stop test asks of it.
  * The real-browser walk and axe run that go with this are in the PR body.
  *
- * Bite: CC_LOADER=/path/to/old-loader.js node tests/browser/harness-cc-a11y.js
+ * Bite: CC_LOADER=/path/to/old-loader.js and/or CC_MODULE=/path/to/old-chat.js
+ *       node tests/browser/harness-cc-a11y.js  (the old module alone fails #28 and #29)
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -328,6 +332,42 @@ function tag(el) {
   check(27, 'reopened over the shipped module, focus lands on the module\'s own composer',
     h.active() && h.active().tagName === 'TEXTAREA' && h.active().matches('.def-cc-composer-input'),
     'active=' + tag(h.active()));
+
+  // The conversation is a scroll box; a keyboard has to be able to reach it to
+  // scroll it (axe scrollable-region-focusable). It stays the live log it was.
+  const log = h.root.querySelector('.def-cc-messages');
+  check(28, 'the message list keeps role="log" and aria-live, and is a named Tab stop: tabindex="0", aria-label="Conversation"',
+    log && log.getAttribute('role') === 'log' && log.getAttribute('aria-live') === 'polite' &&
+    log.getAttribute('tabindex') === '0' && log.getAttribute('aria-label') === 'Conversation',
+    log ? log.outerHTML.slice(0, 160) : 'no .def-cc-messages');
+  // The order the browser Tabs through: tree order, tabIndex >= 0, enabled,
+  // rendered, visible, not inert — the same test the trap applies. (jsdom loads
+  // no stylesheet, so the closed menu's items count here; they sit in the header.)
+  const sequence = () => Array.from(h.panel().querySelectorAll('*')).filter(el =>
+    el.tabIndex >= 0 && !el.disabled && !el.closest('[inert]') &&
+    el.getClientRects().length > 0 && h.w.getComputedStyle(el).visibility !== 'hidden');
+  const seq = sequence();
+  const at = seq.indexOf(log);
+  const closeX = h.root.querySelector('.def-cc-panel-close');
+  const composer = h.root.querySelector('.def-cc-composer-input');
+  closeX.focus();
+  const fromClose = h.key(closeX, 'Tab');
+  log.focus();
+  const fromLog = h.key(log, 'Tab');
+  log.focus();
+  const backFromLog = h.key(log, 'Tab', { shiftKey: true });
+  check(29, 'while open it is in the Tab sequence, straight after Close chat and before the composer, and the trap lets Tab through it both ways',
+    at > 0 && seq[at - 1] === closeX && seq.indexOf(composer) > at &&
+    h.active() === log && !fromClose.defaultPrevented && !fromLog.defaultPrevented && !backFromLog.defaultPrevented,
+    'sequence=' + seq.map(tag).join(' > '));
+  const lastStop = seq[seq.length - 1];
+  lastStop.focus();
+  const wrapFwd = h.key(lastStop, 'Tab');
+  const landedFirst = h.active() === seq[0];
+  const wrapBack = h.key(seq[0], 'Tab', { shiftKey: true });
+  check(30, 'with the list in the sequence the trap\'s ends still wrap: last → New conversation, and back',
+    seq[0].getAttribute('aria-label') === 'New conversation' && wrapFwd.defaultPrevented && landedFirst &&
+    wrapBack.defaultPrevented && h.active() === lastStop, 'first=' + tag(seq[0]) + ' last=' + tag(lastStop));
   h.w.DEFCustomerChat.destroy();
 
   // ── Greeting bubble ────────────────────────────────────────────────────
@@ -337,14 +377,14 @@ function tag(el) {
   let bubble = h.root.querySelector('.def-cc-greeting-bubble');
   const openBtn = bubble && bubble.querySelector('.def-cc-greeting-bubble-open');
   const closeBtn = bubble && bubble.querySelector('.def-cc-greeting-bubble-close');
-  check(28, 'the bubble is a plain box holding two sibling buttons, each keeping its name',
+  check(31, 'the bubble is a plain box holding two sibling buttons, each keeping its name',
     !!bubble && !bubble.hasAttribute('role') && !bubble.hasAttribute('tabindex') &&
     openBtn && openBtn.tagName === 'BUTTON' && openBtn.getAttribute('aria-label') === 'Open chat' &&
     closeBtn && closeBtn.tagName === 'BUTTON' && closeBtn.getAttribute('aria-label') === 'Dismiss greeting' &&
     openBtn.parentNode === bubble && closeBtn.parentNode === bubble);
   const nested = bubble && Array.from(bubble.querySelectorAll('button, a[href], input, [tabindex], [role="button"]'))
     .filter(el => el.parentNode.closest('button, a[href], [role="button"]'));
-  check(29, 'no interactive element sits inside another (axe nested-interactive)',
+  check(32, 'no interactive element sits inside another (axe nested-interactive)',
     nested && nested.length === 0 && !openBtn.querySelector('div'),
     nested ? nested.map(tag).join(',') : 'no bubble');
 
@@ -356,7 +396,7 @@ function tag(el) {
   const openedFromBubble = h.panel() && h.panel().classList.contains('def-cc-panel--open') &&
     !h.root.querySelector('.def-cc-greeting-bubble') && h.active() === h.panel();
   h.key(h.active(), 'Escape');
-  check(30, 'Open chat from the keyboard opens the panel with focus inside; Escape lands on the launcher (the bubble is gone)',
+  check(33, 'Open chat from the keyboard opens the panel with focus inside; Escape lands on the launcher (the bubble is gone)',
     openedFromBubble && h.active() === h.trigger, 'active=' + tag(h.active()));
 
   h = await boot({ config: greeting });
@@ -366,7 +406,7 @@ function tag(el) {
   x.focus();
   x.click();
   const stamp = parseInt(h.w.localStorage.getItem(GREETING_KEY) || '0', 10);
-  check(31, 'Dismiss from the keyboard removes the bubble, opens nothing, and focus goes to the launcher',
+  check(34, 'Dismiss from the keyboard removes the bubble, opens nothing, and focus goes to the launcher',
     !h.root.querySelector('.def-cc-greeting-bubble') && !h.panel() && h.active() === h.trigger &&
     Date.now() - stamp < 5000, 'active=' + tag(h.active()) + ' stamp=' + stamp);
 
@@ -375,12 +415,12 @@ function tag(el) {
   const hiddenWithin = !h.root.querySelector('.def-cc-greeting-bubble');
   h = await boot({ config: greeting, storage: { [GREETING_KEY]: String(Date.now() - 25 * 60 * 60 * 1000) } });
   await tick();
-  check(32, 'the 24h dismissal holds: hidden an hour later, back after 25 hours',
+  check(35, 'the 24h dismissal holds: hidden an hour later, back after 25 hours',
     hiddenWithin && !!h.root.querySelector('.def-cc-greeting-bubble'));
 
   bubble = h.root.querySelector('.def-cc-greeting-bubble');
   bubble.click(); // the box itself — its tail
-  check(33, 'a click on the bubble box (its tail) still opens the chat',
+  check(36, 'a click on the bubble box (its tail) still opens the chat',
     h.panel() && h.panel().classList.contains('def-cc-panel--open'));
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
