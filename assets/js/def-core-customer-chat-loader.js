@@ -37,6 +37,10 @@
 	var abortController = null;
 	// 8.5.0: a question handed over by a trigger before the chat module was ready.
 	var pendingPrompt = null;
+	// 8.7.1: the element that opened the chat; closing hands focus back to it.
+	var returnFocusTo = null;
+	// 8.7.1: the page's own inline overflow styles, held while the chat locks its scroll.
+	var scrollLock = null;
 
 	// ─── localStorage helpers ───────────────────────────────────────
 
@@ -249,6 +253,10 @@
 			'.def-cc-panel--open {' +
 			'  transform: translateY(0); opacity: 1; pointer-events: auto;' +
 			'}' +
+			/* 8.7.1: the panel takes focus itself (tabindex="-1") while the chat
+			   module loads. It is a container, not a control, so it keeps the look
+			   it always had rather than growing a ring round the whole chat. */
+			'.def-cc-panel:focus { outline: none; }' +
 			/* Close button — positioned by header flex layout once chat module loads */
 			'.def-cc-panel-close {' +
 			'  width: 32px; height: 32px; border: none; border-radius: var(--def-cc-radius-control, 6px);' +
@@ -328,13 +336,25 @@
 			/* Greeting Bubble (v3.12.0) — proactive pop-up above the launcher */
 			'.def-cc-greeting-bubble {' +
 			'  position: fixed; bottom: 72px; right: 16px; z-index: 999997;' +
-			'  max-width: 280px; padding: 14px 16px;' +
+			'  max-width: 280px;' +
 			'  background: #ffffff; border-radius: 14px;' +
 			'  box-shadow: 0 10px 28px rgba(0,0,0,0.18);' +
 			'  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;' +
 			'  font-size: 14px; line-height: 1.45; color: #1f2937;' +
 			'  cursor: pointer;' +
 			'  animation: def-cc-greeting-enter 0.3s ease both;' +
+			'}' +
+			/* 8.7.1: the "open chat" button fills the bubble — the padding lives
+			   here, not on the box, so its focus ring traces the bubble's own
+			   outline exactly as the box's ring did. Everything a button resets is
+			   put back to what the box inherited, so the text renders unchanged. */
+			'.def-cc-greeting-bubble-open {' +
+			'  display: block; width: 100%; padding: 14px 16px;' +
+			'  -webkit-appearance: none; appearance: none;' +
+			'  border: 0; border-radius: inherit; background: none; color: inherit;' +
+			'  font: inherit; letter-spacing: inherit; word-spacing: inherit;' +
+			'  text-align: inherit; text-indent: inherit; text-transform: inherit; text-shadow: inherit;' +
+			'  cursor: pointer;' +
 			'}' +
 			/* No length cap on the greeting text (5.7.11): a long greeting
 			   scrolls INSIDE this wrapper, never past the viewport top. The
@@ -346,7 +366,7 @@
 			'  max-height: 60vh; overflow-y: auto;' +
 			'}' +
 			'.def-cc-greeting-bubble--left { right: auto; left: 16px; }' +
-			'.def-cc-greeting-bubble:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }' +
+			'.def-cc-greeting-bubble-open:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }' +
 			'.def-cc-greeting-bubble-logo { flex-shrink: 0; width: 32px; height: 32px; border-radius: 6px; overflow: hidden; }' +
 			'.def-cc-greeting-bubble-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }' +
 			'.def-cc-greeting-bubble-text { flex: 1; white-space: pre-line; overflow-wrap: break-word; margin: 0; }' +
@@ -383,7 +403,8 @@
 			/* Spotlight goes full-screen on mobile — same intent as Modal. */
 			'  .def-cc-shell--spotlight { top: 0; left: 0; width: 100vw; height: 100vh; border-radius: 0; transform: translate(0, 24px); }' +
 			'  .def-cc-shell--spotlight.def-cc-panel--open { transform: translate(0, 0); }' +
-			'  .def-cc-greeting-bubble { max-width: calc(100vw - 88px); font-size: 13px; padding: 12px 14px; }' +
+			'  .def-cc-greeting-bubble { max-width: calc(100vw - 88px); font-size: 13px; }' +
+			'  .def-cc-greeting-bubble-open { padding: 12px 14px; }' +
 			'  .def-cc-greeting-bubble-close { opacity: 1; }' +
 			'}' +
 			/* Reduced motion */
@@ -532,6 +553,18 @@
 		setClass(panel, 'def-cc-panel def-cc-shell--' + mode);
 		panel.setAttribute('role', 'dialog');
 		panel.setAttribute('aria-label', 'Chat');
+		// 8.7.1: modal in every display mode. Modal and spotlight say so in
+		// their names. The drawer is modal too: its backdrop covers the whole
+		// page and takes every click (a click there only closes the drawer),
+		// the launcher is hidden while it is open, and on a phone it is the
+		// full width of the screen — a pointer cannot use the page behind it,
+		// so a keyboard or a screen reader must not either.
+		panel.setAttribute('aria-modal', 'true');
+		// Focus lands on the panel itself while the chat module is loading.
+		panel.setAttribute('tabindex', '-1');
+		// Closed, the panel is only faded out — without inert its controls
+		// would stay in the Tab order and in the accessibility tree, invisible.
+		panel.toggleAttribute('inert', true);
 
 		// Position class
 		if (config.buttonPosition === 'left') {
@@ -615,6 +648,12 @@
 	}
 
 	function openPanel() {
+		// 8.7.1: remember who opened the chat before anything moves — the
+		// greeting bubble may be the opener, and it goes next.
+		if (!isOpen) {
+			returnFocusTo = focusedElement();
+		}
+
 		// Tear down the greeting bubble on any open path (launcher click, header
 		// trigger, restored state) — opening the chat is engagement, no need to
 		// re-prompt. Idempotent if the bubble isn't showing or was already dismissed.
@@ -632,7 +671,9 @@
 		// state is viewport-only, so they are NOT derivable from this
 		// attribute — each carries its own part instead.
 		shadowRoot.host.toggleAttribute('data-open', true);
+		panel.toggleAttribute('inert', false);
 		setState(panel, 'def-cc-panel--open', true);
+		lockPageScroll();
 
 		// Show backdrop (drawer mode).
 		if (isDrawer && backdrop) {
@@ -659,17 +700,26 @@
 		if (isMobile()) {
 			setState(panel, 'def-cc-panel--mobile-open', true);
 		}
+
+		focusIntoPanel();
 	}
 
 	function closePanel() {
-		if (!panel) return;
+		if (!panel || !isOpen) return;
 
 		var isDrawer = config.chatDisplayMode === 'drawer';
+		// 8.7.1: read before inert blurs the panel. Focus the visitor has put on
+		// the page — a link or field they clicked to dismiss the chat — stays
+		// there; only focus the chat held, or lost, goes back to the opener.
+		var active = document.activeElement;
+		var restoreFocus = !active || active === document.body || active === shadowRoot.host;
 
 		isOpen = false;
 		shadowRoot.host.toggleAttribute('data-open', false);
 		setState(panel, 'def-cc-panel--open', false);
 		setState(panel, 'def-cc-panel--mobile-open', false);
+		panel.toggleAttribute('inert', true);
+		unlockPageScroll();
 
 		// Hide backdrop.
 		if (isDrawer && backdrop) {
@@ -683,11 +733,158 @@
 
 		if (trigger) {
 			trigger.setAttribute('aria-expanded', 'false');
-			trigger.focus();
+		}
+
+		// Back to whoever opened the chat. The launcher stands in when there
+		// was no opener (a chat restored open on page load), it has left the
+		// page (the greeting bubble, removed as the chat opened), or it cannot
+		// take focus now (a menu item in a phone menu that closed behind it).
+		var opener = returnFocusTo;
+		returnFocusTo = null;
+		if (restoreFocus) {
+			if (opener && opener.isConnected) {
+				opener.focus();
+			}
+			if (trigger && (!opener || focusedElement() !== opener)) {
+				trigger.focus();
+			}
 		}
 
 		setStoredState(false);
 		pendingPrompt = null; // closing the chat cancels a question still waiting for the module
+	}
+
+	// ─── Focus and scroll while open (8.7.1) ────────────────────────
+
+	// The element that has focus, looking through shadow roots — inside the
+	// widget document.activeElement is only ever the host.
+	function focusedElement() {
+		var el = document.activeElement;
+		while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+			el = el.shadowRoot.activeElement;
+		}
+		return el === document.body ? null : el;
+	}
+
+	// The composer when the chat module has built it and it can take focus,
+	// otherwise the panel itself. On the first open the module is still
+	// loading here; its init() focuses the composer once it has built it
+	// (def-core-customer-chat.js), which moves focus on from the panel.
+	function focusIntoPanel() {
+		var input = panel.querySelector('.def-cc-composer-input');
+		var target = input && isTabStop(input) ? input : panel;
+		target.focus({ preventScroll: true });
+	}
+
+	var TAB_STOP_SELECTOR =
+		'a[href], area[href], button, input, select, textarea, summary, iframe,' +
+		' audio[controls], video[controls], [contenteditable], [tabindex]';
+
+	function isTabStop(el) {
+		if (el.disabled || el.tabIndex < 0 || el.closest('[inert]')) return false;
+		if (el.type === 'hidden' || el.getAttribute('contenteditable') === 'false') return false;
+		// Rendered and visible: display:none anywhere above leaves no boxes, and
+		// the chat hides its closed overlays and menu with visibility:hidden.
+		return el.getClientRects().length > 0 && getComputedStyle(el).visibility === 'visible';
+	}
+
+	function tabStops() {
+		var all = panel.querySelectorAll(TAB_STOP_SELECTOR);
+		var stops = [];
+		for (var i = 0; i < all.length; i++) {
+			if (isTabStop(all[i])) stops.push(all[i]);
+		}
+		return stops;
+	}
+
+	// Tab and Shift+Tab go round the panel. Between its first and last stops
+	// the browser moves focus as it always does — including onto a stop of
+	// its own making, such as a message list it lets the keyboard scroll —
+	// and only the two ends wrap. Focus found outside the panel is brought
+	// back in.
+	function trapTab(e) {
+		if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey || !isOpen || !panel) return;
+		var stops = tabStops();
+		var active = focusedElement();
+		var first = stops[0];
+		var last = stops[stops.length - 1];
+		var to = null;
+		if (!stops.length) {
+			to = panel;
+		} else if (!active || !panel.contains(active)) {
+			to = e.shiftKey ? last : first;
+		} else if (e.shiftKey) {
+			// The panel itself precedes its first stop, so it wraps too.
+			if (active === first || first.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_PRECEDING) {
+				to = last;
+			}
+		} else if (active === last || last.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING) {
+			to = first;
+		}
+		if (to) {
+			e.preventDefault();
+			// A plain focus(): a wrapped-to link may sit scrolled out of sight in
+			// the message list, which must scroll to show it. The panel is fixed,
+			// so the page itself does not move.
+			to.focus();
+		}
+	}
+
+	// While the chat is open the page behind it does not scroll. overflow:hidden
+	// goes on whichever element the viewport takes its overflow from — <body>
+	// when <html> leaves it visible (CSS Overflow 3 §3.3), else <html> — so
+	// <body> never becomes a scroll container of its own, which would unstick a
+	// theme's sticky header. The scroll offset is untouched, so closing needs to
+	// put back only the page's own inline values. Where the page showed a
+	// classic scrollbar, scrollbar-gutter keeps its width so nothing shifts.
+	function lockPageScroll() {
+		if (scrollLock) return;
+		var html = document.documentElement;
+		var body = document.body;
+		var htmlStyle = getComputedStyle(html);
+		var viewportFromBody =
+			body && htmlStyle.overflowX === 'visible' && htmlStyle.overflowY === 'visible';
+		var target = viewportFromBody ? body : html;
+		var hadScrollbar = window.innerWidth - html.clientWidth > 0;
+		scrollLock = {
+			target: target,
+			overflow: saveInline(target, 'overflow'),
+			gutter: hadScrollbar ? saveInline(html, 'scrollbar-gutter') : null,
+		};
+		target.style.setProperty('overflow', 'hidden', 'important');
+		if (hadScrollbar) {
+			html.style.setProperty('scrollbar-gutter', 'stable', 'important');
+		}
+	}
+
+	function unlockPageScroll() {
+		if (!scrollLock) return;
+		restoreInline(scrollLock.target, 'overflow', scrollLock.overflow);
+		if (scrollLock.gutter) {
+			restoreInline(document.documentElement, 'scrollbar-gutter', scrollLock.gutter);
+		}
+		scrollLock = null;
+	}
+
+	// One property at a time, not the whole style attribute, so a theme script
+	// that changes <body>'s inline style while the chat is open keeps its change.
+	function saveInline(el, prop) {
+		return {
+			value: el.style.getPropertyValue(prop),
+			priority: el.style.getPropertyPriority(prop),
+			hadStyle: el.hasAttribute('style'),
+		};
+	}
+
+	function restoreInline(el, prop, saved) {
+		if (saved.value) {
+			el.style.setProperty(prop, saved.value, saved.priority);
+		} else {
+			el.style.removeProperty(prop);
+		}
+		if (!saved.hadStyle && el.getAttribute('style') === '') {
+			el.removeAttribute('style');
+		}
 	}
 
 	// ─── Lazy load chat module ──────────────────────────────────────
@@ -799,6 +996,9 @@
 			{ signal: signal }
 		);
 
+		// 8.7.1: Tab stays inside the open panel.
+		document.addEventListener('keydown', trapTab, { signal: signal });
+
 		// Click outside closes panel (modal mode — drawer uses backdrop).
 		document.addEventListener(
 			'click',
@@ -837,6 +1037,8 @@
 			host.remove();
 		}
 
+		unlockPageScroll();
+		returnFocusTo = null;
 		shadowRoot = null;
 		trigger = null;
 		panel = null;
@@ -882,20 +1084,29 @@
 
 	function createGreetingBubble() {
 		var pos = config.buttonPosition === 'left' ? 'left' : 'right';
+		// 8.7.1: the bubble is a plain box holding two buttons side by side —
+		// "open chat", and the dismiss × beside it. The box used to be
+		// role="button" itself with the × inside it: a control nested in a
+		// control, which a screen reader cannot present (axe nested-interactive).
 		var bubble = document.createElement('div');
 		setClass(bubble, 'def-cc-greeting-bubble' + (pos === 'left' ? ' def-cc-greeting-bubble--left' : ''));
 
+		var openBtn = document.createElement('button');
+		setClass(openBtn, 'def-cc-greeting-bubble-open');
+		openBtn.type = 'button';
+		openBtn.setAttribute('aria-label', 'Open chat');
+		bubble.appendChild(openBtn);
+
 		// Scroll wrapper: logo + text live here so a long greeting scrolls
 		// without the bubble's overhanging x being clipped by the scrollbox.
-		var scrollWrap = document.createElement('div');
+		// Spans, not divs: a button holds phrasing content only. The flex
+		// wrapper blockifies its children, so they lay out as the divs did.
+		var scrollWrap = document.createElement('span');
 		setClass(scrollWrap, 'def-cc-greeting-bubble-scroll');
-		bubble.appendChild(scrollWrap);
-		bubble.setAttribute('role', 'button');
-		bubble.setAttribute('tabindex', '0');
-		bubble.setAttribute('aria-label', 'Open chat');
+		openBtn.appendChild(scrollWrap);
 
 		if (config.logoUrl) {
-			var logoWrap = document.createElement('div');
+			var logoWrap = document.createElement('span');
 			setClass(logoWrap, 'def-cc-greeting-bubble-logo');
 			var img = document.createElement('img');
 			img.setAttribute('part', 'greeting-bubble-logo-image');
@@ -906,7 +1117,7 @@
 			scrollWrap.appendChild(logoWrap);
 		}
 
-		var text = document.createElement('div');
+		var text = document.createElement('span');
 		setClass(text, 'def-cc-greeting-bubble-text');
 		text.textContent = config.greetingBubbleText; // CSS white-space: pre-line preserves newlines
 		scrollWrap.appendChild(text);
@@ -918,18 +1129,20 @@
 		close.textContent = '×'; // ×
 		close.addEventListener('click', function (e) {
 			e.stopPropagation();
+			// The × is about to leave the page. Focus it held goes to the
+			// launcher the bubble pointed at, not back to the top of the page.
+			var hadFocus = shadowRoot.activeElement === close;
 			dismissGreetingBubble();
+			if (hadFocus && trigger) {
+				trigger.focus();
+			}
 		});
 		bubble.appendChild(close);
 
-		// Click anywhere else on the bubble → open the chat (openPanel tears the bubble down).
+		// Click anywhere else on the bubble → open the chat (openPanel tears the
+		// bubble down). On the box, not the button, so its tail opens it too;
+		// Enter and Space are the button's own and arrive here as a click.
 		bubble.addEventListener('click', openPanel);
-		bubble.addEventListener('keydown', function (e) {
-			if (e.key === 'Enter' || e.key === ' ') {
-				e.preventDefault();
-				openPanel();
-			}
-		});
 
 		return bubble;
 	}

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.0
+Stable tag: 8.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.1 - 2026-09-24 =
+* Fix - Customer Chat for keyboard and screen reader users: opening the chat moves focus into it, and closing it - the X, Escape, or a click outside - puts focus back on the button that opened it. While the chat is open, Tab stays inside it, screen readers announce it as a dialog named "Chat", and the page behind it does not scroll; it scrolls again, from the same place, when the chat closes. The greeting bubble's Open chat and Dismiss are now two separate buttons, and dismissing the bubble from the keyboard no longer opens the chat. Nothing changes in how the chat looks.
 
 = 8.7.0 - 2026-09-23 =
 * New Feature - Chat Button block: a block of its own, in the editor's Digital Employees category, that opens the chat with an optional question sent as the visitor's first message. It takes the theme's button styling. The core Button block is unchanged.

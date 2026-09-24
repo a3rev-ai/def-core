@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD, CC_LOADER) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -25,6 +25,7 @@ const path = require('path');
 const REPO = path.resolve(__dirname, '..', '..');
 const JS_PATH = path.join(REPO, 'assets/js/staff-ai.js');
 const CC_PATH = path.join(REPO, 'assets/js/def-core-customer-chat.js');
+const CC_LOADER_PATH = path.join(REPO, 'assets/js/def-core-customer-chat-loader.js');
 const VOICE_PATH = path.join(REPO, 'assets/js/def-core-voice.js');
 const ADMIN_PATH = path.join(REPO, 'assets/js/def-core-admin.js');
 
@@ -423,6 +424,19 @@ function customerChatSource() {
 	return fs.readFileSync(CC_PATH, 'utf8');
 }
 
+// The Customer Chat LOADER, whole (8.7.1). It is one self-starting IIFE with no
+// markers to slice by, and the focus, trap and scroll-lock code is spread across
+// its open/close path — so a harness runs the entire shipped file in the page.
+function customerChatLoader() {
+	const src = process.env.CC_LOADER
+		? fs.readFileSync(path.resolve(process.env.CC_LOADER), 'utf8')
+		: fs.readFileSync(CC_LOADER_PATH, 'utf8');
+	for (const need of ['function openPanel', 'function closePanel', 'function createGreetingBubble']) {
+		if (!src.includes(need)) throw new Error('customer chat loader: MISSING ' + need);
+	}
+	return src;
+}
+
 // ── Settings → User Access (S3) ─────────────────────────────────────────
 // The access level, the role chips, the + Add role listbox, the filter, the
 // save payload and the wiring that joins them — out of the ADMIN script rather
@@ -616,5 +630,5 @@ module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, c
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
-	attachGate, uploadStaged, chatAsk, chatOpening, customerChatSource, voice, chatVoice, chatStrings,
+	attachGate, uploadStaged, chatAsk, chatOpening, customerChatSource, customerChatLoader, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal };

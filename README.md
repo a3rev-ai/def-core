@@ -2,7 +2,7 @@
 
 AI-powered Digital Employees for your WordPress site. Customer-facing chat, internal staff assistant, and intelligent setup — all connected to the [Digital Employee Framework](https://defho.ai/).
 
-[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v8.7.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v8.7.0/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
+[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v8.7.1-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v8.7.1/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
 
 ## Where this plugin sits
 
@@ -20,7 +20,7 @@ The framework is governed by a published constitution and reaches businesses thr
 Digital Employees are AI agents that work alongside your team. They understand your business context, follow governance rules, and operate across multiple channels:
 
 ### Customer Chat (Joe)
-A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering.
+A chat widget for your site visitors. Floating button or embedded via shortcode. Answers questions using your site's content, products, and knowledge base. Streams responses in real-time with word-by-word rendering. It works from the keyboard and with screen readers (8.7.1): it opens as a dialog named "Chat" that takes focus, Tab stays inside it, and closing it puts focus back where the visitor was.
 
 **Digital Sales Assistant**
 - Product inquiries, pricing, features, and comparisons
