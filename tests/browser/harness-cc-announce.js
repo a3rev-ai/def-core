@@ -8,9 +8,17 @@
  * check feeds one event at a time.
  *
  * It watches the announcer with a MutationObserver from before init(), so what it
- * counts is every write, not the final attributes. What it holds:
- *  - The visible log is role="log" and explicitly aria-live="off"; the one live
- *    region is the announcer: polite, visually hidden, last in the panel, empty.
+ * counts is every write, not the final attributes.
+ *
+ * Its scope is the chat MODULE, not the page around it. The test host is a bare
+ * div, and regionOf finds a node's region by Chrome's rule — the nearest aria-live
+ * wins, and "off" ends the walk — so by design it cannot see a live region outside
+ * the module wrapping the log (WebKit does not stop at "off"). That the loader adds
+ * none — no aria-live on its host, nothing live above the log — is
+ * harness-cc-a11y.js's (#39–40), over the real loader. What it holds:
+ *  - The visible log is role="log" and explicitly aria-live="off"; within the
+ *    module the one live region is the announcer: polite, visually hidden, last
+ *    in the panel, empty.
  *  - Startup (banner, greeting, chips, a site's opening message, the offline
  *    notice), a local thread restored, a server thread restored on a logged-in
  *    load or adopted after logging in, the logged-out-elsewhere reset and New
@@ -265,7 +273,7 @@ const WELCOME = {
 
   a = h.announcer();
   const focusables = a ? a.querySelectorAll('a[href], button, input, textarea, select, [tabindex]') : [];
-  check(2, 'the one live region is the announcer: aria-live="polite", visually hidden (def-cc-sr-only), outside the log, last in the panel, not a Tab stop',
+  check(2, 'within the module, the one live region is the announcer: aria-live="polite", visually hidden (def-cc-sr-only), outside the log, last in the panel, not a Tab stop',
     h.liveRegions().length === 1 && !!a && a.getAttribute('aria-live') === 'polite' &&
     a.classList.contains('def-cc-sr-only') && !log.contains(a) && h.panel.lastElementChild === a &&
     !a.hasAttribute('tabindex') && a.tabIndex < 0 && focusables.length === 0,
