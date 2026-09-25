@@ -106,6 +106,7 @@ const CC_HEAD = `
 	function deferAsyncTick() {}
 	function setState(node, cls, on) { if (node) node.classList.toggle(cls, !!on); }
 	function appendMessage() {}
+	function announce() {}   // 8.7.3: what is spoken is harness-cc-announce.js's
 	function t(k) { return k; }
 	function setComposerDisabled() {}
 	function endConversation() {}

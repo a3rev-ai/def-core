@@ -25,6 +25,8 @@
  *    The message list stays role="log" and is a named Tab stop (tabindex="0",
  *    aria-label="Conversation") in the Tab sequence between Close chat and the
  *    composer, which the trap lets through while its two ends still wrap.
+ *    Since 8.7.3 it is explicitly aria-live="off" (#28): what a screen reader
+ *    hears is harness-cc-announce.js's.
  *  - The greeting bubble is two sibling buttons, not a control inside a control;
  *    both open/dismiss work from the keyboard and the 24h dismissal holds.
  *
@@ -336,10 +338,13 @@ function tag(el) {
     'active=' + tag(h.active()));
 
   // The conversation is a scroll box; a keyboard has to be able to reach it to
-  // scroll it (axe scrollable-region-focusable). It stays the live log it was.
+  // scroll it (axe scrollable-region-focusable). It stays a log, but since 8.7.3
+  // never a live one — new messages are spoken by the announcer
+  // (harness-cc-announce.js holds what is and is not said).
   const log = h.root.querySelector('.def-cc-messages');
-  check(28, 'the message list keeps role="log" and aria-live, and is a named Tab stop: tabindex="0", aria-label="Conversation"',
-    log && log.getAttribute('role') === 'log' && log.getAttribute('aria-live') === 'polite' &&
+  check(28, 'the message list keeps role="log" and aria-relevant, is explicitly aria-live="off" (8.7.3), and is a named Tab stop: tabindex="0", aria-label="Conversation"',
+    log && log.getAttribute('role') === 'log' && log.getAttribute('aria-live') === 'off' &&
+    log.getAttribute('aria-relevant') === 'additions' &&
     log.getAttribute('tabindex') === '0' && log.getAttribute('aria-label') === 'Conversation',
     log ? log.outerHTML.slice(0, 160) : 'no .def-cc-messages');
   // The order the browser Tabs through: tree order, tabIndex >= 0, enabled,

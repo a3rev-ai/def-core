@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.2
+Stable tag: 8.7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.3 - 2026-09-25 =
+* Fix - Customer Chat for screen reader users: the conversation is no longer read out by itself when the chat opens, when an earlier conversation is brought back (on this device, or after logging in), or after New conversation - the greeting and past messages are there to read, not announced. Each new message is announced once: the visitor's own message when it is sent, the assistant's reply when it has finished arriving rather than word by word as it streams, and notices such as a connection error. Nothing changes in how the chat looks.
 
 = 8.7.2 - 2026-09-24 =
 * Fix - Scheduled tasks: a task card no longer says "Sent to" before the result has actually been sent. When a run has finished but its email is still on the way, the card reads "Delivering to" your address; once it has gone, it reads "Sent to" your address with the time it was sent, not the time the run finished.
