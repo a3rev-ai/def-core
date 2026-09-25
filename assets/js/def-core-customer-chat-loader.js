@@ -120,9 +120,11 @@
 	function createShadowHost() {
 		registerThemeProps();
 
+		// 8.7.3: no aria-live here. A live host made the whole widget one outer
+		// live region around the chat's own announcer, and WebKit's walk up to it
+		// does not stop at the log's aria-live="off".
 		var host = document.createElement('div');
 		host.id = HOST_ID;
-		host.setAttribute('aria-live', 'polite');
 		document.body.appendChild(host);
 
 		shadowRoot = host.attachShadow({ mode: 'open' });
@@ -981,8 +983,9 @@
 			pendingPrompt = null;
 			var loading = panel && panel.querySelector('.def-cc-loading');
 			if (loading) {
+				// An alert: since 8.7.3 the host is no live region to carry it.
 				loading.innerHTML =
-					'<span style="color:#ef4444;">Failed to load chat. Please refresh the page.</span>';
+					'<span role="alert" style="color:#ef4444;">Failed to load chat. Please refresh the page.</span>';
 			}
 		};
 

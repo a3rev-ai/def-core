@@ -409,7 +409,12 @@
 		// ── Messages area ──
 		var messages = el('div', 'def-cc-messages');
 		messages.setAttribute('role', 'log');
-		messages.setAttribute('aria-live', 'polite');
+		// 8.7.3: never live. role="log" is polite by default, so this has to be
+		// said, and it is never flipped back: the greeting, a restored thread and
+		// a New conversation rebuild all land here, and a live log spoke them —
+		// VoiceOver read the chat twice on open. New messages reach a screen
+		// reader through the announcer instead (see announce()).
+		messages.setAttribute('aria-live', 'off');
 		messages.setAttribute('aria-relevant', 'additions');
 		// 8.7.1: a Tab stop of its own, named, so a keyboard can reach the
 		// conversation and scroll it with the arrow keys (axe
@@ -730,6 +735,14 @@
 		buildConfirmOverlay(panel);
 		buildLoginOverlay(panel);
 		buildEscalationOverlay(panel);
+
+		// The announcer (8.7.3): the one live region — visually hidden, built
+		// empty, and written to only by announce(). Last in the panel, so a
+		// screen reader moving through it meets the conversation first.
+		var announcer = el('div', 'def-cc-announcer def-cc-sr-only');
+		announcer.setAttribute('aria-live', 'polite');
+		els.announcer = announcer;
+		panel.appendChild(announcer);
 
 		els.panel = panel;
 	}
@@ -1731,6 +1744,9 @@
 		toast.textContent = message;
 		els.messages.appendChild(toast);
 		scrollToBottom();
+		// The outcome of an action the visitor asked for — a notice, so it is
+		// spoken (8.7.3). On a network failure it is the only word they get.
+		announce(toast);
 		setTimeout(function () {
 			setState(toast, 'cc-toast-fade', true);
 			setTimeout(function () { toast.remove(); }, 400);
@@ -2142,7 +2158,7 @@
 			.then(function (fileIds) {
 				if (!conversationOn) { setComposerDisabled(false); return; }   // a tap to end during the upload wins
 				if (window.DefResultCards) window.DefResultCards.resetTurn();
-				transcribingEl = appendUserMessage(t('transcribing'), fileIds);
+				transcribingEl = appendUserMessage(t('transcribing'), fileIds, true);
 				setState(transcribingEl.parentNode, 'def-cc-message--transcribing', true);
 				clearStagedFiles();
 				var thinkingEl = showThinking();
@@ -2413,6 +2429,8 @@
 					if (streamEl) {
 						streamEl.innerHTML = renderMarkdown(finalContent);
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
+						// Whole now: the one time a streamed reply is spoken (8.7.3).
+						announce(streamEl);
 					}
 
 					// Mutate evt so downstream metadata processing sees the
@@ -2480,6 +2498,8 @@
 						if (transcribingEl.firstChild && transcribingEl.firstChild.nodeType === 3) transcribingEl.firstChild.nodeValue = text;
 						else transcribingEl.insertBefore(document.createTextNode(text), transcribingEl.firstChild);
 						setState(transcribingEl.parentNode, 'def-cc-message--transcribing', false);
+						// The visitor's spoken message, now it has its words (8.7.3).
+						announce(transcribingEl);
 						transcribingEl = null;
 					}
 					if (!currentEscalationSubject && text) {
@@ -2522,6 +2542,9 @@
 							streamEl.innerHTML = renderMarkdown(partial);
 						}
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
+						// The stream has ended: what streamed is the reply, said once
+						// before the error that follows it (8.7.3).
+						announce(streamEl);
 					}
 					streamBuffer = '';
 					stepStart = 0;
@@ -2630,6 +2653,7 @@
 						streamEl.innerHTML = renderMarkdown(partial);
 					}
 					setState(streamEl.parentNode, 'def-cc-message--streaming', false);
+					announce(streamEl);   // as the error branch: the reply, then the notice
 				}
 				streamBuffer = '';
 				segmentBreakPending = false;
@@ -2804,7 +2828,9 @@
 		setComposerDisabled(false);
 	}
 
-	function appendUserMessage(text, fileIds) {
+	// wordsToCome: a spoken turn's "Transcribing…" placeholder — said when its
+	// transcript fills it, not now.
+	function appendUserMessage(text, fileIds, wordsToCome) {
 		var msgEl = el('div', 'def-cc-message def-cc-message--user');
 		var content = el('div', 'def-cc-message-content');
 		content.textContent = text;
@@ -2841,6 +2867,10 @@
 		msgEl.appendChild(content);
 		els.messages.appendChild(msgEl);
 		scrollToBottom();
+		// A visitor's message starts a turn: the last turn's announcements go,
+		// and this one is said (8.7.3).
+		clearAnnouncer();
+		if (!wordsToCome) announce(content);
 		return content;
 	}
 
@@ -2943,7 +2973,14 @@
 			});
 	}
 
+	// A new message: it goes in the log and a screen reader hears it once.
 	function appendMessage(role, content) {
+		announce(renderMessage(role, content));
+	}
+
+	// A message bubble in the log, announced to nobody — restoring a thread
+	// renders through here. Returns the bubble's content element.
+	function renderMessage(role, content) {
 		// role is server-supplied on thread restore and reaches a part name, so
 		// it has to be pinned: a value containing a space would mint extra part
 		// tokens and let crafted history impersonate another part. Three
@@ -2983,6 +3020,7 @@
 		}
 
 		scrollToBottom();
+		return contentEl;
 	}
 
 	function renderMarkdown(text) {
@@ -4030,10 +4068,10 @@
 			els.welcomeBanner.style.display = 'none';
 		}
 
-		// Render all messages.
+		// Render all messages — silently: a restored thread is not new (8.7.3).
 		for (var j = 0; j < thread.messages.length; j++) {
 			var msg = thread.messages[j];
-			appendMessage(msg.role, msg.content);
+			renderMessage(msg.role, msg.content);
 			// v3.1.1 — replay persisted result-cards. Snapshot data (price/stock
 			// reflects render-time state, not live); the action button still
 			// links to the live product so a stale price doesn't drive a bad
@@ -4174,8 +4212,10 @@
 		currentEscalationSubject = '';
 		currentEscalationReason = '';
 
-		// Clear messages area.
+		// Clear messages area — and what the announcer holds of them. A removal
+		// is never spoken (8.7.3), and the rebuilt welcome state is not new.
 		clearMessages();
+		clearAnnouncer();
 
 		// Clear staged files.
 		clearStagedFiles();
@@ -4618,6 +4658,46 @@
 		currentEscalationSubject = '';
 		currentEscalationReason = '';
 	}
+
+	// ── Announcer (8.7.3) ──
+	/**
+	 * What a screen reader hears of the conversation. The log is never live, so
+	 * building, restoring or rebuilding it is silent; a message is spoken only
+	 * when its code path hands it here — once, when it is new, and a streamed
+	 * reply once it is whole. Each call adds one line holding the words the
+	 * bubble shows. Lines are never edited; they go only when a turn starts or
+	 * the conversation is cleared, and a removal is not spoken (the region keeps
+	 * the default aria-relevant). A bubble no longer in the log — Clear chat
+	 * while it streamed — says nothing.
+	 */
+	function announce(content) {
+		if (!els.announcer || !content || !els.messages || !els.messages.contains(content)) return;
+		var words = accessibleText(content).replace(/\s+/g, ' ').trim();
+		if (!words) return;
+		var line = document.createElement('div');
+		line.textContent = words;
+		els.announcer.appendChild(line);
+	}
+
+	function clearAnnouncer() {
+		if (els.announcer) els.announcer.textContent = '';
+	}
+
+	// A bubble's text as a screen reader reads it: the text, an image's alt,
+	// nothing aria-hidden, and a space at each block or <br> so two list items
+	// "one" and "two" are not spoken as "onetwo". Never markup.
+	var ANNOUNCE_BREAKS = /^(P|DIV|LI|UL|OL|H[1-6]|BLOCKQUOTE|PRE|TABLE|TR|TD|TH|HR|BR)$/;
+	function accessibleText(node) {
+		if (node.nodeType === 3) return node.nodeValue;
+		if (node.nodeType !== 1 || node.hidden || node.getAttribute('aria-hidden') === 'true') return '';
+		if (node.tagName === 'IMG') return ' ' + (node.getAttribute('alt') || '') + ' ';
+		var text = '';
+		for (var child = node.firstChild; child; child = child.nextSibling) {
+			text += accessibleText(child);
+		}
+		return ANNOUNCE_BREAKS.test(node.tagName) ? ' ' + text + ' ' : text;
+	}
+	// ── end announcer ──
 
 	// ── Opening message (8.6.0) ──
 	/**

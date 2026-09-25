@@ -1,5 +1,5 @@
 /*
- * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 38 checks.
+ * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 41 checks.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
@@ -25,14 +25,22 @@
  *    The message list stays role="log" and is a named Tab stop (tabindex="0",
  *    aria-label="Conversation") in the Tab sequence between Close chat and the
  *    composer, which the trap lets through while its two ends still wrap.
+ *    Since 8.7.3 it is explicitly aria-live="off" (#28): what a screen reader
+ *    hears is harness-cc-announce.js's.
+ *  - Nothing above that list is live (8.7.3, #39–40): the widget host carries no
+ *    aria-live, and no ancestor of the list — panel, host, page — has aria-live
+ *    or a live role, in any mode. The module's one live region is its announcer;
+ *    an outer one wrapping it is what harness-cc-announce.js cannot see, by design.
+ *    The loader's own hard failure is role="alert" instead of riding on the host (#41).
  *  - The greeting bubble is two sibling buttons, not a control inside a control;
  *    both open/dismiss work from the keyboard and the 24h dismissal holds.
  *
- * Against 8.7.0 (the loader AND the chat module) it fails 26 of the 38. The 12 it leaves green are
+ * Against 8.7.0 (the loader AND the chat module) it fails 29 of the 41. The 12 it leaves green are
  * behaviour 8.7.0 already had (Escape and the backdrop returning to the launcher —
  * which it did whoever the opener was, so the stand-in check passes there too —
  * the named header, the 24h dismissal, the bubble's tail) and the checks that
  * the trap and lock do not over-reach (Ctrl+Tab, a closed panel, <html> left alone).
+ * The loader with its host still live and no alert fails #39–41 and nothing else.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -336,10 +344,13 @@ function tag(el) {
     'active=' + tag(h.active()));
 
   // The conversation is a scroll box; a keyboard has to be able to reach it to
-  // scroll it (axe scrollable-region-focusable). It stays the live log it was.
+  // scroll it (axe scrollable-region-focusable). It stays a log, but since 8.7.3
+  // never a live one — new messages are spoken by the announcer
+  // (harness-cc-announce.js holds what is and is not said).
   const log = h.root.querySelector('.def-cc-messages');
-  check(28, 'the message list keeps role="log" and aria-live, and is a named Tab stop: tabindex="0", aria-label="Conversation"',
-    log && log.getAttribute('role') === 'log' && log.getAttribute('aria-live') === 'polite' &&
+  check(28, 'the message list keeps role="log" and aria-relevant, is explicitly aria-live="off" (8.7.3), and is a named Tab stop: tabindex="0", aria-label="Conversation"',
+    log && log.getAttribute('role') === 'log' && log.getAttribute('aria-live') === 'off' &&
+    log.getAttribute('aria-relevant') === 'additions' &&
     log.getAttribute('tabindex') === '0' && log.getAttribute('aria-label') === 'Conversation',
     log ? log.outerHTML.slice(0, 160) : 'no .def-cc-messages');
   // The order the browser Tabs through: tree order, tabIndex >= 0, enabled,
@@ -457,6 +468,61 @@ function tag(el) {
     h.w.getComputedStyle(h.doc.body).overflowY !== 'hidden' &&
     !h.doc.documentElement.style.getPropertyValue('overflow'),
     'body style=' + JSON.stringify(h.doc.body.getAttribute('style')));
+
+  // ── Review round 2 (appended, as above) ────────────────────────────────
+  // One live region: the chat's announcer. A live host wrapped the whole widget
+  // in a second, and WebKit's walk up from a change does not stop at the log's
+  // aria-live="off" — so nothing above the log may be live, whatever the mode.
+  h = await boot({ config: greeting });
+  await tick();
+  const hostAtRest = h.host.hasAttribute('aria-live');
+  const bubbleUp = !!h.root.querySelector('.def-cc-greeting-bubble');
+  h.trigger.click();
+  check(39, 'the widget host carries no aria-live — with the greeting bubble up, and with the panel open (8.7.3)',
+    bubbleUp && !hostAtRest && !h.host.hasAttribute('aria-live') && h.panel().classList.contains('def-cc-panel--open'),
+    'host=' + h.host.outerHTML.slice(0, 120));
+
+  const LIVE_ROLES = ['alert', 'log', 'marquee', 'status', 'timer'];
+  const liveAbove = [];
+  for (const mode of ['modal', 'drawer', 'spotlight']) {
+    h = await boot({ config: { chatDisplayMode: mode, apiBaseUrl: 'https://api.example.test' } });
+    h.w.fetch = () => new Promise(() => {});
+    h.trigger.click();
+    h.w.eval(extract.customerChatSource());
+    h.w.DEFCustomerChat.init(h.root, h.w.DEFCore);
+    const list = h.root.querySelector('.def-cc-messages');
+    // Up through the shadow root to the host and on to <html>.
+    const chain = [];
+    for (let n = list && list.parentNode; n; n = n.parentNode || n.host) {
+      if (n.nodeType === 1) chain.push(n);
+    }
+    const live = chain.filter(n => n.hasAttribute('aria-live') ||
+      (n.getAttribute('role') || '').split(/\s+/).some(r => LIVE_ROLES.indexOf(r) !== -1));
+    if (!list || list.getAttribute('role') !== 'log' || list.getAttribute('aria-live') !== 'off' ||
+        chain.indexOf(h.host) === -1 || chain[chain.length - 1] !== h.doc.documentElement) {
+      liveAbove.push(mode + ': list/chain wrong (' + chain.map(tag).join(' < ') + ')');
+    }
+    for (const n of live) {
+      liveAbove.push(mode + ': ' + tag(n) + ' aria-live=' + n.getAttribute('aria-live') + ' role=' + n.getAttribute('role'));
+    }
+    h.w.DEFCustomerChat.destroy();
+  }
+  check(40, 'over the shipped module, in all three modes: the list itself stays role="log" aria-live="off", and nothing above it up to <html> — panel, host, page — has aria-live or a live role',
+    liveAbove.length === 0, liveAbove.join('; '));
+
+  // The loader's own hard failure: a script in its chain does not load.
+  h = await boot({ config: { chatModuleUrl: 'https://example.test/chat.js',
+    productCardsScriptUrl: 'https://example.test/cards.js', productCardsStyleUrl: 'https://example.test/cards.css' } });
+  h.trigger.click();
+  const scriptFor = src => Array.from(h.doc.head.querySelectorAll('script')).filter(el => el.src === src)[0];
+  scriptFor('https://example.test/cards.js').dispatchEvent(new h.w.Event('load'));
+  scriptFor('https://example.test/chat.js').dispatchEvent(new h.w.Event('error'));
+  const failed = h.panel().querySelector('.def-cc-loading');
+  const failSpan = failed && failed.children.length === 1 && failed.firstElementChild;
+  check(41, 'a script that fails to load: the same words, in the same red span, now role="alert" — the host no longer carries it',
+    !!failSpan && failSpan.tagName === 'SPAN' && failed.textContent === 'Failed to load chat. Please refresh the page.' &&
+    failSpan.getAttribute('role') === 'alert' && failSpan.getAttribute('style') === 'color:#ef4444;',
+    failed ? failed.innerHTML : 'no .def-cc-loading');
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));
