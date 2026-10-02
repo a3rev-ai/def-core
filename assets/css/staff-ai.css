@@ -2434,6 +2434,13 @@ html {
 	padding: 12px 2px;
 	border-bottom: 1px solid var(--border-light);
 }
+/* v8.7.4: a one-line note under an app's row (Google Ads' Customer ID). Its own
+   rule: .integration-primary carries the picker's flex layout. */
+.integration-hint {
+	flex-basis: 100%;
+	font-size: 12px;
+	color: var(--text-secondary);
+}
 /* Slice 4-A (v6.6.0): the chat primary picker under a mail app's row. */
 .integration-primary {
 	flex-basis: 100%;

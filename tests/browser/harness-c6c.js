@@ -15,7 +15,7 @@
  *    here a row that never offered Disconnect offers nothing at all.
  *  - Connect STAYS on the row as the filled action. Only Disconnect moved.
  *
- * 14 checks.
+ * 18 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -323,6 +323,51 @@ const items = menu => menu
     const left = t.document.querySelectorAll('.console-menu:not([hidden])').length;
     check(++n, 'leaving Connections closes an open ⋯ menu and an expanded sheet, so neither holds Escape next',
       bothOpen && left === 0, 'bothOpen=' + bothOpen + ' left=' + left);
+  }
+
+  // ---- 6. Google Ads: its proper name, and the Customer ID hint (v8.7.4) --
+  const ADS_HINT = 'If the sign-in asks for your Customer ID, it is the 10-digit number (123-456-7890) at the top-right of Google Ads, under the account name, or in Admin → Account settings. If you manage several accounts, use your manager (MCC) account’s ID to cover them all.';
+  const ads = authorized => [{ server_id: 's-ads', category: 'googleads', authorized: authorized,
+                               has_grant: authorized }];
+  {
+    const t = boot({ apps: ads(false) }); await enter(t);
+    const row = t.row('s-ads');
+    const hint = row && row.querySelector('.integration-hint');
+    // This harness's t() returns the fallback, so the translated copy is tied to it here:
+    // the shell defines the SAME key with the SAME words.
+    const keyed = TEMPLATE.indexOf("integrationsGoogleAdsHint: <?php echo wp_json_encode( __( '" + ADS_HINT + "'") !== -1 &&
+      INTEGRATIONS.indexOf("t('integrationsGoogleAdsHint', '" + ADS_HINT + "')") !== -1;
+    check(++n, 'an unconnected Google Ads row reads "Google Ads", keeps its raw slug, and carries the hint word for word',
+      !!row && row.querySelector('.integration-name').textContent === 'Google Ads' &&
+      row.dataset.category === 'googleads' && !!hint && hint.textContent === ADS_HINT &&
+      row.lastElementChild === hint && keyed,
+      'name=' + (row && row.querySelector('.integration-name').textContent) +
+      ' hint=' + (hint && hint.textContent) + ' keyed=' + keyed);
+  }
+  {
+    const t = boot({ apps: ads(true) }); await enter(t);
+    const row = t.row('s-ads');
+    check(++n, 'once Google Ads is connected, the hint is gone',
+      !!row && !row.querySelector('.integration-hint'));
+  }
+  {
+    const t = boot(); await enter(t);
+    const row = t.row('s-gmail');
+    check(++n, 'any other app keeps its title-cased name and carries no hint',
+      !!row && row.querySelector('.integration-name').textContent === 'Gmail' &&
+      !t.document.querySelector('.integration-hint'));
+  }
+  {
+    const t = boot({ apps: ads(true) }); await enter(t);
+    const menu = await openMenu(t, 's-ads');
+    const dis = menu && menu.querySelector('.console-menu-item-danger');
+    if (dis) { click(t.window, dis); }
+    await tick(t.window, 80);
+    check(++n, 'the Disconnect confirm names "Google Ads" in both places',
+      !!dis && t.state.confirms.length === 1 &&
+      (t.state.confirms[0].match(/Google Ads/g) || []).length === 2 &&
+      !/Googleads/.test(t.state.confirms[0]),
+      'confirms=' + JSON.stringify(t.state.confirms));
   }
 
   console.log('\n' + results.join('\n'));

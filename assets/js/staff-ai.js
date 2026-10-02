@@ -4154,8 +4154,10 @@ function t(key, fallback) {
 			return frag;
 		}
 
-		// Slug → display label: "slack" → "Slack", "google_drive" → "Google Drive".
+		// Slug → display label: "slack" → "Slack", "microsoft_teams" → "Microsoft Teams".
+		// A slug the transform cannot spell is named here ("googleads" would read "Googleads").
 		function prettyName(category, serverId) {
+			if (category === 'googleads') { return 'Google Ads'; }
 			if (category) {
 				return category.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 			}
@@ -4546,6 +4548,14 @@ function t(key, fallback) {
 
 			row.appendChild(action);
 			if (actions.length) { row.appendChild(manageMenu.disclosure(app.server_id, actions)); }
+			// Google's sign-in can ask for a Customer ID nothing else here mentions.
+			// Only before the person connects; once connected it has done its job.
+			if (app.category === 'googleads' && !app.authorized) {
+				const hint = document.createElement('div');
+				hint.className = 'integration-hint';
+				hint.textContent = t('integrationsGoogleAdsHint', 'If the sign-in asks for your Customer ID, it is the 10-digit number (123-456-7890) at the top-right of Google Ads, under the account name, or in Admin → Account settings. If you manage several accounts, use your manager (MCC) account’s ID to cover them all.');
+				row.appendChild(hint);
+			}
 			return row;
 		}
 
