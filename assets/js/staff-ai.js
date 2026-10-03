@@ -4156,8 +4156,9 @@ function t(key, fallback) {
 
 		// Slug → display label: "slack" → "Slack", "microsoft_teams" → "Microsoft Teams".
 		// A slug the transform cannot spell is named here ("googleads" would read "Googleads").
+		const SLUG_NAMES = { googleads: 'Google Ads', googledrive: 'Google Drive', googlecalendar: 'Google Calendar' };
 		function prettyName(category, serverId) {
-			if (category === 'googleads') { return 'Google Ads'; }
+			if (Object.prototype.hasOwnProperty.call(SLUG_NAMES, category)) { return SLUG_NAMES[category]; }
 			if (category) {
 				return category.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 			}
@@ -4549,7 +4550,6 @@ function t(key, fallback) {
 			row.appendChild(action);
 			if (actions.length) { row.appendChild(manageMenu.disclosure(app.server_id, actions)); }
 			// Google's sign-in can ask for a Customer ID nothing else here mentions.
-			// Only before the person connects; once connected it has done its job.
 			if (app.category === 'googleads' && !app.authorized) {
 				const hint = document.createElement('div');
 				hint.className = 'integration-hint';

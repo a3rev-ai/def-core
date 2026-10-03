@@ -15,7 +15,7 @@
  *    here a row that never offered Disconnect offers nothing at all.
  *  - Connect STAYS on the row as the filled action. Only Disconnect moved.
  *
- * 18 checks.
+ * 19 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -330,7 +330,9 @@ const items = menu => menu
   const ads = authorized => [{ server_id: 's-ads', category: 'googleads', authorized: authorized,
                                has_grant: authorized }];
   {
-    const t = boot({ apps: ads(false) }); await enter(t);
+    // A grant that outlived its server: unconnected, yet the row has a ⋯ menu the hint must follow.
+    const t = boot({ apps: [{ server_id: 's-ads', category: 'googleads', authorized: false, has_grant: true }] });
+    await enter(t);
     const row = t.row('s-ads');
     const hint = row && row.querySelector('.integration-hint');
     // This harness's t() returns the fallback, so the translated copy is tied to it here:
@@ -368,6 +370,18 @@ const items = menu => menu
       (t.state.confirms[0].match(/Google Ads/g) || []).length === 2 &&
       !/Googleads/.test(t.state.confirms[0]),
       'confirms=' + JSON.stringify(t.state.confirms));
+  }
+
+  {
+    const t = boot({ apps: [
+      { server_id: 's-drive', category: 'googledrive', authorized: false, has_grant: false },
+      { server_id: 's-cal', category: 'googlecalendar', authorized: false, has_grant: false }] });
+    await enter(t);
+    const name = id => { const r = t.row(id); return r && r.querySelector('.integration-name').textContent; };
+    check(++n, 'Google Drive and Google Calendar read their proper names, with no hint',
+      name('s-drive') === 'Google Drive' && name('s-cal') === 'Google Calendar' &&
+      !t.document.querySelector('.integration-hint'),
+      'drive=' + name('s-drive') + ' cal=' + name('s-cal'));
   }
 
   console.log('\n' + results.join('\n'));

@@ -2434,8 +2434,7 @@ html {
 	padding: 12px 2px;
 	border-bottom: 1px solid var(--border-light);
 }
-/* v8.7.4: a one-line note under an app's row (Google Ads' Customer ID). Its own
-   rule: .integration-primary carries the picker's flex layout. */
+/* v8.7.4: a short note under an app's row. */
 .integration-hint {
 	flex-basis: 100%;
 	font-size: 12px;
