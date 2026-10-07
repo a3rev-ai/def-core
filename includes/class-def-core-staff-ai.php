@@ -2047,6 +2047,9 @@ final class DEF_Core_Staff_AI
 				// server its tools point at, and the handler reports honestly when the
 				// revoke then finds nothing.
 				'has_grant'  => ! empty( $app['has_grant'] ),
+				// S1c (v8.7.5): which Google account this is, from DEF. Display text; the
+				// panel renders it with textContent, so it is not escaped here.
+				'label'      => ( isset( $app['label'] ) && is_string( $app['label'] ) ) ? $app['label'] : '',
 			);
 		}
 
