@@ -19,7 +19,8 @@ function t(key, fallback) {
 	const userId = StaffAIConfig.userId;
 	const userEmail = StaffAIConfig.userEmail;
 	const apiBase = StaffAIConfig.apiBase;
-	const nonce = StaffAIConfig.nonce;
+	// Reassigned by wpFetch when WordPress refuses an expired nonce (8.7.6).
+	let nonce = StaffAIConfig.nonce;
 	// Artifacts A-3 (D-A7): the DEFHO origin a share link opens on, decided in PHP
 	// from the site's own DEFHO connection. Empty is a site with no origin to build
 	// one from, and the viewer offers no Share at all rather than a broken link.
@@ -192,18 +193,44 @@ function t(key, fallback) {
 		return temp.innerHTML;
 	}
 
+	// Every request that carries the nonce (8.7.6). A page left open past the nonce's
+	// life (12-24 h, an installed app overnight) gets rest_cookie_invalid_nonce: fetch a
+	// fresh one the way wp.apiFetch does and retry ONCE. A refresh that fails, or a
+	// second refusal, means the login itself has gone.
+	async function wpFetch(url, init = {}) {
+		const send = () => fetch(url, {
+			...init,
+			headers: { ...init.headers, 'X-WP-Nonce': nonce },
+			credentials: 'same-origin'
+		});
+		const response = await send();
+		if (!(await isNonceRefusal(response))) return response;
+		const fresh = await fetch(StaffAIConfig.nonceUrl, { credentials: 'same-origin' })
+			.then(function (r) { return r.ok ? r.text() : ''; })
+			.catch(function () { return ''; });
+		// Logged out, admin-ajax answers "0"; anything but a bare token is not a nonce.
+		if (fresh !== '0' && /^[A-Za-z0-9]+$/.test(fresh)) {
+			nonce = fresh;
+			const retry = await send();
+			if (!(await isNonceRefusal(retry))) return retry;
+		}
+		const err = new Error(t('sessionExpired', 'Your session has expired. Reload the page and sign in again.'));
+		err.sessionExpired = true;
+		throw err;
+	}
+
+	async function isNonceRefusal(response) {
+		if (response.status !== 403) return false;
+		const body = await response.clone().json().catch(function () { return null; });
+		return !!body && body.code === 'rest_cookie_invalid_nonce';
+	}
+
 	// API helper function
 	async function apiRequest(endpoint, options = {}) {
 		const url = apiBase + endpoint;
-		const headers = {
-			'X-WP-Nonce': nonce,
-			'Content-Type': 'application/json',
-			...options.headers
-		};
-		const response = await fetch(url, {
+		const response = await wpFetch(url, {
 			...options,
-			headers,
-			credentials: 'same-origin'
+			headers: { 'Content-Type': 'application/json', ...options.headers }
 		});
 		const data = await response.json();
 		if (!response.ok) {
@@ -365,7 +392,7 @@ function t(key, fallback) {
 			localStorage.setItem('staff-ai-model', selectedModel);
 		});
 		if (statusUrl) {
-			fetch(statusUrl, { headers: { 'X-WP-Nonce': nonce }, credentials: 'same-origin' })
+			wpFetch(statusUrl)
 				.then(function (r) { return r.ok ? r.json() : null; })
 				.then(function (data) {
 					if (!data) return;
@@ -1209,6 +1236,24 @@ function t(key, fallback) {
 	function showError(msg) {
 		errorBanner.textContent = msg;
 		errorBanner.classList.add('visible');
+	}
+
+	// The login has gone (8.7.6). The turn never left: its bubble goes, its words go
+	// back in the box, and the banner says how to carry on.
+	function showSessionExpired(err, text) {
+		if (text) {
+			var last = messages[messages.length - 1];
+			if (last && last.role === 'user') messages.pop();
+			composerInput.value = text;
+			autoResize();
+		}
+		renderMessages();
+		showError(err.message);
+		var reload = document.createElement('a');
+		reload.href = '#';
+		reload.textContent = t('reloadPage', 'Reload');
+		reload.addEventListener('click', function (e) { e.preventDefault(); location.reload(); });
+		errorBanner.append(' ', reload);
 	}
 
 	// Hide error
@@ -3134,8 +3179,9 @@ function t(key, fallback) {
 			updateReadOnlyState();
 		} catch (err) {
 			removeTypingMessage();
-			renderMessages();
 			console.error('Failed to send message:', err);
+			if (err.sessionExpired) { showSessionExpired(err, text); return; }
+			renderMessages();
 			showError(err.message || t('failedToSend', 'Failed to send message. Please try again.'));
 		} finally {
 			isLoading = false;
@@ -3193,14 +3239,12 @@ function t(key, fallback) {
 			_turnReachedServer = false;
 			voiceStopped = false;
 			_eventsSeen = 0;
-			var response = await fetch(chatStreamUrl, {
+			var response = await wpFetch(chatStreamUrl, {
 				method: 'POST',
 				headers: {
-					'X-WP-Nonce': nonce,
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(requestBody),
-				credentials: 'same-origin',
 				signal: _streamAbort.signal,
 			});
 			if (!response.ok) {
@@ -3587,7 +3631,11 @@ function t(key, fallback) {
 			// stream — the phone locked, signal dropped — is not a failed turn. The reply
 			// lands on the thread; go and get it (7.6.9, Steve's canary 2026-09-06).
 			var recovered = _turnReachedServer && currentConversationId && await recoverTurn();
-			if (!recovered) {
+			if (err.sessionExpired) {
+				removeTypingMessage();
+				dropUnfilledTranscript();
+				showSessionExpired(err, text);
+			} else if (!recovered) {
 				removeTypingMessage();
 				dropUnfilledTranscript();
 				renderMessages();
