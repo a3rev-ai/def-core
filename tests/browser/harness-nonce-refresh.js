@@ -6,7 +6,7 @@
  * request path (wpFetch / apiRequest), the SHIPPED error banner and the SHIPPED
  * send path, sliced by marker, inside jsdom against a scripted fetch.
  *
- * 8 checks.
+ * 9 checks.
  */
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
@@ -40,7 +40,7 @@ const expired = () => json(403, { code: 'rest_cookie_invalid_nonce', message: 'C
 const reply = () => json(200, { choices: [{ message: { content: 'Done.' } }], thread_id: 'th-1' });
 
 // `script` answers each request in turn: a function of (url, init) or a Response.
-function boot(script) {
+function boot(script, opts) {
   const dom = new JSDOM('<!doctype html><div id="errorBanner"></div><textarea id="composerInput"></textarea>',
     { url: 'https://e.test/staff-ai/' });
   const window = dom.window, document = window.document;
@@ -58,7 +58,8 @@ function boot(script) {
     StaffAIConfig: { nonce: 'old0000000', nonceUrl: NONCE_URL },
     t: (k, d) => d, apiBase: 'https://e.test/wp-json/def-core/v1/staff-ai', chatStreamUrl: STREAM_URL,
     errorBanner: document.getElementById('errorBanner'), composerInput: document.getElementById('composerInput'),
-    location: { reload: () => { state.reloads++; } }, ReadableStream: function () {},
+    location: { reload: () => { state.reloads++; } },
+    ReadableStream: (opts || {}).noStream ? undefined : function () {},
     messages: [], renderMessages() {}, autoResize() {}, updateSendButton() {}, hideInfo() {},
     hasActiveFiles: () => false, stagedFiles: [], classifySuggestionOutcome: () => ({}),
     endConversation() {}, browserTimezone: () => '', clearStagedFiles() {}, readBack() {},
@@ -125,6 +126,16 @@ function boot(script) {
       t.calls.length === 2 && t.deps.composerInput.value === 'Still there?' &&
       /^Your session has expired\./.test(t.banner().textContent),
       'calls=' + t.calls.length + ' banner=' + t.banner().textContent);
+  }
+  {
+    // A browser with no ReadableStream sends through sendMessageSync -> apiRequest('/chat').
+    const t = boot([expired(), new Response('0', { status: 400 })], { noStream: true });
+    t.type('Quick question');
+    await t.api.sendMessage();
+    check(++n, 'the sync fallback undoes the turn the same way: the words back in the box, no bubble, a Reload link',
+      t.calls[0].url.endsWith('/staff-ai/chat') && t.deps.composerInput.value === 'Quick question' &&
+      t.deps.messages.length === 0 && !!t.banner().querySelector('a'),
+      'calls=' + JSON.stringify(t.calls) + ' input=' + t.deps.composerInput.value);
   }
   {
     // A 200 that is not a nonce: "0", or a login page a security plugin serves instead.

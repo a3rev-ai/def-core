@@ -3631,13 +3631,10 @@ function t(key, fallback) {
 			// stream — the phone locked, signal dropped — is not a failed turn. The reply
 			// lands on the thread; go and get it (7.6.9, Steve's canary 2026-09-06).
 			var recovered = _turnReachedServer && currentConversationId && await recoverTurn();
-			if (err.sessionExpired) {
+			if (!recovered) {
 				removeTypingMessage();
 				dropUnfilledTranscript();
-				showSessionExpired(err, text);
-			} else if (!recovered) {
-				removeTypingMessage();
-				dropUnfilledTranscript();
+				if (err.sessionExpired) { showSessionExpired(err, text); return; }
 				renderMessages();
 				showError(_turnReachedServer && currentConversationId
 					? t('stillWorking', 'Your assistant is still working on this — reopen the chat in a minute to see the reply.')
