@@ -873,6 +873,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 		shareOrigin: <?php echo wp_json_encode( DEF_Core_OAuth::get_defho_url() ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
 		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
+		// 8.7.6: WordPress's own fresh-nonce endpoint, the one wp.apiFetch refreshes from.
+		nonceUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php?action=rest-nonce' ) ); ?>,
 		userName: <?php echo wp_json_encode( $first_name ); ?>,
 		tips: <?php
 			$tips = array(
@@ -929,6 +931,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			retrySuffix: <?php /* translators: %d: seconds until the rate limit window reopens. */ echo wp_json_encode( __( '(retry in %ds)', 'digital-employees' ) ); ?>,
 			uploadFailed: <?php echo wp_json_encode( __( 'Upload failed', 'digital-employees' ) ); ?>,
 			uploadReadFailed: <?php echo wp_json_encode( __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ) ); ?>,
+			sessionExpired: <?php echo wp_json_encode( __( 'Your session has expired. Reload the page and sign in again.', 'digital-employees' ) ); ?>,
+			reloadPage: <?php echo wp_json_encode( __( 'Reload', 'digital-employees' ) ); ?>,
 			stillWorking: <?php echo wp_json_encode( __( 'Your assistant is still working on this — reopen the chat in a minute to see the reply.', 'digital-employees' ) ); ?>,
 			micStart: <?php echo wp_json_encode( __( 'Speak', 'digital-employees' ) ); ?>,
 			micDenied: <?php echo wp_json_encode( __( 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.', 'digital-employees' ) ); ?>,

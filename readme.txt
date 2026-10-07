@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.5
+Stable tag: 8.7.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.6 - 2026-10-07 =
+* Fix - Staff AI left open for a long time (the installed app overnight) no longer fails the next message with "Cookie check failed": it fetches a fresh security token from WordPress and sends the message again. If you have been signed out, it says your session has expired with a Reload link, and your message stays in the box.
 
 = 8.7.5 - 2026-10-07 =
 * Tweak - Connected accounts: a connected Google Ads or Google Analytics row now says which account it is when Google provides it - for Google Ads the account's name and Customer ID, for Google Analytics the email you signed in with. The Customer ID line under Google Ads is rewritten: the ID is the number beside each account on Google's "Select a Google Ads account" screen, or top right inside an account; a connection covers only that account; to cover several, create a manager account, link the client accounts under it, and enter its ID.
