@@ -1787,6 +1787,20 @@ assert_true(
 	'has_grant survives the allowlist independently of authorized - dropping it from the allowlist strips every Disconnect button'
 );
 
+echo "\n[TS-15b] a connected Google row's label rides through as given; anything but a string becomes ''\n";
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'configured' => true,
+	'apps'       => array(
+		array( 'server_id' => 'srv-ads', 'category' => 'googleads', 'authorized' => true, 'label' => 'Acme & Co (123-456-7890)' ),
+		array( 'server_id' => 'srv-ga', 'category' => 'google_analytics', 'authorized' => true, 'label' => array( 'x' ) ),
+	),
+) );
+$resp = DEF_Core_Staff_AI::rest_user_integrations( new WP_REST_Request() );
+unset( $GLOBALS['_def_test_get_body'] );
+$_apps = $resp->get_data()['apps'] ?? array();
+assert_equals( 'Acme & Co (123-456-7890)', $_apps[0]['label'] ?? null, 'the label survives the allowlist unescaped - the panel sets it as textContent' );
+assert_equals( '', $_apps[1]['label'] ?? null, 'a non-string label is dropped to an empty string' );
+
 // ── Phase 4a (v6.4.0): the plural triage surface ─────────────────────────
 echo "\n[TS-18] rest_list_triage_schedules allowlists each row\n";
 $GLOBALS['_def_test_get_body'] = json_encode( array(

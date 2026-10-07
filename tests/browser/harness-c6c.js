@@ -15,7 +15,7 @@
  *    here a row that never offered Disconnect offers nothing at all.
  *  - Connect STAYS on the row as the filled action. Only Disconnect moved.
  *
- * 19 checks.
+ * 22 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -326,7 +326,7 @@ const items = menu => menu
   }
 
   // ---- 6. Google Ads: its proper name, and the Customer ID hint (v8.7.4) --
-  const ADS_HINT = 'If the sign-in asks for your Customer ID, it is the 10-digit number (123-456-7890) at the top-right of Google Ads, under the account name, or in Admin → Account settings. If you manage several accounts, use your manager (MCC) account’s ID to cover them all.';
+  const ADS_HINT = 'If the sign-in asks for your Customer ID, it is the 10-digit number beside each account on Google’s "Select a Google Ads account" screen, or top right inside an account. A connection covers only that account. To cover several, create a manager account, link the client accounts under it, and enter its ID.';
   const ads = authorized => [{ server_id: 's-ads', category: 'googleads', authorized: authorized,
                                has_grant: authorized }];
   {
@@ -382,6 +382,35 @@ const items = menu => menu
       name('s-drive') === 'Google Drive' && name('s-cal') === 'Google Calendar' &&
       !t.document.querySelector('.integration-hint'),
       'drive=' + name('s-drive') + ' cal=' + name('s-cal'));
+  }
+
+  // ---- 7. Which Google account a connection is: DEF's `label` (v8.7.5, S1c) --
+  const account = row => row && row.querySelector('.integration-account');
+  {
+    const t = boot({ apps: [
+      { server_id: 's-ads', category: 'googleads', authorized: true, has_grant: true, label: 'Acme Ltd (123-456-7890)' },
+      { server_id: 's-ga', category: 'google_analytics', authorized: true, has_grant: true, label: 'sam@acme.test' }] });
+    await enter(t);
+    const ads = account(t.row('s-ads')), ga = account(t.row('s-ga'));
+    check(++n, 'a connected Google Ads row names its account and Customer ID, an Analytics row its email, each as the row\'s last line',
+      !!ads && ads.textContent === 'Acme Ltd (123-456-7890)' && t.row('s-ads').lastElementChild === ads &&
+      !!ga && ga.textContent === 'sam@acme.test' && t.row('s-ga').lastElementChild === ga &&
+      !t.document.querySelector('.integration-hint'),
+      'ads=' + (ads && ads.textContent) + ' ga=' + (ga && ga.textContent));
+  }
+  {
+    const t = boot(); await enter(t);
+    check(++n, 'a row DEF sends no label for carries no account line',
+      !!t.row('s-gmail') && !t.document.querySelector('.integration-account'));
+  }
+  {
+    const label = '<img src=x onerror="window.__ran=1">Acme';
+    const t = boot({ apps: [{ server_id: 's-ads', category: 'googleads', authorized: true, has_grant: true, label: label }] });
+    await enter(t); await tick(t.window);
+    const line = account(t.row('s-ads'));
+    check(++n, 'the label goes in as text: markup in an account name shows as typed and never becomes an element',
+      !!line && line.textContent === label && line.children.length === 0 && !t.window.__ran,
+      'line=' + (line && line.innerHTML));
   }
 
   console.log('\n' + results.join('\n'));

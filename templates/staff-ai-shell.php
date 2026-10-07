@@ -1146,7 +1146,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			integrationsReady: <?php echo wp_json_encode( __( 'Ready', 'digital-employees' ) ); ?>,
 			integrationsConnected: <?php echo wp_json_encode( __( 'Connected', 'digital-employees' ) ); ?>,
 			integrationsConnect: <?php echo wp_json_encode( __( 'Connect', 'digital-employees' ) ); ?>,
-			integrationsGoogleAdsHint: <?php echo wp_json_encode( __( 'If the sign-in asks for your Customer ID, it is the 10-digit number (123-456-7890) at the top-right of Google Ads, under the account name, or in Admin → Account settings. If you manage several accounts, use your manager (MCC) account’s ID to cover them all.', 'digital-employees' ) ); ?>,
+			integrationsGoogleAdsHint: <?php echo wp_json_encode( __( 'If the sign-in asks for your Customer ID, it is the 10-digit number beside each account on Google’s "Select a Google Ads account" screen, or top right inside an account. A connection covers only that account. To cover several, create a manager account, link the client accounts under it, and enter its ID.', 'digital-employees' ) ); ?>,
 			integrationsManage: <?php echo wp_json_encode( __( 'Manage connection', 'digital-employees' ) ); ?>,
 			integrationsDisconnect: <?php echo wp_json_encode( __( 'Disconnect', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the app’s name, e.g. Google Drive (used twice). */ ?>

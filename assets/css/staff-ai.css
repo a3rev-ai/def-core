@@ -2434,8 +2434,9 @@ html {
 	padding: 12px 2px;
 	border-bottom: 1px solid var(--border-light);
 }
-/* v8.7.4: a short note under an app's row. */
-.integration-hint {
+/* v8.7.4: a short note under an app's row; v8.7.5: the Google account it is. */
+.integration-hint,
+.integration-account {
 	flex-basis: 100%;
 	font-size: 12px;
 	color: var(--text-secondary);
