@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.4
+Stable tag: 8.7.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.5 - 2026-10-07 =
+* Tweak - Connected accounts: a connected Google Ads or Google Analytics row now says which account it is - for Google Ads the account's name and Customer ID, for Google Analytics the email you signed in with. The Customer ID line under Google Ads is rewritten: the ID is the number beside each account on Google's "Select a Google Ads account" screen, or top right inside an account; a connection covers only that account; to cover several, create a manager account, link the client accounts under it, and enter its ID.
 
 = 8.7.4 - 2026-10-02 =
 * Tweak - Connected accounts: Google Ads now shows as "Google Ads" (it read "Googleads"), including in the Disconnect confirmation. Until you connect it, a line explains where to find your Customer ID if the sign-in asks, and to use your manager (MCC) account’s ID if you manage several accounts. Google Drive and Google Calendar now show their proper names too (they read "Googledrive" and "Googlecalendar").

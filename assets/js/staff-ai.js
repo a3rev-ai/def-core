@@ -4553,8 +4553,16 @@ function t(key, fallback) {
 			if (app.category === 'googleads' && !app.authorized) {
 				const hint = document.createElement('div');
 				hint.className = 'integration-hint';
-				hint.textContent = t('integrationsGoogleAdsHint', 'If the sign-in asks for your Customer ID, it is the 10-digit number (123-456-7890) at the top-right of Google Ads, under the account name, or in Admin → Account settings. If you manage several accounts, use your manager (MCC) account’s ID to cover them all.');
+				hint.textContent = t('integrationsGoogleAdsHint', 'If the sign-in asks for your Customer ID, it is the 10-digit number beside each account on Google’s "Select a Google Ads account" screen, or top right inside an account. A connection covers only that account. To cover several, create a manager account, link the client accounts under it, and enter its ID.');
 				row.appendChild(hint);
+			}
+			// S1c: which Google account this is (DEF's `label`). The Ads account's name is
+			// third-party text, so textContent only.
+			if (app.label) {
+				const account = document.createElement('div');
+				account.className = 'integration-account';
+				account.textContent = app.label;
+				row.appendChild(account);
 			}
 			return row;
 		}
