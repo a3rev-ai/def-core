@@ -7,12 +7,16 @@
  * and Cancel sends "Cancel: …" through the same send as typing, the chip goes once sent, and
  * no ghost suggestion shows beside one; stacked chips go one at a time.
  *
- * 8 checks.
+ * 10 checks, and new chat and opening a conversation are sliced to show they clear the chips.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 
 const STREAM = extract.staffAiStream();
+// New chat and opening a conversation both clear the chips (the epoch check rests on it).
+const LEAVERS = [['function resetToNewChat() {', '\tnewChatBtn.addEventListener'],
+  ['async function loadConversation(id, shared) {', '\t\tif (window.innerWidth <= 768)']].map(([from, to]) =>
+  extract.slice(from, l => l.includes(from), l => l.includes(to), ['clearConfirmChips();']));
 const SEND = extract.slice('send path',
   l => l.startsWith('\tasync function sendMessage() {'),
   l => l.includes('// SHARE MODAL'),
@@ -62,7 +66,8 @@ function boot() {
     ' chipEpoch = 0,' +
     ' toolStatusElements = {}, readbackBuffer = "", speaker = null;\n' + STREAM + '\n' + SEND +
     '\nreturn { push: async function (evts) { for (var i = 0; i < evts.length; i++) eventQueue.push(evts[i]);' +
-    ' await processEventQueue(); }, leave: function () { clearConfirmChips(); } };'
+    ' await processEventQueue(); }, leave: function () { clearConfirmChips(); },' +
+    ' block: function (loading, readOnly) { isLoading = loading; isReadOnly = readOnly; } };'
   )(...names.map(k => deps[k]));
   const chips = () => Array.from(document.querySelectorAll('#confirmChips .confirm-chip'));
   const click = async (chip, label) => {
@@ -107,6 +112,15 @@ function boot() {
     check(++n, 'one chip per pending confirmation, stacked; confirming one sends it and leaves the other',
       c.length === 2 && b.sent.join('|') === 'Confirm: second change' && b.chips().length === 1 && b.chips()[0] === c[0],
       'chips=' + c.length + ' sent=' + JSON.stringify(b.sent));
+  }
+  for (const [loading, readOnly] of [[true, false], [false, true]]) {
+    const b = boot();
+    await b.api.push([{ type: 'confirmation', text: SENTENCE }]);
+    b.api.block(loading, readOnly);
+    await b.click(b.chips()[0], 'Confirm');
+    check(++n, 'a click ' + (loading ? 'while a turn is running' : 'on a read-only view') +
+      ' sends nothing and keeps the chip', b.sent.length === 0 && b.chips().length === 1 &&
+      b.deps.composerInput.value === '', 'sent=' + JSON.stringify(b.sent) + ' chips=' + b.chips().length);
   }
   {
     const b = boot();

@@ -3680,7 +3680,6 @@ function t(key, fallback) {
 				if (isLoading || isReadOnly) return;
 				chip.remove();
 				composerInput.value = b[2];
-				composerInput.classList.remove('staff-ai-suggestion-text');
 				sendMessage();
 			});
 			chip.appendChild(btn);
