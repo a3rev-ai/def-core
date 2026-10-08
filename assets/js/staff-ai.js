@@ -281,6 +281,7 @@ function t(key, fallback) {
 	const infoBanner = document.getElementById('infoBanner');
 	const errorBanner = document.getElementById('errorBanner');
 	const composerContainer = document.getElementById('composerContainer');
+	const confirmChips = document.getElementById('confirmChips');
 	const composerInput = document.getElementById('composerInput');
 	const sendBtn = document.getElementById('sendBtn');
 	// Share modal elements
@@ -323,6 +324,7 @@ function t(key, fallback) {
 	let isReadOnly = false;
 	let dirtyInput = false;
 	let lastSuggestion = null;       // Phase 10.1: last suggestion shown
+	let chipEpoch = 0;               // DEF S8: bumped whenever the confirm chips are cleared
 
 	// Upload state
 	const UPLOAD_ALLOWED_EXT = StaffAIConfig.upload.allowedExtensions;
@@ -833,6 +835,7 @@ function t(key, fallback) {
 		clearActiveProject();
 		currentConversationId = id;
 		isReadOnly = !!shared;
+		clearConfirmChips();
 
 		// Update UI state
 		updateReadOnlyState();
@@ -1150,6 +1153,7 @@ function t(key, fallback) {
 		currentConversationId = null;
 		isReadOnly = false;
 		messages = [];
+		clearConfirmChips();
 		updateReadOnlyState();
 		renderConversationList();
 		renderMessages();
@@ -3293,6 +3297,9 @@ function t(key, fallback) {
 
 			// Progressive markdown rendering state.
 			var streamBuffer = '';
+			// A confirmation from a turn the person has since left (new chat, another
+			// conversation) is dropped: its chip would sit under the wrong thread.
+			var turnEpoch = chipEpoch;
 			// Where the current loop step's slice of streamBuffer begins —
 			// advanced by a step-0 notice (which the reply's rounds never
 			// supersede) or by a cut (DEF #1159).
@@ -3551,9 +3558,11 @@ function t(key, fallback) {
 						if (spokenTurn) {
 							speaker.speak(evt.text || '', evt.audio_base64 ? { base64: evt.audio_base64, mime: evt.mime } : null);
 						}
+					} else if (evt.type === 'confirmation') {
+						if (turnEpoch === chipEpoch) showConfirmChip(evt.text);
 					} else if (evt.type === 'suggestions') {
 						lastSuggestion = evt.suggestion || null;
-						if (!dirtyInput && composerInput && evt.suggestion) {
+						if (!dirtyInput && composerInput && evt.suggestion && !confirmChips.childElementCount) {
 							composerInput.value = evt.suggestion;
 							composerInput.classList.add('staff-ai-suggestion-text');
 							autoResize();
@@ -3648,6 +3657,39 @@ function t(key, fallback) {
 			updateSendButton();
 			afterSpokenTurn();
 		}
+	}
+
+	// A change waiting for the person's confirmation (DEF S8): the platform's own sentence, built
+	// from the call's arguments, with Confirm and Cancel. A click sends the sentence as the
+	// person's message, so the next turn is theirs. Text only, never markup.
+	function showConfirmChip(text) {
+		if (!text) return;
+		var chip = document.createElement('div');
+		chip.className = 'confirm-chip';
+		var sentence = document.createElement('p');
+		sentence.className = 'confirm-chip-text';
+		sentence.textContent = text;
+		chip.appendChild(sentence);
+		[[t('confirmChipConfirm', 'Confirm'), 'modal-btn-primary', text],
+			[t('cancel', 'Cancel'), 'modal-btn-secondary', 'Cancel: ' + text]].forEach(function (b) {
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'modal-btn ' + b[1];
+			btn.textContent = b[0];
+			btn.addEventListener('click', function () {
+				if (isLoading || isReadOnly) return;
+				chip.remove();
+				composerInput.value = b[2];
+				sendMessage();
+			});
+			chip.appendChild(btn);
+		});
+		confirmChips.appendChild(chip);
+	}
+
+	function clearConfirmChips() {
+		confirmChips.textContent = '';
+		chipEpoch++;
 	}
 
 	// =============================================

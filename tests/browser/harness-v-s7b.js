@@ -33,7 +33,7 @@ const STAFF_HEAD = `
 	var messages = [], spoken = [], readbackBuffer = '';
 	var currentConversationId = null, dirtyInput = false, lastSuggestion = null;
 	var composerInput = null, conversationOn = false, speaker = null;
-	var _isStreaming = false, _userScrolledUp = false;
+	var _isStreaming = false, _userScrolledUp = false, chipEpoch = 0;
 	function renderMarkdown(s) { return s; }
 	function t(k, fb) { return fb; }
 	function renderToolStatus() { return document.createElement('div'); }
