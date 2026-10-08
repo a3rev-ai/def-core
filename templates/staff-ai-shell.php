@@ -724,7 +724,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<div class="form-group">
 							<label class="form-label" for="taskInstruction"><?php echo esc_html__( 'What should Staff AI do?', 'digital-employees' ); ?></label>
 							<textarea class="form-input task-instruction" id="taskInstruction" rows="5" placeholder="<?php echo esc_attr__( 'Write my Monday planning checklist: the three questions I should answer before the week starts, and a blank plan I can fill in.', 'digital-employees' ); ?>"></textarea>
-							<p class="form-hint"><?php echo esc_html__( 'The task runs with no tools: it can write, plan, summarise and remind, but it cannot read your email or calendar, browse the web, or send anything on your behalf.', 'digital-employees' ); ?></p>
+							<p class="form-hint"><?php echo esc_html__( 'The task runs on your own login, with your connected accounts, your documents and your company knowledge, and it reads what you can read. Anything that would send, post or change something is described in the report instead of done. Apps your role grants are not available to scheduled runs.', 'digital-employees' ); ?></p>
 						</div>
 						<div class="form-group schedule-toggle-row">
 							<label class="share-toggle-label"><input type="checkbox" id="taskEnabled" class="share-transcript-toggle" checked> <span id="taskEnabledLabel"><?php echo esc_html__( 'Run this task on its schedule', 'digital-employees' ); ?></span></label>
