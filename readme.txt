@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.7
+Stable tag: 8.7.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.8 - 2026-10-08 =
+* New - When Staff AI is about to make a change in a connected app, it shows the exact change and asks you to confirm or cancel it with one click.
 
 = 8.7.7 - 2026-10-08 =
 * Fix - The scheduled task form now says what a scheduled run can do: it runs on your own login with your connected accounts and documents, and describes rather than performs anything that would send, post or change something.

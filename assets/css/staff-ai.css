@@ -1356,6 +1356,36 @@ body {
 	color: var(--text-placeholder);
 }
 
+.confirm-chips:empty {
+	display: none;
+}
+
+.confirm-chips {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.confirm-chip {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1px solid var(--border-medium);
+	border-radius: 10px;
+	background: var(--bg-input);
+}
+
+.confirm-chip-text {
+	flex: 1 1 100%;
+	margin: 0;
+	color: var(--text-primary);
+	font-size: 14px;
+	overflow-wrap: anywhere;
+}
+
 .composer-input.staff-ai-suggestion-text {
 	color: var(--text-placeholder);
 	font-style: italic;

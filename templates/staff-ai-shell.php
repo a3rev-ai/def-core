@@ -515,6 +515,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<!-- Hidden file input -->
 				<input type="file" id="uploadFileInput" class="sr-only" multiple
 					accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.md,.csv,.docx,.xlsx" />
+				<!-- A change waiting for confirmation (DEF S8): filled by showConfirmChip(). -->
+				<div class="confirm-chips" id="confirmChips" aria-live="polite"></div>
 				<div class="composer-wrapper">
 					<!-- Staged files area -->
 					<div class="upload-staged-area" id="uploadStagedArea" style="display: none;"
@@ -1087,6 +1089,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			scheduledAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Scheduled Tasks work', 'digital-employees' ) ); ?>,
 			scheduledAskPrompt: <?php echo wp_json_encode( __( 'Walk me through how Scheduled Tasks work — the schedules I can choose, and custom tasks with examples of how I could use them — then set one up for me when I\'m ready.', 'digital-employees' ) ); ?>,
 			cancel: <?php echo wp_json_encode( __( 'Cancel', 'digital-employees' ) ); ?>,
+			confirmChipConfirm: <?php echo wp_json_encode( __( 'Confirm', 'digital-employees' ) ); ?>,
 			documentsMoveProject: <?php echo wp_json_encode( __( 'Move to project…', 'digital-employees' ) ); ?>,
 			documentsChangeProject: <?php echo wp_json_encode( __( 'Change project…', 'digital-employees' ) ); ?>,
 			documentsDownloadToOpen: <?php echo wp_json_encode( __( 'download to open', 'digital-employees' ) ); ?>,
