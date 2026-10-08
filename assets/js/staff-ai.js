@@ -324,6 +324,7 @@ function t(key, fallback) {
 	let isReadOnly = false;
 	let dirtyInput = false;
 	let lastSuggestion = null;       // Phase 10.1: last suggestion shown
+	let chipEpoch = 0;               // DEF S8: bumped whenever the confirm chips are cleared
 
 	// Upload state
 	const UPLOAD_ALLOWED_EXT = StaffAIConfig.upload.allowedExtensions;
@@ -3296,6 +3297,9 @@ function t(key, fallback) {
 
 			// Progressive markdown rendering state.
 			var streamBuffer = '';
+			// A confirmation from a turn the person has since left (new chat, another
+			// conversation) is dropped: its chip would sit under the wrong thread.
+			var turnEpoch = chipEpoch;
 			// Where the current loop step's slice of streamBuffer begins —
 			// advanced by a step-0 notice (which the reply's rounds never
 			// supersede) or by a cut (DEF #1159).
@@ -3555,7 +3559,7 @@ function t(key, fallback) {
 							speaker.speak(evt.text || '', evt.audio_base64 ? { base64: evt.audio_base64, mime: evt.mime } : null);
 						}
 					} else if (evt.type === 'confirmation') {
-						showConfirmChip(evt.text);
+						if (turnEpoch === chipEpoch) showConfirmChip(evt.text);
 					} else if (evt.type === 'suggestions') {
 						lastSuggestion = evt.suggestion || null;
 						if (!dirtyInput && composerInput && evt.suggestion && !confirmChips.childElementCount) {
@@ -3673,7 +3677,7 @@ function t(key, fallback) {
 			btn.className = 'modal-btn ' + b[1];
 			btn.textContent = b[0];
 			btn.addEventListener('click', function () {
-				if (isLoading) return;
+				if (isLoading || isReadOnly) return;
 				chip.remove();
 				composerInput.value = b[2];
 				composerInput.classList.remove('staff-ai-suggestion-text');
@@ -3686,6 +3690,7 @@ function t(key, fallback) {
 
 	function clearConfirmChips() {
 		confirmChips.textContent = '';
+		chipEpoch++;
 	}
 
 	// =============================================

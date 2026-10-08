@@ -7,7 +7,7 @@
  * and Cancel sends "Cancel: …" through the same send as typing, the chip goes once sent, and
  * no ghost suggestion shows beside one; stacked chips go one at a time.
  *
- * 7 checks.
+ * 8 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -59,9 +59,10 @@ function boot() {
     ' lastSuggestion = null, selectedModel = "", currentConversationId = null, activeProjectId = null,' +
     ' _streamAbort = null, _turnReachedServer = false, voiceStopped = false, _eventsSeen = 0, _isStreaming = false,' +
     ' _userScrolledUp = false, dirtyInput = false, SSE_TOOL_PACING_MS = 0, eventQueue = [], processing = false,' +
+    ' chipEpoch = 0,' +
     ' toolStatusElements = {}, readbackBuffer = "", speaker = null;\n' + STREAM + '\n' + SEND +
     '\nreturn { push: async function (evts) { for (var i = 0; i < evts.length; i++) eventQueue.push(evts[i]);' +
-    ' await processEventQueue(); } };'
+    ' await processEventQueue(); }, leave: function () { clearConfirmChips(); } };'
   )(...names.map(k => deps[k]));
   const chips = () => Array.from(document.querySelectorAll('#confirmChips .confirm-chip'));
   const click = async (chip, label) => {
@@ -106,6 +107,13 @@ function boot() {
     check(++n, 'one chip per pending confirmation, stacked; confirming one sends it and leaves the other',
       c.length === 2 && b.sent.join('|') === 'Confirm: second change' && b.chips().length === 1 && b.chips()[0] === c[0],
       'chips=' + c.length + ' sent=' + JSON.stringify(b.sent));
+  }
+  {
+    const b = boot();
+    b.api.leave();   // the person opened another conversation while this turn was still streaming
+    await b.api.push([{ type: 'confirmation', text: SENTENCE }]);
+    check(++n, 'a confirmation from a turn the person has left shows no chip', b.chips().length === 0,
+      'chips=' + b.chips().length);
   }
   {
     const b = boot();
