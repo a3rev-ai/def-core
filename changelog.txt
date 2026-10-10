@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.7.9 - 2026/10/10 =
+* Tweak - The Setup Assistant's "ask a person" form now sends you a copy of your request for your records ("Copy: <subject>"), to your own account email.
+
 = 8.7.8 - 2026/10/08 =
 * New - When Staff AI is about to make a change in a connected app, it shows the exact change and asks you to confirm or cancel it with one click.
 

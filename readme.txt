@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.8
+Stable tag: 8.7.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.9 - 2026-10-10 =
+* Tweak - The Setup Assistant's "ask a person" form now sends you a copy of your request for your records ("Copy: <subject>"), to your own account email.
 
 = 8.7.8 - 2026-10-08 =
 * New - When Staff AI is about to make a change in a connected app, it shows the exact change and asks you to confirm or cancel it with one click.
