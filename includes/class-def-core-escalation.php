@@ -662,10 +662,15 @@ final class DEF_Core_Escalation {
 		$full_body = $from_line . "\n" . $site_line . "\n\n" . $message;
 
 		$safe_body = array(
-			'subject'  => $subject,
-			'body'     => $full_body,
-			'reply_to' => $current_user->user_email,
-			'channel'  => 'setup_assistant',
+			'subject'           => $subject,
+			'body'              => $full_body,
+			'reply_to'          => $current_user->user_email,
+			'channel'           => 'setup_assistant',
+			// A copy for the admin's records ("Copy: <subject>", send_escalation_email's own
+			// option). Safe here, unlike the anonymous Customer Chat hand-off: the address is
+			// the signed-in admin's own account email, never one typed into the form.
+			'send_copy_to_user' => true,
+			'user_copy_email'   => $current_user->user_email,
 		);
 
 		// Delegate to the shared escalation send-email handler.
