@@ -330,6 +330,13 @@ assert_equals(
 	$_share_handlers[1]['permission_callback'] ?? null,
 	'Stop sharing takes it too'
 );
+// The turn resume (8.7.14): a GET on the conversation id pattern, behind the same gate as
+// loading the conversation, relayed by the chat stream's proxy, `after` a required count.
+$_resume = $_wp_test_rest_routes['a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/turns/(?P<turn>[a-zA-Z0-9_-]+)/stream'] ?? array();
+assert_equals( 'GET', $_resume['methods'] ?? '', 'turn resume = GET' );
+assert_equals( array( 'DEF_Core_Staff_AI', 'rest_permission_check' ), $_resume['permission_callback'] ?? null, 'turn resume takes the conversation routes\' permission callback' );
+assert_equals( array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_turn_resume' ), $_resume['callback'] ?? null, 'turn resume is the Tools stream proxy' );
+assert_equals( array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ), $_resume['args']['after'] ?? null, 'turn resume: `after` is a required non-negative integer' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/usage']['methods'], 'usage = GET' );

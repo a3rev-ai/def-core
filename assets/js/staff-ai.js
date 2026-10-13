@@ -88,15 +88,18 @@ function t(key, fallback) {
 	}
 	// ── end Ask entry ────────────────────────────────────────────────────────────
 
-	// SSE buffer parser — handles comments, multi-line data:, partial chunks
+	// SSE buffer parser — handles comments, multi-line data:, partial chunks, and the
+	// `id:` DEF numbers every frame with (8.7.14): ids[i] is parsed[i]'s, or null.
 	function parseSSEBuffer(buffer) {
 		var events = [];
+		var ids = [];
 		var parts = buffer.split('\n\n');
 		var remaining = parts.pop();
 		for (var i = 0; i < parts.length; i++) {
 			var block = parts[i];
 			var lines = block.split('\n');
 			var dataLines = [];
+			var id = null;
 			for (var j = 0; j < lines.length; j++) {
 				var line = lines[j];
 				if (line.charAt(0) === ':') continue;
@@ -104,14 +107,16 @@ function t(key, fallback) {
 					dataLines.push(line.substring(6));
 				} else if (line.indexOf('data:') === 0) {
 					dataLines.push(line.substring(5));
+				} else if (line.indexOf('id:') === 0) {
+					id = line.substring(3).replace(/^ /, '');
 				}
 			}
 			if (dataLines.length > 0) {
 				var payload = dataLines.join('\n');
-				try { events.push(JSON.parse(payload)); } catch (e) { /* skip malformed */ }
+				try { events.push(JSON.parse(payload)); ids.push(id); } catch (e) { /* skip malformed */ }
 			}
 		}
-		return { parsed: events, remaining: remaining };
+		return { parsed: events, ids: ids, remaining: remaining };
 	}
 
 	// Tool status labels for SSE streaming
@@ -1333,9 +1338,11 @@ function t(key, fallback) {
 	var _turnReachedServer = false;
 	var _eventsSeen = 0;
 
-	async function recoverTurn() {
+	// `untilDone` (8.7.14): a turn DEF no longer holds in memory (a restart, another
+	// server) is polled with no deadline while the tab is open — it can run for minutes.
+	async function recoverTurn(untilDone) {
 		var id = currentConversationId;
-		var deadline = Date.now() + RECOVER_TURN_MAX_MS;
+		var deadline = untilDone ? Infinity : Date.now() + RECOVER_TURN_MAX_MS;
 		while (Date.now() < deadline) {
 			// The user moved on (New chat, another conversation): nothing to recover into.
 			if (currentConversationId !== id) return true;
@@ -1343,7 +1350,9 @@ function t(key, fallback) {
 				var result = await apiRequest('/conversations/' + encodeURIComponent(id));
 				var fetched = result.messages || [];
 				var last = fetched[fetched.length - 1];
-				if (last && last.role === 'assistant' && (last.content || '').trim()) {
+				// Done is DEF's is_complete where the thread carries it, else a reply with words.
+				if (last && last.role === 'assistant' &&
+					('is_complete' in last ? last.is_complete : (last.content || '').trim())) {
 					if (currentConversationId !== id) return true;
 					messages = fetched;
 					renderMessages();
@@ -1441,7 +1450,7 @@ function t(key, fallback) {
 	checkForNewRelease();   // on launch
 
 	// A locked phone can leave the reader hanging rather than failing it. On resume, give
-	// the live stream a moment; if nothing arrives, abort it so the catch above recovers.
+	// the live stream a moment; if nothing arrives, abort it, and the turn re-attaches (8.7.14).
 	document.addEventListener('visibilitychange', function() {
 		// Hands-free is a foreground interaction: a pocketed phone must not keep
 		// listening (7.7.1) — the mic is released the moment the page hides.
@@ -3290,9 +3299,6 @@ function t(key, fallback) {
 			}
 
 			// SSE stream processing
-			var reader = response.body.getReader();
-			var decoder = new TextDecoder();
-			var buffer = '';
 			var toolStatusElements = {};
 			var eventQueue = [];
 			var processing = false;
@@ -3368,6 +3374,51 @@ function t(key, fallback) {
 				wordDrainTimer = setTimeout(renderStreamChunk, interval);
 			}
 
+			// The working line's label, the line made the first time the turn says what it is
+			// doing: before the typing indicator while nothing has streamed (found directly, not
+			// via `.message:last-child` — a V2 persona divider can be the last sibling), under
+			// the bubble once text has.
+			function workingLine() {
+				if (!thinkingStatusEl) {
+					thinkingStatusEl = document.createElement('div');
+					thinkingStatusEl.className = 'tool-status';
+					thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
+					var typing = messagesList.querySelector('.typing-indicator');
+					var bubble = streamEl && streamEl.closest('.message');
+					if (typing) {
+						typing.style.display = 'none';
+						typing.parentNode.insertBefore(thinkingStatusEl, typing);
+					} else if (bubble) {
+						bubble.parentNode.insertBefore(thinkingStatusEl, bubble.nextSibling);
+					}
+					var oldLbl = messagesList.querySelector('.typing-label');
+					if (oldLbl) oldLbl.remove();
+				}
+				return thinkingStatusEl.querySelector('.tool-label');
+			}
+
+			// A `progress` frame (8.7.14): DEF's own sentence, shown as is, and a clock from the
+			// phase's start (`elapsed_s`) that keeps running between frames. The clock stops by
+			// itself once anything else writes the line or takes it away.
+			var progressClock = null;
+			function showProgress(evt) {
+				var label = workingLine();
+				var since = Date.now() - (Number(evt.elapsed_s) || 0) * 1000;
+				var shown = null;
+				clearInterval(progressClock);
+				function tick() {
+					if (shown !== null && (!label.isConnected || label.textContent !== shown)) {
+						clearInterval(progressClock);
+						return;
+					}
+					var s = Math.max(0, Math.floor((Date.now() - since) / 1000));
+					shown = label.textContent = String(evt.label || '') + ' ' +
+						Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+				}
+				tick();
+				progressClock = setInterval(tick, 1000);
+			}
+
 			async function processEventQueue() {
 				if (processing) return;
 				processing = true;
@@ -3380,28 +3431,9 @@ function t(key, fallback) {
 					if (evt.thread_id && !currentConversationId) currentConversationId = evt.thread_id;
 					persona.handleEvent(evt, thinkingStatusEl);
 					if (evt.type === 'thinking') {
-						var thinkMsg = persona.formatThinkingLabel(evt.message);
-						if (!thinkingStatusEl) {
-							var div = document.createElement('div');
-							div.className = 'tool-status';
-							div.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
-							div.querySelector('.tool-label').textContent = thinkMsg;
-							// Find the typing indicator directly (not via
-							// `.message:last-child`) — V2 persona divider can be
-							// the last sibling and break that selector.
-							var typing = messagesList.querySelector('.typing-indicator');
-							var target = typing ? typing.parentNode : null;
-							if (typing) {
-								typing.style.display = 'none';
-								target.insertBefore(div, typing);
-							}
-							var oldLbl = messagesList.querySelector('.typing-label');
-							if (oldLbl) oldLbl.remove();
-							thinkingStatusEl = div;
-						} else {
-							var saLabel = thinkingStatusEl.querySelector('.tool-label');
-							if (saLabel) saLabel.textContent = thinkMsg;
-						}
+						workingLine().textContent = persona.formatThinkingLabel(evt.message);
+					} else if (evt.type === 'progress') {
+						showProgress(evt);
 					} else if (evt.type === 'tool_start') {
 						var el = renderToolStatus(evt.tool);
 						toolStatusElements[evt.tool] = el;
@@ -3450,16 +3482,7 @@ function t(key, fallback) {
 						streamBuffer = streamBuffer.slice(0, stepStart);
 						lastRenderedLen = streamBuffer.length;
 						if (streamEl) streamEl.innerHTML = renderMarkdown(streamBuffer);
-						var supMsg = lead && streamEl && streamEl.closest('.message');
-						if (supMsg) {
-							if (!thinkingStatusEl) {
-								thinkingStatusEl = document.createElement('div');
-								thinkingStatusEl.className = 'tool-status';
-								thinkingStatusEl.innerHTML = '<span class="tool-spinner"></span><span class="tool-label"></span>';
-								supMsg.parentNode.insertBefore(thinkingStatusEl, supMsg.nextSibling);
-							}
-							thinkingStatusEl.querySelector('.tool-label').textContent = lead;
-						}
+						if (lead && streamEl) workingLine().textContent = lead;
 					} else if (evt.type === 'done') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 						if (wordDrainTimer) clearTimeout(wordDrainTimer);
@@ -3606,27 +3629,79 @@ function t(key, fallback) {
 			}
 
 			// Read SSE chunks
-			while (true) {
-				var result = await reader.read();
-				if (result.done) break;
-				// Liveness counts every chunk, including DEF's ": keepalive" comment frames
-				// (dropped by the parser below) — a long tool call is quiet but alive.
-				_eventsSeen++;
-				buffer += decoder.decode(result.value, { stream: true });
-				var parsed = parseSSEBuffer(buffer);
-				buffer = parsed.remaining;
+			// Where the turn is (8.7.14): DEF numbers every frame with an SSE `id:` and names
+			// the turn on it, so a stream that ends before `done` or `error` can re-attach from
+			// the last frame seen. The proxy's own frames carry no id: an `error` without one,
+			// once the turn is known, is the connection failing, not the turn — it is not
+			// shown, and `cut` keeps its status (410: DEF no longer holds the turn).
+			var turnId = null, turnThread = null, lastSeq = null, finished = false, cut = null;
+			function take(parsed) {
 				for (var k = 0; k < parsed.parsed.length; k++) {
-					eventQueue.push(parsed.parsed[k]);
+					var evt = parsed.parsed[k], id = parsed.ids[k];
+					if (id === null && turnId && evt.type === 'error' && evt.status !== 404) {
+						cut = evt.status;
+						continue;
+					}
+					if (id !== null) lastSeq = id;
+					if (evt.turn_id && !turnId) { turnId = evt.turn_id; turnThread = evt.thread_id; }
+					if (evt.type === 'done' || evt.type === 'error') finished = true;
+					eventQueue.push(evt);
 				}
-				await processEventQueue();
 			}
-			// Process any remaining events
-			if (buffer.trim()) {
-				var finalParsed = parseSSEBuffer(buffer + '\n\n');
-				for (var k = 0; k < finalParsed.parsed.length; k++) {
-					eventQueue.push(finalParsed.parsed[k]);
+			async function readStream(body) {
+				var reader = body.getReader();
+				var decoder = new TextDecoder();
+				var buffer = '';
+				while (true) {
+					var result = await reader.read();
+					if (result.done) break;
+					// Liveness counts every chunk, including DEF's ": keepalive" comment frames
+					// (dropped by the parser below) — a long tool call is quiet but alive.
+					_eventsSeen++;
+					buffer += decoder.decode(result.value, { stream: true });
+					var parsed = parseSSEBuffer(buffer);
+					buffer = parsed.remaining;
+					take(parsed);
+					await processEventQueue();
 				}
-				await processEventQueue();
+				// Process any remaining events
+				if (buffer.trim()) {
+					take(parseSSEBuffer(buffer + '\n\n'));
+					await processEventQueue();
+				}
+			}
+
+			try {
+				await readStream(response.body);
+			} catch (e) {
+				if (!turnId || voiceStopped) throw e;   // nothing to re-attach to: the catch below recovers
+			}
+			// Any end short of `done` or `error` — a host's time limit, a stall, a phone asleep —
+			// re-attaches, with no ceiling while the tab is open (8.7.14). The backoff restarts
+			// whenever a re-attach brought frames.
+			var waits = [1000, 2000, 5000];
+			for (var attempt = 0; !finished && !voiceStopped; attempt++) {
+				if (!turnId) throw new Error();   // no turn to re-attach to: the catch below recovers
+				if (currentConversationId !== turnThread) return;   // the person moved on
+				if (cut === 410) { await recoverTurn(true); return; }
+				workingLine().textContent = t('reconnecting', 'Reconnecting…');
+				await new Promise(function(r) { setTimeout(r, waits[Math.min(attempt, waits.length - 1)]); });
+				if (currentConversationId !== turnThread) return;
+				var seen = lastSeq, resumed = null;
+				cut = null;
+				_streamAbort = new AbortController();
+				try {
+					resumed = await wpFetch(apiBase + '/conversations/' + encodeURIComponent(turnThread) +
+						'/turns/' + encodeURIComponent(turnId) + '/stream' +
+						(apiBase.indexOf('?') === -1 ? '?' : '&') + 'after=' + encodeURIComponent(lastSeq),
+						{ signal: _streamAbort.signal });
+					if (resumed.ok) await readStream(resumed.body);
+				} catch (e) {
+					if (e.sessionExpired) throw e;
+				}
+				// WordPress refusing the request (access removed) is not a dropped connection.
+				if (resumed && !resumed.ok && resumed.status < 500) throw new Error('Resume refused (' + resumed.status + ')');
+				if (lastSeq !== seen) attempt = -1;
 			}
 		}
 

@@ -8,7 +8,8 @@
  * buffer so tokens reach the client unbuffered. An in-process ob_start() capture is
  * therefore impossible by design, and trying it silently captures nothing.
  *
- * Usage: php sse-proxy-driver.php <upstream-url>
+ * Usage: php sse-proxy-driver.php <upstream-url>           (stream_proxy, a POST)
+ *        php sse-proxy-driver.php <upstream-base> resume  (the Staff AI turn resume, a GET)
  *
  * @package def-core/tests
  */
@@ -52,7 +53,8 @@ if ( ! function_exists( '_n' ) ) {
 if ( ! class_exists( 'DEF_Core' ) ) {
 	class DEF_Core {
 		public static function get_def_api_url_internal(): string {
-			return 'http://127.0.0.1:1';
+			global $argv;
+			return 'resume' === ( $argv[2] ?? '' ) ? (string) $argv[1] : 'http://127.0.0.1:1';
 		}
 	}
 }
@@ -70,6 +72,21 @@ if ( ! class_exists( 'DEF_Core_Logger' ) ) {
 
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
 
-$method = new ReflectionMethod( 'DEF_Core_Tools', 'stream_proxy' );
-$method->setAccessible( true );
-$method->invoke( null, (string) $argv[1], array( 'Content-Type: application/json' ), '{}' );
+// A finite PHP limit and the default abort handling going in, so what stream_proxy sets is
+// what the caller reads back off STDERR.
+set_time_limit( 30 );
+ignore_user_abort( false );
+
+if ( 'resume' === ( $argv[2] ?? '' ) ) {
+	// The REST callback itself (8.7.14), its upstream base being argv[1].
+	DEF_Core_Tools::rest_proxy_staff_ai_turn_resume( new class() {
+		public function get_param( string $key ) {
+			return array( 'id' => 'staff-1a2b3c', 'turn' => '0f0e9d8c-uuid', 'after' => 3 )[ $key ] ?? null;
+		}
+	} );
+} else {
+	$method = new ReflectionMethod( 'DEF_Core_Tools', 'stream_proxy' );
+	$method->setAccessible( true );
+	$method->invoke( null, (string) $argv[1], array( 'Content-Type: application/json' ), '{}' );
+}
+fwrite( STDERR, 'limit=' . ini_get( 'max_execution_time' ) . ' abort=' . ignore_user_abort() );

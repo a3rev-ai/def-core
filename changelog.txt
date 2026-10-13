@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.7.14 - 2026/10/13 =
+* Fix - Staff AI: if the connection drops while the assistant is working, the console reconnects by itself and the reply carries on; while the assistant works, the line under the reply says what it is doing and for how long.
+
 = 8.7.13 - 2026/10/13 =
 * Fix - Customer Chat: when a file upload is paused by the workspace's billing state, the chat shows the platform's own message instead of 'Upload could not start. Please try again.'
 

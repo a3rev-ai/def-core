@@ -7,7 +7,8 @@
  *     to DEF, as declared, and forwards nothing when there is none or it is junk.
  *  2. rest_load_conversation() carries a stored turn's attachments to the console
  *     as identity only — {file_id, kind, mime_type, filename, has_thumbnail} —
- *     with every junk entry dropped and no storage key on the wire.
+ *     with every junk entry dropped and no storage key on the wire — and (8.7.14) a
+ *     reply's is_complete, when DEF sends one.
  *  3. handle_attachment(), the cookie-auth'd proxy for /staff-ai-attachment/…:
  *     the download proxy's gates in the download proxy's order (400 on a bad id,
  *     401, 403, then the backend), the BFF header set and never a JWT, DEF's
@@ -336,6 +337,17 @@ check( ( $msgs[0]['attachments'] ?? null ) === array(
 	array( 'file_id' => 'upload_9', 'kind' => 'document', 'mime_type' => 'application/pdf', 'filename' => 'q.pdf', 'has_thumbnail' => false ),
 ), 'a stored turn\'s attachments come back as identity only — junk ids and non-objects dropped, markup stripped, no storage key' );
 check( ( $msgs[1]['attachments'] ?? null ) === array(), 'a turn without attachments carries an empty list' );
+
+// 8.7.14: the console polls a turn it could not re-attach to until DEF says it is done.
+reset_state( true, array( 'def_staff_access' ) );
+$_wp_test_remote_responses[] = ok_json( array( 'messages' => array(
+	array( 'role' => 'user', 'content' => 'build the sheet' ),
+	array( 'role' => 'assistant', 'content' => '', 'is_complete' => false ),
+) ) );
+$resp = DEF_Core_Staff_AI::rest_load_conversation( new WP_REST_Request( array( 'id' => 'staff-1' ) ) );
+$msgs = $resp instanceof WP_REST_Response ? ( $resp->data['messages'] ?? array() ) : array();
+check( ( $msgs[1]['is_complete'] ?? null ) === false, 'a reply DEF says is still being written carries is_complete false' );
+check( ! array_key_exists( 'is_complete', $msgs[0] ?? array() ), 'a message DEF says nothing about carries no is_complete (the console then reads a reply with words as done)' );
 
 // ── 3. The attachment proxy ──────────────────────────────────────────────
 

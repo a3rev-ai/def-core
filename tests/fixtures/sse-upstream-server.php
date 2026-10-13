@@ -32,9 +32,18 @@ if ( ! $conn ) {
 	exit( 1 );
 }
 
-// Drain the request head so curl does not see a reset before we answer.
+// Drain the request head so curl does not see a reset before we answer — keeping the
+// request line and the declared body length, which the `echo` scenario answers with.
 stream_set_timeout( $conn, 2 );
+$request_line = '';
+$body_bytes   = 0;
 while ( ( $line = fgets( $conn, 8192 ) ) !== false ) {
+	if ( '' === $request_line ) {
+		$request_line = trim( $line );
+	}
+	if ( preg_match( '/^Content-Length:\s*(\d+)/i', $line, $m ) ) {
+		$body_bytes = (int) $m[1];
+	}
 	if ( "\r\n" === $line || "\n" === $line ) {
 		break;
 	}
@@ -107,6 +116,19 @@ $scenarios = array(
 		"HTTP/1.1 200 OK",
 		array( "Content-Type: text/event-stream", "Content-Length: 1000" ),
 		array( "data: {\"type\":\"text_delta\",\"text\":\"Hel\"}\n\n" ),
+	),
+	// What the proxy asked for — method, path and query, and the body it declared — in a
+	// frame numbered the way DEF numbers its frames (8.7.14): an `id:` line, then the data.
+	'echo' => array(
+		"HTTP/1.1 200 OK",
+		array( "Content-Type: text/event-stream" ),
+		array( "id: 4\ndata: " . json_encode( array( 'type' => 'done', 'request' => $request_line, 'body_bytes' => $body_bytes ) ) . "\n\n" ),
+	),
+	// The turn resume when DEF no longer holds the turn (8.7.14): 410 with its DB state.
+	'gone' => array(
+		"HTTP/1.1 410 Gone",
+		array( "Content-Type: application/json" ),
+		array( "{\"detail\":{\"state\":\"running\",\"is_complete\":false}}" ),
 	),
 );
 
