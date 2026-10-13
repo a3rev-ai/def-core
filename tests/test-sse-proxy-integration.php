@@ -276,13 +276,12 @@ assert_true(
 );
 
 // ── 8. The chat stream is still a POST with its body ─────────────────────
-echo "\n[8] The chat stream still POSTs its body, and lifts PHP's own time limit\n";
+echo "\n[8] The chat stream still POSTs its body\n";
 
-$out  = drive( 'echo', '', $err );
+$out  = drive( 'echo' );
 $evts = frames( $out );
 assert_true( 0 === strpos( (string) ( $evts[0]['request'] ?? '' ), 'POST /api/chat/stream ' ), 'a POST to the chat route (got ' . ( $evts[0]['request'] ?? '' ) . ')' );
 assert_true( 2 === ( $evts[0]['body_bytes'] ?? 0 ), 'the body goes with it' );
-assert_true( 'limit=0 abort=1' === $err, 'set_time_limit(0) and ignore_user_abort(true) ran (got ' . $err . ')' );
 
 // ── 9. The turn resume: a GET, relayed byte-for-byte, ids and all ────────
 // Kills: dropping the GET switch (it POSTs an empty body), a wrong path or `after`.
@@ -297,7 +296,7 @@ assert_true(
 	) ) . "\n\n",
 	'byte-identical, `id:` line included; GET, the thread, the turn and `after` on DEF\'s route, no body (got ' . $out . ')'
 );
-assert_true( 'limit=0 abort=1' === $err, 'the resume lifts PHP\'s time limit too (got ' . $err . ')' );
+assert_true( 'limit=0 abort=1' === substr( $err, -15 ), 'stream_proxy lifted PHP\'s own time limit and ignores a user abort (got ' . $err . ')' );
 
 // ── 10. A 410 reaches the console as one frame carrying the status ───────
 echo "\n[10] DEF's 410 (the turn is not in its memory) becomes one error frame with status 410\n";

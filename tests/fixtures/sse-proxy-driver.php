@@ -72,21 +72,20 @@ if ( ! class_exists( 'DEF_Core_Logger' ) ) {
 
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
 
-// A finite PHP limit and the default abort handling going in, so what stream_proxy sets is
-// what the caller reads back off STDERR.
-set_time_limit( 30 );
-ignore_user_abort( false );
-
 if ( 'resume' === ( $argv[2] ?? '' ) ) {
-	// The REST callback itself (8.7.14), its upstream base being argv[1].
+	// The REST callback itself (8.7.14), its upstream base being argv[1]. A finite PHP limit
+	// and the default abort handling going in, so what stream_proxy sets is what the caller
+	// reads back off the end of STDERR.
+	set_time_limit( 30 );
+	ignore_user_abort( false );
 	DEF_Core_Tools::rest_proxy_staff_ai_turn_resume( new class() {
 		public function get_param( string $key ) {
 			return array( 'id' => 'staff-1a2b3c', 'turn' => '0f0e9d8c-uuid', 'after' => 3 )[ $key ] ?? null;
 		}
 	} );
+	fwrite( STDERR, 'limit=' . ini_get( 'max_execution_time' ) . ' abort=' . ignore_user_abort() );
 } else {
 	$method = new ReflectionMethod( 'DEF_Core_Tools', 'stream_proxy' );
 	$method->setAccessible( true );
 	$method->invoke( null, (string) $argv[1], array( 'Content-Type: application/json' ), '{}' );
 }
-fwrite( STDERR, 'limit=' . ini_get( 'max_execution_time' ) . ' abort=' . ignore_user_abort() );
