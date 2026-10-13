@@ -56,6 +56,17 @@ if ( ! class_exists( 'DEF_Core' ) ) {
 		}
 	}
 }
+// Each log row goes to STDERR as one JSON line: the test reads how the stream ended
+// there, and STDOUT stays exactly what the client received.
+if ( ! class_exists( 'DEF_Core_Logger' ) ) {
+	class DEF_Core_Logger {
+		const LEVEL_INFO    = 'info';
+		const LEVEL_WARNING = 'warning';
+		public static function log( string $level, string $source, string $message, array $context = array() ): void {
+			fwrite( STDERR, json_encode( compact( 'level', 'source', 'message', 'context' ) ) . "\n" );
+		}
+	}
+}
 
 require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-tools.php';
 

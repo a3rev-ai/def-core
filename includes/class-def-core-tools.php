@@ -169,8 +169,23 @@ final class DEF_Core_Tools {
 		$result = curl_exec( $ch );
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 
+		// One row per stream, so a cut stream says how it ended: errno 28 is the low-speed
+		// close, 56 a reset, 0 a normal end, and no row at all means PHP itself was stopped
+		// before curl returned.
+		\DEF_Core_Logger::log(
+			curl_errno( $ch ) ? \DEF_Core_Logger::LEVEL_WARNING : \DEF_Core_Logger::LEVEL_INFO,
+			'proxy',
+			'Stream ended: ' . ( curl_error( $ch ) ?: 'normal end' ),
+			array(
+				'url'     => $url,
+				'errno'   => curl_errno( $ch ),
+				'status'  => $http_code,
+				'seconds' => round( curl_getinfo( $ch, CURLINFO_TOTAL_TIME ), 1 ),
+				'bytes'   => curl_getinfo( $ch, CURLINFO_SIZE_DOWNLOAD ),
+			)
+		);
+
 		if ( $result === false ) {
-			$error = curl_error( $ch );
 			curl_close( $ch );
 			// Only if nothing has spoken yet. A connection that dies mid-error-body (a
 			// LOW_SPEED_TIME kill, a gateway dropping a truncated 5xx) would otherwise put
