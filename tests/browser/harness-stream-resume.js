@@ -8,7 +8,7 @@
  * `id:` and name their turn; the proxy's own frames (a 410, a 404, a lost connection)
  * carry no id. Timers are faked so the backoff and the clock are read, not waited for.
  *
- * 21 checks.
+ * 22 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -297,6 +297,21 @@ function check(label, cond, detail) {
     check('a 403 from DEF on the resume is final like a 404: the error line shows, nothing is retried, the working line goes',
       t.calls.length === 2 && t.banner() === UNAVAILABLE && t.working() === null && !t.api.state().isLoading,
       'calls=' + t.calls.length + ' banner=' + t.banner() + ' working=' + JSON.stringify(t.working()));
+  }
+  {
+    // A 410 starts the poll; the next resume is refused by WordPress itself (access removed),
+    // and the loop throws to the 7.6.9 recovery.
+    let resumes = 0;
+    const t = boot(url => url === STREAM_URL ? sse([frame(1, { type: 'thinking', message: 'Thinking...' })])
+      : isResume(url) ? (++resumes === 1 ? sse([proxyError(410)]) : json(403, { code: 'rest_forbidden', message: 'Sorry, you are not allowed to do that.' }))
+      : thread({ role: 'assistant', content: '', is_complete: false }));
+    await t.send('Build the sheet');
+    const polls = t.calls.filter(isPoll).length;
+    await settle();
+    await settle();
+    check('a re-attach that ends by throwing ends its poll too: no thread poll after the turn is over',
+      resumes === 2 && polls > 0 && t.calls.filter(isPoll).length === polls && !t.api.state().isLoading,
+      'resumes=' + resumes + ' polls=' + polls + '->' + t.calls.filter(isPoll).length);
   }
   {
     // Text, then the drop, a 410, and the poll rendering the finished reply.

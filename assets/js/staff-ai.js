@@ -3737,7 +3737,9 @@ function t(key, fallback) {
 				}
 			} finally {
 				// However the re-attach ends — the reply, the poll, a refusal, the person leaving —
-				// the working line and its clock go with it, never left under a finished reply.
+				// the working line and its clock go with it, never left under a finished reply,
+				// and the turn is over for a poll still running beside it.
+				finished = true;
 				clearInterval(progressClock);
 				if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 			}
