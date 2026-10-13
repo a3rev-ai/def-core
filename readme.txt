@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.9
+Stable tag: 8.7.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.11 - 2026-10-13 =
+* (note: 8.7.10 skipped — PHP version_compare bug treats "10" as "1")
+* Fix - Staff AI and the Setup Assistant now say "Searching the documentation..." while the assistant checks the platform documentation, instead of an internal tool name (Staff AI) or "Processing..." (Setup Assistant).
 
 = 8.7.9 - 2026-10-10 =
 * Tweak - The Setup Assistant's "ask a person" form now sends you a copy of your request for your records ("Copy: <subject>"), to your own account email.
