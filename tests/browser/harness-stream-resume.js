@@ -8,7 +8,7 @@
  * `id:` and name their turn; the proxy's own frames (a 410, a 404, a lost connection)
  * carry no id. Timers are faked so the backoff and the clock are read, not waited for.
  *
- * 14 checks.
+ * 16 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -28,16 +28,18 @@ const BANNER = extract.slice('error banner',
 const RECOVER = extract.slice('recoverTurn',
   l => l.includes("// V-S1's client half (7.6.9)"),
   l => l.includes('// ── C3b: the installed app keeps up'),
-  ['async function recoverTurn', 'untilDone', 'RECOVER_TURN_POLL_MS'], 'RESUME_RECOVER');
+  ['async function recoverTurn', 'until()', 'RECOVER_TURN_POLL_MS'], 'RESUME_RECOVER');
 const SEND = extract.slice('send path',
   l => l.startsWith('\tasync function sendMessage() {'),
   l => l.includes('// SHARE MODAL'),
   ['async function sendMessageStreaming', 'function workingLine', 'function showProgress',
-    'async function readStream', "'/turns/'", "t('reconnecting'"], 'RESUME_SEND');
+    'async function readStream', "'/turns/'", "t('reconnecting'", 'function pollBeside'], 'RESUME_SEND');
 
 const BASE = 'https://e.test/wp-json/def-core/v1/staff-ai';
 const STREAM_URL = BASE + '/chat/stream';
 const resumeUrl = after => BASE + '/conversations/th-1/turns/msg-1/stream?after=' + after;
+const isResume = url => url.indexOf('/turns/') !== -1;
+const isPoll = url => url === BASE + '/conversations/th-1';
 const UNAVAILABLE = 'The assistant is unavailable right now. Please try again.';
 
 // One DEF frame: an `id:` and the turn named, as every DEF frame is (8.7.14).
@@ -109,11 +111,13 @@ function boot(script) {
   window.DefPersona = { createController: () => ({ handleEvent() {}, formatThinkingLabel: m => m, reset() {} }) };
   const calls = [], waits = [], intervals = new Map(), clock = { now: 1e12 }, hooks = {};
   let nextInterval = 0;
+  // `script` is a list answered in order, or a router (url) => response for a check where
+  // the thread poll and the resume retries run side by side.
   async function fakeFetch(url, init) {
     calls.push(url);
-    const next = script.shift();
-    // Past the script, the person leaves: code that would retry for ever (a bite run)
-    // still ends, and the extra request is in `calls` for the check to see.
+    const next = typeof script === 'function' ? (calls.length > 300 ? null : () => script(url)) : script.shift();
+    // Past the script (or 300 requests), the person leaves: code that would retry for ever
+    // (a bite run) still ends, and the extra request is in `calls` for the check to see.
     if (!next) { api.leave(); throw new Error('unscripted request to ' + url); }
     return typeof next === 'function' ? next(url, init) : next;
   }
@@ -150,7 +154,8 @@ function boot(script) {
     backoff: () => waits.filter(ms => ms === 1000 || ms === 2000 || ms === 5000),
   };
 }
-const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r)); };
+// Real turns of the event loop, timers included: a 0 ms timer can miss a run of setImmediates.
+const settle = async () => { for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 2)); };
 
 let pass = 0, fail = 0;
 const results = [];
@@ -206,20 +211,53 @@ function check(label, cond, detail) {
       t.bubble() === 'Done it.' && t.banner() === '', 'banner=' + t.banner() + ' bubble=' + JSON.stringify(t.bubble()));
   }
   {
-    // Still running elsewhere for 2 min 3 s past the 410 — longer than the 7.6.9 poll's deadline.
-    const running = Array.from({ length: 41 }, () => thread({ role: 'assistant', content: '', is_complete: false }));
-    const t = boot([
-      sse([frame(1, { type: 'thinking', message: 'Thinking...' })]),
-      sse([proxyError(410)]),
-    ].concat(running, [thread({ role: 'assistant', content: 'The sheet is ready: 225 rows.', is_complete: true })]));
+    // Still running on another worker for 2 min 3 s past the 410 — longer than the 7.6.9
+    // poll's deadline — and every retry of the resume lands on a worker without it.
+    let polls = 0;
+    const t = boot(url => url === STREAM_URL ? sse([frame(1, { type: 'thinking', message: 'Thinking...' })])
+      : isResume(url) ? sse([proxyError(410)])
+      : ++polls <= 41 ? thread({ role: 'assistant', content: '', is_complete: false })
+      : thread({ role: 'assistant', content: 'The sheet is ready: 225 rows.', is_complete: true }));
     await t.send('Build the sheet');
-    const polls = t.calls.slice(2);
-    check('a 410 (DEF no longer holds the turn) polls the thread every 3 s, with no deadline, until the placeholder is complete',
-      polls.length === 42 && polls.every(u => u === BASE + '/conversations/th-1') &&
-      t.waits.filter(ms => ms === 3000).length === 41, 'polls=' + polls.length + ' calls=' + t.calls.slice(0, 3).join(' '));
+    const polled = t.calls.filter(isPoll);
+    check('a 410 (DEF no longer holds the turn here) polls the thread every 3 s, with no deadline, until the placeholder is complete',
+      polled.length === 42 && t.waits.filter(ms => ms === 3000).length === 41, 'polls=' + polled.length);
     check('the polled reply is rendered, with no error and the composer free',
       t.bubble() === 'The sheet is ready: 225 rows.' && t.banner() === '' && !t.api.state().isLoading,
       'bubble=' + JSON.stringify(t.bubble()) + ' banner=' + t.banner());
+    const after = t.calls.length;
+    await settle();
+    check('the resume is retried on its backoff beside the poll, and both stop once the poll shows the reply complete',
+      t.calls.filter(isResume).length > 2 && t.calls.lastIndexOf(t.calls.find(isResume)) > t.calls.indexOf(polled[0]) &&
+      t.calls.length === after, 'resumes=' + t.calls.filter(isResume).length + ' later=' + (t.calls.length - after));
+  }
+  {
+    // Three workers without the turn, then the one holding it (def-api: three per replica).
+    const live = liveStream();
+    const resumes = [sse([proxyError(410)]), sse([proxyError(410)]), sse([proxyError(410)]), live.response];
+    const t = boot(url => url === STREAM_URL ? sse([frame(1, { type: 'thinking', message: 'Thinking...' })])
+      : isResume(url) ? (resumes.shift() || sse([proxyError(410)]))
+      : thread({ role: 'assistant', content: '', is_complete: false }));
+    const run = t.send('Build the sheet');
+    for (let i = 0; i < 100 && resumes.length; i++) await settle();
+    live.push(delta(2, 'Your sheet is '));                 // the live turn: frames flow, the turn runs on
+    await settle();
+    const pollsAtAttach = t.calls.filter(isPoll).length;
+    await settle();
+    await settle();
+    const pollsLater = t.calls.filter(isPoll).length;
+    live.push(delta(3, 'ready.') + done(4, 'Your sheet is ready.'));
+    live.close();
+    await run;
+    const after = t.calls.length;
+    await settle();
+    check('three 410s then a resume that reaches the turn: the poll stops at the first live frame, the live frames finish the reply, and nothing is retried',
+      t.calls.filter(isResume).join(' ') === [1, 1, 1, 1].map(resumeUrl).join(' ') && t.backoff().join() === '1000,2000,5000,5000' &&
+      pollsAtAttach > 0 && pollsLater === pollsAtAttach &&
+      t.bubble() === 'Your sheet is ready.' && t.banner() === '' && !t.api.state().isLoading && t.calls.length === after &&
+      t.api.state().messages.filter(m => m.role === 'assistant').length === 1,
+      'resumes=' + t.calls.filter(isResume).length + ' waits=' + t.backoff() + ' polls=' + pollsAtAttach + '->' + pollsLater +
+      ' bubble=' + JSON.stringify(t.bubble()) + ' later=' + (t.calls.length - after));
   }
   {
     const t = boot([sse([frame(1, { type: 'thinking', message: 'Thinking...' }), delta(2, 'Half')]), sse([proxyError(404)])]);

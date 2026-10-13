@@ -1338,14 +1338,15 @@ function t(key, fallback) {
 	var _turnReachedServer = false;
 	var _eventsSeen = 0;
 
-	// `untilDone` (8.7.14): a turn DEF no longer holds in memory (a restart, another
-	// server) is polled with no deadline while the tab is open — it can run for minutes.
-	async function recoverTurn(untilDone) {
+	// `until` (8.7.14): a turn the resume could not reach (another worker, a restart) is
+	// polled with no deadline — it can run for minutes — for as long as until() says the
+	// console still needs the poll, asked again just before the reply is rendered.
+	async function recoverTurn(until) {
 		var id = currentConversationId;
-		var deadline = untilDone ? Infinity : Date.now() + RECOVER_TURN_MAX_MS;
+		var deadline = until ? Infinity : Date.now() + RECOVER_TURN_MAX_MS;
 		while (Date.now() < deadline) {
 			// The user moved on (New chat, another conversation): nothing to recover into.
-			if (currentConversationId !== id) return true;
+			if (currentConversationId !== id || (until && !until())) return true;
 			try {
 				var result = await apiRequest('/conversations/' + encodeURIComponent(id));
 				var fetched = result.messages || [];
@@ -1353,7 +1354,7 @@ function t(key, fallback) {
 				// Done is DEF's is_complete where the thread carries it, else a reply with words.
 				if (last && last.role === 'assistant' &&
 					('is_complete' in last ? last.is_complete : (last.content || '').trim())) {
-					if (currentConversationId !== id) return true;
+					if (currentConversationId !== id || (until && !until())) return true;
 					messages = fetched;
 					renderMessages();
 					dirtyInput = false;
@@ -3676,6 +3677,20 @@ function t(key, fallback) {
 			} catch (e) {
 				if (!turnId || voiceStopped) throw e;   // nothing to re-attach to: the catch below recovers
 			}
+			// A 410: the worker the resume reached does not hold the turn (DEF runs several, so
+			// that is most re-attaches) or none does any more. The thread is polled every 3 s
+			// beside the retries: a retry that reaches the turn brings frames and the poll stops;
+			// a poll that shows the reply complete renders it and the retries stop.
+			var polling = false;
+			function pollBeside(at) {
+				polling = true;
+				recoverTurn(function () { return !finished && lastSeq === at; }).then(function () {
+					polling = false;
+					if (finished || lastSeq !== at) return;   // the stream got there first
+					finished = true;
+					if (_streamAbort) _streamAbort.abort();
+				});
+			}
 			// Any end short of `done` or `error` — a host's time limit, a stall, a phone asleep —
 			// re-attaches, with no ceiling while the tab is open (8.7.14). The backoff restarts
 			// whenever a re-attach brought frames.
@@ -3683,10 +3698,10 @@ function t(key, fallback) {
 			for (var attempt = 0; !finished && !voiceStopped; attempt++) {
 				if (!turnId) throw new Error();   // no turn to re-attach to: the catch below recovers
 				if (currentConversationId !== turnThread) return;   // the person moved on
-				if (cut === 410) { await recoverTurn(true); return; }
+				if (cut === 410 && !polling) pollBeside(lastSeq);
 				workingLine().textContent = t('reconnecting', 'Reconnecting…');
 				await new Promise(function(r) { setTimeout(r, waits[Math.min(attempt, waits.length - 1)]); });
-				if (currentConversationId !== turnThread) return;
+				if (finished || currentConversationId !== turnThread) return;
 				var seen = lastSeq, resumed = null;
 				cut = null;
 				_streamAbort = new AbortController();
