@@ -1,5 +1,5 @@
 /*
- * Customer Chat attach gate - behavioural harness (U-1b / v7.8.5, +1 for v8.1.3), 17 checks.
+ * Customer Chat attach gate - behavioural harness (U-1b / v7.8.5, +1 for v8.1.3, +3 for v8.7.13), 20 checks.
  *
  * Runs the SHIPPED attach-gate and staged-upload blocks (extracted by marker
  * from assets/js/def-core-customer-chat.js) inside jsdom over the same closure
@@ -8,7 +8,8 @@
  * What it holds: an upload belongs to the conversation it is sent in. There is
  * no attach control until the thread exists, a drop or paste before then is
  * refused with one line, and every upload names the real thread - never the
- * '_anonymous' placeholder.
+ * '_anonymous' placeholder. And (8.7.13) the platform's paused-workspace
+ * refusal reaches the visitor as the platform's own line, at init and commit.
  */
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
@@ -18,6 +19,11 @@ const extract = require('./extract');
 const GATE = extract.attachGate();
 const UPLOAD = extract.uploadStaged();
 const SRC = extract.customerChatSource();
+const SINGLE = extract.slice('uploadSingleFile',
+  l => l.includes('// Server copy renders ONLY for known-safe refusal codes'),
+  l => l.startsWith('\tfunction checkUploadEligibility() {'),
+  ['var SAFE_REFUSAL_CODES', 'function refusalError', 'function uploadSingleFile'],
+  'UPLOAD_SINGLE', extract.CC_PATH);
 const PHP = fs.readFileSync(path.join(extract.REPO, 'includes/class-def-core.php'), 'utf8');
 
 const NOTICE = 'Send your first message, then attach the image.';
@@ -140,6 +146,36 @@ function check(n, label, cond, detail) {
       && PHP.includes("'attachAfterFirstMessage' => __( '" + NOTICE + "'"));
     check(17, 'the commit names the conversation the upload was initiated for (8.1.3) - the platform checks the caller, not its own record',
       /config\.uploadCommitUrl[\s\S]{0,800}?JSON\.stringify\(\{ file_id: fileId, conversation_id: conversationId \}\)/.test(SRC));
+  }
+  // 18-20. The shipped uploadSingleFile against DEF's own refusal body, as the
+  //        proxy passes it through: a paused workspace (8.7.13) speaks in the
+  //        platform's words; a code off the allow-list keeps the widget's.
+  {
+    const PAUSED = { error: 'BILLING_PAUSED', message: 'File processing is temporarily unavailable for this workspace.' };
+    const STRINGS = {
+      uploadInitFailed: 'Upload could not start. Please try again.',
+      uploadCommitFailed: 'Upload could not be completed. Please try again.',
+    };
+    const json = (status, body) => new Response(JSON.stringify(body), { status });
+    const upload = (onInit, onCommit) => new Function(
+      'config', 'fetch', 'trackAbort', 'untrackAbort', 'getMimeType', 'translateDockerUrl', 't',
+      SINGLE + '\nreturn uploadSingleFile;')(
+      { uploadInitUrl: 'INIT', uploadCommitUrl: 'COMMIT' },
+      url => Promise.resolve(url === 'INIT' ? onInit() : url === 'COMMIT' ? onCommit() : new Response(null, { status: 201 })),
+      () => {}, () => {}, () => 'application/pdf', u => u, k => STRINGS[k]
+    )({ file: { name: 'a.pdf', size: 3 } }, 'thr_abc');
+
+    const atInit = await upload(() => json(402, { detail: PAUSED }));
+    check(18, "a paused workspace's 402 at init shows the platform's line, not 'Upload could not start. Please try again.'",
+      atInit.success === false && atInit.error === PAUSED.message && atInit.errorStatus === 402,
+      JSON.stringify(atInit));
+    const atCommit = await upload(() => json(200, { file_id: 'f1', upload_url: 'PUT' }),
+      () => json(402, { detail: PAUSED }));
+    check(19, "the same refusal at commit shows the platform's line, not 'Upload could not be completed. Please try again.'",
+      atCommit.success === false && atCommit.error === PAUSED.message, JSON.stringify(atCommit));
+    const unknown = await upload(() => json(402, { detail: { error: 'SOMETHING_NEW', message: 'internal detail' } }));
+    check(20, "a code off the allow-list still shows the widget's own line - the server's copy stays hidden",
+      unknown.error === STRINGS.uploadInitFailed, JSON.stringify(unknown));
   }
 
   console.log(results.join('\n'));

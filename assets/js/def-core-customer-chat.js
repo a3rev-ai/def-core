@@ -3719,6 +3719,7 @@
 		validation_failed: 1,
 		rate_limited: 1,
 		LIMIT_HARD_CAP: 1,
+		BILLING_PAUSED: 1,
 		storage_error: 1,
 		upload_incomplete: 1,
 		upload_mismatch: 1,

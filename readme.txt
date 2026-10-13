@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.12
+Stable tag: 8.7.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.13 - 2026-10-13 =
+* Fix - Customer Chat: when a file upload is paused by the workspace's billing state, the chat shows the platform's own message instead of 'Upload could not start. Please try again.'
 
 = 8.7.12 - 2026-10-13 =
 * Fix - Chat Settings: the Greeting Text and Welcome State help no longer state character limits (200 for the greeting, 80 for a chip label, 1000 for a chip introduction). Those limits were removed in 5.7.11; these fields accept any length.

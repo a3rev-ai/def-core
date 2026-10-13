@@ -82,10 +82,10 @@ assert_test(
 );
 assert_test(
 	1 === preg_match(
-		'/var SAFE_REFUSAL_CODES = \{\s*validation_failed: 1,\s*rate_limited: 1,\s*LIMIT_HARD_CAP: 1,\s*storage_error: 1,\s*upload_incomplete: 1,\s*upload_mismatch: 1,\s*\};/',
+		'/var SAFE_REFUSAL_CODES = \{\s*validation_failed: 1,\s*rate_limited: 1,\s*LIMIT_HARD_CAP: 1,\s*BILLING_PAUSED: 1,\s*storage_error: 1,\s*upload_incomplete: 1,\s*upload_mismatch: 1,\s*\};/',
 		$customer_js
 	),
-	'customer: the allowlist carries exactly the six enumerated-safe codes — an emptied or altered map goes red'
+	'customer: the allowlist carries exactly the seven enumerated-safe codes — an emptied or altered map goes red'
 );
 assert_test(
 	1 === preg_match(
