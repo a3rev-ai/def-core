@@ -620,7 +620,7 @@ $first_tab = 'branding';
 					class="large-text"
 				><?php echo esc_textarea( $button_settings['greeting_bubble_text'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Text shown inside the greeting bubble (max 200 characters). Line breaks are preserved. Leave blank to hide the bubble.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Text shown inside the greeting bubble. Line breaks are preserved. Leave blank to hide the bubble.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>
@@ -723,7 +723,7 @@ $first_tab = 'branding';
 					placeholder="<?php esc_attr_e( "e.g. I'd love to help you get started on a project or find some inspiration. To give you the best advice, could you let me know what you're thinking of working on?", 'digital-employees' ); ?>"
 				><?php echo esc_textarea( $chat_settings['welcome_chip_3_intro'] ); ?></textarea>
 				<p class="description">
-					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Each chip has an optional Introduction — when set, clicking the chip shows that intro as an assistant message and waits for the visitor to reply, instead of pre-filling the composer. Chip text max 80 characters; intro text max 1000.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'Tappable chips below the greeting. Empty chips are hidden. Each chip has an optional Introduction — when set, clicking the chip shows that intro as an assistant message and waits for the visitor to reply, instead of pre-filling the composer.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>

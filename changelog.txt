@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.7.12 - 2026/10/13 =
+* Fix - Chat Settings: the Greeting Text and Welcome State help no longer state character limits (200 for the greeting, 80 for a chip label, 1000 for a chip introduction). Those limits were removed in 5.7.11; these fields accept any length.
+
 = 8.7.11 - 2026/10/13 =
 * (note: 8.7.10 skipped — PHP version_compare bug treats "10" as "1")
 * Fix - Staff AI and the Setup Assistant now say "Searching the documentation..." while the assistant checks the platform documentation, instead of an internal tool name (Staff AI) or "Processing..." (Setup Assistant).
