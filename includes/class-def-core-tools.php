@@ -133,20 +133,14 @@ final class DEF_Core_Tools {
 			CURLOPT_POST            => true,
 			CURLOPT_HTTPHEADER      => $headers,
 			CURLOPT_POSTFIELDS      => $body,
-			// No total timeout — a turn streams for as long as the platform is
-			// working. The one watchdog is curl's low-speed rule: the stream closes
-			// when the transfer stays under 1 byte/s for 90 s. While a long Staff AI
-			// tool runs (a document or spreadsheet that takes minutes) DEF sends only
-			// a 13-byte `: keepalive` comment at least once every 10 s. That is about
-			// 1.3 byte/s, which sits right on the 1 byte/s line of curl's
-			// windowed speed check. With a 30 s window that cut off a working turn
-			// on production 40 s into such a tool (2026-10-13). 90 s spans nine
-			// keepalive intervals, so a working turn is never closed, and a dead
-			// upstream sends nothing at all, so it still closes in 90 s. Streams
-			// that carry no keepalive get 90 s of silence before the close.
+			// No total timeout — stream as long as tokens are flowing.
+			// Kill only if the connection stalls (no data for 30 seconds).
+			// This prevents legitimate long responses (e.g. analysing a 34KB
+			// spec document) from being cut off at a fixed timeout, while
+			// still catching genuinely stalled connections.
 			CURLOPT_TIMEOUT         => 0,
-			CURLOPT_LOW_SPEED_LIMIT => 1,    // At least 1 byte/sec ...
-			CURLOPT_LOW_SPEED_TIME  => 90,   // ... sustained over 90 s, or close
+			CURLOPT_LOW_SPEED_LIMIT => 1,    // At least 1 byte/sec
+			CURLOPT_LOW_SPEED_TIME  => 30,   // Kill after 30s of no data
 			CURLOPT_RETURNTRANSFER  => false,
 			CURLOPT_HEADERFUNCTION  => function ( $ch, $header ) use ( &$state ) {
 				self::note_upstream_header( $header, $state );
@@ -175,8 +169,23 @@ final class DEF_Core_Tools {
 		$result = curl_exec( $ch );
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 
+		// One row per stream, so a cut stream says how it ended: errno 28 is the low-speed
+		// close, 56 a reset, 0 a normal end, and no row at all means PHP itself was stopped
+		// before curl returned.
+		\DEF_Core_Logger::log(
+			curl_errno( $ch ) ? \DEF_Core_Logger::LEVEL_WARNING : \DEF_Core_Logger::LEVEL_INFO,
+			'proxy',
+			'Stream ended: ' . ( curl_error( $ch ) ?: 'normal end' ),
+			array(
+				'url'     => $url,
+				'errno'   => curl_errno( $ch ),
+				'status'  => $http_code,
+				'seconds' => round( curl_getinfo( $ch, CURLINFO_TOTAL_TIME ), 1 ),
+				'bytes'   => curl_getinfo( $ch, CURLINFO_SIZE_DOWNLOAD_T ),
+			)
+		);
+
 		if ( $result === false ) {
-			$error = curl_error( $ch );
 			curl_close( $ch );
 			// Only if nothing has spoken yet. A connection that dies mid-error-body (a
 			// LOW_SPEED_TIME kill, a gateway dropping a truncated 5xx) would otherwise put

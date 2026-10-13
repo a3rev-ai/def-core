@@ -101,6 +101,13 @@ $scenarios = array(
 		array( "Content-Type: text/event-stream" ),
 		array( "data: {\"type\":\"text_delta\",\"text\":\"HTTP/1.1 429 Too Many Requests\"}\n\n" ),
 	),
+	// A 200 that promises more than it sends and then closes: curl ends on an error
+	// (18, partial file), and the stream's log row must carry it.
+	'cut_mid_stream' => array(
+		"HTTP/1.1 200 OK",
+		array( "Content-Type: text/event-stream", "Content-Length: 1000" ),
+		array( "data: {\"type\":\"text_delta\",\"text\":\"Hel\"}\n\n" ),
+	),
 );
 
 if ( ! isset( $scenarios[ $scenario ] ) ) {

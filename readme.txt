@@ -122,7 +122,6 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 = 8.7.13 - 2026-10-13 =
 * Fix - Customer Chat: when a file upload is paused by the workspace's billing state, the chat shows the platform's own message instead of 'Upload could not start. Please try again.'
-* Fix - Customer Chat and Staff AI streams: a long-running reply or document is no longer cut off by the plugin while the platform is still working; a dead connection still closes.
 
 = 8.7.12 - 2026-10-13 =
 * Fix - Chat Settings: the Greeting Text and Welcome State help no longer state character limits (200 for the greeting, 80 for a chip label, 1000 for a chip introduction). Those limits were removed in 5.7.11; these fields accept any length.

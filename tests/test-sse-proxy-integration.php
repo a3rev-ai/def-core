@@ -130,6 +130,8 @@ function drive( string $scenario ): string {
 		$dp
 	);
 	$out = is_resource( $drv ) ? (string) stream_get_contents( $dp[1] ) : '';
+	// The driver's log rows (one JSON line each), for the stream-end checks in [8].
+	$GLOBALS['last_log'] = is_resource( $drv ) ? trim( (string) stream_get_contents( $dp[2] ) ) : '';
 
 	foreach ( array( $dp, $sp ) as $pipes ) {
 		foreach ( $pipes as $pipe ) {
@@ -250,6 +252,24 @@ assert_true(
 );
 $evts = frames( $out );
 assert_true( 'text_delta' === ( $evts[0]['type'] ?? '' ), 'still a text_delta, not an error' );
+
+// ── 8. Every stream leaves one row saying how it ended ───────────────────
+echo "\n[8] The stream's end is logged — a normal end and a cut one\n";
+
+drive( 'ok' );
+$row = json_decode( $GLOBALS['last_log'], true );
+assert_true(
+	'info' === ( $row['level'] ?? '' ) && 0 === ( $row['context']['errno'] ?? null )
+	&& strlen( $expected ) === ( $row['context']['bytes'] ?? null ),
+	'a normal end: one info row, errno 0, every byte counted (got ' . $GLOBALS['last_log'] . ')'
+);
+drive( 'cut_mid_stream' );
+$row = json_decode( $GLOBALS['last_log'], true );
+assert_true(
+	'warning' === ( $row['level'] ?? '' ) && 18 === ( $row['context']['errno'] ?? null )
+	&& false !== strpos( (string) ( $row['message'] ?? '' ), 'transfer closed' ),
+	'a cut stream: one warning row carrying curl\'s errno and error (got ' . $GLOBALS['last_log'] . ')'
+);
 
 echo "\n--- SSE Proxy Integration Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
