@@ -181,7 +181,7 @@ final class DEF_Core_Tools {
 				'errno'   => curl_errno( $ch ),
 				'status'  => $http_code,
 				'seconds' => round( curl_getinfo( $ch, CURLINFO_TOTAL_TIME ), 1 ),
-				'bytes'   => curl_getinfo( $ch, CURLINFO_SIZE_DOWNLOAD_T ),
+				'bytes'   => curl_getinfo( $ch, CURLINFO_SIZE_DOWNLOAD ),
 			)
 		);
 
