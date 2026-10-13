@@ -296,7 +296,7 @@ assert_true(
 	) ) . "\n\n",
 	'byte-identical, `id:` line included; GET, the thread, the turn and `after` on DEF\'s route, no body (got ' . $out . ')'
 );
-assert_true( 'limit=0 abort=1' === substr( $err, -15 ), 'stream_proxy lifted PHP\'s own time limit and ignores a user abort (got ' . $err . ')' );
+assert_true( 'limit=0' === substr( $err, -7 ), 'stream_proxy lifted PHP\'s own time limit (got ' . $err . ')' );
 
 // ── 10. A 410 reaches the console as one frame carrying the status ───────
 echo "\n[10] DEF's 410 (the turn is not in its memory) becomes one error frame with status 410\n";

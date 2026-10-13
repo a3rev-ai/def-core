@@ -170,15 +170,15 @@ final class DEF_Core_Tools {
 		}
 
 		// What this buys: PHP's own max_execution_time no longer ends a stream that is still
-		// relaying a working turn, and a viewer who goes away does not stop the script mid-
-		// relay. What it does not: a host's own wall-clock limit (the web server's or a
-		// proxy's timeout, FPM's request_terminate_timeout) still ends the request whatever
-		// PHP says. Re-attaching is what survives that: the console resumes the turn from the
-		// last frame it saw (8.7.14). set_time_limit is on many hosts' disable_functions list.
+		// relaying a working turn. What it does not: a host's own wall-clock limit (the web
+		// server's or a proxy's timeout, FPM's request_terminate_timeout) still ends the
+		// request whatever PHP says. Re-attaching is what survives that: the turn runs on DEF,
+		// and the console resumes it from the last frame it saw (8.7.14). A relay whose viewer
+		// has gone is meant to die at its next write (PHP's default), freeing the worker.
+		// set_time_limit is on many hosts' disable_functions list.
 		if ( function_exists( 'set_time_limit' ) ) {
 			set_time_limit( 0 );
 		}
-		ignore_user_abort( true );
 
 		$result = curl_exec( $ch );
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
