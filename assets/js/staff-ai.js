@@ -1357,6 +1357,11 @@ function t(key, fallback) {
 					if (currentConversationId !== id || (until && !until())) return true;
 					messages = fetched;
 					renderMessages();
+					// Complete and empty is a turn DEF closed as errored (drained by a deploy,
+					// reaped): say so in DEF's own words rather than show a blank reply.
+					if (!(last.content || '').trim() && !(last.tool_outputs || []).length) {
+						showError(t('assistantStopped', 'The assistant stopped before finishing. Please try again.'));
+					}
 					dirtyInput = false;
 					updateReadOnlyState();
 					loadConversations();
@@ -2606,8 +2611,14 @@ function t(key, fallback) {
 	// SSE STREAMING UI HELPERS (Phase 9 PR 3)
 	// =============================================
 
-	function renderToolStatus(toolName) {
-		var label = TOOL_STATUS_LABELS[toolName] || (toolName + '...');
+	// A tool row says what the assistant is doing (8.7.14): DEF's display name for the tool,
+	// else the console's own map, else a plain sentence — never the tool's internal name.
+	function toolStatusLabel(toolName, shownAs) {
+		return shownAs ? shownAs + '…' : (TOOL_STATUS_LABELS[toolName] || 'Working on it...');
+	}
+
+	function renderToolStatus(toolName, shownAs) {
+		var label = toolStatusLabel(toolName, shownAs);
 		var el = document.createElement('div');
 		el.className = 'tool-status';
 		el.setAttribute('data-tool', toolName);
@@ -2622,7 +2633,7 @@ function t(key, fallback) {
 		return el;
 	}
 
-	function completeToolStatus(el, toolName, status) {
+	function completeToolStatus(el, toolName, status, shownAs) {
 		if (!el) return;
 		var failed = status && status !== 'success';
 		el.classList.add(failed ? 'failed' : 'done');
@@ -2630,7 +2641,7 @@ function t(key, fallback) {
 		// Persist the in-progress label after completion — "Searching... ✓ Done"
 		// rather than the in-progress text being replaced by a separate done
 		// label. Mirrors the same fix in def-core-customer-chat.js.
-		var inProgressLabel = TOOL_STATUS_LABELS[toolName] || (toolName + '...');
+		var inProgressLabel = toolStatusLabel(toolName, shownAs);
 		var suffix = failed ? 'Failed' : 'Done';
 		el.innerHTML = '<span class="tool-label">' + escapeHtml(inProgressLabel) + '</span>'
 			+ ' <span class="tool-checkmark">' + icon + '</span> '
@@ -3436,11 +3447,11 @@ function t(key, fallback) {
 					} else if (evt.type === 'progress') {
 						showProgress(evt);
 					} else if (evt.type === 'tool_start') {
-						var el = renderToolStatus(evt.tool);
+						var el = renderToolStatus(evt.tool, evt.label);
 						toolStatusElements[evt.tool] = el;
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'tool_done') {
-						completeToolStatus(toolStatusElements[evt.tool], evt.tool, evt.status);
+						completeToolStatus(toolStatusElements[evt.tool], evt.tool, evt.status, evt.label);
 						await new Promise(function(r) { setTimeout(r, SSE_TOOL_PACING_MS); });
 					} else if (evt.type === 'text_delta') {
 						if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
@@ -3634,12 +3645,15 @@ function t(key, fallback) {
 			// the turn on it, so a stream that ends before `done` or `error` can re-attach from
 			// the last frame seen. The proxy's own frames carry no id: an `error` without one,
 			// once the turn is known, is the connection failing, not the turn — it is not
-			// shown, and `cut` keeps its status (410: DEF no longer holds the turn).
+			// shown, and `cut` keeps its status (410: DEF no longer holds the turn) — unless
+			// DEF refused the resume itself (a 4xx other than 408, 410 and 429: the turn is
+			// not this person's, or their access went), which is final and shown.
 			var turnId = null, turnThread = null, lastSeq = null, finished = false, cut = null;
 			function take(parsed) {
 				for (var k = 0; k < parsed.parsed.length; k++) {
 					var evt = parsed.parsed[k], id = parsed.ids[k];
-					if (id === null && turnId && evt.type === 'error' && evt.status !== 404) {
+					var refused = evt.status >= 400 && evt.status < 500 && [408, 410, 429].indexOf(evt.status) === -1;
+					if (id === null && turnId && evt.type === 'error' && !refused) {
 						cut = evt.status;
 						continue;
 					}
@@ -3688,35 +3702,44 @@ function t(key, fallback) {
 					polling = false;
 					if (finished || lastSeq !== at) return;   // the stream got there first
 					finished = true;
-					if (_streamAbort) _streamAbort.abort();
+					// Only this turn's own resume: a person who has left may already be streaming
+					// a new turn, and that controller is theirs.
+					if (currentConversationId === turnThread && _streamAbort) _streamAbort.abort();
 				});
 			}
 			// Any end short of `done` or `error` — a host's time limit, a stall, a phone asleep —
 			// re-attaches, with no ceiling while the tab is open (8.7.14). The backoff restarts
 			// whenever a re-attach brought frames.
+			if (!finished && !turnId) throw new Error();   // no turn to re-attach to: the catch below recovers
 			var waits = [1000, 2000, 5000];
-			for (var attempt = 0; !finished && !voiceStopped; attempt++) {
-				if (!turnId) throw new Error();   // no turn to re-attach to: the catch below recovers
-				if (currentConversationId !== turnThread) return;   // the person moved on
-				if (cut === 410 && !polling) pollBeside(lastSeq);
-				workingLine().textContent = t('reconnecting', 'Reconnecting…');
-				await new Promise(function(r) { setTimeout(r, waits[Math.min(attempt, waits.length - 1)]); });
-				if (finished || currentConversationId !== turnThread) return;
-				var seen = lastSeq, resumed = null;
-				cut = null;
-				_streamAbort = new AbortController();
-				try {
-					resumed = await wpFetch(apiBase + '/conversations/' + encodeURIComponent(turnThread) +
-						'/turns/' + encodeURIComponent(turnId) + '/stream' +
-						(apiBase.indexOf('?') === -1 ? '?' : '&') + 'after=' + encodeURIComponent(lastSeq),
-						{ signal: _streamAbort.signal });
-					if (resumed.ok) await readStream(resumed.body);
-				} catch (e) {
-					if (e.sessionExpired) throw e;
+			try {
+				for (var attempt = 0; !finished && !voiceStopped; attempt++) {
+					if (currentConversationId !== turnThread) return;   // the person moved on
+					if (cut === 410 && !polling) pollBeside(lastSeq);
+					workingLine().textContent = t('reconnecting', 'Reconnecting…');
+					await new Promise(function(r) { setTimeout(r, waits[Math.min(attempt, waits.length - 1)]); });
+					if (finished || currentConversationId !== turnThread) return;
+					var seen = lastSeq, resumed = null;
+					cut = null;
+					_streamAbort = new AbortController();
+					try {
+						resumed = await wpFetch(apiBase + '/conversations/' + encodeURIComponent(turnThread) +
+							'/turns/' + encodeURIComponent(turnId) + '/stream' +
+							(apiBase.indexOf('?') === -1 ? '?' : '&') + 'after=' + encodeURIComponent(lastSeq),
+							{ signal: _streamAbort.signal });
+						if (resumed.ok) await readStream(resumed.body);
+					} catch (e) {
+						if (e.sessionExpired) throw e;
+					}
+					// WordPress refusing the request (access removed) is not a dropped connection.
+					if (resumed && !resumed.ok && resumed.status < 500) throw new Error('Resume refused (' + resumed.status + ')');
+					if (lastSeq !== seen) attempt = -1;
 				}
-				// WordPress refusing the request (access removed) is not a dropped connection.
-				if (resumed && !resumed.ok && resumed.status < 500) throw new Error('Resume refused (' + resumed.status + ')');
-				if (lastSeq !== seen) attempt = -1;
+			} finally {
+				// However the re-attach ends — the reply, the poll, a refusal, the person leaving —
+				// the working line and its clock go with it, never left under a finished reply.
+				clearInterval(progressClock);
+				if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
 			}
 		}
 

@@ -8,7 +8,7 @@
  * `id:` and name their turn; the proxy's own frames (a 410, a 404, a lost connection)
  * carry no id. Timers are faked so the backoff and the clock are read, not waited for.
  *
- * 16 checks.
+ * 21 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -17,6 +17,19 @@ const PARSER = extract.slice('SSE parser',
   l => l.includes('// SSE buffer parser'),
   l => l.includes('// Tool status labels for SSE streaming'),
   ['function parseSSEBuffer', "indexOf('id:')"], 'RESUME_PARSER');
+// The tool rows, as shipped: the label map, the escape helper and the two row functions.
+const TOOL_LABELS = extract.slice('tool status labels',
+  l => l.includes('// Tool status labels for SSE streaming'),
+  l => l.includes('// HTML escape helper'),
+  ['const TOOL_STATUS_LABELS', 'const SSE_TOOL_PACING_MS']);
+const ESCAPE = extract.slice('escapeHtml',
+  l => l.includes('// HTML escape helper'),
+  l => l.includes('// Markdown rendering'),
+  ['function escapeHtml']);
+const TOOL_ROWS = extract.slice('tool rows',
+  l => l.includes('SSE STREAMING UI HELPERS'),
+  l => l.startsWith('\tfunction updateTypingLabel('),
+  ['function toolStatusLabel', 'function renderToolStatus', 'function completeToolStatus'], 'RESUME_TOOL_ROWS');
 const REQUEST = extract.slice('request path',
   l => l.includes('// Every request that carries the nonce'),
   l => l.includes('\t// Elements'),
@@ -77,10 +90,10 @@ const HEAD = `
 		openingSpoken = null, lastSuggestion = null, selectedModel = '', currentConversationId = null,
 		activeProjectId = null, voiceStopped = false, _isStreaming = false, _userScrolledUp = false,
 		dirtyInput = false, chipEpoch = 0, readbackBuffer = '';
-	var SSE_TOOL_PACING_MS = 0;
 	function t(k, d) { return d; }
+	// As the console's own: only the .message elements go, anything beside them stays.
 	function renderMessages() {
-		messagesList.textContent = '';
+		messagesList.querySelectorAll('.message').forEach(function (el) { el.remove(); });
 		messages.forEach(function (m) {
 			var msg = document.createElement('div');
 			msg.className = 'message message-' + m.role;
@@ -99,7 +112,8 @@ const TAIL = `
 	return {
 		sendMessage: sendMessage,
 		parse: parseSSEBuffer,
-		leave: function () { currentConversationId = 'th-other'; },
+		// New chat, as resetToNewChat does it: another conversation, its messages drawn.
+		leave: function () { currentConversationId = 'th-other'; messages = []; renderMessages(); },
 		state: function () { return { isLoading: isLoading, messages: messages, conversation: currentConversationId }; }
 	};`;
 
@@ -109,13 +123,13 @@ function boot(script) {
     { url: 'https://e.test/staff-ai/' });
   const window = dom.window, document = window.document;
   window.DefPersona = { createController: () => ({ handleEvent() {}, formatThinkingLabel: m => m, reset() {} }) };
-  const calls = [], waits = [], intervals = new Map(), clock = { now: 1e12 }, hooks = {};
+  const calls = [], waits = [], intervals = new Map(), clock = { now: 1e12 }, hooks = {}, held = [];
   let nextInterval = 0;
-  // `script` is a list answered in order, or a router (url) => response for a check where
-  // the thread poll and the resume retries run side by side.
+  // `script` is a list answered in order, or a router (url, init) => response for a check
+  // where the thread poll and the resume retries run side by side.
   async function fakeFetch(url, init) {
     calls.push(url);
-    const next = typeof script === 'function' ? (calls.length > 300 ? null : () => script(url)) : script.shift();
+    const next = typeof script === 'function' ? (calls.length > 300 ? null : () => script(url, init)) : script.shift();
     // Past the script (or 300 requests), the person leaves: code that would retry for ever
     // (a bite run) still ends, and the extra request is in `calls` for the check to see.
     if (!next) { api.leave(); throw new Error('unscripted request to ' + url); }
@@ -124,8 +138,14 @@ function boot(script) {
   class FakeDate extends Date { static now() { return clock.now; } }
   const deps = {
     window, document, fetch: fakeFetch, Response, ReadableStream, TextDecoder, AbortController, Date: FakeDate,
-    // Time is simulated: a wait returns at once and moves the clock on by what it asked for.
-    setTimeout: (fn, ms) => { waits.push(ms); clock.now += ms || 0; if (hooks.onWait) hooks.onWait(ms); return setTimeout(fn, 0); },
+    // Time is simulated: a wait returns at once and moves the clock on by what it asked for,
+    // unless hooks.hold(ms) keeps it until the check calls release().
+    setTimeout: (fn, ms) => {
+      waits.push(ms); clock.now += ms || 0;
+      if (hooks.onWait) hooks.onWait(ms);
+      if (hooks.hold && hooks.hold(ms)) { held.push(fn); return 0; }
+      return setTimeout(fn, 0);
+    },
     setInterval: fn => { intervals.set(++nextInterval, fn); return nextInterval; },
     clearInterval: id => { intervals.delete(id); },
     StaffAIConfig: { nonce: 'n0000000', nonceUrl: 'https://e.test/wp-admin/admin-ajax.php?action=rest-nonce' },
@@ -137,18 +157,22 @@ function boot(script) {
     classifySuggestionOutcome: () => ({}), endConversation() {}, browserTimezone: () => '', clearStagedFiles() {},
     readBack() {}, readBackSoFar() {}, loadConversations() {}, updateReadOnlyState() {}, afterSpokenTurn() {},
     dropUnfilledTranscript() { return false; }, uploadAllStagedFiles: async () => ({ success: true, fileIds: [] }),
-    renderMarkdown: s => s, renderToolStatus: () => document.createElement('div'), completeToolStatus() {},
+    renderMarkdown: s => s,
     applyCitations() {}, buildCitationMap: () => ({}), createToolOutputCard: () => null, handleSpokenStop: () => false,
     console: { info() {}, error() {} }
   };
   const names = Object.keys(deps);
-  const api = new window.Function(...names, HEAD + PARSER + '\n' + REQUEST + '\n' + BANNER + '\n' + RECOVER + '\n' + SEND + TAIL)
-    (...names.map(k => deps[k]));
+  const api = new window.Function(...names, HEAD + PARSER + '\n' + TOOL_LABELS + '\n' + ESCAPE + '\n' + REQUEST + '\n' +
+    BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + SEND + TAIL)(...names.map(k => deps[k]));
   const list = deps.messagesList;
   return {
     api, calls, waits, intervals, clock, hooks,
+    held: () => held.length > 0,
+    release: () => held.splice(0).forEach(fn => setTimeout(fn, 0)),
     send: text => { deps.composerInput.value = text; return api.sendMessage(); },
-    working: () => { const w = list.querySelector('.tool-status'); return w ? w.textContent : null; },
+    // The working line: the .tool-status that is not a tool's own row.
+    working: () => { const w = list.querySelector('.tool-status:not([data-tool])'); return w ? w.textContent : null; },
+    rows: () => Array.prototype.map.call(list.querySelectorAll('[data-tool]'), r => r.textContent),
     bubble: () => { const b = list.querySelectorAll('.message-assistant .message-content'); return b.length ? b[b.length - 1].textContent : null; },
     banner: () => deps.errorBanner.classList.contains('visible') ? deps.errorBanner.textContent : '',
     backoff: () => waits.filter(ms => ms === 1000 || ms === 2000 || ms === 5000),
@@ -267,6 +291,64 @@ function check(label, cond, detail) {
       'calls=' + t.calls.length + ' banner=' + t.banner() + ' bubble=' + JSON.stringify(t.bubble()));
   }
   {
+    // DEF refusing the resume itself: access removed mid-turn.
+    const t = boot([sse([frame(1, { type: 'thinking', message: 'Thinking...' })]), sse([proxyError(403)])]);
+    await t.send('Build the sheet');
+    check('a 403 from DEF on the resume is final like a 404: the error line shows, nothing is retried, the working line goes',
+      t.calls.length === 2 && t.banner() === UNAVAILABLE && t.working() === null && !t.api.state().isLoading,
+      'calls=' + t.calls.length + ' banner=' + t.banner() + ' working=' + JSON.stringify(t.working()));
+  }
+  {
+    // Text, then the drop, a 410, and the poll rendering the finished reply.
+    const t = boot(url => url === STREAM_URL ? sse([frame(1, { type: 'thinking', message: 'Thinking...' }), delta(2, 'Here is the sheet')])
+      : isResume(url) ? sse([proxyError(410)])
+      : thread({ role: 'assistant', content: 'Here is the sheet: 225 rows.', is_complete: true, tool_outputs: [] }));
+    await t.send('Build the sheet');
+    check('after text, a drop and a 410, the polled reply is rendered with no "Reconnecting…" left beside it',
+      t.working() === null && t.bubble() === 'Here is the sheet: 225 rows.' && t.banner() === '' && !t.api.state().isLoading,
+      'working=' + JSON.stringify(t.working()) + ' bubble=' + JSON.stringify(t.bubble()) + ' banner=' + t.banner());
+  }
+  {
+    // A turn DEF closed as errored while no worker held it (a deploy's drain, the reaper):
+    // complete, and empty.
+    const t = boot(url => url === STREAM_URL ? sse([frame(1, { type: 'thinking', message: 'Thinking...' }), delta(2, 'Here is')])
+      : isResume(url) ? sse([proxyError(410)])
+      : thread({ role: 'assistant', content: '', is_complete: true, tool_outputs: [] }));
+    await t.send('Build the sheet');
+    check('a polled reply that is complete and empty says the assistant stopped, in DEF\'s own words',
+      t.banner() === 'The assistant stopped before finishing. Please try again.' && t.working() === null && !t.api.state().isLoading,
+      'banner=' + JSON.stringify(t.banner()) + ' working=' + JSON.stringify(t.working()));
+  }
+  {
+    // The person leaves while the turn reconnects, then sends a new message before the
+    // old turn's poll wakes from its 3 s sleep.
+    let posts = 0, newSignal = null;
+    const live = liveStream();
+    const t = boot((url, init) => url === STREAM_URL
+      ? (++posts === 1 ? sse([frame(1, { type: 'thinking', message: 'Thinking...' })]) : (newSignal = init.signal, live.response))
+      : isResume(url) ? sse([proxyError(410)])
+      : thread({ role: 'assistant', content: '', is_complete: false }));
+    t.hooks.hold = ms => ms === 3000;
+    t.send('Build the sheet');
+    for (let i = 0; i < 100 && !t.held(); i++) await settle();
+    t.api.leave();
+    for (let i = 0; i < 100 && t.api.state().isLoading; i++) await settle();   // the old turn's loop sees it and ends
+    const second = t.send('Something else');
+    for (let i = 0; i < 100 && !newSignal; i++) await settle();
+    t.release();
+    await settle();
+    const aborted = !!newSignal && newSignal.aborted;
+    if (newSignal) {
+      live.push('id: 1\ndata: ' + JSON.stringify({ type: 'done', thread_id: 'th-other', turn_id: 'msg-2',
+        choices: [{ message: { content: 'Sure.', tool_outputs: [] } }] }) + '\n\n');
+      live.close();
+    }
+    await second;
+    check('an old turn\'s poll that wakes after the person has moved on never aborts their new turn',
+      !!newSignal && !aborted && t.bubble() === 'Sure.' && t.calls.filter(u => u.indexOf('/turns/msg-2/') !== -1).length === 0,
+      'signal=' + !!newSignal + ' aborted=' + aborted + ' bubble=' + JSON.stringify(t.bubble()));
+  }
+  {
     // DEF's own error frame carries an id: the turn failed, and that is final.
     const t = boot([sse([frame(1, { type: 'thinking', message: 'Thinking...' }), frame(2, { type: 'error', message: 'The assistant stopped before finishing. Please try again.' })])]);
     await t.send('Build the sheet');
@@ -274,11 +356,29 @@ function check(label, cond, detail) {
       t.calls.length === 1 && t.banner() === 'The assistant stopped before finishing. Please try again.', 'calls=' + t.calls.length + ' banner=' + t.banner());
   }
   {
-    const t = boot([sse([frame(1, { type: 'thinking', message: 'Thinking...' })])]);
+    const t = boot([sse([frame(1, { type: 'thinking', message: 'Thinking...' }), delta(2, 'Here is')])]);   // text first: the line sits beside the reply
     t.hooks.onWait = ms => { if (ms === 1000) t.api.leave(); };   // New chat while it waits to re-attach
     await t.send('Build the sheet');
-    check('a person who has left the conversation is not re-attached for',
-      t.calls.length === 1 && !t.api.state().isLoading, 'calls=' + t.calls.join(' '));
+    check('a person who has left the conversation is not re-attached for, and "Reconnecting…" does not follow them',
+      t.calls.length === 1 && !t.api.state().isLoading && t.working() === null,
+      'calls=' + t.calls.join(' ') + ' working=' + JSON.stringify(t.working()));
+  }
+  {
+    const s = liveStream();
+    const t = boot([() => s.response]);
+    const run = t.send('Build the sheet');
+    s.push(frame(1, { type: 'tool_start', tool: 'spreadsheet_creation', label: 'Creating the spreadsheet' }) +
+      frame(2, { type: 'tool_done', tool: 'spreadsheet_creation', label: 'Creating the spreadsheet', status: 'success' }) +
+      frame(3, { type: 'tool_start', tool: 'create_document' }) +
+      frame(4, { type: 'tool_start', tool: 'crm_contact_lookup' }));
+    await settle();
+    const rows = t.rows();
+    s.push(done(5, 'Done.'));
+    s.close();
+    await run;
+    check('a tool row reads DEF\'s display name, else the console\'s own label, else a plain sentence — never the internal name',
+      JSON.stringify(rows) === JSON.stringify(['Creating the spreadsheet… ✓ Done', 'Creating document...', 'Working on it...']),
+      JSON.stringify(rows));
   }
   {
     // A stream that ends before DEF has named the turn: the 7.6.9 thread poll, now for a clean end too.
