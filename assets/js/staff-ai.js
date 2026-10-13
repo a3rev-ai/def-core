@@ -126,6 +126,7 @@ function t(key, fallback) {
 		'spawn_sub_agent': 'Running sub-agent...',
 		'escalate_to_human': 'Preparing handoff...',
 		'extract_upload_content': 'Analyzing file...',
+		'search_platform_docs': 'Searching the documentation...',
 	};
 	const TOOL_DONE_LABELS = {
 		'retrieve_company_knowledge': 'Knowledge retrieved',
@@ -136,6 +137,7 @@ function t(key, fallback) {
 		'spawn_sub_agent': 'Sub-agent complete',
 		'escalate_to_human': 'Handoff prepared',
 		'extract_upload_content': 'File analyzed',
+		'search_platform_docs': 'Documentation checked',
 	};
 	const SSE_TOOL_PACING_MS = 400;
 

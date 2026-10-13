@@ -1,5 +1,9 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.7.11 - 2026/10/13 =
+* (note: 8.7.10 skipped — PHP version_compare bug treats "10" as "1")
+* Fix - Staff AI and the Setup Assistant now say "Searching the documentation..." while the assistant checks the platform documentation, instead of an internal tool name (Staff AI) or "Processing..." (Setup Assistant).
+
 = 8.7.9 - 2026/10/10 =
 * Tweak - The Setup Assistant's "ask a person" form now sends you a copy of your request for your records ("Copy: <subject>"), to your own account email.
 

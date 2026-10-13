@@ -68,6 +68,7 @@
 		'test_connection':       'Testing connection...',
 		'get_users_with_roles':  'Checking user roles...',
 		'search_users':          'Searching users...',
+		'search_platform_docs':  'Searching the documentation...',
 		'update_setting':        'Updating settings...',
 		'update_user_role':      'Updating user role...'
 	};
@@ -78,6 +79,7 @@
 		'test_connection':       'Connection tested',
 		'get_users_with_roles':  'User roles checked',
 		'search_users':          'Users found',
+		'search_platform_docs':  'Documentation checked',
 		'update_setting':        'Settings updated',
 		'update_user_role':      'User role updated'
 	};
