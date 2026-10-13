@@ -249,8 +249,8 @@ assert_test(
 	'streaming: CURLOPT_LOW_SPEED_LIMIT is 1 byte/sec — the real watchdog, half 1'
 );
 assert_test(
-	1 === preg_match_all( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/', $tools_code ),
-	'streaming: CURLOPT_LOW_SPEED_TIME is 30s — the real watchdog, half 2'
+	1 === preg_match_all( '/CURLOPT_LOW_SPEED_TIME\s*=>\s*90\s*,/', $tools_code ),
+	'streaming: CURLOPT_LOW_SPEED_TIME is 90s — the real watchdog, half 2 (8.7.13: wide enough for sparse keepalives)'
 );
 
 // BLOCK ANCHORS — the census alone cannot see a clean SWAP (0↔30 preserves
@@ -259,7 +259,7 @@ assert_test(
 // and the 4s must sit ON the line that states its page-render reason.
 assert_test(
 	1 === preg_match(
-		'/CURLOPT_TIMEOUT\s*=>\s*0\s*,\s*\n\s*CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,\s*\n\s*CURLOPT_LOW_SPEED_TIME\s*=>\s*30\s*,/',
+		'/CURLOPT_TIMEOUT\s*=>\s*0\s*,\s*\n\s*CURLOPT_LOW_SPEED_LIMIT\s*=>\s*1\s*,\s*\n\s*CURLOPT_LOW_SPEED_TIME\s*=>\s*90\s*,/',
 		$tools_code
 	),
 	'block anchor: the infinite timeout is adjacent to its low-speed watchdog pair — a 0↔30 swap cannot stay green'
