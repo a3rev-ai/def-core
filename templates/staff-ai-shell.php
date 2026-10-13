@@ -936,6 +936,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			sessionExpired: <?php echo wp_json_encode( __( 'Your session has expired. Reload the page and sign in again.', 'digital-employees' ) ); ?>,
 			reloadPage: <?php echo wp_json_encode( __( 'Reload', 'digital-employees' ) ); ?>,
 			stillWorking: <?php echo wp_json_encode( __( 'Your assistant is still working on this — reopen the chat in a minute to see the reply.', 'digital-employees' ) ); ?>,
+			reconnecting: <?php echo wp_json_encode( __( 'Reconnecting…', 'digital-employees' ) ); ?>,
+			assistantStopped: <?php echo wp_json_encode( __( 'The assistant stopped before finishing. Please try again.', 'digital-employees' ) ); ?>,
 			micStart: <?php echo wp_json_encode( __( 'Speak', 'digital-employees' ) ); ?>,
 			micDenied: <?php echo wp_json_encode( __( 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.', 'digital-employees' ) ); ?>,
 			micNotFound: <?php echo wp_json_encode( __( 'No microphone was found on this device.', 'digital-employees' ) ); ?>,

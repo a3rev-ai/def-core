@@ -104,9 +104,9 @@ final class DEF_Core_Tools {
 	/**
 	 * SSE streaming proxy — forwards request to DEF and streams response back.
 	 *
-	 * @param string $url     DEF backend URL.
-	 * @param array  $headers HTTP headers for the upstream request.
-	 * @param string $body    Request body.
+	 * @param string  $url     DEF backend URL.
+	 * @param array   $headers HTTP headers for the upstream request.
+	 * @param ?string $body    Request body; null sends a GET (the Staff AI turn resume).
 	 * @return void
 	 */
 	private static function stream_proxy( $url, $headers, $body ) {
@@ -165,6 +165,20 @@ final class DEF_Core_Tools {
 				return strlen( $data );
 			},
 		) );
+		if ( null === $body ) {
+			curl_setopt( $ch, CURLOPT_HTTPGET, true );
+		}
+
+		// What this buys: PHP's own max_execution_time no longer ends a stream that is still
+		// relaying a working turn. What it does not: a host's own wall-clock limit (the web
+		// server's or a proxy's timeout, FPM's request_terminate_timeout) still ends the
+		// request whatever PHP says. Re-attaching is what survives that: the turn runs on DEF,
+		// and the console resumes it from the last frame it saw (8.7.14). A relay whose viewer
+		// has gone is meant to die at its next write (PHP's default), freeing the worker.
+		// set_time_limit is on many hosts' disable_functions list.
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( 0 );
+		}
 
 		$result = curl_exec( $ch );
 		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
@@ -637,6 +651,24 @@ final class DEF_Core_Tools {
 		$headers = self::build_proxy_headers( true );
 		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/staff-ai/chat/stream';
 		self::stream_proxy( $def_url, $headers, $request->get_body() );
+	}
+
+	/**
+	 * BFF proxy for the Staff AI turn resume (8.7.14): a console whose stream ended before
+	 * the reply did re-attaches to the turn from the last frame it saw. Relayed exactly as
+	 * the chat stream is; DEF checks the thread is this user's. No visitor IP: a resume
+	 * sends no message.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return void
+	 */
+	public static function rest_proxy_staff_ai_turn_resume( $request ) {
+		$headers = self::build_proxy_headers( true, false );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/staff-ai/threads/'
+			. rawurlencode( (string) $request->get_param( 'id' ) ) . '/turns/'
+			. rawurlencode( (string) $request->get_param( 'turn' ) ) . '/stream?after='
+			. (int) $request->get_param( 'after' );
+		self::stream_proxy( $def_url, $headers, null );
 	}
 
 	/**

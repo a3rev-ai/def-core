@@ -146,6 +146,25 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// The turn resume (8.7.14): the console re-attaches to a reply still being written,
+		// from the last frame it saw (`after`). Relayed by the chat stream's own proxy.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/turns/(?P<turn>[a-zA-Z0-9_-]+)/stream',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array('DEF_Core_Tools', 'rest_proxy_staff_ai_turn_resume'),
+				'args'                => array(
+					'after' => array(
+						'type'     => 'integer',
+						'required' => true,
+						'minimum'  => 0,
+					),
+				),
+			)
+		);
+
 		// Chat Options: move a chat into / out of one of the caller's projects.
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -4493,7 +4512,7 @@ final class DEF_Core_Staff_AI
 		$messages = array();
 		if (isset($result['messages']) && is_array($result['messages'])) {
 			foreach ($result['messages'] as $msg) {
-				$messages[] = array(
+				$row = array(
 					'role'         => $msg['role'] ?? 'user',
 					'content'      => $msg['content'] ?? '',
 					'timestamp'    => $msg['timestamp'] ?? '',
@@ -4506,6 +4525,12 @@ final class DEF_Core_Staff_AI
 					// A stored turn's pictures and files come back with it (8.0.0).
 					'attachments'  => self::console_attachments($msg['attachments'] ?? null),
 				);
+				// A reply still being written says so (8.7.14): a console that could not
+				// re-attach polls the thread until it is done.
+				if (isset($msg['is_complete'])) {
+					$row['is_complete'] = (bool) $msg['is_complete'];
+				}
+				$messages[] = $row;
 			}
 		}
 
