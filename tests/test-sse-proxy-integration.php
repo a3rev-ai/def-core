@@ -275,17 +275,17 @@ assert_true(
 	'a cut stream: one warning row carrying curl\'s errno and error (got ' . $GLOBALS['last_log'] . ')'
 );
 
-// ── 8. The chat stream is still a POST with its body ─────────────────────
-echo "\n[8] The chat stream still POSTs its body\n";
+// ── 9. The chat stream is still a POST with its body ─────────────────────
+echo "\n[9] The chat stream still POSTs its body\n";
 
 $out  = drive( 'echo' );
 $evts = frames( $out );
 assert_true( 0 === strpos( (string) ( $evts[0]['request'] ?? '' ), 'POST /api/chat/stream ' ), 'a POST to the chat route (got ' . ( $evts[0]['request'] ?? '' ) . ')' );
 assert_true( 2 === ( $evts[0]['body_bytes'] ?? 0 ), 'the body goes with it' );
 
-// ── 9. The turn resume: a GET, relayed byte-for-byte, ids and all ────────
+// ── 10. The turn resume: a GET, relayed byte-for-byte, ids and all ───────
 // Kills: dropping the GET switch (it POSTs an empty body), a wrong path or `after`.
-echo "\n[9] The Staff AI turn resume is a GET to DEF's resume route, relayed unchanged\n";
+echo "\n[10] The Staff AI turn resume is a GET to DEF's resume route, relayed unchanged\n";
 
 $out = drive( 'echo', 'resume', $err );
 assert_true(
@@ -298,8 +298,8 @@ assert_true(
 );
 assert_true( 'limit=0' === substr( $err, -7 ), 'stream_proxy lifted PHP\'s own time limit (got ' . $err . ')' );
 
-// ── 10. A 410 reaches the console as one frame carrying the status ───────
-echo "\n[10] DEF's 410 (the turn is not in its memory) becomes one error frame with status 410\n";
+// ── 11. A 410 reaches the console as one frame carrying the status ───────
+echo "\n[11] DEF's 410 (the turn is not in its memory) becomes one error frame with status 410\n";
 
 $out  = drive( 'gone', 'resume' );
 $evts = frames( $out );
