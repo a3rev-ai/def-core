@@ -303,7 +303,7 @@ window.DefVoice = (function () {
 			}
 			// Half a second of silence through the context, inside the tap: a Bluetooth
 			// headset wakes its link on the first sound and drops what plays meanwhile —
-			// without this, the first word of the first reply (V-S12, 2026-10-19).
+			// without this, the first word of the first reply (V-S8, 2026-10-19).
 			if (audioCtx) {
 				try { startBuffer(silence(0.5)); log('warm'); } catch (e) { /* judged at play */ }
 			}
