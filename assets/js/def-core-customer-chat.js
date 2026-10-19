@@ -2186,6 +2186,7 @@
 	// hands-free listens again once the employee has finished speaking; otherwise
 	// the mic rests.
 	function afterSpokenTurn() {
+		if (speaker) speaker.end();   // a line whose closing frame the stream never brought
 		spokenTurn = false;
 		dropUnfilledTranscript();
 		if (!voiceRecorder) return;

@@ -2967,6 +2967,7 @@ function t(key, fallback) {
 	function afterSpokenTurn() {
 		// The turn is over only here: the closing line's audio arrives AFTER `done`
 		// (7.7.2 cleared the flag at done and never played it).
+		if (speaker) speaker.end();   // a line whose closing frame the stream never brought
 		spokenTurn = false;
 		openingSpoken = null;
 		if (!micBtn || !speaker) return;

@@ -538,6 +538,15 @@ window.DefVoice = (function () {
 					last: !audio || audio.last !== false });
 				pump();
 			},
+			// The stream is over: a line whose closing frame never came plays the parts it
+			// has and finishes, so whenIdle still resolves.
+			end: function () {
+				[current].concat(queue).forEach(function (item) {
+					if (!item || item.last) return;
+					item.last = true;
+					if (item.wake) item.wake();
+				});
+			},
 			whenIdle: function () {
 				return new Promise(function (resolve) {
 					if (!busy && !queue.length) resolve(); else idleWaiters.push(resolve);

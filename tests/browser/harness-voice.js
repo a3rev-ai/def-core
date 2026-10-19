@@ -599,6 +599,23 @@ function check(n, label, cond, detail) {
 				'beforeClose=' + beforeClose + ' plays=' + (t.elementPlays.length - warmed) + ' blobs=' + t.blobs.length +
 				' type=' + (blob && blob.type) + ' size=' + (blob && blob.size) + ' idle=' + idle);
 		}
+		// 30. the stream ended without a line's closing frame: end() lets it finish what it has
+		{
+			const s = await bootStream();
+			s.speaker.speak('Three.', part(3, 0, [1, 0], false));
+			await settle(s.w);
+			s.speaker.speak('', part(3, 1, [2, 0], false));
+			await settle(s.w);
+			s.watchIdle();
+			s.speaker.end();
+			await settle(s.w);
+			const beforeEnd = s.idle();
+			s.t.scheduled.forEach(r => r.end());
+			await settle(s.w);
+			check(30, 'stream — end() closes a line whose closing frame never came: whenIdle resolves once its last part ends',
+				s.t.scheduled.length === 2 && !beforeEnd && s.idle(),
+				'scheduled=' + s.t.scheduled.length + ' beforeEnd=' + beforeEnd + ' idle=' + s.idle());
+		}
 	}
 
 	console.log(results.join('\n'));
