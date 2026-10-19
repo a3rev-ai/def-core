@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.7.15 - 2026/10/19 =
+* Fix - Voice: the first reply of a session is heard from its first word on Bluetooth output; a tab you leave stops speaking and listening.
+
 = 8.7.14 - 2026/10/13 =
 * Fix - Staff AI: if the connection drops while the assistant is working, the console reconnects by itself and the reply carries on; while the assistant works, the line under the reply says what it is doing and for how long.
 

@@ -2012,6 +2012,15 @@
 			bindVoiceLog(els.micBtn);
 			els.micBtn.style.display = '';
 		}
+		// The same function each time, so a widget opened twice listens once.
+		document.addEventListener('visibilitychange', endVoiceWhenHidden);
+		window.addEventListener('pagehide', endVoiceWhenHidden);
+	}
+
+	// A tab you leave stops speaking and closes its mic — a reply link opens a new
+	// tab, and two tabs talking over each other is the alternative (W72).
+	function endVoiceWhenHidden() {
+		if (voiceRecorder && document.visibilityState === 'hidden' && (conversationOn || spokenTurn)) endConversation();
 	}
 
 	// The mic's state paints the button; the composer placeholder says what is happening.

@@ -1460,7 +1460,7 @@ function t(key, fallback) {
 	document.addEventListener('visibilitychange', function() {
 		// Hands-free is a foreground interaction: a pocketed phone must not keep
 		// listening (7.7.1) — the mic is released the moment the page hides.
-		if (document.visibilityState === 'hidden' && conversationOn) endConversation();
+		if (document.visibilityState === 'hidden' && (conversationOn || spokenTurn)) endConversation();
 		if (document.visibilityState === 'visible') {
 			// Coming back is the moment a stale app is most likely to be stale, and the
 			// moment it is most likely to be quiet.

@@ -12,7 +12,7 @@
  * body sees no window globals, and a reload that really navigated would take the checks
  * with it.
  *
- * 25 checks.
+ * 27 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -32,11 +32,12 @@ const HTML = `<!doctype html><html><body>
 const HEAD = `
 	var sessionStorage = window.sessionStorage;   // the window's own, kept across a "reload"
 	var composerInput = document.getElementById('composerInput');
-	var _isStreaming = false, isLoading = false, conversationOn = false, staged = false;
+	var _isStreaming = false, isLoading = false, conversationOn = false, spokenTurn = false, staged = false;
 	var _streamAbort = null, _eventsSeen = 0, RESUME_GRACE_MS = 0;
 	var location = { reload: function () { reloads.push(1); } };
 	function hasActiveFiles() { return staged; }
-	function endConversation() {}
+	var endings = 0;
+	function endConversation() { endings++; }
 	function t(k, fb) { return fb; }
 	function showInfo(msg) { notices.push(msg); }
 	var fetch = function (url, init) {
@@ -56,6 +57,8 @@ const TAIL = `
 		notices: function () { return notices; },
 		streaming: function (on) { _isStreaming = on; },
 		handsFree: function (on) { conversationOn = on; },
+		spoken: function (on) { spokenTurn = on; },
+		ended: function () { return endings; },
 		stage: function (on) { staged = on; },
 		type: function (text) { composerInput.value = text; composerInput.className = ''; },
 		suggest: function (text) {
@@ -246,6 +249,20 @@ function check(label, ok, detail) {
 		const again = boot({ version: '7.9.0' }, t.window, '7.9.0');
 		check('and does not say it again on the next launch', again.notices().length === 0,
 			JSON.stringify(again.notices()));
+	}
+
+	// ── A tab you leave stops speaking (W72) ───────────────────────────────
+	{
+		const t = boot({ version: RUNNING });
+		t.spoken(true);
+		visibility(t.window, 'hidden');
+		check('a reply still being read when the tab hides ends the conversation', t.ended() === 1,
+			String(t.ended()));
+
+		const h = boot({ version: RUNNING });
+		h.handsFree(true);
+		visibility(h.window, 'hidden');
+		check('hands-free on when the tab hides still ends it', h.ended() === 1, String(h.ended()));
 	}
 
 	// ── Both halves wired, not just the block ──────────────────────────────
