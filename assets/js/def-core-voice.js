@@ -301,6 +301,12 @@ window.DefVoice = (function () {
 				var note = function () { log('context ' + audioCtx.state); };
 				try { audioCtx.resume().then(note, note); } catch (e) { /* judged at play */ }
 			}
+			// Half a second of silence through the context, inside the tap: a Bluetooth
+			// headset wakes its link on the first sound and drops what plays meanwhile —
+			// without this, the first word of the first reply (V-S8, 2026-10-19).
+			if (audioCtx) {
+				try { startBuffer(silence(0.5)); log('warm'); } catch (e) { /* judged at play */ }
+			}
 			// The element fallback needs its own unlock: one gesture-time play.
 			if (!audio) {
 				audio = new Audio(SILENCE);
@@ -334,6 +340,22 @@ window.DefVoice = (function () {
 			return buf;
 		}
 
+		function silence(seconds) {
+			return audioCtx.createBuffer(1, Math.round(audioCtx.sampleRate * seconds), audioCtx.sampleRate);
+		}
+
+		// One buffer through the context; resolves when it ends or stop() cuts it.
+		function startBuffer(buffer) {
+			return new Promise(function (resolve) {
+				var node = audioCtx.createBufferSource();
+				node.buffer = buffer;
+				node.connect(audioCtx.destination);
+				node.onended = function () { if (playing === node) playing = null; node.onended = null; resolve(); };
+				playing = node;
+				node.start();
+			});
+		}
+
 		// Through the page's context (a buffer source: starts whenever the context
 		// runs, clip after clip, no gesture per clip); the <audio> element only when
 		// there is no running context.
@@ -343,14 +365,7 @@ window.DefVoice = (function () {
 				if (result && result.then) result.then(resolve, reject);
 			});
 			log('play ' + buffer.duration.toFixed(1) + 's');
-			await new Promise(function (resolve) {
-				var node = audioCtx.createBufferSource();
-				node.buffer = buffer;
-				node.connect(audioCtx.destination);
-				node.onended = function () { if (playing === node) playing = null; node.onended = null; resolve(); };
-				playing = node;
-				node.start();
-			});
+			await startBuffer(buffer);
 			log('played');
 		}
 
@@ -392,6 +407,11 @@ window.DefVoice = (function () {
 		async function pump() {
 			if (busy) return;
 			busy = true;
+			// A reply's first clip gets 300 ms of silence ahead of it, so a headset that
+			// dozed since the last reply wakes on nothing rather than on its first word.
+			if (mode === 'server' && queue[0].audio && audioCtx && await wakeContext()) {
+				try { log('lead-in'); await startBuffer(silence(0.3)); } catch (e) { /* the clip still plays */ }
+			}
 			while (queue.length) {
 				var item = queue.shift();
 				try {

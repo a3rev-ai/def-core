@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.7.14
+Stable tag: 8.7.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.7.15 - 2026-10-19 =
+* Fix - Voice: the first reply of a session is heard from its first word on Bluetooth output; a tab you leave stops speaking and listening.
 
 = 8.7.14 - 2026-10-13 =
 * Fix - Staff AI: if the connection drops while the assistant is working, the console reconnects by itself and the reply carries on; while the assistant works, the line under the reply says what it is doing and for how long.

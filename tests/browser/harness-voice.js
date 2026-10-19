@@ -67,12 +67,26 @@ function boot(wave, bodyHtml) {
 			reads++;
 		},
 	};
+	// Every buffer the context starts, by duration: a clip decodes to CLIP seconds,
+	// a silence is what its own length says. A source "ends" a few ms after it starts.
+	const starts = [], elementPlays = [];
 	window.AudioContext = function () {
 		this.state = 'running';
+		this.sampleRate = 48000;
+		this.destination = {};
 		this.createAnalyser = () => analyser;
 		this.createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
 		this.resume = () => Promise.resolve();
+		this.createBuffer = (channels, length, rate) => ({ duration: length / rate });
+		this.decodeAudioData = (bytes, resolve) => resolve({ duration: CLIP });
+		this.createBufferSource = () => {
+			const node = { connect() {}, stop() {},
+				start() { starts.push(node.buffer.duration); window.setTimeout(() => node.onended && node.onended(), 5); } };
+			return node;
+		};
 	};
+	window.HTMLMediaElement.prototype.play = function () { elementPlays.push(this.src); return Promise.resolve(); };
+	window.HTMLMediaElement.prototype.pause = function () {};
 	Object.defineProperty(window.navigator, 'mediaDevices', {
 		configurable: true,
 		value: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) },
@@ -86,7 +100,7 @@ function boot(wave, bodyHtml) {
 	window.MediaRecorder.isTypeSupported = () => true;
 	window.eval(MODULE);
 	return {
-		window, DefVoice: window.DefVoice,
+		window, DefVoice: window.DefVoice, starts, elementPlays,
 		say: w => { script = null; current = w; },
 		play: list => { script = list; reads = 0; },
 		reads: () => reads,
@@ -94,6 +108,8 @@ function boot(wave, bodyHtml) {
 }
 
 const wait = (w, ms) => new Promise(r => w.setTimeout(r, ms));
+const CLIP = 2.4;
+const REPLY = { base64: 'AAAA', mime: 'audio/mpeg' };
 
 // ── The console's voice block, wired to a DOM and injectable stubs ───────
 const CONSOLE_HTML = '<button id="micBtn"></button><span id="micLabel"></span>'
@@ -139,7 +155,10 @@ const CHAT_HTML = '<div id="messages"><div class="msg"><span id="bubble">Transcr
 const CHAT_TAIL = `
 	return {
 		endOnSpokenStop: endOnSpokenStop,
-		state: function () { return { on: conversationOn, spoken: spokenTurn }; }
+		enableVoice: enableVoice,
+		use: function (rec, spk) { voiceRecorder = rec; speaker = spk; },
+		set: function (on, spoken) { conversationOn = on; spokenTurn = spoken; },
+		state: function () { return { on: conversationOn, spoken: spokenTurn, mic: els.micBtn.dataset.state }; }
 	};`;
 
 function bootChat() {
@@ -162,7 +181,19 @@ function bootChat() {
 		() => calls.push('thinking:hidden'),
 		{ release: () => calls.push('mic:released') }, { stop: () => {} },
 		true, true, document.getElementById('bubble'), '', false, false);
-	return { api, calls, document };
+	return { api, calls, document, window };
+}
+
+// The widget with its voice enabled as the page does it, then a hide of one kind.
+function hideChat(on, spoken, event, visibility) {
+	const t = bootChat();
+	t.api.enableVoice();
+	t.api.enableVoice();   // a widget opened twice still ends once
+	t.api.use({ release: () => t.calls.push('mic:released') }, { stop: () => t.calls.push('speaker:stopped') });
+	t.api.set(on, spoken);
+	Object.defineProperty(t.document, 'visibilityState', { value: visibility, configurable: true });
+	(event === 'pagehide' ? t.window : t.document).dispatchEvent(new t.window.Event(event));
+	return t;
 }
 
 let pass = 0, fail = 0;
@@ -293,6 +324,79 @@ function check(n, label, cond, detail) {
 		check(10, 'widget — a non-stop transcript proceeds as a turn',
 			stopped === false && t.api.state().on === true && !!t.document.getElementById('bubble'),
 			'stopped=' + stopped + ' calls=[' + t.calls + ']');
+	}
+
+	// 11. the mic tap warms the output: silence starts through the context inside the tap
+	{
+		const t = boot(voicedWave);
+		const speaker = t.DefVoice.createSpeaker({});
+		speaker.unlock();
+		check(11, 'unlock() starts at least 0.4 s of silence through the context, inside the call',
+			t.starts.length === 1 && t.starts[0] >= 0.4 && t.elementPlays.length === 1 &&
+			t.DefVoice.log().some(l => l.endsWith(' warm')),
+			'starts=' + JSON.stringify(t.starts) + ' element=' + t.elementPlays.length);
+	}
+	// 12. no AudioContext on the page: unlock still runs, the element warm is unchanged
+	{
+		const t = boot(voicedWave);
+		delete t.window.AudioContext;
+		let threw = null;
+		try { t.DefVoice.createSpeaker({}).unlock(); } catch (e) { threw = e; }
+		check(12, 'unlock() with no AudioContext still plays the element and starts nothing else',
+			!threw && t.starts.length === 0 && t.elementPlays.length === 1,
+			'threw=' + threw + ' starts=' + JSON.stringify(t.starts));
+	}
+	// 13–16. the lead-in: 300 ms of silence before a reply's first clip, and only there
+	{
+		const t = boot(voicedWave);
+		const speaker = t.DefVoice.createSpeaker({});
+		speaker.unlock();
+		await wait(t.window, 20);
+		t.starts.length = 0;
+		speaker.speak('Yes, I can read your message.', REPLY);
+		await speaker.whenIdle();
+		check(13, 'an idle speaker plays ~0.3 s of silence through the context BEFORE the clip',
+			JSON.stringify(t.starts) === JSON.stringify([0.3, CLIP]), JSON.stringify(t.starts));
+
+		t.starts.length = 0;
+		speaker.speak('One.', REPLY);
+		speaker.speak('Two.', REPLY);
+		await speaker.whenIdle();
+		check(14, 'a line queued while the speaker is busy gets no lead-in of its own',
+			JSON.stringify(t.starts) === JSON.stringify([0.3, CLIP, CLIP]), JSON.stringify(t.starts));
+
+		t.starts.length = 0;
+		speaker.speak('The next reply.', REPLY);
+		await speaker.whenIdle();
+		check(15, 'the next reply, once the speaker went idle, gets its lead-in again',
+			JSON.stringify(t.starts) === JSON.stringify([0.3, CLIP]), JSON.stringify(t.starts));
+
+		t.starts.length = 0;
+		speaker.setMode('device');
+		speaker.speak('Read by the device.', REPLY);
+		await speaker.whenIdle();
+		check(16, 'the device voice gets no lead-in', t.starts.length === 0, JSON.stringify(t.starts));
+	}
+	// 17–21. the widget: a tab you leave stops speaking and closes its mic (W72)
+	{
+		const ended = ['mic:released', 'speaker:stopped'];
+		const endedOn = t => JSON.stringify(t.calls) === JSON.stringify(ended) &&
+			t.api.state().on === false && t.api.state().spoken === false && t.api.state().mic === 'idle';
+
+		let t = hideChat(true, false, 'visibilitychange', 'hidden');
+		check(17, 'widget — hands-free on, the tab hides: the mic is released and the speaker stopped',
+			endedOn(t), 'calls=[' + t.calls + '] state=' + JSON.stringify(t.api.state()));
+		t = hideChat(false, true, 'visibilitychange', 'hidden');
+		check(18, 'widget — a spoken turn still being read, the tab hides: the same',
+			endedOn(t), 'calls=[' + t.calls + '] state=' + JSON.stringify(t.api.state()));
+		t = hideChat(false, false, 'visibilitychange', 'hidden');
+		check(19, 'widget — nothing spoken or listening: a hide touches nothing',
+			t.calls.length === 0, 'calls=[' + t.calls + ']');
+		t = hideChat(true, true, 'visibilitychange', 'visible');
+		check(20, 'widget — coming back to the tab touches nothing',
+			t.calls.length === 0 && t.api.state().on === true, 'calls=[' + t.calls + ']');
+		t = hideChat(true, false, 'pagehide', 'hidden');
+		check(21, 'widget — pagehide ends it as a hide does', endedOn(t), 'calls=[' + t.calls + ']');
 	}
 
 	console.log(results.join('\n'));
