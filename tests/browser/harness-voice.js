@@ -68,24 +68,43 @@ function boot(wave, bodyHtml) {
 		},
 	};
 	// Every buffer the context starts, by duration: a clip decodes to CLIP seconds,
-	// a silence is what its own length says. A source "ends" a few ms after it starts.
-	const starts = [], elementPlays = [];
+	// a silence is what its own length says. A source "ends" a few ms after it starts —
+	// or, with ctl.hold, only when a check calls its end(). `scheduled` keeps each
+	// start's when, duration and buffer, and whether stop() reached it.
+	const starts = [], scheduled = [], elementPlays = [], elements = [], blobs = [];
+	const ctl = { hold: false, ctx: null };
 	window.AudioContext = function () {
+		ctl.ctx = this;
 		this.state = 'running';
 		this.sampleRate = 48000;
+		this.currentTime = 0;
 		this.destination = {};
 		this.createAnalyser = () => analyser;
 		this.createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
 		this.resume = () => Promise.resolve();
-		this.createBuffer = (channels, length, rate) => ({ duration: length / rate });
+		this.createBuffer = (channels, length, rate) => {
+			const data = new Float32Array(length);
+			return { duration: length / rate, getChannelData: () => data };
+		};
 		this.decodeAudioData = (bytes, resolve) => resolve({ duration: CLIP });
 		this.createBufferSource = () => {
-			const node = { connect() {}, stop() {},
-				start() { starts.push(node.buffer.duration); window.setTimeout(() => node.onended && node.onended(), 5); } };
+			const rec = { stopped: false, end: () => node.onended && node.onended() };
+			const node = { connect() {},
+				stop() { rec.stopped = true; },
+				start(when) {
+					Object.assign(rec, { when: when || 0, duration: node.buffer.duration, buffer: node.buffer });
+					starts.push(node.buffer.duration);
+					scheduled.push(rec);
+					if (!ctl.hold) window.setTimeout(rec.end, 5);
+				} };
 			return node;
 		};
 	};
-	window.HTMLMediaElement.prototype.play = function () { elementPlays.push(this.src); return Promise.resolve(); };
+	window.HTMLMediaElement.prototype.play = function () {
+		elementPlays.push(this.src); elements.push(this); return Promise.resolve();
+	};
+	window.URL.createObjectURL = blob => { blobs.push(blob); return 'blob:https://e.test/' + blobs.length; };
+	window.URL.revokeObjectURL = () => {};
 	window.HTMLMediaElement.prototype.pause = function () {};
 	Object.defineProperty(window.navigator, 'mediaDevices', {
 		configurable: true,
@@ -100,7 +119,7 @@ function boot(wave, bodyHtml) {
 	window.MediaRecorder.isTypeSupported = () => true;
 	window.eval(MODULE);
 	return {
-		window, DefVoice: window.DefVoice, starts, elementPlays,
+		window, DefVoice: window.DefVoice, starts, scheduled, elementPlays, elements, blobs, ctl,
 		say: w => { script = null; current = w; },
 		play: list => { script = list; reads = 0; },
 		reads: () => reads,
@@ -397,6 +416,189 @@ function check(n, label, cond, detail) {
 			t.calls.length === 0 && t.api.state().on === true, 'calls=[' + t.calls + ']');
 		t = hideChat(true, false, 'pagehide', 'hidden');
 		check(21, 'widget — pagehide ends it as a hide does', endedOn(t), 'calls=[' + t.calls + ']');
+	}
+
+	// 22–29. streamed speech (W70): a segment arrives as pcm parts of one seq, the
+	// last of them a closing frame with no audio. Nodes end only when a check says.
+	{
+		const PCM = 'audio/pcm;rate=24000';
+		const part = (seq, n, bytes, last) => ({ base64: bytes ? Buffer.from(bytes).toString('base64') : '',
+			mime: PCM, seq, part: n, last: !!last });
+		const settle = w => wait(w, 3);
+		async function bootStream() {
+			const t = boot(voicedWave);
+			const speaker = t.DefVoice.createSpeaker({});
+			speaker.unlock();
+			await wait(t.window, 20);   // the warm plays out
+			t.scheduled.length = 0;
+			t.starts.length = 0;
+			t.ctl.hold = true;
+			t.ctl.ctx.currentTime = 1;
+			let idle = false;
+			return { t, speaker, w: t.window, idle: () => idle,
+				watchIdle: () => { idle = false; speaker.whenIdle().then(() => { idle = true; }); } };
+		}
+
+		// 22. parts play back to back, after the lead-in, and the line ends at its closing frame
+		{
+			const s = await bootStream();
+			s.speaker.speak('Hello there, friend.', part(1, 0, [1, 0, 2, 0], false));
+			await settle(s.w);
+			const leadAlone = s.t.scheduled.length === 1 && s.t.scheduled[0].duration === 0.3;
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			s.speaker.speak('', part(1, 1, [3, 0, 4, 0, 5, 0], false));
+			await settle(s.w);
+			s.watchIdle();
+			s.t.scheduled.slice(1).forEach(r => r.end());   // both parts play out before the closing frame
+			await settle(s.w);
+			const idleBeforeClose = s.idle();
+			s.speaker.speak('', part(1, 2, null, true));
+			await settle(s.w);
+			const [, p0, p1] = s.t.scheduled;
+			const logged = s.t.DefVoice.log().join('|');
+			check(22, 'stream — part 0 after the lead-in, part 1 at exactly part 0\'s when + duration, the line ends at its closing frame',
+				leadAlone && s.t.scheduled.length === 3 && p0.when === 1 + 0.05 && p0.duration === 2 / 24000 &&
+				p1.when === p0.when + p0.duration && p1.duration === 3 / 24000 &&
+				!idleBeforeClose && s.idle() && /play stream/.test(logged) && / played/.test(logged),
+				JSON.stringify(s.t.scheduled.map(r => [r.when, r.duration])) + ' idleBeforeClose=' + idleBeforeClose +
+				' idle=' + s.idle() + ' log=' + logged);
+		}
+		// 23. seq 2 never starts before seq 1's last part ends (its own parts join it while it waits)
+		{
+			const s = await bootStream();
+			s.speaker.speak('One.', part(1, 0, [1, 0], false));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			s.speaker.speak('Two.', part(2, 0, [1, 0, 2, 0, 3, 0, 4, 0], false));
+			s.speaker.speak('', part(2, 1, null, true));
+			s.speaker.speak('', part(1, 1, [2, 0], false));
+			s.speaker.speak('', part(1, 2, null, true));
+			await settle(s.w);
+			const seq1Only = s.t.scheduled.length;
+			s.t.scheduled[1].end();
+			await settle(s.w);
+			const afterFirst = s.t.scheduled.length;
+			s.t.scheduled[2].end();
+			await settle(s.w);
+			const seq2 = s.t.scheduled[3];
+			check(23, 'stream — seq 2 starts only once seq 1\'s last part has ended, with no lead-in of its own',
+				seq1Only === 3 && afterFirst === 3 && s.t.scheduled.length === 4 && seq2.duration === 4 / 24000,
+				'counts=' + [seq1Only, afterFirst, s.t.scheduled.length] + ' ' + JSON.stringify(s.t.starts));
+		}
+		// 24. the queue drains mid-reply (audio trails playback): the next segment gets no second lead-in
+		{
+			const s = await bootStream();
+			s.speaker.speak('One.', part(1, 0, [1, 0], false));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			s.speaker.speak('', part(1, 1, null, true));
+			await settle(s.w);
+			s.watchIdle();
+			s.t.scheduled[1].end();
+			await settle(s.w);
+			const drained = s.idle();
+			s.speaker.speak('Two.', part(2, 0, [1, 0, 2, 0], false));
+			await settle(s.w);
+			check(24, 'stream — a segment after the queue drained mid-reply gets no second lead-in',
+				drained && JSON.stringify(s.t.starts) === JSON.stringify([0.3, 1 / 24000, 2 / 24000]),
+				'drained=' + drained + ' ' + JSON.stringify(s.t.starts));
+		}
+		// 25. little-endian Int16 → Float32: bytes 0x00,0x40 are 0.5
+		{
+			const s = await bootStream();
+			s.speaker.speak('Half.', part(1, 0, [0x00, 0x40, 0x00, 0xC0], true));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			const buf = s.t.scheduled[1] && s.t.scheduled[1].buffer;
+			const data = buf && buf.getChannelData && buf.getChannelData(0);
+			check(25, 'stream — bytes 0x00,0x40 decode to 0.5 (and 0x00,0xC0 to -0.5) at 24 kHz',
+				!!data && data[0] === 0.5 && data[1] === -0.5 && s.t.scheduled[1].duration === 2 / 24000,
+				'data=' + (data && Array.from(data)));
+		}
+		// 26. stop() mid-segment: every node stops, a later part never plays, whenIdle resolves
+		{
+			const s = await bootStream();
+			s.speaker.speak('One.', part(1, 0, [1, 0], false));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			s.speaker.speak('', part(1, 1, [2, 0], false));
+			await settle(s.w);
+			s.watchIdle();
+			s.speaker.stop();
+			await settle(s.w);
+			const parts = s.t.scheduled.slice(1);
+			s.speaker.speak('', part(1, 2, [3, 0], false));
+			s.speaker.speak('', part(1, 3, null, true));
+			await settle(s.w);
+			check(26, 'stream — stop() mid-segment stops every scheduled part, a later part never plays, whenIdle resolves',
+				parts.length === 2 && parts.every(r => r.stopped) && s.t.scheduled.length === 3 && s.idle(),
+				'stopped=' + parts.map(r => r.stopped) + ' scheduled=' + s.t.scheduled.length + ' idle=' + s.idle());
+		}
+		// 27. whenIdle waits for the last part's END, not its scheduling
+		{
+			const s = await bootStream();
+			s.speaker.speak('One.', part(1, 0, [1, 0], false));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			s.speaker.speak('', part(1, 1, [2, 0], false));
+			s.speaker.speak('', part(1, 2, null, true));
+			await settle(s.w);
+			s.watchIdle();
+			await settle(s.w);
+			const whileBoth = s.idle();
+			s.t.scheduled[1].end();
+			await settle(s.w);
+			const whileLast = s.idle();
+			s.t.scheduled[2].end();
+			await settle(s.w);
+			check(27, 'stream — whenIdle resolves only once the last part has ended',
+				!whileBoth && !whileLast && s.idle(), [whileBoth, whileLast, s.idle()].join(','));
+		}
+		// 28. an old one-frame mp3 line (part 0, last) still decodes and plays as one clip
+		{
+			const t = boot(voicedWave);
+			const speaker = t.DefVoice.createSpeaker({});
+			speaker.unlock();
+			await wait(t.window, 20);
+			t.starts.length = 0;
+			speaker.speak('An old clip.', { base64: 'AAAA', mime: 'audio/mpeg', seq: 1, part: 0, last: true });
+			await speaker.whenIdle();
+			check(28, 'stream — a one-frame mp3 line still plays through decodeAudioData after its lead-in',
+				JSON.stringify(t.starts) === JSON.stringify([0.3, CLIP]), JSON.stringify(t.starts));
+		}
+		// 29. no AudioContext: the element plays ONE audio/wav, after the closing frame, holding every part
+		{
+			const t = boot(voicedWave);
+			delete t.window.AudioContext;
+			const speaker = t.DefVoice.createSpeaker({});
+			speaker.unlock();
+			const warmed = t.elementPlays.length;
+			speaker.speak('One.', part(1, 0, [1, 0, 2, 0], false));
+			speaker.speak('', part(1, 1, [3, 0, 4, 0, 5, 0], false));
+			await wait(t.window, 10);
+			const beforeClose = t.elementPlays.length - warmed;
+			speaker.speak('', part(1, 2, null, true));
+			await wait(t.window, 10);
+			const blob = t.blobs[0];
+			const head = blob ? new DataView(await blob.arrayBuffer()) : null;
+			let idle = false;
+			speaker.whenIdle().then(() => { idle = true; });
+			const el = t.elements[t.elements.length - 1];
+			if (el && el.onended) el.onended();
+			await wait(t.window, 10);
+			check(29, 'stream — with no AudioContext the element plays one audio/wav after the closing frame, its data every part',
+				beforeClose === 0 && t.elementPlays.length - warmed === 1 && t.blobs.length === 1 &&
+				!!blob && blob.type === 'audio/wav' && blob.size === 44 + 10 && head.getUint32(40, true) === 10 &&
+				head.getUint32(24, true) === 24000 && idle,
+				'beforeClose=' + beforeClose + ' plays=' + (t.elementPlays.length - warmed) + ' blobs=' + t.blobs.length +
+				' type=' + (blob && blob.type) + ' size=' + (blob && blob.size) + ' idle=' + idle);
+		}
 	}
 
 	console.log(results.join('\n'));
