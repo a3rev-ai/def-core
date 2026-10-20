@@ -7164,6 +7164,8 @@ function t(key, fallback) {
 			var reopen = manageMenu.openKey();
 			manageMenu.close(false);
 			menuCards = Object.create(null);
+			var picker = grid.querySelector('.document-assign-row');
+			var pickerFocused = !!picker && picker.contains(document.activeElement);
 			grid.textContent = '';
 			var any = false;
 			triages.forEach(function (schedule) {
@@ -7175,9 +7177,11 @@ function t(key, fallback) {
 				any = true;
 			});
 			paneEmpty.style.display = any ? 'none' : '';
-			// So is an open "Pause until…" picker, with the date it holds.
+			// So is an open "Pause until…" picker, with the date it holds. It takes the
+			// focus back only if it had it: the Edit modal, or wherever the user tabbed
+			// to, keeps it through the watcher's re-renders.
 			var held = pausing && tasks.filter(function (x) { return x.id === pausing.id; })[0];
-			if (held) { pauseTaskUntil(held, pausing.value); } else { pausing = null; }
+			if (held) { pauseTaskUntil(held, pausing.value, !pickerFocused); } else { pausing = null; }
 			var again = reopen === null ? null : menuCards[reopen];
 			if (again) manageMenu.toggle(reopen, again.items, again.btn);
 		}
@@ -7760,10 +7764,11 @@ function t(key, fallback) {
 			if (open) open.remove();
 		}
 
-		function pauseTaskUntil(task, value) {
+		function pauseTaskUntil(task, value, keepFocus) {
 			closePause();
 			pausing = { id: task.id, value: value || '' };
 			var btn = menuCards[task.id].btn;
+			var card = btn.closest('.console-card');
 			var panel = el('div', 'document-assign-row');
 			var label = el('label', 'form-label', t('taskPausePrompt', 'Pause until which date? The task runs again from that date by itself.'));
 			label.htmlFor = 'taskPauseDate';
@@ -7776,7 +7781,8 @@ function t(key, fallback) {
 			function done(send) {
 				var date = input.value;
 				closePause();
-				btn.focus();
+				// On a phone the ⋯ button is hidden; the card's Manage sheet button is the way back.
+				(window.getComputedStyle(btn).display === 'none' ? card.querySelector('.console-menu-sheet-btn') : btn).focus();
 				if (send && date) setTaskField(task, 'paused_until', date);
 			}
 			var actions = el('div', 'document-assign-actions');
@@ -7797,8 +7803,8 @@ function t(key, fallback) {
 			panel.appendChild(label);
 			panel.appendChild(input);
 			panel.appendChild(actions);
-			btn.closest('.console-card').appendChild(panel);
-			input.focus();
+			card.appendChild(panel);
+			if (!keepFocus) input.focus();
 		}
 
 		async function runNowTask(btn, task) {

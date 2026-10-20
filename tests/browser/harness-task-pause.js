@@ -10,7 +10,7 @@
  * "Pause until…" opens a date picker in the card (8.11.1), in the shape of
  * Documents' "Move to project…" editor; it used to be a window.prompt.
  *
- * 18 checks.
+ * 20 checks.
  */
 process.env.TZ = 'America/New_York';
 const { JSDOM } = require('jsdom');
@@ -109,6 +109,7 @@ function boot(tasks, opts) {
 			return { el: p, input: p.querySelector('input[type="date"].form-input'), ok: btn('OK'), cancel: btn('Cancel') };
 		},
 		dots: (name) => card(name).querySelector('.console-menu-btn'),
+		sheetBtn: (name) => card(name).querySelector('.console-menu-sheet-btn'),
 		key: (el, key) => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true })),
 		click: click,
 		status: () => document.getElementById('scheduledPaneStatus').textContent
@@ -257,6 +258,29 @@ function fullTask(row) {
 		const body = t.puts().length ? JSON.parse(t.puts()[0].body) : null;
 		check('Enter is OK: the PUT carries paused_until and the picker closes',
 			!!body && body.paused_until === '2026-11-03' && !t.picker('Morning brief'), JSON.stringify(body));
+	}
+	{
+		const t = boot([DAILY]);
+		await t.load();
+		await tick(t.window);
+		t.pick('Morning brief', 'Pause until…');
+		const p = t.picker('Morning brief');
+		const elsewhere = t.document.getElementById('taskName');   // the Edit modal's first field
+		elsewhere.focus();
+		await t.load();
+		await tick(t.window);
+		const again = t.picker('Morning brief');
+		check('a re-render with the focus elsewhere (the Edit modal) puts the picker back and leaves the focus where it was',
+			!!p && !!again && t.document.activeElement === elsewhere,
+			'focus on ' + (t.document.activeElement && (t.document.activeElement.id || t.document.activeElement.tagName)));
+		// A phone: the ⋯ button is display:none, so the way back is the card's Manage button.
+		const phone = t.document.createElement('style');
+		phone.textContent = '.console-menu-btn { display: none; }';
+		t.document.head.appendChild(phone);
+		if (again && again.cancel) t.click(again.cancel);
+		check('on a phone, where ⋯ is hidden, closing puts the focus on the card\'s Manage button',
+			!!again && t.document.activeElement === t.sheetBtn('Morning brief'),
+			'focus on ' + (t.document.activeElement && t.document.activeElement.className));
 	}
 
 	// ── A refusal is DEF's (or the door's) own sentence ─────────────────────
