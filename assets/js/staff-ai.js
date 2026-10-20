@@ -2967,6 +2967,7 @@ function t(key, fallback) {
 	function afterSpokenTurn() {
 		// The turn is over only here: the closing line's audio arrives AFTER `done`
 		// (7.7.2 cleared the flag at done and never played it).
+		if (speaker) speaker.end();   // a line whose closing frame the stream never brought
 		spokenTurn = false;
 		openingSpoken = null;
 		if (!micBtn || !speaker) return;
@@ -3592,8 +3593,11 @@ function t(key, fallback) {
 					} else if (evt.type === 'speech') {
 						// A spoken line in the employee's own voice — or, when its synthesis
 						// failed server-side, the text alone for the device voice to read.
+						// A streamed line comes as parts of one seq, its closing part with no audio.
 						if (spokenTurn) {
-							speaker.speak(evt.text || '', evt.audio_base64 ? { base64: evt.audio_base64, mime: evt.mime } : null);
+							speaker.speak(evt.text || '', evt.audio_base64 || evt.part > 0
+								? { base64: evt.audio_base64 || '', mime: evt.mime, seq: evt.seq, part: evt.part, last: evt.last }
+								: null);
 						}
 					} else if (evt.type === 'confirmation') {
 						if (turnEpoch === chipEpoch) showConfirmChip(evt.text);

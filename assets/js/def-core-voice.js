@@ -24,6 +24,9 @@ window.DefVoice = (function () {
 	// A 46-byte silent WAV. Playing it INSIDE the mic-tap gesture is what lets
 	// iOS play later, programmatic audio on the same element.
 	var SILENCE = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==';
+	// A streamed line's parts: raw 16-bit mono PCM (DEF's SPEECH_STREAM_MIME).
+	var PCM_MIME = /^audio\/pcm\b/;
+	var PCM_RATE = 24000;
 
 	function supported() {
 		return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
@@ -280,6 +283,20 @@ window.DefVoice = (function () {
 		};
 	}
 
+	// Raw 16-bit mono PCM in a WAV header, so the <audio> element can play it
+	// (the shape of DEF's wav_from_pcm16).
+	function wavFromPcm16(pcm, rate) {
+		var wav = new Uint8Array(44 + pcm.length), view = new DataView(wav.buffer);
+		var text = function (at, s) { for (var i = 0; i < s.length; i++) wav[at + i] = s.charCodeAt(i); };
+		text(0, 'RIFF'); view.setUint32(4, 36 + pcm.length, true); text(8, 'WAVE');
+		text(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+		view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true);
+		view.setUint16(34, 16, true);
+		text(36, 'data'); view.setUint32(40, pcm.length, true);
+		wav.set(pcm, 44);
+		return wav;
+	}
+
 	/**
 	 * Readback. mode 'server' = the employee's own voice (audio frames the chat
 	 * stream carries), 'device' = speechSynthesis from the reply's text, 'off'.
@@ -293,7 +310,7 @@ window.DefVoice = (function () {
 	 */
 	function createSpeaker(handlers) {
 		handlers = handlers || {};
-		var mode = 'server', audio = null, queue = [], busy = false, idleWaiters = [], playing = null;
+		var mode = 'server', audio = null, queue = [], busy = false, idleWaiters = [], playing = [], current = null;
 
 		function unlock() {
 			// Inside the tap: the page's context starts here, and stays running.
@@ -344,16 +361,68 @@ window.DefVoice = (function () {
 			return audioCtx.createBuffer(1, Math.round(audioCtx.sampleRate * seconds), audioCtx.sampleRate);
 		}
 
-		// One buffer through the context; resolves when it ends or stop() cuts it.
-		function startBuffer(buffer) {
+		// One buffer through the context, now or at `when`; resolves when it ends or
+		// stop() cuts it.
+		function startBuffer(buffer, when) {
 			return new Promise(function (resolve) {
 				var node = audioCtx.createBufferSource();
 				node.buffer = buffer;
 				node.connect(audioCtx.destination);
-				node.onended = function () { if (playing === node) playing = null; node.onended = null; resolve(); };
-				playing = node;
-				node.start();
+				node.onended = function () {
+					var i = playing.indexOf(node);
+					if (i >= 0) playing.splice(i, 1);
+					node.onended = null;
+					resolve();
+				};
+				playing.push(node);
+				node.start(when || 0);
 			});
+		}
+
+		// A streamed part: 16-bit little-endian mono PCM at 24 kHz, as DEF sends it.
+		function pcmBuffer(bytes) {
+			var view = new DataView(bytes.buffer), n = bytes.length >> 1;
+			var buffer = audioCtx.createBuffer(1, n, PCM_RATE), data = buffer.getChannelData(0);
+			for (var i = 0; i < n; i++) data[i] = view.getInt16(2 * i, true) / 32768;
+			return buffer;
+		}
+
+		function partLanded(item) {
+			return new Promise(function (resolve) {
+				item.wake = function () { item.wake = null; resolve(); };
+			});
+		}
+
+		// A streamed line: each part starts the moment the one before it ends (scheduled
+		// on the context's clock, so there is no gap), as soon as it lands. The line ends
+		// once its closing frame has come and its last part has ended.
+		async function playStream(item) {
+			if (!(audioCtx && await wakeContext())) {
+				// The element plays whole files only: the line once it is all here.
+				while (!item.last && !item.cut) await partLanded(item);
+				if (item.cut) return;
+				var chunks = item.parts.map(decodeBytes), total = 0, at = 0;
+				chunks.forEach(function (c) { total += c.length; });
+				var pcm = new Uint8Array(total);
+				chunks.forEach(function (c) { pcm.set(c, at); at += c.length; });
+				return playElement(wavFromPcm16(pcm, PCM_RATE), 'audio/wav');
+			}
+			log('play stream');
+			var nextAt = 0, ended = null, i = 0;
+			while (!item.cut) {
+				if (i < item.parts.length) {
+					var buffer = pcmBuffer(decodeBytes(item.parts[i++]));
+					var when = Math.max(nextAt, audioCtx.currentTime + 0.05);
+					ended = startBuffer(buffer, when);
+					nextAt = when + buffer.duration;
+				} else if (item.last) {
+					break;
+				} else {
+					await partLanded(item);
+				}
+			}
+			await ended;
+			log('played');
 		}
 
 		// Through the page's context (a buffer source: starts whenever the context
@@ -407,34 +476,76 @@ window.DefVoice = (function () {
 		async function pump() {
 			if (busy) return;
 			busy = true;
-			// A reply's first clip gets 300 ms of silence ahead of it, so a headset that
-			// dozed since the last reply wakes on nothing rather than on its first word.
-			if (mode === 'server' && queue[0].audio && audioCtx && await wakeContext()) {
-				try { log('lead-in'); await startBuffer(silence(0.3)); } catch (e) { /* the clip still plays */ }
-			}
+			var first = true;
 			while (queue.length) {
 				var item = queue.shift();
+				current = item;
+				var line = item.audio;
+				// A reply's first clip gets 300 ms of silence ahead of it, so a headset that
+				// dozed since the last reply wakes on nothing rather than on its first word.
+				// The first clip is seq 1, never a later segment that finds the queue run dry
+				// because the reply's audio trailed its playback. A line with no seq: the
+				// first after idle, as before.
+				if (mode === 'server' && line && (line.seq === undefined ? first : line.seq === 1) &&
+						audioCtx && await wakeContext()) {
+					try { log('lead-in'); await startBuffer(silence(0.3)); } catch (e) { /* the clip still plays */ }
+				}
+				first = false;
+				if (item.cut) continue;   // stop() came during the lead-in
 				try {
-					if (mode === 'server' && item.audio) await playServer(item.audio.base64, item.audio.mime);
+					if (mode === 'server' && line && PCM_MIME.test(line.mime || '')) await playStream(item);
+					else if (mode === 'server' && line) await playServer(line.base64, line.mime);
 					else await playDevice(item.text);
 				} catch (e) {
 					console.warn('[DEF voice] readback skipped:', e);
 					log('play failed ' + ((e && (e.name !== 'Error' && e.name)) || (e && e.message) || ''));
 					if (handlers.onError) handlers.onError(e);   // the phone's own reason, on screen
 				}
+				if (current === item) current = null;
 			}
 			busy = false;
 			settleIdle();
+		}
+
+		// The line a later part belongs to: the newest queued or playing line of that
+		// seq still open. None once stop() ended it.
+		function openLine(seq) {
+			var items = [current].concat(queue);
+			for (var i = items.length - 1; i >= 0; i--) {
+				if (items[i] && items[i].audio && items[i].audio.seq === seq && !items[i].last) return items[i];
+			}
+			return null;
 		}
 
 		return {
 			setMode: function (next) { mode = next; },
 			getMode: function () { return mode; },
 			unlock: unlock,
+			// audio may carry seq/part/last (a streamed line); a missing part is 0 and a
+			// missing last is true. A later part joins its line; a closing frame (last,
+			// no audio) closes it.
 			speak: function (text, audio) {
 				if (mode === 'off' || (!text && !audio)) return;
-				queue.push({ text: text, audio: audio || null });
+				if (audio && audio.part > 0) {
+					var line = openLine(audio.seq);
+					if (!line) return;
+					if (audio.base64) line.parts.push(audio.base64);
+					if (audio.last !== false) line.last = true;
+					if (line.wake) line.wake();
+					return;
+				}
+				queue.push({ text: text, audio: audio || null, parts: audio ? [audio.base64] : [],
+					last: !audio || audio.last !== false });
 				pump();
+			},
+			// The stream is over: a line whose closing frame never came plays the parts it
+			// has and finishes, so whenIdle still resolves.
+			end: function () {
+				[current].concat(queue).forEach(function (item) {
+					if (!item || item.last) return;
+					item.last = true;
+					if (item.wake) item.wake();
+				});
 			},
 			whenIdle: function () {
 				return new Promise(function (resolve) {
@@ -443,14 +554,22 @@ window.DefVoice = (function () {
 			},
 			stop: function () {
 				queue = [];
-				if (playing) {
+				if (current) {
+					// A streamed line waiting on its next part ends here; parts still to come are dropped.
+					current.cut = true;
+					if (current.wake) current.wake();
+					current = null;
+				}
+				if (playing.length) {
 					// Settled here, not by `ended`: a suspended context (lock screen, a call)
 					// fires no `ended` for a stopped node, and busy would never clear.
-					var node = playing;
-					playing = null;
-					try { node.stop(); } catch (e) { /* already ended */ }
+					var nodes = playing;
+					playing = [];
+					nodes.forEach(function (node) {
+						try { node.stop(); } catch (e) { /* already ended */ }
+						if (node.onended) node.onended();
+					});
 					log('stopped');
-					if (node.onended) node.onended();
 				}
 				if (audio) { try { audio.pause(); } catch (e) { /* never started */ } }
 				if (window.speechSynthesis) speechSynthesis.cancel();

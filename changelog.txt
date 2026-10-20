@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.8.0 - 2026/10/20 =
+* New - Voice: the employee's voice starts as its audio arrives, about a second sooner to the first word.
+
 = 8.7.15 - 2026/10/19 =
 * Fix - Voice: the first reply of a session is heard from its first word on Bluetooth output; a tab you leave stops speaking and listening.
 
