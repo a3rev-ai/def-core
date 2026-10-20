@@ -1114,6 +1114,8 @@ final class DEF_Core {
 			'privacyPolicy'        => __( 'Privacy Policy', 'digital-employees' ),
 			'connectionError'      => __( 'Unable to connect. Please try again.', 'digital-employees' ),
 			'connectionLost'       => __( 'Connection lost. Retrying...', 'digital-employees' ),
+			// The proxy's own words for a refusal (DEF_Core_Tools::sse_error_payload), for one streamed direct.
+			'assistantUnavailable' => __( 'The assistant is unavailable right now. Please try again.', 'digital-employees' ),
 			'rateLimited'          => __( 'Please wait a moment before sending another message', 'digital-employees' ),
 			'streamIncomplete'     => __( 'Connection lost — the reply above may be incomplete.', 'digital-employees' ),
 			/* translators: %d: seconds until the rate limit window reopens. */

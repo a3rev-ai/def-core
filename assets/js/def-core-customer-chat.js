@@ -58,6 +58,7 @@
 		offlineMessage: 'This feature is being set up. Please check back soon.',
 		connectionError: 'Unable to connect. Please try again.',
 		connectionLost: 'Connection lost. Retrying...',
+		assistantUnavailable: 'The assistant is unavailable right now. Please try again.',
 		rateLimited:
 			'Please wait a moment before sending another message',
 		streamIncomplete:
@@ -2686,7 +2687,7 @@
 				if (direct && !res.ok) {
 					// The site's proxy turns a refusal into an `error` frame; straight from the
 					// platform it is the status, read by the same case.
-					enqueue([{ type: 'error', status: res.status, message: res.status === 429 ? t('rateLimited') : '' }]);
+					enqueue([{ type: 'error', status: res.status, message: t(res.status === 429 ? 'rateLimited' : 'assistantUnavailable') }]);
 					return;
 				}
 				if (!res || !res.ok) {

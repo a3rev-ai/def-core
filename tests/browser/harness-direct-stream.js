@@ -280,8 +280,8 @@ async function bootStaff(opts) {
 
   h = await bootChat({ direct: [500] });
   await h.send('Hi');
-  check('a 500 straight from the platform is the error case\'s own line, not a fallback',
-    h.proxyCalls.length === 0 && h.last() === 'Unable to connect. Please try again.', h.last());
+  check('a 500 straight from the platform shows the line the site\'s proxy shows for it, and does not fall back',
+    h.proxyCalls.length === 0 && h.last() === 'The assistant is unavailable right now. Please try again.', h.last());
 
   h = await bootChat({ voice: true, direct: [422] });
   h.root.querySelector('.def-cc-composer-mic').click();
