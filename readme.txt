@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.8.0
+Stable tag: 8.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.8.1 - 2026-10-20 =
+* Fix - Voice: when you leave the page and come back, the first tap on the mic hears you again. An iPhone could return the page with its audio stopped, and the mic then closed on silence.
 
 = 8.8.0 - 2026-10-20 =
 * New - Voice: the employee's voice starts as its audio arrives, about a second sooner to the first word.

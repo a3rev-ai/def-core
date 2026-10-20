@@ -55,9 +55,22 @@ window.DefVoice = (function () {
 		voiceLog.push(('0' + t.getMinutes()).slice(-2) + ':' + ('0' + t.getSeconds()).slice(-2) + ' ' + event);
 		if (voiceLog.length > 40) voiceLog.shift();
 	}
+	// A context the page left behind is not trusted: iOS can hand the page back with it
+	// saying 'running' and rendering nothing — no node ends, the analyser reads zeros, so
+	// every tap after the return closed the mic on "silence" (Joe on widrow.ai, 2026-10-20;
+	// WebKit bugs 276016, 276687). The first tap after a hide makes a new one, as a reload would.
+	var awayCtx = null;
+	document.addEventListener('visibilitychange', function () {
+		if (document.visibilityState === 'hidden') awayCtx = audioCtx;
+	});
 	function ensureContext() {
 		var Ctx = window.AudioContext || window.webkitAudioContext;
 		if (audioCtx && audioCtx.state === 'closed') { log('context closed'); audioCtx = null; }   // the browser shut it: a new one on this tap
+		if (audioCtx && audioCtx === awayCtx) {
+			try { audioCtx.close().catch(function () {}); } catch (e) { /* replaced either way */ }
+			log('context replaced');
+			audioCtx = null;
+		}
 		if (audioCtx || !Ctx) return audioCtx;
 		try {
 			audioCtx = new Ctx();
