@@ -423,12 +423,13 @@ function check(n, label, cond, detail) {
 		check(21, 'widget — pagehide ends it as a hide does', endedOn(t), 'calls=[' + t.calls + ']');
 	}
 
-	// 22–29. streamed speech (W70): a segment arrives as pcm parts of one seq, the
+	// 22–30, 32–33. streamed speech (W70): a segment arrives as pcm parts of one seq, the
 	// last of them a closing frame with no audio. Nodes end only when a check says.
 	{
 		const PCM = 'audio/pcm;rate=24000';
 		const part = (seq, n, bytes, last) => ({ base64: bytes ? Buffer.from(bytes).toString('base64') : '',
 			mime: PCM, seq, part: n, last: !!last });
+		const ms = n => new Uint8Array(48 * n);   // n ms of silence: 24 kHz, 2 bytes a sample
 		const settle = w => wait(w, 3);
 		async function bootStream() {
 			const t = boot(voicedWave);
@@ -447,12 +448,12 @@ function check(n, label, cond, detail) {
 		// 22. parts play back to back, after the lead-in, and the line ends at its closing frame
 		{
 			const s = await bootStream();
-			s.speaker.speak('Hello there, friend.', part(1, 0, [1, 0, 2, 0], false));
+			s.speaker.speak('Hello there, friend.', part(1, 0, ms(100), false));
 			await settle(s.w);
 			const leadAlone = s.t.scheduled.length === 1 && s.t.scheduled[0].duration === 0.3;
 			s.t.scheduled[0].end();
 			await settle(s.w);
-			s.speaker.speak('', part(1, 1, [3, 0, 4, 0, 5, 0], false));
+			s.speaker.speak('', part(1, 1, ms(200), false));
 			await settle(s.w);
 			s.watchIdle();
 			s.t.scheduled.slice(1).forEach(r => r.end());   // both parts play out before the closing frame
@@ -463,8 +464,8 @@ function check(n, label, cond, detail) {
 			const [, p0, p1] = s.t.scheduled;
 			const logged = s.t.DefVoice.log().join('|');
 			check(22, 'stream — part 0 after the lead-in, part 1 at exactly part 0\'s when + duration, the line ends at its closing frame',
-				leadAlone && s.t.scheduled.length === 3 && p0.when === 1 + 0.05 && p0.duration === 2 / 24000 &&
-				p1.when === p0.when + p0.duration && p1.duration === 3 / 24000 &&
+				leadAlone && s.t.scheduled.length === 3 && p0.when === 1 + 0.05 && p0.duration === 0.1 &&
+				p1.when === p0.when + p0.duration && p1.duration === 0.2 &&
 				!idleBeforeClose && s.idle() && /play stream/.test(logged) && / played/.test(logged),
 				JSON.stringify(s.t.scheduled.map(r => [r.when, r.duration])) + ' idleBeforeClose=' + idleBeforeClose +
 				' idle=' + s.idle() + ' log=' + logged);
@@ -506,6 +507,7 @@ function check(n, label, cond, detail) {
 			await settle(s.w);
 			const drained = s.idle();
 			s.speaker.speak('Two.', part(2, 0, [1, 0, 2, 0], false));
+			s.speaker.speak('', part(2, 1, null, true));
 			await settle(s.w);
 			check(24, 'stream — a segment after the queue drained mid-reply gets no second lead-in',
 				drained && JSON.stringify(s.t.starts) === JSON.stringify([0.3, 1 / 24000, 2 / 24000]),
@@ -527,11 +529,11 @@ function check(n, label, cond, detail) {
 		// 26. stop() mid-segment: every node stops, a later part never plays, whenIdle resolves
 		{
 			const s = await bootStream();
-			s.speaker.speak('One.', part(1, 0, [1, 0], false));
+			s.speaker.speak('One.', part(1, 0, ms(100), false));
 			await settle(s.w);
 			s.t.scheduled[0].end();
 			await settle(s.w);
-			s.speaker.speak('', part(1, 1, [2, 0], false));
+			s.speaker.speak('', part(1, 1, ms(200), false));
 			await settle(s.w);
 			s.watchIdle();
 			s.speaker.stop();
@@ -620,6 +622,40 @@ function check(n, label, cond, detail) {
 			check(30, 'stream — end() closes a line whose closing frame never came: whenIdle resolves once its last part ends',
 				s.t.scheduled.length === 2 && !beforeEnd && s.idle(),
 				'scheduled=' + s.t.scheduled.length + ' beforeEnd=' + beforeEnd + ' idle=' + s.idle());
+		}
+		// 32. a line starts once 0.3 s of it is here (Joe on widrow.ai, 2026-10-20: begun on
+		//     its first 100 ms part, the reply's first words came with gaps)
+		{
+			const s = await bootStream();
+			s.speaker.speak('In Australia, Widrow helps.', part(1, 0, ms(100), false));
+			await settle(s.w);
+			s.t.scheduled[0].end();   // the lead-in
+			await settle(s.w);
+			const afterOne = s.t.scheduled.length;
+			s.speaker.speak('', part(1, 1, ms(100), false));
+			await settle(s.w);
+			const afterTwo = s.t.scheduled.length;
+			s.speaker.speak('', part(1, 2, ms(100), false));
+			await settle(s.w);
+			const [, p0, p1, p2] = s.t.scheduled;
+			check(32, 'stream — the line waits for 0.3 s of parts, then plays them back to back',
+				afterOne === 1 && afterTwo === 1 && s.t.scheduled.length === 4 && p0.when === 1.05 &&
+				p1.when === p0.when + 0.1 && p2.when === p1.when + 0.1,
+				'counts=' + [afterOne, afterTwo, s.t.scheduled.length] + ' ' + JSON.stringify(s.t.scheduled.map(r => r.when)));
+		}
+		// 33. a line whose closing frame comes with less than 0.3 s of it starts at once
+		{
+			const s = await bootStream();
+			s.speaker.speak('Yes.', part(1, 0, ms(100), false));
+			await settle(s.w);
+			s.t.scheduled[0].end();
+			await settle(s.w);
+			const held = s.t.scheduled.length;
+			s.speaker.speak('', part(1, 1, null, true));
+			await settle(s.w);
+			check(33, 'stream — a line closed with less than 0.3 s of it plays at once',
+				held === 1 && s.t.scheduled.length === 2 && s.t.scheduled[1].duration === 0.1,
+				'held=' + held + ' scheduled=' + s.t.scheduled.length);
 		}
 	}
 

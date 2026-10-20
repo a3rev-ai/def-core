@@ -1,5 +1,7 @@
 /*
- * Customer Chat — what a screen reader hears (v8.7.3), 32 checks.
+ * Customer Chat — what a screen reader hears (v8.7.3), 32 checks; and, as this is the
+ * harness that drives the whole module over a stream, #33: a `speech` frame reaches the
+ * speaker as it arrives, ahead of the paced queue (8.8.2).
  *
  * Runs the SHIPPED chat module (assets/js/def-core-customer-chat.js), whole, in a
  * jsdom page with the shipped marked, DOMPurify and product-card renderer, over a
@@ -144,11 +146,13 @@ async function boot(opts) {
   };
 
   if (opts.voice) {
-    h.voice = { opts: null, stop: false };
+    // `spoken`: each line handed to the speaker, with the reply's words on show at that moment.
+    h.voice = { opts: null, stop: false, spoken: [] };
     w.DefVoice = {
       supported: () => true,
       micAllowedBySite: () => true,
-      createSpeaker: () => ({ stop() {}, unlock() {}, speak() {}, whenIdle: () => new Promise(() => {}) }),
+      createSpeaker: () => ({ stop() {}, unlock() {}, whenIdle: () => new Promise(() => {}),
+        speak: (text, audio) => h.voice.spoken.push({ audio, shown: h.bubbleTexts().join(' | ') }) }),
       createRecorder: o => {
         h.voice.opts = o;
         return {
@@ -534,6 +538,24 @@ const WELCOME = {
   check(30, 'a spoken stop: the placeholder goes unsaid and "Conversation ended." is said once',
     same(h.said(), ['Conversation ended.']) && h.bubbleTexts().indexOf('Transcribing…') === -1,
     'said=' + show(h.said()));
+
+  // 8.8.2: the reply's text delta arrives first and waits its turn in the paced queue; the
+  // speech frame behind it goes to the speaker at once, before those words are drawn.
+  h = await boot({ stream: true, voice: true });
+  h.root.querySelector('.def-cc-composer-mic').click();
+  await sleep(20);
+  h.voice.opts.onSilence();
+  await sleep(40);
+  await h.event({ type: 'transcript', text: 'where are you based' });
+  h.stream().send({ type: 'text_delta', text: 'In Australia, Widrow helps.' });
+  h.stream().send({ type: 'speech', text: 'In Australia, Widrow helps.', audio_base64: 'AAAA',
+    mime: 'audio/pcm;rate=24000', seq: 1, part: 0, last: false });
+  for (let i = 0; i < 50 && h.bubbleTexts().join(' ').indexOf('In Australia, Widrow helps.') === -1; i++) await sleep(20);
+  const line = h.voice.spoken[0];
+  check(33, 'a spoken reply: its speech frame reaches the speaker before the text delta that came ahead of it is drawn',
+    h.voice.spoken.length === 1 && line.audio.seq === 1 && line.audio.part === 0 && line.audio.base64 === 'AAAA' &&
+    line.shown.indexOf('Australia') === -1 && h.bubbleTexts().join(' ').indexOf('In Australia, Widrow helps.') !== -1,
+    'spoken=' + JSON.stringify(h.voice.spoken) + ' bubbles=' + show(h.bubbleTexts()));
 
   // ── No duplicates, across a whole session ──────────────────────────────
   h = await boot({ stream: true, storage: RESTORE_STORAGE });

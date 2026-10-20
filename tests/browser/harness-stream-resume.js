@@ -8,7 +8,10 @@
  * `id:` and name their turn; the proxy's own frames (a 410, a 404, a lost connection)
  * carry no id. Timers are faked so the backoff and the clock are read, not waited for.
  *
- * 22 checks.
+ * And, as this is the harness that drives the console's stream reader: a `speech` frame
+ * reaches the speaker as it arrives, through a tool row's pause (8.8.2).
+ *
+ * 24 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -114,6 +117,7 @@ const TAIL = `
 		parse: parseSSEBuffer,
 		// New chat, as resetToNewChat does it: another conversation, its messages drawn.
 		leave: function () { currentConversationId = 'th-other'; messages = []; renderMessages(); },
+		speakAloud: function () { spokenTurn = true; },
 		state: function () { return { isLoading: isLoading, messages: messages, conversation: currentConversationId }; }
 	};`;
 
@@ -123,7 +127,7 @@ function boot(script) {
     { url: 'https://e.test/staff-ai/' });
   const window = dom.window, document = window.document;
   window.DefPersona = { createController: () => ({ handleEvent() {}, formatThinkingLabel: m => m, reset() {} }) };
-  const calls = [], waits = [], intervals = new Map(), clock = { now: 1e12 }, hooks = {}, held = [];
+  const calls = [], waits = [], intervals = new Map(), clock = { now: 1e12 }, hooks = {}, held = [], spoken = [];
   let nextInterval = 0;
   // `script` is a list answered in order, or a router (url, init) => response for a check
   // where the thread poll and the resume retries run side by side.
@@ -158,6 +162,9 @@ function boot(script) {
     readBack() {}, readBackSoFar() {}, loadConversations() {}, updateReadOnlyState() {}, afterSpokenTurn() {},
     dropUnfilledTranscript() { return false; }, uploadAllStagedFiles: async () => ({ success: true, fileIds: [] }),
     renderMarkdown: s => s,
+    // Each line handed to the speaker, with the reply's words on show at that moment.
+    speaker: { speak: (text, audio) => spoken.push({ audio, paused: held.length > 0,
+      shown: document.getElementById('messagesList').textContent }) },
     applyCitations() {}, buildCitationMap: () => ({}), createToolOutputCard: () => null, handleSpokenStop: () => false,
     console: { info() {}, error() {} }
   };
@@ -166,7 +173,7 @@ function boot(script) {
     BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + SEND + TAIL)(...names.map(k => deps[k]));
   const list = deps.messagesList;
   return {
-    api, calls, waits, intervals, clock, hooks,
+    api, calls, waits, intervals, clock, hooks, spoken,
     held: () => held.length > 0,
     release: () => held.splice(0).forEach(fn => setTimeout(fn, 0)),
     send: text => { deps.composerInput.value = text; return api.sendMessage(); },
@@ -427,6 +434,50 @@ function check(label, cond, detail) {
     check('the line and its clock go when real content arrives',
       afterText === null && ticking === 0 && t.bubble() === 'Your sheet is ready.',
       'working=' + JSON.stringify(afterText) + ' intervals=' + ticking);
+  }
+  {
+    // 8.8.2: the tool row's pause is held open; the reply's text delta and its first speech
+    // part arrive during it. The part reaches the speaker then, before those words are drawn.
+    const s = liveStream();
+    const t = boot([() => s.response]);
+    t.hooks.hold = ms => ms === 400;
+    const run = t.send('Where are you based?');
+    t.api.speakAloud();   // a typed send has just cleared it: the turn is spoken, as sendSpoken's is
+    s.push(frame(1, { type: 'tool_done', tool: 'search', status: 'success' }));
+    for (let i = 0; i < 100 && !t.held(); i++) await settle();
+    s.push(delta(2, 'In Australia, Widrow helps.') + frame(3, { type: 'speech', text: 'In Australia, Widrow helps.',
+      audio_base64: 'AAAA', mime: 'audio/pcm;rate=24000', seq: 1, part: 0, last: false }));
+    await settle();
+    const during = t.spoken.slice();
+    t.release();
+    await settle();
+    s.push(done(4, 'In Australia, Widrow helps.'));
+    s.close();
+    await run;
+    const line = during[0];
+    check('a spoken reply: its speech frame reaches the speaker during a tool row\'s pause, before the text delta ahead of it is drawn',
+      during.length === 1 && line.paused && line.audio.seq === 1 && line.audio.part === 0 && line.audio.base64 === 'AAAA' &&
+      line.shown.indexOf('Australia') === -1 && t.spoken.length === 1 && t.bubble() === 'In Australia, Widrow helps.',
+      'during=' + JSON.stringify(during) + ' spoken=' + t.spoken.length + ' bubble=' + JSON.stringify(t.bubble()));
+  }
+  {
+    // ...and reading on through the pause does not end the turn early: a stream that closes
+    // while its `done` waits behind the pause is over only once that `done` is shown.
+    const s = liveStream();
+    const t = boot([() => s.response]);
+    t.hooks.hold = ms => ms === 400;
+    const run = t.send('Build the sheet');
+    s.push(frame(1, { type: 'tool_done', tool: 'search', status: 'success' }));
+    for (let i = 0; i < 100 && !t.held(); i++) await settle();
+    s.push(done(2, 'Here it is.'));
+    s.close();
+    await settle();
+    const loadingDuring = t.api.state().isLoading;
+    t.release();
+    await run;
+    check('a stream that closes during a tool row\'s pause ends the turn only after the `done` behind the pause is shown',
+      loadingDuring === true && !t.api.state().isLoading && t.bubble() === 'Here it is.',
+      'loadingDuring=' + loadingDuring + ' bubble=' + JSON.stringify(t.bubble()));
   }
 
   console.log('\n' + results.join('\n'));
