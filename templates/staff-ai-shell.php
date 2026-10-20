@@ -874,6 +874,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		// console must not hold a host of its own to fall back to.
 		shareOrigin: <?php echo wp_json_encode( DEF_Core_OAuth::get_defho_url() ); ?>,
 		chatStreamUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/chat/stream' ) ); ?>,
+		streamTokenUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/chat/stream-token' ) ); ?>,
 		statusUrl: <?php echo wp_json_encode( rest_url( DEF_CORE_API_NAME_SPACE . '/staff-ai/status' ) ); ?>,
 		// 8.7.6: WordPress's own fresh-nonce endpoint, the one wp.apiFetch refreshes from.
 		nonceUrl: <?php echo wp_json_encode( admin_url( 'admin-ajax.php?action=rest-nonce' ) ); ?>,

@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.9.0
+Stable tag: 8.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,8 +120,11 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 8.9.0 - 2026-10-20 =
+= 8.10.0 - 2026-10-20 =
 * New - Scheduled: a task can skip its next run, or pause until a date and start again by itself on that date. Both are on the task card's ⋯ menu, and the card says which is set. Run now still runs a paused task.
+
+= 8.9.0 - 2026-10-20 =
+* New - Chat: replies start sooner, streamed straight from the platform.
 
 = 8.8.2 - 2026-10-20 =
 * Fix - Voice: a streamed reply starts smoothly; its first words no longer arrived with gaps.

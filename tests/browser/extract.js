@@ -330,7 +330,7 @@ function staffAiStream() {
 function customerChatStream() {
 	return slice('customer-chat stream',
 		l => l.includes('// Progressive text rendering state.'),
-		l => l.includes('fetch(config.chatStreamUrl, {'),
+		l => l.includes('var sentAt = Date.now();'),
 		['function drainNextWord', 'function handleSSEEvent'],
 		'CCSTREAM', CC_PATH);
 }
