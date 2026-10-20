@@ -3267,14 +3267,7 @@ function t(key, fallback) {
 			_turnReachedServer = false;
 			voiceStopped = false;
 			_eventsSeen = 0;
-			var response = await wpFetch(chatStreamUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(requestBody),
-				signal: _streamAbort.signal,
-			});
+			var response = await openStream(requestBody, _streamAbort.signal);
 			if (!response.ok) {
 				// String-safe extraction (5.8.4): a DEF refusal object here
 				// used to stringify to "[object Object]" in the banner.
@@ -3789,8 +3782,88 @@ function t(key, fallback) {
 			isLoading = false;
 			updateSendButton();
 			afterSpokenTurn();
+			afterStreamTurn();
 		}
 	}
+
+	// ── The direct stream (W74) ─────────────────────────────────────────────────
+	// The stream goes from the browser straight to the platform on a ten-minute token
+	// WordPress mints for one conversation. Minted when the console opens, after a turn
+	// that changed the conversation or left under five minutes, and after a refusal; a
+	// send with no fitting token, or one the platform refuses, goes through the site.
+	var streamToken = null;   // { token, exp, url, thread }
+	var minting = false;
+
+	async function mintStreamToken() {
+		if (!StaffAIConfig.streamTokenUrl || minting) return;
+		minting = true;
+		var thread = currentConversationId || '';
+		try {
+			var res = await wpFetch(StaffAIConfig.streamTokenUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ channel: 'staff_ai', thread: thread }),
+			});
+			var data = res.ok ? await res.json() : null;
+			streamToken = data && data.token && data.stream_url
+				? { token: data.token, exp: data.exp, url: data.stream_url, thread: thread } : null;
+		} catch (e) {
+			streamToken = null;
+		} finally {
+			minting = false;
+		}
+	}
+
+	function streamTokenLeft() {
+		return streamToken && streamToken.thread === (currentConversationId || '') ? streamToken.exp * 1000 - Date.now() : 0;
+	}
+
+	function afterStreamTurn() {
+		if (streamTokenLeft() < 300000) mintStreamToken();
+	}
+
+	// Each stream's send → headers time goes on the voice log (long-press the mic).
+	async function openStream(requestBody, signal) {
+		var sentAt = Date.now();
+		var fellBack = '';
+		function note(path) {
+			if (window.DefVoice && window.DefVoice.note) {
+				window.DefVoice.note('stream ' + path + ' ' + ((Date.now() - sentAt) / 1000).toFixed(2) + 's' +
+					(fellBack ? ' (direct ' + fellBack + ')' : ''));
+			}
+		}
+		if (streamTokenLeft() >= 30000) {
+			try {
+				var direct = await fetch(streamToken.url, {
+					method: 'POST',
+					credentials: 'omit',
+					headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + streamToken.token },
+					body: JSON.stringify(requestBody),
+					signal: signal,
+				});
+				if (direct.status !== 401 && direct.status !== 403) {
+					note('direct');
+					return direct;
+				}
+				fellBack = direct.status;
+			} catch (e) {
+				// A refused preflight and a dropped connection both reject as a TypeError.
+				if (!e || e.name !== 'TypeError') throw e;
+				fellBack = 'failed';
+			}
+			streamToken = null;
+			mintStreamToken();
+		}
+		var proxied = await wpFetch(chatStreamUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(requestBody),
+			signal: signal,
+		});
+		note('proxy');
+		return proxied;
+	}
+	mintStreamToken();
 
 	// A change waiting for the person's confirmation (DEF S8): the platform's own sentence, built
 	// from the call's arguments, with Confirm and Cancel. A click sends the sentence as the

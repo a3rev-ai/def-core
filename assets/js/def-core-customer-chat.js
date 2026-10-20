@@ -1227,6 +1227,7 @@
 				if (result.success && result.data && result.data.token) {
 					// Login success — set authenticated token.
 					setContextToken(result.data.token);
+					dropStreamToken();   // minted for the visitor before they logged in
 					try { localStorage.setItem(AUTH_STATE_KEY, 'logged_in'); } catch (e) {}
 					onAuthChange();
 
@@ -2200,6 +2201,49 @@
 		});
 	}
 
+	// ─── 6c. DIRECT STREAM (W74) ─────────────────────────────────
+	// The stream goes from the browser straight to the platform on a ten-minute token
+	// WordPress mints for one conversation. Minted when the chat opens, after a turn
+	// that changed the thread or left under five minutes, and after a refusal; a send
+	// with no fitting token, or one the platform refuses, goes through the site.
+	var streamToken = null;   // { token, exp, url, thread }
+	var minting = false;
+	var mintEpoch = 0;
+
+	function mintStreamToken() {
+		if (!config.streamTokenUrl || minting || destroyed) return;
+		minting = true;
+		var epoch = mintEpoch;
+		var thread = threadId || '';
+		fetch(config.streamTokenUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.nonce || '' },
+			body: JSON.stringify({ channel: 'customer_chat', thread: thread }),
+		})
+			.then(function (res) { return res.ok ? res.json() : null; })
+			.catch(function () { return null; })
+			.then(function (data) {
+				minting = false;
+				if (epoch !== mintEpoch) return;   // dropped while it was minted (a login, a logout)
+				streamToken = data && data.token && data.stream_url
+					? { token: data.token, exp: data.exp, url: data.stream_url, thread: thread } : null;
+			});
+	}
+
+	function dropStreamToken() {
+		streamToken = null;
+		mintEpoch++;
+	}
+
+	function streamTokenLeft() {
+		return streamToken && streamToken.thread === (threadId || '') ? streamToken.exp * 1000 - Date.now() : 0;
+	}
+
+	function afterStreamTurn() {
+		if (streamTokenLeft() < 300000) mintStreamToken();
+	}
+
 	/**
 	 * Send message via sync /api/chat endpoint (existing behavior).
 	 */
@@ -2591,18 +2635,61 @@
 			}
 		}
 
-		fetch(config.chatStreamUrl, {
+		var sentAt = Date.now();
+		var direct = streamTokenLeft() >= 30000 ? streamToken : null;
+		function noteStream(path, fellBack) {
+			if (window.DefVoice && window.DefVoice.note) {
+				window.DefVoice.note('stream ' + path + ' ' + ((Date.now() - sentAt) / 1000).toFixed(2) + 's' +
+					(fellBack ? ' (direct ' + fellBack + ')' : ''));
+			}
+		}
+		function viaSite(fellBack) {
+			if (fellBack) {
+				direct = null;
+				dropStreamToken();
+				mintStreamToken();
+			}
+			return fetch(config.chatStreamUrl, {
+				method: 'POST',
+				credentials: 'include',
+				headers: headers,
+				body: JSON.stringify(body),
+				signal: controller.signal,
+			}).then(function (res) {
+				noteStream('proxy', fellBack);
+				return res;
+			});
+		}
+		var directHeaders = direct && { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + direct.token };
+		if (direct && headers['Cart-Token']) directHeaders['X-DEF-WC-Cart-Token'] = headers['Cart-Token'];
+
+		(direct ? fetch(direct.url, {
 			method: 'POST',
-			credentials: 'include',
-			headers: headers,
+			credentials: 'omit',
+			headers: directHeaders,
 			body: JSON.stringify(body),
 			signal: controller.signal,
-		})
+		}).then(function (res) {
+			if (res.status === 401 || res.status === 403) return viaSite(res.status);
+			noteStream('direct');
+			return res;
+		}, function (err) {
+			// A refused preflight and a dropped connection both reject as a TypeError.
+			if (err && err.name === 'TypeError') return viaSite('failed');
+			throw err;
+		}) : viaSite())
 			.then(function (res) {
 				untrackAbort(controller);
 				return res;
 			})
 			.then(function (res) {
+				if (direct && !res.ok) {
+					// The site's proxy turns a refusal into an `error` frame; straight from the
+					// platform it is the status, read by the same case.
+					eventQueue.push({ type: 'error', status: res.status, message: res.status === 429 ? t('rateLimited') : '' });
+					processEventQueue();
+					return;
+				}
 				if (!res || !res.ok) {
 					throw { status: res ? res.status : 0 };
 				}
@@ -2690,7 +2777,8 @@
 				if (spokenTurn) endConversation();
 				dropUnfilledTranscript();
 				handleChatError(err, thinkingEl);
-			});
+			})
+			.then(afterStreamTurn);
 	}
 
 	/**
@@ -4355,6 +4443,7 @@
 		closeMenu();
 		// Clear auth state (memory-only token).
 		setContextToken(null);
+		dropStreamToken();
 		try { localStorage.setItem(AUTH_STATE_KEY, 'logged_out'); } catch (e) {}
 		onAuthChange();
 		// Clear conversation so the next user doesn't see stale messages.
@@ -4618,6 +4707,8 @@
 		checkUploadEligibility();
 		// Voice (7.7.8): the mic shows once DEF says the employee takes spoken turns.
 		checkVoiceEligibility();
+		// The token the first send streams straight from the platform on (W74).
+		mintStreamToken();
 
 		// Focus input.
 		setTimeout(function () {

@@ -506,6 +506,7 @@ final class DEF_Core {
 			// Existing keys.
 			'restUrl'        => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/context-token' ) ),
 			'chatStreamUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/chat/stream' ) ),
+			'streamTokenUrl' => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/chat/stream-token' ) ),
 			'uploadInitUrl'  => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/uploads/init' ) ),
 			'uploadCommitUrl' => esc_url_raw( rest_url( DEF_CORE_API_NAME_SPACE . '/uploads/commit' ) ),
 			'loginUrl'       => esc_url_raw( admin_url( 'admin-ajax.php' ) ),

@@ -72,6 +72,39 @@ final class DEF_Core_Routes {
 			)
 		);
 
+		// The widget's stream token (W74): Customer Chat's is anyone's, as /chat/stream is
+		// (its nonce rule runs in the callback); Staff AI's takes the staff stream's permission.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/chat/stream-token',
+			array(
+				'methods'             => 'POST',
+				'args'                => array(
+					'channel' => array(
+						'required' => true,
+						'enum'     => array( 'customer_chat', 'staff_ai' ),
+					),
+					'thread'  => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+				),
+				'permission_callback' => function ( $request ) {
+					if ( 'staff_ai' !== $request->get_param( 'channel' ) ) {
+						return true;
+					}
+					if ( ! is_user_logged_in() ) {
+						return false;
+					}
+					if ( current_user_can( 'def_staff_access' ) || current_user_can( 'def_management_access' ) ) {
+						return true;
+					}
+					return \DEF_Core_Staff_AI::access_denied_error();
+				},
+				'callback'            => array( 'DEF_Core_Tools', 'rest_issue_stream_token' ),
+			)
+		);
+
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
 			'/jwks',

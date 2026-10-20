@@ -690,6 +690,8 @@ window.DefVoice = (function () {
 		firstSentence: firstSentence,
 		boundaryEnd: boundaryEnd,
 		log: function () { return voiceLog.slice(); },
+		// A widget's own line on the same log: each chat stream's send → headers time (W74).
+		note: log,
 		MAX_RECORD_MS: MAX_RECORD_MS
 	};
 })();
