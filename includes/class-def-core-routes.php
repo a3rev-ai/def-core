@@ -81,6 +81,7 @@ final class DEF_Core_Routes {
 				'methods'             => 'POST',
 				'args'                => array(
 					'channel' => array(
+						'type'     => 'string',
 						'required' => true,
 						'enum'     => array( 'customer_chat', 'staff_ai' ),
 					),

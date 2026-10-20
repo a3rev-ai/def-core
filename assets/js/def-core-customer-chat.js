@@ -2686,8 +2686,7 @@
 				if (direct && !res.ok) {
 					// The site's proxy turns a refusal into an `error` frame; straight from the
 					// platform it is the status, read by the same case.
-					eventQueue.push({ type: 'error', status: res.status, message: res.status === 429 ? t('rateLimited') : '' });
-					processEventQueue();
+					enqueue([{ type: 'error', status: res.status, message: res.status === 429 ? t('rateLimited') : '' }]);
 					return;
 				}
 				if (!res || !res.ok) {
