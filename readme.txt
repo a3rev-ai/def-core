@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.10.0
+Stable tag: 8.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 8.11.0 - 2026-10-20 =
+* New - Projects: your Project Hub has its own card, first on the Projects page, with its description and no ⋯ menu (the Hub cannot be renamed, archived or deleted). Open on it starts a new chat, and a new chat with no project chosen now says "Project Hub" above the message box, because that is where it runs.
 
 = 8.10.0 - 2026-10-20 =
 * New - Scheduled: a task can skip its next run, or pause until a date and start again by itself on that date. Both are on the task card's ⋯ menu, and the card says which is set. Run now still runs a paused task.

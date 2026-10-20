@@ -1995,18 +1995,27 @@ $GLOBALS['_def_test_get_body'] = json_encode( array(
 	'projects' => array(
 		array( 'project_id' => 'p-1', 'name' => 'Alpha', 'status' => 'archived',
 			'created_at' => '2026-08-26T00:00:00', 'updated_at' => '2026-08-26T00:00:00',
+			'is_hub' => true, 'description' => 'Your hub: <b>x</b>',
 			'sneaky' => 'dropped' ),
 		array( 'project_id' => 'bad/../id', 'name' => 'Evil' ),
 		array( 'project_id' => 'p-2', 'name' => 'Beta', 'status' => 'weird' ),
+		array( 'project_id' => 'p-3', 'name' => 'Gamma', 'is_hub' => 'yes', 'description' => array( 'x' ) ),
 	),
 ) );
 $req    = new WP_REST_Request();
 $result = DEF_Core_Staff_AI::rest_list_projects( $req );
 $data   = $result->get_data();
-assert_equals( 2, count( $data['projects'] ), 'bad-charset project row dropped' );
+assert_equals( 3, count( $data['projects'] ), 'bad-charset project row dropped' );
 assert_equals( 'archived', $data['projects'][0]['status'], 'archived status survives' );
 assert_equals( 'active', $data['projects'][1]['status'], 'unknown status normalizes to active' );
 assert_true( ! isset( $data['projects'][0]['sneaky'] ), 'unknown DEF fields never reach the panel' );
+// P-E2: the Hub card renders from is_hub + description; anything else is not a Hub.
+assert_true( true === $data['projects'][0]['is_hub'], 'is_hub true reaches the panel' );
+assert_equals( 'Your hub: <b>x</b>', $data['projects'][0]['description'], 'the description survives as sent' );
+assert_true( false === $data['projects'][1]['is_hub'], 'a row without is_hub is not the Hub' );
+assert_equals( '', $data['projects'][1]['description'], 'a row without a description gets an empty one' );
+assert_true( false === $data['projects'][2]['is_hub'], 'is_hub "yes" is not the Hub' );
+assert_equals( '', $data['projects'][2]['description'], 'a non-string description becomes empty' );
 $GLOBALS['_def_test_get_body'] = '{"success":true,"documents":[]}';
 
 // rest_create_project refuses an empty name before any backend call.
