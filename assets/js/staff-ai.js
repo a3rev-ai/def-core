@@ -3590,15 +3590,6 @@ function t(key, fallback) {
 							}
 						}
 						renderMessages();
-					} else if (evt.type === 'speech') {
-						// A spoken line in the employee's own voice — or, when its synthesis
-						// failed server-side, the text alone for the device voice to read.
-						// A streamed line comes as parts of one seq, its closing part with no audio.
-						if (spokenTurn) {
-							speaker.speak(evt.text || '', evt.audio_base64 || evt.part > 0
-								? { base64: evt.audio_base64 || '', mime: evt.mime, seq: evt.seq, part: evt.part, last: evt.last }
-								: null);
-						}
 					} else if (evt.type === 'confirmation') {
 						if (turnEpoch === chipEpoch) showConfirmChip(evt.text);
 					} else if (evt.type === 'suggestions') {
@@ -3664,29 +3655,50 @@ function t(key, fallback) {
 					if (id !== null) lastSeq = id;
 					if (evt.turn_id && !turnId) { turnId = evt.turn_id; turnThread = evt.thread_id; }
 					if (evt.type === 'done' || evt.type === 'error') finished = true;
+					if (evt.type === 'speech') {
+						// A spoken line in the employee's own voice — or, when its synthesis
+						// failed server-side, the text alone for the device voice to read.
+						// A streamed line comes as parts of one seq, its closing part with no audio.
+						// It goes to the speaker as it arrives, never through the paced queue: a
+						// part held there behind a tool row's pause is heard as a gap (8.8.2).
+						if (spokenTurn) {
+							speaker.speak(evt.text || '', evt.audio_base64 || evt.part > 0
+								? { base64: evt.audio_base64 || '', mime: evt.mime, seq: evt.seq, part: evt.part, last: evt.last }
+								: null);
+						}
+						continue;
+					}
 					eventQueue.push(evt);
 				}
 			}
+			// The queue is not awaited per chunk: reading goes on through a tool row's pause,
+			// so a speech frame is taken as it arrives (8.8.2). However the read ends, it ends
+			// once the queue has.
+			var drained = null;
 			async function readStream(body) {
 				var reader = body.getReader();
 				var decoder = new TextDecoder();
 				var buffer = '';
-				while (true) {
-					var result = await reader.read();
-					if (result.done) break;
-					// Liveness counts every chunk, including DEF's ": keepalive" comment frames
-					// (dropped by the parser below) — a long tool call is quiet but alive.
-					_eventsSeen++;
-					buffer += decoder.decode(result.value, { stream: true });
-					var parsed = parseSSEBuffer(buffer);
-					buffer = parsed.remaining;
-					take(parsed);
-					await processEventQueue();
-				}
-				// Process any remaining events
-				if (buffer.trim()) {
-					take(parseSSEBuffer(buffer + '\n\n'));
-					await processEventQueue();
+				try {
+					while (true) {
+						var result = await reader.read();
+						if (result.done) break;
+						// Liveness counts every chunk, including DEF's ": keepalive" comment frames
+						// (dropped by the parser below) — a long tool call is quiet but alive.
+						_eventsSeen++;
+						buffer += decoder.decode(result.value, { stream: true });
+						var parsed = parseSSEBuffer(buffer);
+						buffer = parsed.remaining;
+						take(parsed);
+						if (!processing) drained = processEventQueue();
+					}
+					// Process any remaining events
+					if (buffer.trim()) {
+						take(parseSSEBuffer(buffer + '\n\n'));
+						if (!processing) drained = processEventQueue();
+					}
+				} finally {
+					await drained;
 				}
 			}
 

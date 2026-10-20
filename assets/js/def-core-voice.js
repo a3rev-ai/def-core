@@ -406,9 +406,16 @@ window.DefVoice = (function () {
 			});
 		}
 
+		// Seconds of 24 kHz 16-bit audio in a line's parts so far.
+		function heldSeconds(item) {
+			return item.parts.reduce(function (s, p) { return s + atob(p || '').length; }, 0) / 2 / PCM_RATE;
+		}
+
 		// A streamed line: each part starts the moment the one before it ends (scheduled
 		// on the context's clock, so there is no gap), as soon as it lands. The line ends
-		// once its closing frame has come and its last part has ended.
+		// once its closing frame has come and its last part has ended. It starts once
+		// 300 ms of it is here, or all of it: begun on one 100 ms part, every part that
+		// lands late is a gap in its first words (Joe on widrow.ai, 2026-10-20).
 		async function playStream(item) {
 			if (!(audioCtx && await wakeContext())) {
 				// The element plays whole files only: the line once it is all here.
@@ -420,6 +427,7 @@ window.DefVoice = (function () {
 				chunks.forEach(function (c) { pcm.set(c, at); at += c.length; });
 				return playElement(wavFromPcm16(pcm, PCM_RATE), 'audio/wav');
 			}
+			while (!item.last && !item.cut && heldSeconds(item) < 0.3) await partLanded(item);
 			log('play stream');
 			var nextAt = 0, ended = null, i = 0;
 			while (!item.cut) {

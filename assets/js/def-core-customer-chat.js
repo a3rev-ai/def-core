@@ -2304,6 +2304,28 @@
 			wordDrainTimer = setTimeout(drainNextWord, 30);
 		}
 
+		// A line of the reply in the employee's own voice — or, when its synthesis failed
+		// server-side, the text alone for the device voice to read. A streamed line comes
+		// as parts of one seq, its closing part with no audio.
+		function speakFrame(evt) {
+			if (spokenTurn && speaker) {
+				speaker.speak(evt.text || '', evt.audio_base64 || evt.part > 0
+					? { base64: evt.audio_base64 || '', mime: evt.mime, seq: evt.seq, part: evt.part, last: evt.last }
+					: null);
+			}
+		}
+
+		// A `speech` frame goes to the speaker as it arrives, never through the paced queue:
+		// a part held there behind the text and the tool rows is heard as a gap (8.8.2). The
+		// text depends on nothing a speech frame carries.
+		function enqueue(events) {
+			for (var i = 0; i < events.length; i++) {
+				if (events[i].type === 'speech') speakFrame(events[i]);
+				else eventQueue.push(events[i]);
+			}
+			processEventQueue();
+		}
+
 		function processEventQueue() {
 			if (processing || eventQueue.length === 0) return;
 			processing = true;
@@ -2516,16 +2538,6 @@
 						currentEscalationSubject = text.length > 60 ? text.substring(0, 60) + '...' : text;
 					}
 					break;
-				case 'speech':
-					// A line of the reply in the employee's own voice — or, when its synthesis
-					// failed server-side, the text alone for the device voice to read.
-					// A streamed line comes as parts of one seq, its closing part with no audio.
-					if (spokenTurn && speaker) {
-						speaker.speak(evt.text || '', evt.audio_base64 || evt.part > 0
-							? { base64: evt.audio_base64 || '', mime: evt.mime, seq: evt.seq, part: evt.part, last: evt.last }
-							: null);
-					}
-					break;
 				case 'suggestions':
 					lastSuggestion = evt.suggestion || null;
 					// Not during a live conversation: the ghost text would hide the composer
@@ -2601,22 +2613,13 @@
 				function pump() {
 					return reader.read().then(function (result) {
 						if (result.done) {
-							if (buffer.trim()) {
-								var final = parseSSEBuffer(buffer + '\n\n');
-								for (var i = 0; i < final.parsed.length; i++) {
-									eventQueue.push(final.parsed[i]);
-								}
-								processEventQueue();
-							}
+							if (buffer.trim()) enqueue(parseSSEBuffer(buffer + '\n\n').parsed);
 							return;
 						}
 						buffer += decoder.decode(result.value, { stream: true });
 						var parsed = parseSSEBuffer(buffer);
 						buffer = parsed.remaining;
-						for (var i = 0; i < parsed.parsed.length; i++) {
-							eventQueue.push(parsed.parsed[i]);
-						}
-						processEventQueue();
+						enqueue(parsed.parsed);
 						return pump();
 					});
 				}
