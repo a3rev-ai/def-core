@@ -3684,6 +3684,10 @@ final class DEF_Core_Staff_AI
 			'send_weekday'      => $weekday,
 			// Row 9 (§14j): the date a `once` runs, KEPT after it has run.
 			'send_date_local'   => self::iso_date( $row['send_date_local'] ?? null ),
+			// W9: the date a paused task runs again from (DEF serves it only while
+			// it is still ahead), and whether its next scheduled run is skipped.
+			'paused_until'      => self::iso_date( $row['paused_until'] ?? null ),
+			'skip_next'         => ! empty( $row['skip_next'] ),
 			'send_hour_local'   => isset( $row['send_hour_local'] ) ? (int) $row['send_hour_local'] : 7,
 			'send_minute_local' => isset( $row['send_minute_local'] ) ? (int) $row['send_minute_local'] : 0,
 			'timezone'          => ( isset( $row['timezone'] ) && is_string( $row['timezone'] ) ) ? $row['timezone'] : 'UTC',
@@ -3780,6 +3784,23 @@ final class DEF_Core_Staff_AI
 		} elseif ( null !== $raw_date && ! in_array( $cadence, array( 'once', 'manual' ), true ) ) {
 			$problems[] = __( 'A date belongs to a task that runs once - a repeating task has none.', 'digital-employees' );
 		}
+		// W9: pause and skip are NOT full-replace. Each is forwarded only when the
+		// request names it, so the Edit form (which sends neither) keeps both; '' or
+		// null ends a pause. Whether the date is after today stays DEF's call.
+		$pause_given  = $request->has_param( 'paused_until' );
+		$raw_pause    = $request->get_param( 'paused_until' );
+		$paused_until = null;
+		if ( $pause_given && null !== $raw_pause && '' !== $raw_pause ) {
+			$paused_until = self::iso_date( $raw_pause );
+			if ( null === $paused_until ) {
+				$problems[] = __( 'The pause date must be a real date, written as YYYY-MM-DD.', 'digital-employees' );
+			}
+		}
+		$skip_given = $request->has_param( 'skip_next' );
+		$skip_next  = $request->get_param( 'skip_next' );
+		if ( $skip_given && ! is_bool( $skip_next ) ) {
+			$problems[] = __( 'skip_next must be true or false.', 'digital-employees' );
+		}
 		if ( ! is_int( $weekday ) || $weekday < 0 || $weekday > 6 ) {
 			$problems[] = __( 'The weekday must be a whole number from 0 (Monday) to 6 (Sunday).', 'digital-employees' );
 		}
@@ -3846,6 +3867,12 @@ final class DEF_Core_Staff_AI
 		// the "Ran once at" stamp of a task somebody merely renamed.
 		if ( null !== $send_date ) {
 			$clean['send_date_local'] = $send_date;
+		}
+		if ( $pause_given ) {
+			$clean['paused_until'] = $paused_until;
+		}
+		if ( $skip_given ) {
+			$clean['skip_next'] = $skip_next;
 		}
 		return $clean;
 	}

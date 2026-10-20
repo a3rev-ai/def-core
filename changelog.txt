@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.9.0 - 2026/10/20 =
+* New - Scheduled: a task can skip its next run, or pause until a date and start again by itself on that date. Both are on the task card's ⋯ menu, and the card says which is set. Run now still runs a paused task.
+
 = 8.8.2 - 2026/10/20 =
 * Fix - Voice: a streamed reply starts smoothly; its first words no longer arrived with gaps.
 

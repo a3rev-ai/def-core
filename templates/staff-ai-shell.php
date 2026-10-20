@@ -1040,6 +1040,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskHintWeekdays: <?php echo wp_json_encode( __( 'Runs Monday to Friday at the send time.', 'digital-employees' ) ); ?>,
 			taskHintWeekly: <?php echo wp_json_encode( __( 'Runs once a week, on the day you choose.', 'digital-employees' ) ); ?>,
 			taskPaused: <?php echo wp_json_encode( __( 'Not scheduled', 'digital-employees' ) ); ?>,
+			/* translators: %s is a date */
+			taskPausedUntil: <?php echo wp_json_encode( __( 'Paused — runs again from %s', 'digital-employees' ) ); ?>,
+			taskSkipsNext: <?php echo wp_json_encode( __( 'Skips its next run', 'digital-employees' ) ); ?>,
+			taskSkipNext: <?php echo wp_json_encode( __( 'Skip the next run', 'digital-employees' ) ); ?>,
+			taskUnskipNext: <?php echo wp_json_encode( __( "Don't skip the next run", 'digital-employees' ) ); ?>,
+			taskPauseUntil: <?php echo wp_json_encode( __( 'Pause until…', 'digital-employees' ) ); ?>,
+			taskResumeNow: <?php echo wp_json_encode( __( 'Resume now', 'digital-employees' ) ); ?>,
+			taskPausePrompt: <?php echo wp_json_encode( __( 'Pause until which date? The task runs again from that date by itself. (YYYY-MM-DD)', 'digital-employees' ) ); ?>,
 			/* translators: %s is a run outcome, e.g. Succeeded */
 			taskLastRun: <?php echo wp_json_encode( __( 'Last run: %s', 'digital-employees' ) ); ?>,
 			runStatusRunning: <?php echo wp_json_encode( __( 'Running', 'digital-employees' ) ); ?>,
