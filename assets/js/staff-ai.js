@@ -6795,8 +6795,9 @@ function t(key, fallback) {
 
 		function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
 
-		function todayLocal() {
+		function todayLocal(addDays) {
 			var d = new Date();
+			d.setDate(d.getDate() + (addDays || 0));
 			return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 		}
 
@@ -7174,6 +7175,9 @@ function t(key, fallback) {
 				any = true;
 			});
 			paneEmpty.style.display = any ? 'none' : '';
+			// So is an open "Pause until…" picker, with the date it holds.
+			var held = pausing && tasks.filter(function (x) { return x.id === pausing.id; })[0];
+			if (held) { pauseTaskUntil(held, pausing.value); } else { pausing = null; }
 			var again = reopen === null ? null : menuCards[reopen];
 			if (again) manageMenu.toggle(reopen, again.items, again.btn);
 		}
@@ -7188,8 +7192,8 @@ function t(key, fallback) {
 			onEnter: loadAll,
 			// Documents' rule (C6a): an expanded sheet left in the hidden page is still
 			// a .console-menu:not([hidden]), and the shell's Escape would stand aside
-			// for it on every other page.
-			onLeave: function () { manageMenu.close(false); manageMenu.closeSheets(); }
+			// for it on every other page. An open "Pause until…" picker is the same.
+			onLeave: function () { manageMenu.close(false); manageMenu.closeSheets(); closePause(); }
 		});
 
 		async function loadAll() {
@@ -7743,10 +7747,58 @@ function t(key, fallback) {
 			}
 		}
 
-		function pauseTaskUntil(task) {
-			var answer = window.prompt(t('taskPausePrompt', 'Pause until which date? The task runs again from that date by itself. (YYYY-MM-DD)'), '');
-			if (answer === null || !answer.trim()) return;   // cancelled: nothing is sent
-			setTaskField(task, 'paused_until', answer.trim());
+		// "Pause until…" opens a date picker in the card, in the shape (and on the
+		// classes) of Documents' "Move to project…" editor: the shell's Escape guard
+		// already stands aside for a .document-assign-row. `pausing` is the task it is
+		// open on, so renderGrid can put it back. The floor is tomorrow: DEF refuses
+		// today or earlier. Cancel, Escape or no date sends nothing.
+		var pausing = null;   // { id, value } while a card's picker is open
+
+		function closePause() {
+			pausing = null;
+			var open = grid.querySelector('.document-assign-row');
+			if (open) open.remove();
+		}
+
+		function pauseTaskUntil(task, value) {
+			closePause();
+			pausing = { id: task.id, value: value || '' };
+			var btn = menuCards[task.id].btn;
+			var panel = el('div', 'document-assign-row');
+			var label = el('label', 'form-label', t('taskPausePrompt', 'Pause until which date? The task runs again from that date by itself.'));
+			label.htmlFor = 'taskPauseDate';
+			var input = el('input', 'form-input');
+			input.type = 'date';
+			input.id = 'taskPauseDate';
+			input.min = todayLocal(1);
+			input.value = pausing.value;
+			input.addEventListener('input', function () { pausing.value = input.value; });
+			function done(send) {
+				var date = input.value;
+				closePause();
+				btn.focus();
+				if (send && date) setTaskField(task, 'paused_until', date);
+			}
+			var actions = el('div', 'document-assign-actions');
+			[[t('cancel', 'Cancel'), 'modal-btn-secondary', false], [t('taskPauseOk', 'OK'), 'modal-btn-primary', true]]
+				.forEach(function (b) {
+					var node = el('button', 'modal-btn ' + b[1], b[0]);
+					node.type = 'button';
+					node.addEventListener('click', function () { done(b[2]); });
+					actions.appendChild(node);
+				});
+			panel.addEventListener('keydown', function (e) {
+				if (e.key === 'Escape' || (e.key === 'Enter' && e.target === input)) {
+					e.preventDefault();
+					e.stopPropagation();
+					done(e.key === 'Enter');
+				}
+			});
+			panel.appendChild(label);
+			panel.appendChild(input);
+			panel.appendChild(actions);
+			btn.closest('.console-card').appendChild(panel);
+			input.focus();
 		}
 
 		async function runNowTask(btn, task) {
