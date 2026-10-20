@@ -63,23 +63,28 @@ function boot(wave, bodyHtml) {
 		getFloatTimeDomainData(buf) {
 			// Scripted playback is per READ, not per millisecond: an utterance is the
 			// reads the detector actually takes, whatever the host's timer jitter.
-			(script ? (script[reads] || silentWave) : current)(buf);
+			// An analyser on a context that renders nothing reads zeros, whatever is said.
+			(analyser.context && analyser.context.stalled ? silentWave
+				: script ? (script[reads] || silentWave) : current)(buf);
 			reads++;
 		},
 	};
 	// Every buffer the context starts, by duration: a clip decodes to CLIP seconds,
 	// a silence is what its own length says. A source "ends" a few ms after it starts —
 	// or, with ctl.hold, only when a check calls its end(). `scheduled` keeps each
-	// start's when, duration and buffer, and whether stop() reached it.
+	// start's when, duration and buffer, and whether stop() reached it. A context a
+	// check marks `stalled` says 'running' and renders nothing: no source of it ever ends.
 	const starts = [], scheduled = [], elementPlays = [], elements = [], blobs = [];
 	const ctl = { hold: false, ctx: null };
 	window.AudioContext = function () {
-		ctl.ctx = this;
+		const ctx = ctl.ctx = this;
 		this.state = 'running';
+		this.stalled = false;
+		this.close = () => { this.state = 'closed'; return Promise.resolve(); };
 		this.sampleRate = 48000;
 		this.currentTime = 0;
 		this.destination = {};
-		this.createAnalyser = () => analyser;
+		this.createAnalyser = () => { analyser.context = ctx; return analyser; };
 		this.createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
 		this.resume = () => Promise.resolve();
 		this.createBuffer = (channels, length, rate) => {
@@ -95,7 +100,7 @@ function boot(wave, bodyHtml) {
 					Object.assign(rec, { when: when || 0, duration: node.buffer.duration, buffer: node.buffer });
 					starts.push(node.buffer.duration);
 					scheduled.push(rec);
-					if (!ctl.hold) window.setTimeout(rec.end, 5);
+					if (!ctl.hold && !ctx.stalled) window.setTimeout(rec.end, 5);
 				} };
 			return node;
 		};
@@ -616,6 +621,36 @@ function check(n, label, cond, detail) {
 				s.t.scheduled.length === 2 && !beforeEnd && s.idle(),
 				'scheduled=' + s.t.scheduled.length + ' beforeEnd=' + beforeEnd + ' idle=' + s.idle());
 		}
+	}
+
+	// 31. iOS hands a page back from the background with its context 'running' and
+	//     rendering nothing (Joe on widrow.ai, 2026-10-20: the warm never ended and every
+	//     tap closed the mic on silence). The first tap after the return hears.
+	{
+		const t = boot(voicedWave);
+		const document = t.window.document;
+		const speaker = t.DefVoice.createSpeaker({});
+		const rec = t.DefVoice.createRecorder({});
+		const tap = () => { speaker.stop(); speaker.unlock(); return rec.start(); };   // handleMicClick's order
+		const away = state => {
+			Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+			document.dispatchEvent(new t.window.Event('visibilitychange'));
+		};
+		await tap();
+		await wait(t.window, 400);
+		const before = await rec.stop();
+		const first = t.ctl.ctx;
+		away('hidden');
+		first.stalled = true;   // what the phone did while the page was away
+		away('visible');
+		const started = await tap();
+		await wait(t.window, 400);
+		const after = await rec.stop();
+		check(31, 'a session, the page hides and returns to a context that renders nothing: the first tap after makes a new context and hears',
+			!!before && before.spoke === true && started === true && first.state === 'closed' && t.ctl.ctx !== first &&
+			!!after && after.spoke === true && t.DefVoice.log().some(l => l.endsWith(' context replaced')),
+			'before=' + (before && before.spoke) + ' first=' + first.state + ' replaced=' + (t.ctl.ctx !== first) +
+			' after=' + (after && after.spoke) + ' log=' + t.DefVoice.log().join('|'));
 	}
 
 	console.log(results.join('\n'));
