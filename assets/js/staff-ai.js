@@ -839,8 +839,9 @@ function t(key, fallback) {
 	// Load a specific conversation
 	async function loadConversation(id, shared) {
 		if (conversationOn) endConversation();   // a spoken turn never lands in a thread she just opened
-		clearActiveProject();
 		currentConversationId = id;
+		// After the id: an opened chat shows no chip, and the chip reads the id (P-E2).
+		clearActiveProject();
 		isReadOnly = !!shared;
 		clearConfirmChips();
 
@@ -1158,6 +1159,7 @@ function t(key, fallback) {
 		// a project row's "New chat", every Ask button.
 		showChat({ focus: false });
 		currentConversationId = null;
+		renderProjectChip();
 		isReadOnly = false;
 		messages = [];
 		clearConfirmChips();
@@ -5056,7 +5058,9 @@ function t(key, fallback) {
 		var container = document.getElementById('composerContainer');
 		if (!container) return;
 		var chip = document.getElementById('composerProjectChip');
-		if (!activeProjectId) {
+		// P-E2 (D-P17): a new chat with no project chosen runs in the Project Hub,
+		// so it says so. An opened chat shows no chip.
+		if (!activeProjectId && currentConversationId) {
 			if (chip) chip.remove();
 			return;
 		}
@@ -5066,7 +5070,9 @@ function t(key, fallback) {
 			chip.className = 'composer-project-chip';
 			container.insertBefore(chip, container.firstChild);
 		}
-		chip.textContent = t('projectChipLabel', 'Project: ') + activeProjectName;
+		chip.textContent = activeProjectId
+			? t('projectChipLabel', 'Project: ') + activeProjectName
+			: t('projectHubChip', 'Project Hub');
 	}
 
 	function setActiveProject(project) {
@@ -5080,6 +5086,7 @@ function t(key, fallback) {
 		activeProjectName = null;
 		renderProjectChip();
 	}
+	renderProjectChip();   // the console opens on a new chat
 
 	// P-D3 (D-P14): read a document in place. The text goes into a <pre> via
 	// textContent — never HTML (a project document is untrusted content, D-P7).
@@ -6038,6 +6045,13 @@ function t(key, fallback) {
 			name.className = 'project-card-name';
 			name.textContent = project.name;
 			ident.appendChild(name);
+			// P-E2: DEF's own line under the Hub's name, as text.
+			if (project.is_hub && project.description) {
+				const desc = document.createElement('p');
+				desc.className = 'project-card-desc';
+				desc.textContent = project.description;
+				ident.appendChild(desc);
+			}
 
 			const sub = document.createElement('div');
 			sub.className = 'project-card-sub';
@@ -6062,6 +6076,13 @@ function t(key, fallback) {
 				+ (archived ? 'modal-btn-secondary' : 'modal-btn-primary');
 			cardOpenBtn.textContent = t('projectsOpen', 'Open Project');
 			cardOpenBtn.addEventListener('click', async function () {
+				// P-E2 (D-P17): a chat with no project IS the Hub's, and DEF keeps it
+				// unbound on purpose, so the Hub opens the same chat New chat does.
+				if (project.is_hub) {
+					clearActiveProject();
+					resetToNewChat();
+					return;
+				}
 				// DEF binds a thread only to an ACTIVE project, so an archived one is
 				// restored first and the chat opens only if that write lands.
 				if (project.status === 'archived') {
@@ -6077,23 +6098,28 @@ function t(key, fallback) {
 			});
 			actions.appendChild(cardOpenBtn);
 
-			const menuBtn = document.createElement('button');
-			menuBtn.type = 'button';
-			menuBtn.className = 'console-menu-btn';
-			menuBtn.setAttribute('aria-haspopup', 'menu');
-			menuBtn.setAttribute('aria-expanded', 'false');
-			menuBtn.setAttribute('aria-label', t('projectsManage', 'Manage project'));
-			menuBtn.textContent = '•••';
-			menuBtn.addEventListener('click', function (e) {
-				e.stopPropagation();
-				manageMenu.toggle(project.project_id, manageActions(project), menuBtn);
-			});
-			actions.appendChild(menuBtn);
+			// The Hub has no actions (DEF refuses each with a 409), so it renders no
+			// ⋯ button and no sheet rather than an empty menu — Connections' rule.
+			const manage = manageActions(project);
+			if (manage.length) {
+				const menuBtn = document.createElement('button');
+				menuBtn.type = 'button';
+				menuBtn.className = 'console-menu-btn';
+				menuBtn.setAttribute('aria-haspopup', 'menu');
+				menuBtn.setAttribute('aria-expanded', 'false');
+				menuBtn.setAttribute('aria-label', t('projectsManage', 'Manage project'));
+				menuBtn.textContent = '•••';
+				menuBtn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					manageMenu.toggle(project.project_id, manageActions(project), menuBtn);
+				});
+				actions.appendChild(menuBtn);
+			}
 			head.appendChild(actions);
 
 			// The same actions, expanded in place, for touch. CSS shows one or
 			// the other — never both.
-			card.appendChild(manageMenu.disclosure(project.project_id, manageActions(project)));
+			if (manage.length) { card.appendChild(manageMenu.disclosure(project.project_id, manage)); }
 
 			// P-B / P-D2: the governing documents on the card itself.
 			const knowledge = document.createElement('div');
@@ -6194,6 +6220,7 @@ function t(key, fallback) {
 		// sheet on touch. Delete sits under the divider, in red, so it cannot be
 		// hit on the way to Archive.
 		function manageActions(project) {
+			if (project.is_hub) return [];
 			const archived = project.status === 'archived';
 			return [
 				{ label: t('projectsRename', 'Rename'), onPick: function () { renameProject(project); } },

@@ -2605,6 +2605,9 @@ final class DEF_Core_Staff_AI
 			'status'     => $status,
 			'created_at' => ( isset( $row['created_at'] ) && is_string( $row['created_at'] ) ) ? $row['created_at'] : '',
 			'updated_at' => ( isset( $row['updated_at'] ) && is_string( $row['updated_at'] ) ) ? $row['updated_at'] : '',
+			// P-E2: the Project Hub card renders from these two; an older DEF sends neither.
+			'is_hub'     => ( true === ( $row['is_hub'] ?? null ) ),
+			'description' => ( isset( $row['description'] ) && is_string( $row['description'] ) ) ? $row['description'] : '',
 		);
 	}
 

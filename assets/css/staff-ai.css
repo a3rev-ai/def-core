@@ -3075,6 +3075,11 @@ html {
 	   lesson: an ellipsis makes near-identical names indistinguishable). */
 	overflow-wrap: anywhere;
 }
+.project-card-desc {
+	margin: 0 0 6px;
+	font-size: 13px;
+	color: var(--text-secondary);
+}
 .project-card-sub {
 	display: flex;
 	align-items: center;

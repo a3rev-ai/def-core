@@ -87,7 +87,7 @@ function boot(startUrl, opts) {
     }
     return {};
   }
-  const state = { activeProject: null, newChats: 0, sent: [], viewer: null, docFilter: null };
+  const state = { activeProject: null, newChats: 0, sent: [], viewer: null, docFilter: null, setActiveCalls: 0 };
   // The four bindings the page's Ask entry needs, named because the SHIPPED
   // askEntry helper (C5) is built from the same ones — the "Ask Sue how Projects
   // work" checks below run the real helper, not a stand-in for it.
@@ -112,7 +112,7 @@ function boot(startUrl, opts) {
     resetToNewChat,
     composerInput,
     function () {}, sendMessage,
-    function (p) { state.activeProject = p; },
+    function (p) { state.setActiveCalls++; state.activeProject = p; },
     null, function (x) { return String(x || ''); },
     function (id, title) { state.viewer = id; },
     function (id, excl) { state.docFilter = { id: id, excl: !!excl }; api.showPage('documents'); },
@@ -151,6 +151,11 @@ async function bootWithPrevious() {
   return t;
 }
 const cards = t => Array.prototype.slice.call(t.document.querySelectorAll('#projectsList .console-card'));
+// P-E2: DEF lists the Hub first (in SQL, routes.py), so the console draws it first.
+const HUB = { project_id: 'hub', name: 'Project Hub', status: 'active', is_hub: true,
+  description: 'Your hub: <b>x</b>', created_at: '2026-09-01T10:00:00Z' };
+const WITH_HUB = [HUB,
+  { project_id: 'p1', name: 'Runsheets', status: 'active', created_at: '2026-09-01T10:00:00Z' }];
 const byText = (root, sel, re) =>
   Array.prototype.slice.call(root.querySelectorAll(sel)).filter(el => re.test(el.textContent))[0];
 
@@ -635,6 +640,48 @@ function check(n, label, cond, detail) {
     check(38, 'Escape in the name field leaves Projects open; Escape off it returns to the chat',
       stayedWhileTyping && t.api.open() === null && t.chatVisible(),
       'inField=' + stayedWhileTyping + ' after=' + t.api.open());
+  }
+
+  // ---- P-E2: the Project Hub card -----------------------------------------
+  {
+    const t = boot(null, { projects: WITH_HUB });
+    clickNav(t, 'navProjects'); await tick(t.window, 80);
+    const c = cards(t);
+    const desc = c[0] && c[0].querySelector('.project-card-desc');
+    check(39, "the Hub card comes first and shows DEF's description line as literal text",
+      c.length === 2 && /Project Hub/.test(c[0].querySelector('.project-card-name').textContent) &&
+      !!desc && desc.textContent === 'Your hub: <b>x</b>' && !desc.querySelector('b'),
+      'cards=' + c.length + ' desc=' + (desc && desc.innerHTML));
+    const hubBare = !c[0].querySelector('.console-menu-btn') && !c[0].querySelector('.console-menu-sheet-btn') &&
+      !c[0].querySelector('.console-menu-sheet-list');
+    const nextHas = !!c[1].querySelector('.console-menu-btn') && !!c[1].querySelector('.console-menu-sheet-btn');
+    check(40, 'the Hub card has no ⋯ button and no Manage sheet; the next card still has both',
+      hubBare && nextHas, 'hubBare=' + hubBare + ' nextHas=' + nextHas);
+    check(41, "the Hub's three slots load from its own documents",
+      t.requests.some(r => r.url === '/documents?project_id=hub') &&
+      c[0].querySelectorAll('.console-slot').length === 4,
+      'urls=' + t.requests.map(r => r.url).join(','));
+  }
+  {
+    const t = boot(null, { projects: WITH_HUB });
+    clickNav(t, 'navProjects'); await tick(t.window, 80);
+    t.state.activeProject = { project_id: 'p1' };   // a project chosen earlier
+    click(t.window, cards(t)[0].querySelector('.project-open-btn')); await tick(t.window, 60);
+    check(42, "the Hub's Open starts a plain new chat: the chosen project cleared, setActiveProject never called",
+      t.api.open() === null && t.chatVisible() && t.state.newChats === 1 &&
+      t.state.activeProject === null && t.state.setActiveCalls === 0,
+      'open=' + t.api.open() + ' newChats=' + t.state.newChats + ' active=' +
+      JSON.stringify(t.state.activeProject) + ' setActive=' + t.state.setActiveCalls);
+  }
+  {
+    // An older DEF sends no is_hub: the row is an ordinary project.
+    const t = boot(null, { projects: [{ project_id: 'hub', name: 'Project Hub', status: 'active',
+      created_at: '2026-09-01T10:00:00Z' }] });
+    clickNav(t, 'navProjects'); await tick(t.window, 80);
+    const c = cards(t)[0];
+    check(43, 'a row without is_hub renders an ordinary card: a ⋯ menu and no description line',
+      !!c && !!c.querySelector('.console-menu-btn') && !c.querySelector('.project-card-desc'),
+      c && c.innerHTML.slice(0, 200));
   }
 
   console.log(results.join('\n'));

@@ -1178,6 +1178,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			connectionsAskNamed: <?php echo wp_json_encode( __( 'Ask %s how Connections work', 'digital-employees' ) ); ?>,
 			connectionsAskPrompt: <?php echo wp_json_encode( __( 'Walk me through connecting my own accounts — what connecting one lets you do on my behalf, what a primary mailbox is for, and how I disconnect one later.', 'digital-employees' ) ); ?>,
 			projectChipLabel: <?php echo wp_json_encode( __( 'Project: ', 'digital-employees' ) ); ?>,
+			projectHubChip: <?php echo wp_json_encode( __( 'Project Hub', 'digital-employees' ) ); ?>,
 			<?php /* translators: %s: the document's length in characters. */ ?>
 			documentViewerChars: <?php echo wp_json_encode( __( '%s characters', 'digital-employees' ) ); ?>,
 			documentViewerFailed: <?php echo wp_json_encode( __( 'Could not read the document.', 'digital-employees' ) ); ?>,

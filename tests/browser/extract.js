@@ -15,7 +15,7 @@
  * Each also honours an override env var (BLOCK, PROJECTS, MEMORIES, USAGE,
  * INTEGRATIONS, DOCVIEWER, DOCUMENTS, ATTACH_GATE, UPLOAD_STAGED, SCHEDULED, VOICE,
  * CHAT_VOICE, CHAT_STRINGS, ASK_ENTRY, ASK_ENTRY_CALLS, CHAT_ATTACHMENTS, UPLOAD_RAIL,
- * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD, CC_LOADER, CC_MODULE) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
+ * ATTACHMENT_PROMPT, DISPLAY_TEXT, CONVERSATION_LIST, USER_ACCESS, CREATOR, TOOL_OUTPUT_CARD, CC_LOADER, CC_MODULE, PROJECT_CHIP) naming a file to load instead — that is how a "bite check" is run: put the OLD code back in
  * a scratch file, point the env var at it, and watch the checks that are meant
  * to catch the regression actually fail.
  */
@@ -78,6 +78,16 @@ function projects() {
 			// DELEGATION, so a page that quietly loses its menu is still a hard error.
 			'createConsoleMenu({', 'manageMenu.toggle(', 'manageMenu.disclosure('],
 		'PROJECTS');
+}
+
+// The composer's project chip (P-B, P-E2): its state, renderProjectChip and the
+// two setters, through the boot render that follows them.
+function projectChip() {
+	return slice('project chip',
+		l => l.includes('// Projects P-B: "New chat in this project"'),
+		l => l.includes('// P-D3 (D-P14): read a document in place'),
+		['function renderProjectChip', 'function setActiveProject', 'function clearActiveProject'],
+		'PROJECT_CHIP');
 }
 
 // The C3 trio, each from its own marker to the block that follows it.
@@ -625,7 +635,7 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, memories, installedShare, toolOutputCard,
+module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, projectChip, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
