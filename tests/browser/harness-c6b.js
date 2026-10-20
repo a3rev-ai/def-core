@@ -324,13 +324,16 @@ const item = (menu, label) => menu
   {
     const t = boot(); await enter(t);
     const seen = [];
+    // W9: an enabled repeating task also offers Skip and Pause (harness-task-pause.js).
+    const expected = { 'Daily brief': 'Edit|Skip the next run|Pause until…|—|Remove!',
+      'Email Triage': 'Edit|—|Remove!' };
     for (const name of ['Daily brief', 'Email Triage']) {
       const c = t.card(name);
       const btn = within(c, '.console-menu-btn');
       const menu = await openMenu(t, name);
       seen.push(name + ': ' + (!!menu && c.contains(menu) && menu.classList.contains('console-menu') &&
         menu.parentNode.classList.contains('console-card-actions') &&
-        items(menu).join('|') === 'Edit|—|Remove!' && btn.getAttribute('aria-expanded') === 'true' &&
+        items(menu).join('|') === expected[name] && btn.getAttribute('aria-expanded') === 'true' &&
         btn.getAttribute('aria-label') === 'Manage task' && t.document.activeElement === menu.firstElementChild));
       click(t.window, t.document.body); await tick(t.window);
     }

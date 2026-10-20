@@ -6865,14 +6865,16 @@ function t(key, fallback) {
 			return row.cadence === 'manual' && !!row.send_date_local && !!row.last_run;
 		}
 
-		function onceDate(s) {
-			// The stored date is a plain YYYY-MM-DD in the task's OWN zone. Split
+		function localDate(iso) {
+			// A stored date is a plain YYYY-MM-DD in the task's OWN zone. Split
 			// into parts rather than handed to Date(string), which reads an ISO
 			// date as UTC midnight and renders the day BEFORE west of Greenwich.
-			var p = String(s.send_date_local || '').split('-');
-			if (p.length !== 3) return String(s.send_date_local || '');
+			var p = String(iso || '').split('-');
+			if (p.length !== 3) return String(iso || '');
 			return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString();
 		}
+
+		function onceDate(s) { return localDate(s.send_date_local); }
 
 		function scheduleBadgeText(s) {
 			// v6.1.0: the badge follows the cadence. Absent (the triage schedule,
@@ -7041,10 +7043,17 @@ function t(key, fallback) {
 			card.appendChild(head);
 			card.appendChild(el('p', 'task-card-desc', desc));
 			var meta = el('div', 'task-card-meta');
+			// W9: DEF serves paused_until only while the pause is still ahead.
 			meta.appendChild(el('span', 'task-badge' + (schedule.enabled ? '' : ' task-badge-off'),
-				schedule.enabled
-					? scheduleBadgeText(schedule)
-					: t('taskPaused', 'Not scheduled')));
+				!schedule.enabled
+					? t('taskPaused', 'Not scheduled')
+					: schedule.paused_until
+						? t('taskPausedUntil', 'Paused — runs again from %s').replace('%s', localDate(schedule.paused_until))
+						: scheduleBadgeText(schedule)));
+			// A skip waits for the next scheduled run, whenever that comes.
+			if (schedule.skip_next) {
+				meta.appendChild(el('span', 'task-badge', t('taskSkipsNext', 'Skips its next run')));
+			}
 			if (schedule.project_id) {
 				var pname = (projectsCache.filter(function (p) { return p.project_id === schedule.project_id; })[0] || {}).name;
 				meta.appendChild(el('span', 'task-badge task-badge-project',
@@ -7097,11 +7106,20 @@ function t(key, fallback) {
 		function renderTaskCard(task) {
 			var desc = String(task.instruction || '');
 			if (desc.length > 140) desc = desc.slice(0, 140) + '…';
-			var built = baseCard(task.name || '', desc, task, task.last_run, [
-				{ label: t('taskEdit', 'Edit'), onPick: function () { openTaskForm(task); } },
-				{ separator: true },
-				{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTask(task); } }
-			]);
+			var items = [{ label: t('taskEdit', 'Edit'), onPick: function () { openTaskForm(task); } }];
+			// W9: skip and pause, for a task that is on and runs on a repeating schedule.
+			if (task.enabled && ['hourly', 'daily', 'weekdays', 'weekly'].indexOf(task.cadence) !== -1) {
+				items.push({
+					label: task.skip_next ? t('taskUnskipNext', "Don't skip the next run") : t('taskSkipNext', 'Skip the next run'),
+					onPick: function () { setTaskField(task, 'skip_next', !task.skip_next); }
+				});
+				items.push(task.paused_until
+					? { label: t('taskResumeNow', 'Resume now'), onPick: function () { setTaskField(task, 'paused_until', ''); } }
+					: { label: t('taskPauseUntil', 'Pause until…'), onPick: function () { pauseTaskUntil(task); } });
+			}
+			items.push({ separator: true },
+				{ label: t('taskDelete', 'Remove'), danger: true, onPick: function () { removeTask(task); } });
+			var built = baseCard(task.name || '', desc, task, task.last_run, items);
 			if (task.enabled) {
 				var run = el('button', 'modal-btn modal-btn-primary task-card-run', t('taskRunNow', 'Run now'));
 				run.type = 'button';
@@ -7668,6 +7686,40 @@ function t(key, fallback) {
 			} finally {
 				btn.disabled = false;
 			}
+		}
+
+		// W9: one field changed from the card's ⋯ menu. The body is the full task
+		// built from the card's own row (saveTask's full-replace shape) plus that
+		// field; DEF's refusal is the sentence shown.
+		async function setTaskField(task, field, value) {
+			var payload = {
+				name: task.name,
+				instruction: task.instruction,
+				enabled: !!task.enabled,
+				cadence: task.cadence,
+				model: task.model || '',
+				send_weekday: task.send_weekday || 0,
+				send_hour_local: task.send_hour_local,
+				send_minute_local: task.send_minute_local,
+				timezone: task.timezone || 'UTC',
+				destinations: task.destinations,
+				project_id: task.project_id || null
+			};
+			payload[field] = value;
+			setStatus(paneStatus, t('scheduleSaving', 'Saving…'));
+			try {
+				await apiRequest('/tasks/' + encodeURIComponent(task.id),
+					{ method: 'PUT', body: JSON.stringify(payload) });
+				await loadAll();
+			} catch (e) {
+				setStatus(paneStatus, (e && e.message) || t('taskSaveFailed', 'Could not save your task.'), 'error');
+			}
+		}
+
+		function pauseTaskUntil(task) {
+			var answer = window.prompt(t('taskPausePrompt', 'Pause until which date? The task runs again from that date by itself. (YYYY-MM-DD)'), '');
+			if (answer === null || !answer.trim()) return;   // cancelled: nothing is sent
+			setTaskField(task, 'paused_until', answer.trim());
 		}
 
 		async function runNowTask(btn, task) {

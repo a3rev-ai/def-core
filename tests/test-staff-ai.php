@@ -94,6 +94,10 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 			return $this->params[ $key ] ?? null;
 		}
 
+		public function has_param( string $key ): bool {
+			return array_key_exists( $key, $this->params );
+		}
+
 		public function get_json_params(): array {
 			return $this->body;
 		}
@@ -1552,9 +1556,9 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'project_id', 'send_date_local', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'paused_until', 'project_id', 'send_date_local', 'send_hour_local', 'send_minute_local', 'send_weekday', 'skip_next', 'timezone' ),
 	$keys,
-	'exactly the fourteen task fields (row 9 added send_date_local) - owner_email and any future extras stay out'
+	'exactly the sixteen task fields (row 9 added send_date_local, W9 paused_until and skip_next) - owner_email and any future extras stay out'
 );
 assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
 assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
@@ -2272,6 +2276,52 @@ assert_true(
 	is_wp_error( $resp ) && false !== strpos( $resp->get_error_message(), 'try again in a moment' ),
 	'every other refusal keeps the fallback - only the 422 is a sentence for the user'
 );
+
+// ── TS-21. Skip the next run, pause until a date (W9) ──────────────────
+// Neither is full-replace: the Edit form sends neither, so an absent key must
+// stay absent or DEF would end the pause of a task somebody merely renamed.
+echo "\n[TS-21] W9: pause and skip ride the body only when named\n";
+
+list( $resp, $sent ) = def_test_task_body( array() );
+assert_true(
+	! array_key_exists( 'paused_until', $sent ) && ! array_key_exists( 'skip_next', $sent ),
+	'neither named = neither forwarded, so DEF keeps what it stored'
+);
+
+list( $resp, $sent ) = def_test_task_body( array( 'paused_until' => '2026-11-03', 'skip_next' => true ) );
+assert_equals( '2026-11-03', $sent['paused_until'] ?? '', 'a pause date rides the body as given' );
+assert_true( true === ( $sent['skip_next'] ?? null ), 'so does a skip' );
+
+list( $resp, $sent ) = def_test_task_body( array( 'paused_until' => '', 'skip_next' => false ) );
+assert_true(
+	array_key_exists( 'paused_until', $sent ) && null === $sent['paused_until'],
+	"Resume now's '' is sent as null, which DEF reads as the end of the pause"
+);
+assert_true( false === ( $sent['skip_next'] ?? null ), 'an undone skip is sent as false' );
+
+list( $resp, $sent ) = def_test_task_body( array( 'paused_until' => null ) );
+assert_true(
+	array_key_exists( 'paused_until', $sent ) && null === $sent['paused_until'],
+	'a null pause is forwarded as null - named, so DEF clears it'
+);
+
+foreach ( array( '2026-13-45', 'next tuesday', 20261103 ) as $bad ) {
+	list( $resp ) = def_test_task_body( array( 'paused_until' => $bad ) );
+	assert_true( is_wp_error( $resp ), 'a pause date that is not a real date is refused: ' . var_export( $bad, true ) );
+}
+foreach ( array( 'yes', 1, null ) as $bad ) {
+	list( $resp ) = def_test_task_body( array( 'skip_next' => $bad ) );
+	assert_true( is_wp_error( $resp ), 'skip_next that is not true or false is refused: ' . var_export( $bad, true ) );
+}
+
+$GLOBALS['_def_test_get_body'] = json_encode( array(
+	'success' => true,
+	'tasks'   => array( array( 'id' => 't1', 'cadence' => 'weekly', 'paused_until' => '2026-11-03', 'skip_next' => true ) ),
+) );
+$listed = DEF_Core_Staff_AI::rest_list_tasks()->get_data()['tasks'][0] ?? array();
+unset( $GLOBALS['_def_test_get_body'] );
+assert_equals( '2026-11-03', $listed['paused_until'] ?? '', 'the card reads the pause date DEF serves' );
+assert_true( true === ( $listed['skip_next'] ?? null ), 'and the skip' );
 
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
