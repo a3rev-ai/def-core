@@ -62,6 +62,60 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * The token a widget streams straight from DEF on (W74): ten minutes, one channel, one
+	 * conversation, signed as /context-token is. It carries what the proxy's headers carry
+	 * for the same turn and nothing more; the API key never leaves this server.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_issue_stream_token( $request ) {
+		$channel = (string) $request->get_param( 'channel' );
+		$staff   = 'staff_ai' === $channel;
+		// The chat proxy's rule: a logged-in caller with a bad nonce is refused, never downgraded.
+		if ( ! $staff && is_user_logged_in() ) {
+			$nonce = $request->get_header( 'X-WP-Nonce' );
+			if ( ! $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+				return new \WP_Error( 'invalid_nonce', 'Authentication required.', array( 'status' => 403 ) );
+			}
+		}
+
+		$user     = wp_get_current_user();
+		$identity = array(
+			'sub'          => $user->ID ? (string) $user->ID : 'anon:' . wp_generate_uuid4(),
+			'display_name' => $user->ID ? $user->display_name : '',
+			'ip'           => self::get_visitor_ip(),
+		);
+		if ( $staff ) {
+			$identity['capabilities'] = self::get_user_def_capabilities( $user );
+			$identity['email']        = $user->user_email;
+			$identity['roles']        = array_values( array_filter( (array) $user->roles, 'is_string' ) );
+			$identity['site_name']    = get_bloginfo( 'name' );
+		}
+		$claims = array_merge(
+			array_filter( $identity ), // What build_proxy_headers leaves out when empty, this leaves out too.
+			array(
+				'iss'     => get_site_url(),
+				'aud'     => DEF_CORE_AUDIENCE,
+				'scope'   => 'stream',
+				'channel' => $channel,
+				'thread'  => (string) $request->get_param( 'thread' ),
+			)
+		);
+
+		$response = new \WP_REST_Response(
+			array(
+				'token'      => DEF_Core_JWT::issue_token( $claims, 600 ),
+				'exp'        => time() + 600,
+				'stream_url' => \DEF_Core::get_def_api_url() . ( $staff ? '/api/staff-ai/chat/stream' : '/api/chat/stream' ),
+			),
+			200
+		);
+		$response->set_headers( array( 'Cache-Control' => 'no-store' ) );
+		return $response;
+	}
+
+	/**
 	 * BFF proxy for Customer Chat — proxies chat requests to DEF backend.
 	 * WordPress resolves identity and forwards with trusted headers.
 	 *

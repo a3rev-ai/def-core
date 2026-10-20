@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 8.9.0 - 2026/10/20 =
+* New - Chat: replies start sooner, streamed straight from the platform.
+
 = 8.8.2 - 2026/10/20 =
 * Fix - Voice: a streamed reply starts smoothly; its first words no longer arrived with gaps.
 
