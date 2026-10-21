@@ -215,7 +215,8 @@ window.DefVoice = (function () {
 			ws.onmessage = function (e) {
 				var msg = null;
 				try { msg = JSON.parse(e.data); } catch (x) { /* not a frame DEF sends */ }
-				if (msg && msg.type === 'final') open.transcript = String(msg.text || '');
+				// A final with no words is no transcript: the clip gets the batch transcriber's look.
+				if (msg && msg.type === 'final' && msg.text) open.transcript = String(msg.text);
 				if (msg && (msg.type === 'final' || msg.type === 'error')) settle();
 			};
 			ws.onclose = function (e) {

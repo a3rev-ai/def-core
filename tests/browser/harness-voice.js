@@ -853,6 +853,19 @@ function check(n, label, cond, detail) {
 				quiet.sockets[0].closedBy === 'client' && !quiet.sockets[0].texts().some(m => m.type === 'end'),
 				'sockets=' + t.sockets.length + ' unheard=' + JSON.stringify(unheard && { spoke: unheard.spoke }) + ' ms=' + (Date.now() - at));
 		}
+		// 43. an empty `final` is no transcript: the clip gets the batch transcriber's look
+		{
+			const { t, rec, ws } = await liveBoot();
+			ws.open();
+			await wait(t.window, 300);
+			const stopped = rec.stop();
+			await wait(t.window, 10);
+			ws.answer({ type: 'final', text: '' });
+			const done = await stopped;
+			check(43, 'live — a `final` with no words resolves as an `error` does: the clip, no transcript, live failed',
+				!!done && done.transcript === undefined && !!done.blob && logged(t, / live failed$/),
+				'done=' + JSON.stringify(done && Object.keys(done)) + ' log=' + t.DefVoice.log().join('|'));
+		}
 	}
 
 	console.log(results.join('\n'));
