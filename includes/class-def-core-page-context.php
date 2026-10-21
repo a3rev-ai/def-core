@@ -308,7 +308,7 @@ final class DEF_Core_Page_Context {
 
 		$content = (string) get_post_field( 'post_content', $post_id );
 		if ( '' !== $content ) {
-			$tags = new WP_HTML_Tag_Processor( $content );
+			$tags = new WP_HTML_Tag_Processor( self::visible_html( parse_blocks( $content ) ) );
 			while ( $tags->next_tag( 'img' ) ) {
 				$alt   = $tags->get_attribute( 'alt' );
 				$alt   = is_string( $alt ) ? $alt : '';
@@ -325,6 +325,27 @@ final class DEF_Core_Page_Context {
 			}
 		}
 		return array_values( $images );
+	}
+
+	/**
+	 * The HTML of parsed blocks, less every block the editor hid (core's
+	 * `blockVisibility`), with its inner blocks.
+	 *
+	 * @param array $blocks Parsed blocks (parse_blocks).
+	 * @return string
+	 */
+	private static function visible_html( array $blocks ): string {
+		$html = '';
+		foreach ( $blocks as $block ) {
+			if ( false === ( $block['attrs']['metadata']['blockVisibility'] ?? null ) ) {
+				continue;
+			}
+			$i = 0;
+			foreach ( $block['innerContent'] as $chunk ) {
+				$html .= is_string( $chunk ) ? $chunk : self::visible_html( array( $block['innerBlocks'][ $i++ ] ) );
+			}
+		}
+		return $html;
 	}
 
 	/**

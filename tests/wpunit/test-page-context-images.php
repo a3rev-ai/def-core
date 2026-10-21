@@ -64,6 +64,30 @@ class Test_Page_Context_Images extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_a_picture_in_a_block_the_editor_hid_is_not_listed(): void {
+		$shown  = $this->picture( 'shown.jpg', 'Shown' );
+		$hidden = $this->picture( 'hidden.jpg', 'Hidden' );
+		$nested = $this->picture( 'nested.jpg', 'Nested' );
+		$image  = static function ( int $id, string $attrs = '' ): string {
+			return '<!-- wp:image {"id":' . $id . $attrs . '} -->'
+				. '<figure class="wp-block-image"><img src="https://example.org/' . $id . '.jpg" alt="" class="wp-image-' . $id . '"/></figure>'
+				. '<!-- /wp:image -->';
+		};
+		$post = self::factory()->post->create(
+			array(
+				'post_content' =>
+					$image( $shown )
+					. $image( $hidden, ',"metadata":{"blockVisibility":false}' )
+					. '<!-- wp:group {"metadata":{"blockVisibility":false}} --><div class="wp-block-group">'
+					. $image( $nested )
+					. '</div><!-- /wp:group -->',
+			)
+		);
+		$this->go_to( get_permalink( $post ) );
+
+		$this->assertSame( array( $this->listed( $shown, 'Shown', '' ) ), DEF_Core_Page_Context::collect_page_images( $post ) );
+	}
+
 	public function test_a_products_gallery_follows_its_featured_image(): void {
 		register_post_type( 'product', array( 'public' => true ) );
 		$front   = $this->picture( 'front.jpg', 'Front' );

@@ -134,6 +134,7 @@
 		'retrieve':               'Working on it...',
 		'search':                 'Searching...',
 		'render_product_cards':   'Fetching products...',
+		'look_at_page_picture':   'Looking at the picture...',
 		// V3.0 (Spec V1.2 §6): spawn_sub_agent is no longer surfaced to
 		// Customer Chat — joe.yaml does not declare it as a tool, so this
 		// label entry is unreachable from the customer channel. Removed
