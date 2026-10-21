@@ -4,7 +4,8 @@
  * SHIPPED voice blocks of both surfaces (the console's and Customer Chat's,
  * each extracted by marker) against their own DOM. Nothing here is a copy of
  * the code under test; the widget's phrase set is read out of its shipped
- * strings map rather than retyped.
+ * strings map rather than retyped. Since W75 (v8.12.0) also the live transcription
+ * socket, against a fake WebSocket and a fake ScriptProcessor tap.
  *
  * Bite checks: VOICE_MODULE=… (the shared module), VOICE=… (the console block),
  * CHAT_VOICE=… (the widget block), CHAT_STRINGS=… (the strings map) load a
@@ -76,6 +77,20 @@ function boot(wave, bodyHtml) {
 	// check marks `stalled` says 'running' and renders nothing: no source of it ever ends.
 	const starts = [], scheduled = [], elementPlays = [], elements = [], blobs = [];
 	const ctl = { hold: false, ctx: null };
+	// The live socket (W75): a check opens it, answers it, or closes it with a code.
+	const sockets = [], taps = [];
+	window.WebSocket = function (url, protocols) {
+		const ws = this;
+		Object.assign(ws, { url, protocols, readyState: 0, sent: [], closedBy: null });
+		ws.send = data => ws.sent.push(data);
+		ws.close = () => { if (ws.readyState < 2) { ws.readyState = 3; ws.closedBy = 'client'; if (ws.onclose) ws.onclose({ code: 1005 }); } };
+		ws.open = () => { ws.readyState = 1; if (ws.onopen) ws.onopen(); };
+		ws.answer = msg => ws.onmessage && ws.onmessage({ data: JSON.stringify(msg) });
+		ws.drop = code => { ws.readyState = 3; ws.closedBy = 'server'; if (ws.onclose) ws.onclose({ code }); };
+		ws.texts = () => ws.sent.filter(d => typeof d === 'string').map(d => JSON.parse(d));
+		ws.frames = () => ws.sent.filter(d => typeof d !== 'string');
+		sockets.push(ws);
+	};
 	window.AudioContext = function () {
 		const ctx = ctl.ctx = this;
 		this.state = 'running';
@@ -86,6 +101,13 @@ function boot(wave, bodyHtml) {
 		this.destination = {};
 		this.createAnalyser = () => { analyser.context = ctx; return analyser; };
 		this.createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
+		// The live tap (W75): a check feeds it a buffer with feed(samples).
+		this.createScriptProcessor = () => {
+			const tap = { connected: false, connect() { tap.connected = true; }, disconnect() { tap.connected = false; },
+				feed: data => tap.onaudioprocess && tap.onaudioprocess({ inputBuffer: { getChannelData: () => data } }) };
+			taps.push(tap);
+			return tap;
+		};
 		this.resume = () => Promise.resolve();
 		this.createBuffer = (channels, length, rate) => {
 			const data = new Float32Array(length);
@@ -124,7 +146,7 @@ function boot(wave, bodyHtml) {
 	window.MediaRecorder.isTypeSupported = () => true;
 	window.eval(MODULE);
 	return {
-		window, DefVoice: window.DefVoice, starts, scheduled, elementPlays, elements, blobs, ctl,
+		window, DefVoice: window.DefVoice, starts, scheduled, elementPlays, elements, blobs, ctl, sockets, taps,
 		say: w => { script = null; current = w; },
 		play: list => { script = list; reads = 0; },
 		reads: () => reads,
@@ -687,6 +709,150 @@ function check(n, label, cond, detail) {
 			!!after && after.spoke === true && t.DefVoice.log().some(l => l.endsWith(' context replaced')),
 			'before=' + (before && before.spoke) + ' first=' + first.state + ' replaced=' + (t.ctl.ctx !== first) +
 			' after=' + (after && after.spoke) + ' log=' + t.DefVoice.log().join('|'));
+	}
+
+	// 34–42. live transcription (W75): the recording streams over one socket while it is
+	//     spoken; the clip is still recorded beside it and is what a failed socket leaves.
+	{
+		const LIVE = { url: 'wss://api.example.test/api/customer/voice/live', token: 'tok-1', thread: 'thr 1', context: 'Hi there' };
+		const tone = (n, v) => new Float32Array(n).fill(v);
+		const pcm = frame => Array.from(new Int16Array(frame));
+		const logged = (t, re) => t.DefVoice.log().some(l => re.test(l));
+		async function liveBoot() {
+			const t = boot(voicedWave);
+			const rec = t.DefVoice.createRecorder({});
+			await rec.start(LIVE);
+			return { t, rec, ws: t.sockets[0], tap: t.taps[0] };
+		}
+		let settled = false;
+		const watch = p => { settled = false; p.then(() => { settled = true; }); return p; };
+
+		// 34. the socket, its handshake, and the frames while speaking
+		{
+			const { t, ws, tap } = await liveBoot();
+			tap.feed(tone(4096, 0.5));   // spoken before the socket opened: held, not lost
+			const beforeOpen = ws.sent.length;
+			ws.open();
+			tap.feed(tone(4096, -0.5));
+			const texts = ws.texts(), frames = ws.frames();
+			check(34, 'live — one socket on the token (subprotocol, never the URL), start + context first, then every frame as 24 kHz Int16 LE',
+				t.sockets.length === 1 && ws.url === LIVE.url + '?thread=thr%201' &&
+				JSON.stringify(ws.protocols) === JSON.stringify(['def-live', 'tok-1']) && !ws.url.includes('tok-1') &&
+				tap.connected && beforeOpen === 0 && typeof ws.sent[0] === 'string' &&
+				JSON.stringify(texts) === JSON.stringify([{ type: 'start', context: 'Hi there' }]) &&
+				frames.length === 2 && frames[0].byteLength === 4096 &&
+				pcm(frames[0]).every(v => v === 16383) && pcm(frames[1]).every(v => v === -16384) &&
+				logged(t, / live open$/),
+				'url=' + ws.url + ' protocols=' + JSON.stringify(ws.protocols) + ' texts=' + JSON.stringify(texts) +
+				' frames=' + frames.map(f => f.byteLength) + ' first=' + (frames[0] && pcm(frames[0])[0]));
+		}
+		// 35. resampled from the context's own rate
+		{
+			const { t, ws, tap } = await liveBoot();
+			t.ctl.ctx.sampleRate = 44100;
+			ws.open();
+			tap.feed(tone(4096, 0.25));
+			const frame = ws.frames()[0];
+			check(35, 'live — a 44.1 kHz context is resampled to 24 kHz (4096 samples → 2229)',
+				!!frame && frame.byteLength === 2229 * 2 && pcm(frame).every(v => v === 8191),
+				'bytes=' + (frame && frame.byteLength));
+		}
+		// 36. the pause sends `end`, the reply waits for `final`, and `final` is the transcript
+		{
+			const t = boot(voicedWave);
+			let stopped = null;
+			const rec = t.DefVoice.createRecorder({ onSilence: () => { stopped = watch(rec.stop()); } });
+			await rec.start(LIVE);
+			const ws = t.sockets[0], tap = t.taps[0];
+			ws.open();
+			tap.feed(tone(4096, 0.1));
+			await wait(t.window, 500);
+			t.say(silentWave);
+			for (let i = 0; i < 40 && !stopped; i++) await wait(t.window, 100);   // the pause
+			await wait(t.window, 20);
+			const texts = ws.texts();
+			const waiting = !!stopped && !settled && texts.length === 2 && texts[1].type === 'end' &&
+				ws.sent[ws.sent.length - 1] === JSON.stringify({ type: 'end' }) && !tap.connected && ws.readyState === 1;
+			ws.answer({ type: 'final', text: 'Book it for Friday.' });
+			const done = stopped && await stopped;
+			check(36, 'live — the pause sends `end` after the last frame and waits; `final` resolves the stop with the transcript, the clip beside it, and the client closes',
+				waiting && !!done && done.transcript === 'Book it for Friday.' && done.spoke === true && !!done.blob &&
+				ws.closedBy === 'client' && logged(t, / live final \d+\.\d\ds$/),
+				'waiting=' + waiting + ' texts=' + JSON.stringify(texts) + ' done=' + JSON.stringify(done && { transcript: done.transcript, spoke: done.spoke }) +
+				' log=' + t.DefVoice.log().join('|'));
+		}
+		// 37–39. an error frame, a close, and silence each leave the clip
+		for (const [n, label, fail] of [
+			[37, 'an `error` frame', ws => ws.answer({ type: 'error' })],
+			[38, 'the socket closing before `final`', ws => ws.drop(1011)],
+		]) {
+			const { t, rec, ws } = await liveBoot();
+			ws.open();
+			await wait(t.window, 300);
+			const at = Date.now();
+			const stopped = watch(rec.stop());
+			await wait(t.window, 10);
+			fail(ws);
+			const done = await stopped;
+			check(n, 'live — ' + label + ': the stop resolves at once with the clip and no transcript; the log says live failed',
+				!!done && done.transcript === undefined && !!done.blob && Date.now() - at < 500 && ws.readyState === 3 &&
+				logged(t, / live failed$/),
+				'done=' + JSON.stringify(done && Object.keys(done)) + ' ms=' + (Date.now() - at) + ' log=' + t.DefVoice.log().join('|'));
+		}
+		{
+			const { t, rec, ws } = await liveBoot();
+			ws.open();
+			await wait(t.window, 300);
+			const at = Date.now();
+			const done = await rec.stop();
+			const ms = Date.now() - at;
+			check(39, 'live — no answer: the stop waits LIVE_FINAL_WAIT_MS (1.7 s) and no more, then the clip; the socket is closed',
+				!!done && done.transcript === undefined && !!done.blob && ms >= 1650 && ms < 2300 &&
+				ws.closedBy === 'client' && logged(t, / live failed$/), 'ms=' + ms + ' closedBy=' + ws.closedBy);
+		}
+		// 40. release() — a tab hidden, the conversation ended — closes the socket
+		{
+			const { rec, ws, tap } = await liveBoot();
+			ws.open();
+			rec.release();
+			check(40, 'live — release() closes the socket and takes the tap off the mic',
+				ws.closedBy === 'client' && !tap.connected && !rec.isRecording(), 'closedBy=' + ws.closedBy + ' tap=' + tap.connected);
+		}
+		// 41. 4415: this employee's voice has no live transcription — the page stops trying
+		{
+			const { t, rec, ws } = await liveBoot();
+			ws.drop(4415);
+			const first = await rec.stop();
+			await rec.start(LIVE);
+			await wait(t.window, 300);
+			const again = await rec.stop();
+			const other = t.DefVoice.createRecorder({});
+			await other.start(LIVE);
+			await wait(t.window, 300);
+			const third = await other.stop();
+			check(41, 'live — a 4415 close stops the page opening sockets (this recorder and the next); every recording is still a clip',
+				t.sockets.length === 1 && !!first && !!first.blob && !!again && !!again.blob && again.transcript === undefined &&
+				!!third && !!third.blob, 'sockets=' + t.sockets.length);
+		}
+		// 42. no live options, and a recording with nothing said
+		{
+			const t = boot(voicedWave);
+			const rec = t.DefVoice.createRecorder({});
+			await rec.start();
+			await wait(t.window, 300);
+			const plainRec = await rec.stop();
+			const quiet = boot(silentWave);
+			const qrec = quiet.DefVoice.createRecorder({});
+			await qrec.start(LIVE);
+			quiet.sockets[0].open();
+			const at = Date.now();
+			const unheard = await qrec.stop();
+			check(42, 'live — start() with no live opens no socket; a recording with no speech closes its socket without waiting',
+				t.sockets.length === 0 && t.taps.length === 0 && !!plainRec && plainRec.spoke === true &&
+				!!unheard && unheard.spoke === false && unheard.transcript === undefined && Date.now() - at < 500 &&
+				quiet.sockets[0].closedBy === 'client' && !quiet.sockets[0].texts().some(m => m.type === 'end'),
+				'sockets=' + t.sockets.length + ' unheard=' + JSON.stringify(unheard && { spoke: unheard.spoke }) + ' ms=' + (Date.now() - at));
+		}
 	}
 
 	console.log(results.join('\n'));

@@ -27,6 +27,13 @@ window.DefVoice = (function () {
 	// A streamed line's parts: raw 16-bit mono PCM (DEF's SPEECH_STREAM_MIME).
 	var PCM_MIME = /^audio\/pcm\b/;
 	var PCM_RATE = 24000;
+	// Live transcription (W75): after the pause, the transcript is waited for this long —
+	// the batch transcription it replaces (1.7 s, 2026-10-19), so a stalled socket costs
+	// at most that before the clip goes instead.
+	var LIVE_FINAL_WAIT_MS = 1700;
+	// DEF closed a live socket with 4415 (this employee's voice has no live transcriber):
+	// the page sends clips from then on.
+	var liveUnsupported = false;
 
 	function supported() {
 		return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
@@ -111,6 +118,18 @@ window.DefVoice = (function () {
 		return String(mime || '').split(';')[0].trim() || 'audio/webm';
 	}
 
+	// The mic at the context's rate as 16-bit little-endian mono PCM at 24 kHz, the wire
+	// format DEF relays (its SPEECH_STREAM_MIME). The nearest sample: speech keeps its words.
+	function pcm24k(input, rate) {
+		var step = rate / PCM_RATE, n = Math.floor(input.length / step);
+		var view = new DataView(new ArrayBuffer(n * 2));
+		for (var i = 0; i < n; i++) {
+			var v = Math.max(-1, Math.min(1, input[Math.floor(i * step)]));
+			view.setInt16(2 * i, v < 0 ? v * 32768 : v * 32767, true);
+		}
+		return view.buffer;
+	}
+
 	function toBase64(blob) {
 		return new Promise(function (resolve, reject) {
 			var reader = new FileReader();
@@ -130,12 +149,18 @@ window.DefVoice = (function () {
 	 * resolves {blob, mime, seconds, spoke} or null. release() drops the mic (the
 	 * page's context stays). handlers: onTick(seconds), onAutoStop (the two-minute
 	 * stop), onSilence (a pause after speech), onIdle (no speech at all).
+	 *
+	 * start(live), live = {url, token, thread, context} (W75): the recording also streams
+	 * to DEF over one socket as it is spoken, and stop() waits up to LIVE_FINAL_WAIT_MS
+	 * for the transcript, resolving with `transcript` beside the clip when one came. The
+	 * clip is always recorded: any failure of the socket leaves it as the turn.
 	 */
 	function createRecorder(handlers) {
 		handlers = handlers || {};
 		var stream = null, source = null, analyser = null, samples = null;
 		var recorder = null, chunks = [], startedAt = 0, timer = null, autoStop = null, meter = null;
 		var pending = null, starting = false, spokeAt = 0, quietSince = 0, loudRun = 0;
+		var link = null;   // the live socket and its tap on the mic (W75)
 
 		function stopTimers() {
 			if (timer) { clearInterval(timer); timer = null; }
@@ -158,7 +183,67 @@ window.DefVoice = (function () {
 		function release() {
 			stopTimers();
 			recorder = null;
+			if (link) closeLive(link);
 			stopCapture();
+		}
+
+		// The token rides as a subprotocol (DEF echoes "def-live"), never in the URL. Frames
+		// spoken before the socket opens wait for it, behind the `start` that opens the turn.
+		function openLive(live) {
+			var queued = [JSON.stringify({ type: 'start', context: live.context || '' })];
+			var open = { transcript: undefined }, settle;
+			open.settled = new Promise(function (resolve) { settle = resolve; });
+			try {
+				open.ws = new WebSocket(live.url + '?thread=' + encodeURIComponent(live.thread || ''), ['def-live', live.token]);
+				open.tap = audioCtx.createScriptProcessor(4096, 1, 1);
+			} catch (e) {
+				if (open.ws) open.ws.close();
+				log('live failed');
+				return null;
+			}
+			var ws = open.ws;
+			open.send = function (data) {
+				if (ws.readyState === 1) ws.send(data);
+				else if (ws.readyState === 0) queued.push(data);
+			};
+			ws.binaryType = 'arraybuffer';
+			ws.onopen = function () {
+				log('live open');
+				queued.forEach(function (data) { ws.send(data); });
+				queued = [];
+			};
+			ws.onmessage = function (e) {
+				var msg = null;
+				try { msg = JSON.parse(e.data); } catch (x) { /* not a frame DEF sends */ }
+				if (msg && msg.type === 'final') open.transcript = String(msg.text || '');
+				if (msg && (msg.type === 'final' || msg.type === 'error')) settle();
+			};
+			ws.onclose = function (e) {
+				if (e.code === 4415) liveUnsupported = true;
+				settle();
+			};
+			open.tap.onaudioprocess = function (e) { open.send(pcm24k(e.inputBuffer.getChannelData(0), audioCtx.sampleRate)); };
+			source.connect(open.tap);
+			open.tap.connect(audioCtx.destination);   // a ScriptProcessor runs only while it feeds the output; it writes silence
+			return open;
+		}
+
+		function closeLive(open) {
+			try { open.tap.disconnect(); } catch (e) { /* already gone */ }
+			open.tap.onaudioprocess = null;
+			open.ws.close();
+			if (link === open) link = null;
+		}
+
+		// The pause: `end`, then the transcript, or nothing once LIVE_FINAL_WAIT_MS has run.
+		async function finishLive(open) {
+			try { open.tap.disconnect(); } catch (e) { /* already gone */ }
+			open.send(JSON.stringify({ type: 'end' }));
+			var offAt = Date.now();
+			await Promise.race([open.settled, new Promise(function (r) { setTimeout(r, LIVE_FINAL_WAIT_MS); })]);
+			closeLive(open);
+			log(open.transcript === undefined ? 'live failed' : 'live final ' + ((Date.now() - offAt) / 1000).toFixed(2) + 's');
+			return open.transcript;
 		}
 
 		// The detector counts only while its context runs and the mic feeds it: a
@@ -229,7 +314,7 @@ window.DefVoice = (function () {
 			}
 		}
 
-		async function start() {
+		async function start(live) {
 			if (recorder || starting) return false;
 			starting = true;
 			try {
@@ -266,12 +351,20 @@ window.DefVoice = (function () {
 				recorder = null;
 				// No live detector → assume speech: the tap decides.
 				var spoke = !!spokeAt || !detecting();
+				var result = { blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: spoke };
+				var open = link;
+				if (open && !spoke) closeLive(open);
 				stopCapture();   // the mic is off before a word of the reply plays
 				log('mic off ' + seconds.toFixed(1) + 's' + (spoke ? '' : ' no speech'));
-				if (resolve) resolve({ blob: new Blob(chunks, { type: type }), mime: type, seconds: seconds, spoke: spoke });
+				if (!open || !spoke) { if (resolve) resolve(result); return; }
+				finishLive(open).then(function (transcript) {
+					if (transcript !== undefined) result.transcript = transcript;
+					if (resolve) resolve(result);
+				});
 			};
 			startedAt = Date.now();
 			rec.start();
+			if (live && source && !liveUnsupported) link = openLive(live);
 			timer = setInterval(function () {
 				if (handlers.onTick) handlers.onTick(Math.floor((Date.now() - startedAt) / 1000));
 			}, 500);
@@ -282,7 +375,7 @@ window.DefVoice = (function () {
 
 		function stop() {
 			return new Promise(function (resolve) {
-				if (!recorder || recorder.state === 'inactive') { stopTimers(); recorder = null; stopCapture(); resolve(null); return; }
+				if (!recorder || recorder.state === 'inactive') { release(); resolve(null); return; }
 				pending = resolve;
 				recorder.stop();
 			});
