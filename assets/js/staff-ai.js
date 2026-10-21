@@ -2936,7 +2936,7 @@ function t(key, fallback) {
 	// (7.7.2: a photo attached then spoken about went out without the photo).
 	// A turn transcribed while it was spoken (W75) sends its words, not the recording.
 	async function sendSpoken(voice) {
-		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
+		if (!conversationOn) return;   // ended during "Transcribing…": nothing is sent (a live turn has already streamed its audio)
 		if (isLoading || isReadOnly) { endConversation(); return; }
 		if (!chatStreamUrl || typeof ReadableStream === 'undefined') {
 			endConversation(t('voiceNeedsStreaming', 'Voice needs a browser that can stream replies.'));

@@ -2157,7 +2157,7 @@
 	// composer, exactly as a typed turn carries them. A turn transcribed while it was
 	// spoken (W75) sends its words, not the recording.
 	function sendSpoken(voice) {
-		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
+		if (!conversationOn) return;   // ended during "Transcribing…": nothing is sent (a live turn has already streamed its audio)
 		if (destroyed || isComposerDisabled) { endConversation(); return; }
 		if (!config.chatStreamUrl || typeof ReadableStream === 'undefined') {
 			endConversation(t('voiceNeedsStreaming'));
