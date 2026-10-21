@@ -3943,12 +3943,13 @@ final class DEF_Core_Staff_AI
 		// DEF's 422 is the user's own mistake, named: "a once task must be
 		// scheduled in the future" is permanent and fixable, and the generic
 		// fallback below tells them to try again in a moment - a retry prompt
-		// for something no retry mends. The message rides inside
-		// backend_request's wrapped error string (the triage_save_error
+		// for something no retry mends. DEF's 409 is the same kind of sentence
+		// ("You already have a Notes to Staff AI task."). The message rides
+		// inside backend_request's wrapped error string (the triage_save_error
 		// precedent); every other code keeps the fallback.
 		$fallback = __( 'Could not save your task. Nothing has changed - try again in a moment.', 'digital-employees' );
-		if ( 'staff_ai_http_422' === $result->get_error_code()
-			&& preg_match( '/\(HTTP 422\): (.+)$/s', (string) $result->get_error_message(), $m )
+		if ( in_array( $result->get_error_code(), array( 'staff_ai_http_422', 'staff_ai_http_409' ), true )
+			&& preg_match( '/\(HTTP 4(?:09|22)\): (.+)$/s', (string) $result->get_error_message(), $m )
 			&& '' !== trim( $m[1] ) && __( 'Unknown error', 'digital-employees' ) !== trim( $m[1] ) ) {
 			$fallback = trim( $m[1] );
 		}

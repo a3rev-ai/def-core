@@ -2314,6 +2314,12 @@ assert_equals(
 	is_wp_error( $resp ) ? $resp->get_error_message() : '',
 	"DEF's 422 reaches the user verbatim, not as a retry prompt"
 );
+list( $resp ) = def_test_task_body( array( 'kind' => 'slack_notes', 'cadence' => 'hourly' ), 409, 'You already have a Notes to Staff AI task.' );
+assert_equals(
+	'You already have a Notes to Staff AI task.',
+	is_wp_error( $resp ) ? $resp->get_error_message() : '',
+	"DEF's 409 on a second Notes task reaches the user verbatim, not as a retry prompt"
+);
 list( $resp ) = def_test_task_body( $once, 400, 'https://def-api.internal/api/staff-ai/tasks' );
 assert_true(
 	is_wp_error( $resp ) && false !== strpos( $resp->get_error_message(), 'try again in a moment' ),
