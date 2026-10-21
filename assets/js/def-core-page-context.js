@@ -219,6 +219,8 @@
 			terms: Array.isArray(ctx.terms) ? ctx.terms : [],
 			title: typeof ctx.title === 'string' ? ctx.title : '',
 			referrer_path: getReferrerPath(),
+			// The page's pictures, as PHP listed them (W77) — DEF looks at one on request.
+			images: Array.isArray(ctx.images) ? ctx.images : [],
 		};
 		var payload = { current: current };
 

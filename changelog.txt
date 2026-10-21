@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.1.0 - 2026/10/21 =
+* New - Customer Chat: the assistant knows the pictures on the page the visitor is on, from their alt text and captions, and looks at one when asked. The picture is fetched from your site for that answer and not kept.
+
 = 9.0.0 - 2026/10/21 =
 * New - Scheduled: Notes to Staff AI. Once Slack is connected, start a message to yourself in Slack with your assistant's name and the answer appears in its thread on the next run.
 

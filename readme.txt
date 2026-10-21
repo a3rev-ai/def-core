@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.0.0
+Stable tag: 9.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.1.0 - 2026-10-21 =
+* New - Customer Chat: the assistant knows the pictures on the page the visitor is on, from their alt text and captions, and looks at one when asked. The picture is fetched from your site for that answer and not kept.
 
 = 9.0.0 - 2026-10-21 =
 * New - Scheduled: Notes to Staff AI. Once Slack is connected, start a message to yourself in Slack with your assistant's name and the answer appears in its thread on the next run.
