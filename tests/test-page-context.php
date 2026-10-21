@@ -178,6 +178,13 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 	function wp_strip_all_tags( $s ) { return preg_replace( '/<[^>]*>/', '', (string) $s ); }
 }
 
+// W77: collect_page_images reads these — a post with no pictures. The pictures
+// themselves are pinned against real WordPress in tests/wpunit.
+if ( ! function_exists( 'post_password_required' ) ) { function post_password_required( $post = null ) { return false; } }
+if ( ! function_exists( 'get_post_thumbnail_id' ) )  { function get_post_thumbnail_id( $post = null ) { return 0; } }
+if ( ! function_exists( 'get_post_meta' ) )          { function get_post_meta( $id, $key = '', $single = false ) { return ''; } }
+if ( ! function_exists( 'get_post_field' ) )         { function get_post_field( $field, $post = null ) { return ''; } }
+
 // Load the class under test.
 require_once __DIR__ . '/../includes/class-def-core-page-context.php';
 
@@ -501,6 +508,7 @@ assert_test( $payload['page_id'] === 1234, 'payload.page_id populated' );
 assert_test( $payload['language_code'] === 'en', 'payload.language_code defaults to en' );
 assert_test( $payload['title'] === 'Predictive Search Pro', 'payload.title populated' );
 assert_test( count( $payload['terms'] ) === 1, 'payload.terms populated from collect_page_terms' );
+assert_test( $payload['images'] === array(), 'payload.images is an empty list on a page with no pictures' );
 assert_test( ! array_key_exists( 'canonical_path', $payload ), 'canonical_path NOT in PHP payload (JS overrides at submit time)' );
 // Pre-merge fixup (code review #1): symmetry test — referrer_path
 // is also intentionally absent from the PHP payload; JS adds it at

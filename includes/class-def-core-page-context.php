@@ -69,6 +69,7 @@ final class DEF_Core_Page_Context {
 			'queried_taxonomy' => self::collect_queried_taxonomy(),
 			'terms'            => self::collect_page_terms( $post_id ),
 			'title'            => self::safe_title(),
+			'images'           => self::collect_page_images( $post_id ),
 		);
 	}
 
@@ -271,21 +272,130 @@ final class DEF_Core_Page_Context {
 	}
 
 	/**
+	 * The page's pictures, in page order (W77): the featured image, a product's
+	 * gallery, then each <img> in the stored content — one entry per URL, text
+	 * only. DEF lists them for the assistant and fetches one from this site when a
+	 * visitor asks. None where the queried id is not a post (an archive, a search,
+	 * an author page) or the post is behind its password.
+	 *
+	 * @param int $post_id Post / product / page ID.
+	 * @return array<int, array{url: string, alt: string, caption: string}>
+	 */
+	public static function collect_page_images( int $post_id ): array {
+		if ( $post_id <= 0
+			|| in_array( self::detect_page_type(), array( 'taxonomy_archive', 'other', 'search' ), true )
+			|| post_password_required( $post_id ) ) {
+			return array();
+		}
+		$images = array();
+		$add    = static function ( ?array $picture ) use ( &$images ): void {
+			if ( $picture && preg_match( '#^https?://#i', $picture['url'] ) && ! isset( $images[ $picture['url'] ] ) ) {
+				$images[ $picture['url'] ] = array(
+					'url'     => $picture['url'],
+					'alt'     => self::safe_text( $picture['alt'] ),
+					'caption' => self::safe_text( $picture['caption'] ),
+				);
+			}
+		};
+
+		$add( self::attachment_picture( (int) get_post_thumbnail_id( $post_id ) ) );
+		if ( 'product' === get_post_type( $post_id ) ) {
+			// Where WooCommerce keeps a product's gallery (WC_Product::get_gallery_image_ids).
+			foreach ( explode( ',', (string) get_post_meta( $post_id, '_product_image_gallery', true ) ) as $id ) {
+				$add( self::attachment_picture( (int) $id ) );
+			}
+		}
+
+		$content = (string) get_post_field( 'post_content', $post_id );
+		if ( '' !== $content ) {
+			$tags = new WP_HTML_Tag_Processor( self::visible_html( parse_blocks( $content ) ) );
+			while ( $tags->next_tag( 'img' ) ) {
+				$alt   = $tags->get_attribute( 'alt' );
+				$alt   = is_string( $alt ) ? $alt : '';
+				$class = $tags->get_attribute( 'class' );
+				$src   = $tags->get_attribute( 'src' );
+				$id    = is_string( $class ) && preg_match( '/\bwp-image-(\d+)\b/', $class, $m ) ? (int) $m[1] : 0;
+				$add(
+					self::attachment_picture( $id, $alt ) ?? array(
+						'url'     => is_string( $src ) ? trim( $src ) : '',
+						'alt'     => $alt,
+						'caption' => '',
+					)
+				);
+			}
+		}
+		return array_values( $images );
+	}
+
+	/**
+	 * The HTML of parsed blocks, less every block the editor hid (core's
+	 * `blockVisibility`), with its inner blocks.
+	 *
+	 * @param array $blocks Parsed blocks (parse_blocks).
+	 * @return string
+	 */
+	private static function visible_html( array $blocks ): string {
+		$html = '';
+		foreach ( $blocks as $block ) {
+			if ( false === ( $block['attrs']['metadata']['blockVisibility'] ?? null ) ) {
+				continue;
+			}
+			$i = 0;
+			foreach ( $block['innerContent'] as $chunk ) {
+				$html .= is_string( $chunk ) ? $chunk : self::visible_html( array( $block['innerBlocks'][ $i++ ] ) );
+			}
+		}
+		return $html;
+	}
+
+	/**
+	 * An attachment as a listed picture: its `large` URL, its own alt text (else
+	 * the tag's) and its caption. Null when it is not an image attachment.
+	 *
+	 * @param int    $id  Attachment ID (0 for none).
+	 * @param string $alt The tag's alt text, used when the attachment has none.
+	 * @return array{url: string, alt: string, caption: string}|null
+	 */
+	private static function attachment_picture( int $id, string $alt = '' ): ?array {
+		$url = $id > 0 ? wp_get_attachment_image_url( $id, 'large' ) : false;
+		if ( ! $url ) {
+			return null;
+		}
+		$own_alt = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
+		return array(
+			'url'     => (string) $url,
+			'alt'     => '' !== $own_alt ? $own_alt : $alt,
+			'caption' => (string) wp_get_attachment_caption( $id ),
+		);
+	}
+
+	/**
 	 * Sanitised document title. HTML-stripped, length-capped at 200 chars.
 	 * Falls back to bloginfo('name') if wp_get_document_title is unavailable.
 	 */
 	public static function safe_title(): string {
-		$title = function_exists( 'wp_get_document_title' )
-			? (string) wp_get_document_title()
-			: (string) get_bloginfo( 'name' );
-		$title = wp_strip_all_tags( $title );
+		return self::safe_text(
+			function_exists( 'wp_get_document_title' )
+				? (string) wp_get_document_title()
+				: (string) get_bloginfo( 'name' )
+		);
+	}
+
+	/**
+	 * Page text as the page context sends it: HTML-stripped, control characters
+	 * removed, trimmed, length-capped at 200 chars.
+	 *
+	 * @param string $text Untrusted page text.
+	 */
+	private static function safe_text( string $text ): string {
+		$text = wp_strip_all_tags( $text );
 		// Strip control characters (defensive).
-		$title = preg_replace( '/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/', '', $title );
-		$title = trim( (string) $title );
+		$text = preg_replace( '/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/', '', $text );
+		$text = trim( (string) $text );
 		if ( function_exists( 'mb_substr' ) ) {
-			return (string) mb_substr( $title, 0, 200 );
+			return (string) mb_substr( $text, 0, 200 );
 		}
-		return substr( $title, 0, 200 );
+		return substr( $text, 0, 200 );
 	}
 
 	/**
