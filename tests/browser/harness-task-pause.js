@@ -7,7 +7,10 @@
  * The clock is pinned WEST of Greenwich, as harness-so3.js does: the pause date
  * is a plain YYYY-MM-DD, and Date(string) would render the day before here.
  *
- * 13 checks.
+ * "Pause until…" opens a date picker in the card (8.11.1), in the shape of
+ * Documents' "Move to project…" editor; it used to be a window.prompt.
+ *
+ * 20 checks.
  */
 process.env.TZ = 'America/New_York';
 const { JSDOM } = require('jsdom');
@@ -22,6 +25,12 @@ ${extract.templateModal('scheduleModal')}
 </body></html>`;
 
 const EXPECTED_DATE = new Date(2026, 10, 3).toLocaleDateString();
+// The picker's floor: DEF refuses today or earlier, so the earliest date offered is tomorrow, local.
+const TOMORROW = (function () {
+	const d = new Date();
+	d.setDate(d.getDate() + 1);
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+})();
 
 const DAILY = { id: 't-daily', name: 'Morning brief', instruction: 'Write it', enabled: true,
 	cadence: 'daily', send_date_local: null, send_weekday: 0, send_hour_local: 7,
@@ -40,8 +49,6 @@ function boot(tasks, opts) {
 	const window = dom.window, document = window.document;
 	const requests = [];
 	const consolePages = [];
-	const state = { answer: null, prompts: 0 };
-	window.prompt = function () { state.prompts++; return state.answer; };
 	async function apiRequest(url, init) {
 		const method = (init && init.method) || 'GET';
 		requests.push({ url: url, method: method, body: init && init.body });
@@ -73,7 +80,7 @@ function boot(tasks, opts) {
 	const card = (name) => Array.prototype.find.call(
 		document.querySelectorAll('#taskCardGrid .console-card'), (c) => c.textContent.includes(name));
 	return {
-		window, document, requests, state,
+		window, document, requests,
 		load: () => consolePages[0].onEnter(),
 		// The schedule badges; the project badge is not this harness's.
 		badges: (name) => Array.prototype.map.call(
@@ -94,6 +101,17 @@ function boot(tasks, opts) {
 			click(item || document.body);   // a missing item is a failed check, not a crash
 		},
 		puts: () => requests.filter((r) => r.method === 'PUT'),
+		// The card's "Pause until…" picker: its date input and its two buttons.
+		picker: function (name) {
+			const p = card(name).querySelector('.document-assign-row');
+			if (!p) return null;
+			const btn = (label) => Array.prototype.find.call(p.querySelectorAll('button'), (b) => b.textContent === label);
+			return { el: p, input: p.querySelector('input[type="date"].form-input'), ok: btn('OK'), cancel: btn('Cancel') };
+		},
+		dots: (name) => card(name).querySelector('.console-menu-btn'),
+		sheetBtn: (name) => card(name).querySelector('.console-menu-sheet-btn'),
+		key: (el, key) => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true })),
+		click: click,
 		status: () => document.getElementById('scheduledPaneStatus').textContent
 	};
 }
@@ -181,25 +199,88 @@ function fullTask(row) {
 			&& bodies[1].paused_until === '' && !('skip_next' in bodies[1]),
 			JSON.stringify(bodies));
 	}
+	// ── Pause until… is a date picker on the card ──────────────────────────
 	{
 		const t = boot([DAILY]);
 		await t.load();
 		await tick(t.window);
-		t.state.answer = null;
 		t.pick('Morning brief', 'Pause until…');
+		let p = t.picker('Morning brief');
+		check('Pause until… opens a date input on the card, earliest date tomorrow, with the focus in it',
+			!!p && !!p.input && p.input.min === TOMORROW && t.document.activeElement === p.input,
+			p ? 'min=' + (p.input && p.input.min) + ' want ' + TOMORROW : 'no picker');
+		if (p && p.cancel) t.click(p.cancel);
 		await tick(t.window);
-		t.state.answer = '   ';
+		check('Cancel closes it, sends nothing, and puts the focus back on the ⋯ button',
+			!!p && !t.picker('Morning brief') && t.puts().length === 0
+			&& t.document.activeElement === t.dots('Morning brief'), 'puts=' + t.puts().length);
 		t.pick('Morning brief', 'Pause until…');
+		p = t.picker('Morning brief');
+		if (p && p.ok) t.click(p.ok);
 		await tick(t.window);
-		check('a cancelled or empty prompt sends nothing',
-			t.state.prompts === 2 && t.puts().length === 0, 'prompts=' + t.state.prompts + ' puts=' + t.puts().length);
-		t.state.answer = ' 2026-11-03 ';
+		check('OK with no date picked closes it and sends nothing',
+			!!p && !t.picker('Morning brief') && t.puts().length === 0, 'puts=' + t.puts().length);
 		t.pick('Morning brief', 'Pause until…');
+		p = t.picker('Morning brief');
+		if (p && p.input) p.input.value = '2026-11-03';
+		if (p && p.ok) t.click(p.ok);
 		await tick(t.window);
 		const body = t.puts().length ? JSON.parse(t.puts()[0].body) : null;
-		check('an answered prompt PUTs the whole task with the date it was given',
+		check('OK with a date PUTs the whole task plus paused_until, and nothing else new',
 			JSON.stringify(body) === JSON.stringify(Object.assign(fullTask(DAILY), { paused_until: '2026-11-03' })),
 			JSON.stringify(body));
+	}
+	{
+		const t = boot([DAILY]);
+		await t.load();
+		await tick(t.window);
+		t.pick('Morning brief', 'Pause until…');
+		let p = t.picker('Morning brief');
+		if (p && p.input) { p.input.value = '2026-11-03'; t.key(p.input, 'Escape'); }
+		await tick(t.window);
+		check('Escape is Cancel: closed, nothing sent, the focus back on the ⋯ button',
+			!!p && !t.picker('Morning brief') && t.puts().length === 0
+			&& t.document.activeElement === t.dots('Morning brief'), 'puts=' + t.puts().length);
+		t.pick('Morning brief', 'Pause until…');
+		p = t.picker('Morning brief');
+		if (p && p.input) {
+			p.input.value = '2026-11-03';
+			p.input.dispatchEvent(new t.window.Event('input', { bubbles: true }));
+		}
+		await t.load();   // the grid re-renders under it, as a watched Run now does every few seconds
+		await tick(t.window);
+		const again = t.picker('Morning brief');
+		check('a re-render puts the open picker back on the rebuilt card, with the date picked and the focus in it',
+			!!p && !!again && again.el !== p.el && again.input.value === '2026-11-03'
+			&& t.document.activeElement === again.input, again ? 'value=' + again.input.value : 'no picker after the re-render');
+		if (again) t.key(again.input, 'Enter');
+		await tick(t.window);
+		const body = t.puts().length ? JSON.parse(t.puts()[0].body) : null;
+		check('Enter is OK: the PUT carries paused_until and the picker closes',
+			!!body && body.paused_until === '2026-11-03' && !t.picker('Morning brief'), JSON.stringify(body));
+	}
+	{
+		const t = boot([DAILY]);
+		await t.load();
+		await tick(t.window);
+		t.pick('Morning brief', 'Pause until…');
+		const p = t.picker('Morning brief');
+		const elsewhere = t.document.getElementById('taskName');   // the Edit modal's first field
+		elsewhere.focus();
+		await t.load();
+		await tick(t.window);
+		const again = t.picker('Morning brief');
+		check('a re-render with the focus elsewhere (the Edit modal) puts the picker back and leaves the focus where it was',
+			!!p && !!again && t.document.activeElement === elsewhere,
+			'focus on ' + (t.document.activeElement && (t.document.activeElement.id || t.document.activeElement.tagName)));
+		// A phone: the ⋯ button is display:none, so the way back is the card's Manage button.
+		const phone = t.document.createElement('style');
+		phone.textContent = '.console-menu-btn { display: none; }';
+		t.document.head.appendChild(phone);
+		if (again && again.cancel) t.click(again.cancel);
+		check('on a phone, where ⋯ is hidden, closing puts the focus on the card\'s Manage button',
+			!!again && t.document.activeElement === t.sheetBtn('Morning brief'),
+			'focus on ' + (t.document.activeElement && t.document.activeElement.className));
 	}
 
 	// ── A refusal is DEF's (or the door's) own sentence ─────────────────────
@@ -208,8 +289,10 @@ function fullTask(row) {
 		const t = boot([DAILY], { refuse: refusal });
 		await t.load();
 		await tick(t.window);
-		t.state.answer = '2020-01-01';
 		t.pick('Morning brief', 'Pause until…');
+		const p = t.picker('Morning brief');
+		if (p && p.input) p.input.value = '2020-01-01';   // typed past the floor
+		if (p && p.ok) t.click(p.ok);
 		await tick(t.window);
 		check('a refused date shows the refusal on the page\'s status line',
 			t.status() === refusal, t.status());

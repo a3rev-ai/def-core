@@ -3585,6 +3585,14 @@ html {
 	padding: 0 14px 14px;
 	border-bottom: none;
 }
+/* A Scheduled card's "Pause until…" picker is the same editor (8.11.1); stretch,
+   so its sentence starts at the left edge rather than centring. */
+.task-card-grid .document-assign-row {
+	flex-direction: column;
+	align-items: stretch;
+	padding: 0 14px 14px;
+	border-bottom: none;
+}
 /* Cancel and Save share a line inside that column, right-packed under the picker
    as the dialogs do it. `align-self` is load-bearing: the row's base rule sets
    `align-items: center` and the column override does not reset it, so without this

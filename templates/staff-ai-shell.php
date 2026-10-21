@@ -1048,7 +1048,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskUnskipNext: <?php echo wp_json_encode( __( "Don't skip the next run", 'digital-employees' ) ); ?>,
 			taskPauseUntil: <?php echo wp_json_encode( __( 'Pause until…', 'digital-employees' ) ); ?>,
 			taskResumeNow: <?php echo wp_json_encode( __( 'Resume now', 'digital-employees' ) ); ?>,
-			taskPausePrompt: <?php echo wp_json_encode( __( 'Pause until which date? The task runs again from that date by itself. (YYYY-MM-DD)', 'digital-employees' ) ); ?>,
+			taskPausePrompt: <?php echo wp_json_encode( __( 'Pause until which date? The task runs again from that date by itself.', 'digital-employees' ) ); ?>,
+			taskPauseOk: <?php echo wp_json_encode( __( 'OK', 'digital-employees' ) ); ?>,
 			/* translators: %s is a run outcome, e.g. Succeeded */
 			taskLastRun: <?php echo wp_json_encode( __( 'Last run: %s', 'digital-employees' ) ); ?>,
 			runStatusRunning: <?php echo wp_json_encode( __( 'Running', 'digital-employees' ) ); ?>,
