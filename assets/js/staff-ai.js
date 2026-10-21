@@ -6773,6 +6773,18 @@ function t(key, fallback) {
 			teams: document.getElementById('taskDestTeams')
 		};
 
+		// Notes to Staff AI form (W21): on/off and how often — DEF owns the rest.
+		var notesView = document.getElementById('notesFormView');
+		var notesEnabledEl = document.getElementById('notesEnabled');
+		var notesCadenceEl = document.getElementById('notesCadence');
+		var notesHintEl = document.getElementById('notesHint');
+		var notesStatusEl = document.getElementById('notesStatus');
+		// Offered only once Slack is connected and the user has none yet (DEF refuses a
+		// second), so it leaves the list here and openCreator puts it back.
+		var notesOption = document.getElementById('taskTypeSlackNotes');
+		if (notesOption) notesOption.remove();
+		var addressAs = '';          // the word a note starts with ("Sue"), from DEF
+
 		// Email Triage form (S4b; Phase 4a adds the mailbox picker).
 		var triageView = document.getElementById('scheduleFormView');
 		var statusEl = document.getElementById('scheduleStatus');
@@ -6994,7 +7006,9 @@ function t(key, fallback) {
 			// the row's ONLY destination. Two destinations fall back to the
 			// status, rather than naming one and silently dropping the other.
 			var dests = Array.isArray(row.destinations) ? row.destinations : [];
-			if (status === 'succeeded' && userEmail && dests.length === 1 && dests[0] === 'email') {
+			// W21: a Notes run's answers are in Slack — email carries only a failure notice.
+			if (status === 'succeeded' && userEmail && dests.length === 1 && dests[0] === 'email'
+					&& row.kind !== 'slack_notes') {
 				// DEF says when the output was handed to the mailer (delivered). Until then
 				// it is on its way, not sent: the result goes out on the platform's next
 				// delivery pass. An older DEF sends no delivery facts and keeps "Sent".
@@ -7257,6 +7271,7 @@ function t(key, fallback) {
 			try {
 				var taskData = await apiRequest('/tasks');
 				tasks = (taskData && Array.isArray(taskData.tasks)) ? taskData.tasks : [];
+				addressAs = (taskData && typeof taskData.address_as === 'string') ? taskData.address_as : '';
 			} catch (e2) {
 				tasks = [];
 				failures.push((e2 && e2.message) || t('tasksLoadFailed', 'Could not load your scheduled tasks.'));
@@ -7515,7 +7530,24 @@ function t(key, fallback) {
 				: t('taskFormTitleNew', 'New scheduled task');
 			taskView.style.display = '';
 			triageView.style.display = 'none';
+			notesView.style.display = 'none';
 			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
+		}
+
+		function showNotesForm() {
+			if (titleEl) titleEl.textContent = t('notesFormTitle', 'Notes to Staff AI');
+			taskView.style.display = 'none';
+			triageView.style.display = 'none';
+			notesView.style.display = '';
+			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
+		}
+
+		function fillNotesForm(task) {
+			notesEnabledEl.checked = task ? !!task.enabled : true;
+			notesCadenceEl.value = (task && task.cadence === 'daily') ? 'daily' : 'hourly';
+			notesHintEl.textContent = t('notesHint', 'Start a message to yourself in Slack with "%s," — the answer appears in its thread on the next run. Anything that would send, post or change something is described for you to do.')
+				.replace('%s', function () { return addressAs; });
+			setStatus(notesStatusEl, '');
 		}
 
 		function showTriageForm(editing) {
@@ -7524,6 +7556,7 @@ function t(key, fallback) {
 				: t('scheduleNewTitle', 'New Email Triage schedule');
 			taskView.style.display = 'none';
 			triageView.style.display = '';
+			notesView.style.display = 'none';
 			if (saveBtn) { saveBtn.style.display = ''; saveBtn.disabled = false; }
 		}
 
@@ -7536,6 +7569,10 @@ function t(key, fallback) {
 			editingTriage = null;
 			fillTaskForm(null);
 			fillTriageForm({});
+			fillNotesForm(null);
+			var offerNotes = !!(connectedApps && connectedApps.slack)
+				&& !tasks.some(function (x) { return x.kind === 'slack_notes'; });
+			if (notesOption && offerNotes) { typeEl.appendChild(notesOption); } else if (notesOption) { notesOption.remove(); }
 			typeRow.style.display = '';
 			if (typeEl) typeEl.value = 'freetext';
 			showTaskForm(false);
@@ -7546,11 +7583,16 @@ function t(key, fallback) {
 			// Re-fill every time (the abandoned-edit rule): the form must never
 			// keep what was last typed into it.
 			editingTaskId = task.id;
-			fillTaskForm(task);
 			// The type selector belongs to CREATION - an existing task's type is
 			// a fact, not a choice.
 			typeRow.style.display = 'none';
-			showTaskForm(true);
+			if (task.kind === 'slack_notes') {
+				fillNotesForm(task);
+				showNotesForm();
+			} else {
+				fillTaskForm(task);
+				showTaskForm(true);
+			}
 			openModal();
 		}
 
@@ -7564,7 +7606,9 @@ function t(key, fallback) {
 		}
 
 		if (typeEl) typeEl.addEventListener('change', function () {
-			if (typeEl.value === 'email_triage') { showTriageForm(false); } else { showTaskForm(false); }
+			if (typeEl.value === 'email_triage') { showTriageForm(false); }
+			else if (typeEl.value === 'slack_notes') { showNotesForm(); }
+			else { showTaskForm(false); }
 		});
 		if (taskCadenceEl) taskCadenceEl.addEventListener('change', applyCadenceRows);
 		[taskDestEls.email, destEls.email].forEach(function (box) {
@@ -7669,9 +7713,45 @@ function t(key, fallback) {
 			}
 		}
 
+		async function saveNotes() {
+			// DEF sets the name, the instruction and the email-only destination. A new one
+			// runs on the hour (or at 7:00 daily) in the site's zone; an edit keeps its time.
+			var task = editingTaskId ? tasks.filter(function (x) { return x.id === editingTaskId; })[0] : null;
+			var payload = {
+				kind: 'slack_notes',
+				enabled: !!notesEnabledEl.checked,
+				cadence: notesCadenceEl.value === 'daily' ? 'daily' : 'hourly',
+				model: '',
+				send_weekday: 0,
+				send_hour_local: task ? task.send_hour_local : 7,
+				send_minute_local: task ? task.send_minute_local : 0,
+				timezone: (task && task.timezone) || (window.StaffAIConfig && StaffAIConfig.siteTimezone) || 'UTC',
+				destinations: ['email'],
+				project_id: null
+			};
+			saveBtn.disabled = true;
+			setStatus(notesStatusEl, t('scheduleSaving', 'Saving…'));
+			try {
+				if (task) {
+					await apiRequest('/tasks/' + encodeURIComponent(task.id),
+						{ method: 'PUT', body: JSON.stringify(payload) });
+				} else {
+					await apiRequest('/tasks', { method: 'POST', body: JSON.stringify(payload) });
+				}
+				closeModal();
+				await loadAll();
+				setStatus(paneStatus, t('taskSaved', 'Saved. Your task follows its schedule from the next send time.'), 'ok');
+			} catch (e) {
+				setStatus(notesStatusEl, (e && e.message) || t('taskSaveFailed', 'Could not save your task.'), 'error');
+			} finally {
+				saveBtn.disabled = false;
+			}
+		}
+
 		function save() {
 			// One Save button, routed by the visible form.
 			if (taskView.style.display !== 'none') { saveTask(); return; }
+			if (notesView.style.display !== 'none') { saveNotes(); return; }
 			saveTriage();
 		}
 

@@ -3698,6 +3698,8 @@ final class DEF_Core_Staff_AI
 			'model'             => $model,
 			// P-C: null = unbound. DEF's id, shape-trusted (its own response).
 			'project_id'        => ( isset( $row['project_id'] ) && is_string( $row['project_id'] ) ) ? $row['project_id'] : null,
+			// W21: custom, or slack_notes (Notes to Staff AI - DEF sets its name and instruction).
+			'kind'              => ( isset( $row['kind'] ) && 'slack_notes' === $row['kind'] ) ? 'slack_notes' : 'custom',
 			'last_run'          => self::allowlist_last_run( $row['last_run'] ?? null ),
 		);
 	}
@@ -3746,8 +3748,21 @@ final class DEF_Core_Staff_AI
 		// P-C: optional project binding. Shape here; DEF refuses anything that is
 		// not the caller's own ACTIVE project (422), so a stale pick never binds.
 		$project_id = $request->get_param( 'project_id' );
+		// W21: DEF reads the kind on create and keeps the stored one on every edit.
+		$kind = $request->get_param( 'kind' );
+		if ( null === $kind ) {
+			$kind = 'custom';
+		}
 
 		$problems = array();
+		if ( ! in_array( $kind, array( 'custom', 'slack_notes' ), true ) ) {
+			$problems[] = __( 'The task type must be custom or slack_notes.', 'digital-employees' );
+		}
+		// A Notes to Staff AI task's name and instruction are DEF's; the form sends neither.
+		if ( 'slack_notes' === $kind ) {
+			$name        = is_string( $name ) && '' !== trim( $name ) ? $name : 'Notes to Staff AI';
+			$instruction = is_string( $instruction ) && '' !== trim( $instruction ) ? $instruction : 'Notes to Staff AI';
+		}
 		if ( null === $project_id || '' === $project_id ) {
 			$project_id = null;
 		} elseif ( ! is_string( $project_id ) || ! preg_match( '/^[a-zA-Z0-9-]{1,64}$/', $project_id ) ) {
@@ -3852,6 +3867,7 @@ final class DEF_Core_Staff_AI
 			);
 		}
 		$clean = array(
+			'kind'              => $kind,
 			'name'              => trim( $name ),
 			'instruction'       => trim( $instruction ),
 			'enabled'           => $enabled,
@@ -3907,8 +3923,10 @@ final class DEF_Core_Staff_AI
 		}
 		return new \WP_REST_Response(
 			array(
-				'success' => true,
-				'tasks'   => $tasks,
+				'success'    => true,
+				'tasks'      => $tasks,
+				// W21: the word a Slack note starts with ("Sue"), for the Notes form's hint.
+				'address_as' => ( isset( $result['address_as'] ) && is_string( $result['address_as'] ) ) ? $result['address_as'] : '',
 			),
 			200
 		);

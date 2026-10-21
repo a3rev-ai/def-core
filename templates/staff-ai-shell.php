@@ -716,6 +716,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<select class="form-input" id="taskType">
 							<option value="freetext" selected><?php echo esc_html__( 'Custom task - tell Staff AI what to do', 'digital-employees' ); ?></option>
 							<option value="email_triage"><?php echo esc_html__( 'Email Triage - mailbox digest with reply drafts', 'digital-employees' ); ?></option>
+							<!-- W21: offered once Slack is connected (JS). -->
+							<option value="slack_notes" id="taskTypeSlackNotes"><?php echo esc_html__( 'Notes to Staff AI - answer what I leave myself in Slack', 'digital-employees' ); ?></option>
 						</select>
 					</div>
 					<div id="taskFormView" style="display:none;">
@@ -800,6 +802,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 							</p>
 						</div>
 						<div class="schedule-status" id="taskStatus"></div>
+					</div>
+					<!-- W21: Notes to Staff AI. DEF sets the name and what it does; the form is on/off and how often. -->
+					<div id="notesFormView" style="display:none;">
+						<p class="form-hint" id="notesHint"></p>
+						<div class="form-group schedule-toggle-row">
+							<label class="share-toggle-label"><input type="checkbox" id="notesEnabled" class="share-transcript-toggle" checked> <?php echo esc_html__( 'Answer my notes on this schedule', 'digital-employees' ); ?></label>
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="notesCadence"><?php echo esc_html__( 'Frequency', 'digital-employees' ); ?></label>
+							<select class="form-input" id="notesCadence">
+								<option value="hourly" selected><?php echo esc_html__( 'Hourly', 'digital-employees' ); ?></option>
+								<option value="daily"><?php echo esc_html__( 'Daily', 'digital-employees' ); ?></option>
+							</select>
+						</div>
+						<div class="schedule-status" id="notesStatus"></div>
 					</div>
 					<div id="scheduleFormView" style="display:none;">
 					<p class="schedule-intro"><?php echo esc_html__( 'Once a day, Staff AI can read your mailbox, stage reply drafts in your Drafts folder, and send you a digest of what needs your attention. Only you can turn this on, and only for your own mailbox.', 'digital-employees' ); ?></p>
@@ -1038,6 +1055,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 			taskEnabledLabel: <?php echo wp_json_encode( __( 'Run this task on its schedule', 'digital-employees' ) ); ?>,
 			taskEnabledManualLabel: <?php echo wp_json_encode( __( 'Task is active - Run now only works while this is on', 'digital-employees' ) ); ?>,
 			taskHintHourly: <?php echo wp_json_encode( __( 'Runs every hour, at the send time\'s minutes past the hour.', 'digital-employees' ) ); ?>,
+			/* translators: %s is the assistant's name, e.g. Sue */
+			notesHint: <?php echo wp_json_encode( __( 'Start a message to yourself in Slack with "%s," — the answer appears in its thread on the next run. Anything that would send, post or change something is described for you to do.', 'digital-employees' ) ); ?>,
+			notesFormTitle: <?php echo wp_json_encode( __( 'Notes to Staff AI', 'digital-employees' ) ); ?>,
 			taskHintWeekdays: <?php echo wp_json_encode( __( 'Runs Monday to Friday at the send time.', 'digital-employees' ) ); ?>,
 			taskHintWeekly: <?php echo wp_json_encode( __( 'Runs once a week, on the day you choose.', 'digital-employees' ) ); ?>,
 			taskPaused: <?php echo wp_json_encode( __( 'Not scheduled', 'digital-employees' ) ); ?>,

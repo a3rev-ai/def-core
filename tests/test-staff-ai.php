@@ -1556,10 +1556,11 @@ $task = $resp->get_data()['tasks'][0] ?? array();
 $keys = array_keys( $task );
 sort( $keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'last_run', 'model', 'name', 'paused_until', 'project_id', 'send_date_local', 'send_hour_local', 'send_minute_local', 'send_weekday', 'skip_next', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'id', 'instruction', 'kind', 'last_run', 'model', 'name', 'paused_until', 'project_id', 'send_date_local', 'send_hour_local', 'send_minute_local', 'send_weekday', 'skip_next', 'timezone' ),
 	$keys,
-	'exactly the sixteen task fields (row 9 added send_date_local, W9 paused_until and skip_next) - owner_email and any future extras stay out'
+	'exactly the seventeen task fields (row 9 added send_date_local, W9 paused_until and skip_next, W21 kind) - owner_email and any future extras stay out'
 );
+assert_equals( 'custom', $task['kind'], 'a task DEF sends no kind for is custom (W21)' );
 assert_equals( 'weekly', $task['cadence'], 'cadence rides the allowlist' );
 assert_equals( 2, $task['send_weekday'], 'send_weekday rides the allowlist' );
 assert_equals( 'claude-haiku-4-5-20251001', $task['model'], 'model rides the allowlist (P3-C)' );
@@ -1634,7 +1635,7 @@ $sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
 $sent_keys = array_keys( is_array( $sent ) ? $sent : array() );
 sort( $sent_keys );
 assert_equals(
-	array( 'cadence', 'destinations', 'enabled', 'instruction', 'model', 'name', 'project_id', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
+	array( 'cadence', 'destinations', 'enabled', 'instruction', 'kind', 'model', 'name', 'project_id', 'send_hour_local', 'send_minute_local', 'send_weekday', 'timezone' ),
 	$sent_keys,
 	'the COMPLETE whitelisted object and nothing else - smuggled fields never forwarded'
 );
@@ -1646,6 +1647,39 @@ assert_equals( 0, $sent['send_weekday'] ?? -1, 'absent send_weekday forwards as 
 // Same for the pre-6.2.0 page: no model posted forwards as '' = employee
 // default, which is exactly what those pages' tasks were running.
 assert_equals( '', $sent['model'] ?? 'MISSING', 'absent model forwards as empty (cached-page compatibility)' );
+
+assert_equals( 'custom', $sent['kind'] ?? '', 'absent kind forwards as custom (cached-page compatibility)' );
+
+echo "\n[FT-W21] a Notes to Staff AI task: kind passes, name and instruction are DEF's\n";
+$GLOBALS['_def_test_request_body'] = json_encode( array( 'success' => true, 'task' => array( 'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'kind' => 'slack_notes' ) ) );
+$req = new WP_REST_Request();
+foreach ( array_diff_key( $_ft_valid, array( 'name' => 1, 'instruction' => 1 ) ) as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$req->set_param( 'kind', 'slack_notes' );
+$req->set_param( 'cadence', 'hourly' );
+$resp = DEF_Core_Staff_AI::rest_create_task( $req );
+unset( $GLOBALS['_def_test_request_body'] );
+assert_true( ! is_wp_error( $resp ), 'a Notes create with no name or instruction succeeds' );
+$sent = json_decode( $GLOBALS['_def_test_last_request']['body'] ?? '', true );
+assert_equals( 'slack_notes', $sent['kind'] ?? '', 'the kind forwards to DEF' );
+assert_equals( 'slack_notes', $resp->get_data()['task']['kind'] ?? '', 'and rides the allowlist back' );
+$req = new WP_REST_Request();
+foreach ( array_merge( $_ft_valid, array( 'kind' => 'webhook_notes' ) ) as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$result = DEF_Core_Staff_AI::rest_create_task( $req );
+assert_equals( 'def_task_invalid', is_wp_error( $result ) ? $result->get_error_code() : '', 'an unknown kind is refused' );
+$req = new WP_REST_Request();
+foreach ( array_diff_key( $_ft_valid, array( 'instruction' => 1 ) ) as $k => $v ) {
+	$req->set_param( $k, $v );
+}
+$result = DEF_Core_Staff_AI::rest_create_task( $req );
+assert_equals( 'def_task_invalid', is_wp_error( $result ) ? $result->get_error_code() : '', 'a custom task still needs its instruction' );
+$GLOBALS['_def_test_get_body'] = json_encode( array( 'success' => true, 'tasks' => array(), 'address_as' => 'Sue' ) );
+$resp = DEF_Core_Staff_AI::rest_list_tasks();
+unset( $GLOBALS['_def_test_get_body'] );
+assert_equals( 'Sue', $resp->get_data()['address_as'] ?? '', 'the list carries the word a note starts with' );
 
 echo "\n[FT-4] rest_run_now_task maps DEF's two actionable refusals\n";
 $GLOBALS['_def_test_request_code'] = 409;

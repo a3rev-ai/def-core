@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.0.0 - 2026/10/21 =
+* New - Scheduled: Notes to Staff AI. Once Slack is connected, start a message to yourself in Slack with your assistant's name and the answer appears in its thread on the next run.
+
 = 8.12.0 - 2026/10/21 =
 * New - Voice: a spoken question is transcribed while you speak, so the reply starts sooner. The pause still sends.
 

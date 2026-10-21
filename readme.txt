@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 8.12.0
+Stable tag: 9.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.0.0 - 2026-10-21 =
+* New - Scheduled: Notes to Staff AI. Once Slack is connected, start a message to yourself in Slack with your assistant's name and the answer appears in its thread on the next run.
 
 = 8.12.0 - 2026-10-21 =
 * New - Voice: a spoken question is transcribed while you speak, so the reply starts sooner. The pause still sends.
