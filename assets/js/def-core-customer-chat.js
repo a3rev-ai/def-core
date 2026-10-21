@@ -1909,12 +1909,13 @@
 	/**
 	 * The turn's request body and headers — a typed message, or (7.7.8) a recording the
 	 * server transcribes on the stream, in which case the message content is empty and
-	 * the reply is asked for in the employee's own voice.
+	 * the reply is asked for in the employee's own voice. A spoken turn already
+	 * transcribed while it was spoken (W75) sends its words instead of the recording.
 	 */
 	function buildTurnRequest(text, fileIds, voice) {
 		var msgPayload = {
 			role: 'user',
-			content: voice ? '' : (text || 'Please analyze the attached file(s).'),
+			content: voice ? (voice.transcript || '') : (text || 'Please analyze the attached file(s).'),
 		};
 		if (fileIds.length > 0) {
 			msgPayload.attachments = fileIds.map(function (id) {
@@ -1927,15 +1928,15 @@
 			thread_id: threadId || null,
 			continue_thread: isContinuing,
 		};
-		if (voice) {
+		if (voice && voice.transcript !== undefined) {
+			body.via_voice = true;
+			body.speech_out = true;
+		} else if (voice) {
 			body.audio_base64 = voice.audio_base64;
 			body.audio_mime = voice.audio_mime;
 			body.audio_seconds = voice.audio_seconds;
 			body.speech_out = true;
-			// The previous message anchors the vendor's language on a short clip (7.7.9).
-			// Cut by code point: a slice through an emoji would leave a half character the
-			// server refuses, and the whole spoken turn with it.
-			if (lastUserText) body.audio_context = Array.from(lastUserText).slice(0, 200).join('');
+			if (lastUserText) body.audio_context = spokenContext();
 		}
 
 		// Page Context Build Plan V1.1 Sub-PR C: splice the
@@ -2083,7 +2084,7 @@
 	// not, and a phone that hands the mic over only inside a gesture gets a plain
 	// "tap to speak again", not a refusal.
 	function listen(fromTap) {
-		voiceRecorder.start().then(function (started) {
+		voiceRecorder.start(liveTranscription()).then(function (started) {
 			if (!started) return;   // the first tap owns the recording
 			if (!conversationOn) { voiceRecorder.release(); return; }   // ended during the permission prompt
 			setMicState('listening', t('listening'));
@@ -2131,13 +2132,17 @@
 	}
 
 	function finishRecording() {
+		setMicState('transcribing', t('transcribing'));   // stop() can wait for the live transcript
 		voiceRecorder.stop().then(function (recording) {
 			if (!recording || recording.seconds < 0.5 || !recording.spoke) {
 				// A tap with nothing heard: say so, and the conversation is over.
 				endConversation(recording ? t('nothingHeard') : null);
 				return;
 			}
-			setMicState('transcribing', t('transcribing'));
+			if (recording.transcript !== undefined) {
+				sendSpoken({ transcript: recording.transcript });
+				return;
+			}
 			window.DefVoice.toBase64(recording.blob).then(function (base64) {
 				sendSpoken({ audio_base64: base64, audio_mime: recording.mime, audio_seconds: recording.seconds });
 			}, function () {
@@ -2149,7 +2154,8 @@
 	// The spoken turn goes out on the stream: an empty user message the server
 	// replaces with the transcript (the bubble reads "Transcribing…" until the
 	// `transcript` event fills it), the recording, and the files staged in the
-	// composer, exactly as a typed turn carries them.
+	// composer, exactly as a typed turn carries them. A turn transcribed while it was
+	// spoken (W75) sends its words, not the recording.
 	function sendSpoken(voice) {
 		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
 		if (destroyed || isComposerDisabled) { endConversation(); return; }
@@ -2207,7 +2213,7 @@
 	// WordPress mints for one conversation. Minted when the chat opens, after a turn
 	// that changed the thread or left under five minutes, and after a refusal; a send
 	// with no fitting token, or one the platform refuses, goes through the site.
-	var streamToken = null;   // { token, exp, url, thread }
+	var streamToken = null;   // { token, exp, url, live, thread }
 	var minting = false;
 	var mintEpoch = 0;
 
@@ -2228,7 +2234,7 @@
 				minting = false;
 				if (epoch !== mintEpoch) return;   // dropped while it was minted (a login, a logout)
 				streamToken = data && data.token && data.stream_url
-					? { token: data.token, exp: data.exp, url: data.stream_url, thread: thread } : null;
+					? { token: data.token, exp: data.exp, url: data.stream_url, live: data.live_url, thread: thread } : null;
 			});
 	}
 
@@ -2243,6 +2249,21 @@
 
 	function afterStreamTurn() {
 		if (streamTokenLeft() < 300000) mintStreamToken();
+	}
+
+	// The previous message anchors the vendor's language on a short clip (7.7.9).
+	// Cut by code point: a slice through an emoji would leave a half character the
+	// server refuses, and the whole spoken turn with it.
+	function spokenContext() {
+		return Array.from(lastUserText).slice(0, 200).join('');
+	}
+
+	// A spoken turn is transcribed while it is spoken (W75), on the token the stream
+	// would go direct on; with none fitting, the recording rides the request as before.
+	function liveTranscription() {
+		return streamTokenLeft() >= 30000
+			? { url: streamToken.live, token: streamToken.token, thread: streamToken.thread, context: spokenContext() }
+			: null;
 	}
 
 	/**
