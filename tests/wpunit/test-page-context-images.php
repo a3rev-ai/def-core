@@ -45,7 +45,7 @@ class Test_Page_Context_Images extends WP_UnitTestCase {
 			array(
 				'post_content' =>
 					'<p>Intro</p>'
-					. '<img class="wp-image-' . $inside . ' size-full" src="https://example.org/old.jpg" alt="Lid <b>open</b>">'
+					. '<img class="wp-image-' . $inside . ' size-full" src="https://example.org/old.jpg" alt="Lid &lt;b&gt;open&lt;/b&gt;">'
 					. '<img src="https://example.org/plain.jpg" alt="' . $long . '">'
 					. '<img class="wp-image-' . $front . '" src="https://example.org/front-again.jpg">'
 					. '<img src="data:image/png;base64,AAAA" alt="inline">',
