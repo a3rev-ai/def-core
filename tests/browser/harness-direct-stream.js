@@ -14,9 +14,11 @@
  * used with under 30 s left; and each stream writes one line to the voice log. Customer
  * Chat also: a refusal is read by its `error` case (429 → rateLimited, a spoken 422 →
  * nothingHeard), the cart header travels as X-DEF-WC-Cart-Token, a thread switch goes
- * through the site, and logging in drops the token.
+ * through the site, and logging in drops the token. And (W75, v8.12.0) a spoken turn:
+ * the mic gets the live socket only with a fresh token for the conversation it is in,
+ * and a turn transcribed while spoken sends its words with via_voice and no audio.
  *
- * 28 checks.
+ * 37 checks.
  */
 const fs = require('fs');
 const path = require('path');
@@ -47,6 +49,7 @@ const CC = {
   nonce: 'n0nce', wpRestNonce: 'n0nce', assistantName: 'Joe', isLoggedIn: false,
 };
 const CC_DIRECT = 'https://api.example.test/api/chat/stream';
+const CC_LIVE = 'wss://api.example.test/api/customer/voice/live';
 
 async function bootChat(opts) {
   opts = opts || {};
@@ -78,7 +81,7 @@ async function bootChat(opts) {
     url = String(url); init = init || {};
     if (url === CC.streamTokenUrl) {
       h.mints.push({ body: JSON.parse(init.body), nonce: init.headers['X-WP-Nonce'], credentials: init.credentials });
-      return res({ token: 'tok-' + h.mints.length, exp: Math.floor(Date.now() / 1000) + h.life, stream_url: CC_DIRECT }, 200);
+      return res({ token: 'tok-' + h.mints.length, exp: Math.floor(Date.now() / 1000) + h.life, stream_url: CC_DIRECT, live_url: CC_LIVE }, 200);
     }
     if (url === CC_DIRECT) {
       h.directCalls.push(init);
@@ -93,15 +96,16 @@ async function bootChat(opts) {
     return res({}, 200);
   };
   if (opts.voice) {
-    h.voice = {};
+    h.voice = { starts: [] };
   }
   w.DefVoice = {
     supported: () => true, micAllowedBySite: () => true, isStopPhrase: () => false,
     createSpeaker: () => ({ stop() {}, unlock() {}, speak() {}, end() {}, whenIdle: () => new Promise(() => {}) }),
     createRecorder: o => {
       if (h.voice) h.voice.opts = o;
-      return { start: () => Promise.resolve(true), isRecording: () => false, release() {},
-        stop: () => Promise.resolve({ blob: {}, seconds: 2, spoke: true, mime: 'audio/webm' }) };
+      return { start: live => { h.voice.starts.push(live); return Promise.resolve(true); }, isRecording: () => false, release() {},
+        stop: () => Promise.resolve(Object.assign({ blob: {}, seconds: 2, spoke: true, mime: 'audio/webm' },
+          opts.transcript !== undefined && { transcript: opts.transcript })) };
     },
     toBase64: () => Promise.resolve('AAAA'), log: () => [],
     note: line => h.notes.push(line),
@@ -119,6 +123,13 @@ async function bootChat(opts) {
     await sleep(30);
   };
   h.last = () => { const b = root.querySelectorAll('.def-cc-message--assistant .def-cc-message-content'); return b.length ? b[b.length - 1].textContent.trim() : ''; };
+  // A spoken turn: the mic tap, then the pause.
+  h.speak = async () => {
+    root.querySelector('.def-cc-composer-mic').click();
+    await sleep(20);
+    h.voice.opts.onSilence();
+    await sleep(80);
+  };
   w.eval(MODULE);
   w.DEFCustomerChat.init(root, Object.assign({}, CC, opts.config || {}));
   await sleep(40);
@@ -146,14 +157,16 @@ const SEND = extract.slice('send path', l => l.startsWith('\tasync function send
   l => l.includes('// SHARE MODAL'),
   ['async function sendMessageStreaming', 'async function openStream', 'async function mintStreamToken', "credentials: 'omit'"],
   'DIRECT_SEND');
+const VOICE = extract.voice();
 
 const SA = 'https://e.test/wp-json/def-core/v1';
 const SA_PROXY = SA + '/staff-ai/chat/stream';
 const SA_MINT = SA + '/chat/stream-token';
 const SA_DIRECT = 'https://api.example.test/api/staff-ai/chat/stream';
+const SA_LIVE = 'wss://api.example.test/api/staff_ai/voice/live';
 const HEAD = `
 	let nonce = StaffAIConfig.nonce;
-	let messages = [], isLoading = false, isReadOnly = false, conversationOn = false, spokenTurn = false,
+	var messages = [], isLoading = false, isReadOnly = false, conversationOn = false, spokenTurn = false,
 		openingSpoken = null, lastSuggestion = null, selectedModel = '', currentConversationId = null,
 		activeProjectId = null, voiceStopped = false, _isStreaming = false, _userScrolledUp = false,
 		dirtyInput = false, chipEpoch = 0, readbackBuffer = '';
@@ -176,12 +189,19 @@ const TAIL = `
 async function bootStaff(opts) {
   opts = opts || {};
   const dom = new JSDOM('<!doctype html><div id="messagesContainer"><div id="messagesList"></div></div>' +
-    '<div id="errorBanner"></div><div id="confirmChips"></div><textarea id="composerInput"></textarea>',
+    '<div id="errorBanner"></div><div id="confirmChips"></div><textarea id="composerInput"></textarea>' +
+    '<button id="micBtn"></button><span id="micLabel"></span>',
     { url: 'https://e.test/staff-ai/' });
   const window = dom.window, document = window.document;
   window.DefPersona = { createController: () => ({ handleEvent() {}, formatThinkingLabel: m => m, reset() {} }) };
-  const h = { direct: opts.direct || [], mints: [], directCalls: [], proxyCalls: [], notes: [], life: opts.life || 600 };
-  window.DefVoice = { note: line => h.notes.push(line) };
+  const h = { direct: opts.direct || [], mints: [], directCalls: [], proxyCalls: [], notes: [], life: opts.life || 600, starts: [] };
+  window.DefVoice = { note: line => h.notes.push(line), supported: () => true, micAllowedBySite: () => true,
+    createSpeaker: () => ({ stop() {}, unlock() {}, speak() {}, end() {}, setMode() {}, getMode: () => 'server', whenIdle: () => new Promise(() => {}) }),
+    createRecorder: o => { h.recorderOpts = o; return { start: live => { h.starts.push(live); return Promise.resolve(true); },
+      isRecording: () => false, release() {},
+      stop: () => Promise.resolve(Object.assign({ blob: {}, seconds: 2, spoke: true, mime: 'audio/webm' },
+        opts.transcript !== undefined && { transcript: opts.transcript })) }; },
+    toBase64: () => Promise.resolve('AAAA') };
   const enc = new TextEncoder();
   let threads = 0;
   const sse = init => { const thread = JSON.parse(init.body).thread_id || 'th-' + (++threads); return new Response(new ReadableStream({ start(c) {
@@ -194,7 +214,7 @@ async function bootStaff(opts) {
     init = init || {};
     if (url === SA_MINT) {
       h.mints.push({ body: JSON.parse(init.body), nonce: init.headers['X-WP-Nonce'] });
-      return json(200, { token: 'tok-' + h.mints.length, exp: Math.floor(Date.now() / 1000) + h.life, stream_url: SA_DIRECT });
+      return json(200, { token: 'tok-' + h.mints.length, exp: Math.floor(Date.now() / 1000) + h.life, stream_url: SA_DIRECT, live_url: SA_LIVE });
     }
     if (url === SA_DIRECT) {
       h.directCalls.push(init);
@@ -218,12 +238,15 @@ async function bootStaff(opts) {
     readBack() {}, readBackSoFar() {}, loadConversations() {}, updateReadOnlyState() {}, afterSpokenTurn() {},
     dropUnfilledTranscript() { return false; }, uploadAllStagedFiles: async () => ({ success: true, fileIds: [] }),
     renderMarkdown: s => s, applyCitations() {}, buildCitationMap: () => ({}), createToolOutputCard: () => null,
-    handleSpokenStop: () => false, console: { info() {}, error() {} }
+    handleSpokenStop: () => false, console: { info() {}, error() {} },
+    micBtn: document.getElementById('micBtn'), micLabel: document.getElementById('micLabel'), voiceBtn: null,
+    showInfo() {}, assistantName: 'Sue', onAssistantName() {}, DefVoice: window.DefVoice, localStorage: window.localStorage
   };
   const names = Object.keys(deps);
   h.api = new window.Function(...names, HEAD + PARSER + '\n' + TOOL_LABELS + '\n' + ESCAPE + '\n' + REQUEST + '\n' +
-    BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + SEND + TAIL)(...names.map(k => deps[k]));
+    BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + SEND + (opts.voice ? '\n' + VOICE + '\ninitVoice();' : '') + TAIL)(...names.map(k => deps[k]));
   h.send = async text => { deps.composerInput.value = text; await h.api.sendMessage(); await sleep(20); };
+  h.speak = async () => { deps.micBtn.click(); await sleep(20); h.recorderOpts.onSilence(); await sleep(80); };
   h.banner = () => deps.errorBanner.classList.contains('visible') ? deps.errorBanner.textContent : '';
   h.last = () => { const m = deps.messagesList.querySelectorAll('.message-assistant'); return m.length ? m[m.length - 1].textContent : ''; };
   await sleep(20);
@@ -291,6 +314,33 @@ async function bootStaff(opts) {
   check('a spoken turn the platform refuses with 422 says "Nothing was heard", as through the site',
     h.directCalls.length === 1 && h.proxyCalls.length === 0 && /^Nothing was heard/.test(h.last()) &&
     !h.root.querySelector('.def-cc-message--transcribing'), h.last());
+
+  // W75: a spoken turn is transcribed while it is spoken, on the same token.
+  const AUDIO = ['audio_base64', 'audio_mime', 'audio_seconds', 'audio_context'];
+  h = await bootChat({ voice: true, transcript: 'Do you ship to Perth?' });
+  await h.send('Hi');
+  await h.speak();
+  const live = h.voice.starts[0];
+  const spoken = h.directCalls[1] ? JSON.parse(h.directCalls[1].body) : {};
+  check('Customer Chat: the mic gets the live socket on the token for this thread — its URL, the token, the thread and the last message as context',
+    show(live) === show({ url: CC_LIVE, token: 'tok-2', thread: 'thr-1', context: 'Hi' }), show(h.voice.starts));
+  check('  … and the transcript goes as the message: via_voice, speech_out, no audio fields, straight to the platform',
+    h.directCalls.length === 2 && spoken.messages[0].content === 'Do you ship to Perth?' && spoken.via_voice === true &&
+    spoken.speech_out === true && AUDIO.every(k => !(k in spoken)), show(spoken));
+
+  h = await bootChat({ voice: true });
+  await h.speak();
+  const clip = h.directCalls[0] ? JSON.parse(h.directCalls[0].body) : {};
+  check('Customer Chat: a recording with no transcript sends the clip as before — the audio, an empty message, no via_voice',
+    clip.audio_base64 === 'AAAA' && clip.audio_mime === 'audio/webm' && clip.audio_seconds === 2 &&
+    clip.messages[0].content === '' && !('via_voice' in clip), show(clip));
+
+  for (const [label, opts] of [['a token with under 30 s left', { life: 20 }], ['no token route', { config: { streamTokenUrl: undefined } }]]) {
+    h = await bootChat(Object.assign({ voice: true }, opts));
+    await h.speak();
+    check('Customer Chat: ' + label + ' → the mic gets no live socket', h.voice.starts.length === 1 && !h.voice.starts[0],
+      show(h.voice.starts));
+  }
 
   h = await bootChat();
   await h.send('Hi');
@@ -368,6 +418,31 @@ async function bootStaff(opts) {
   check('Staff AI: a just-opened conversation\'s first turn goes through the site, then a token for it is minted',
     h.directCalls.length === 0 && h.proxyCalls.length === 1 && h.mints.length === 2 && h.mints[1].body.thread === 'th-7',
     show({ direct: h.directCalls.length, proxy: h.proxyCalls.length, mints: h.mints.map(m => m.body) }));
+
+  // W75: a spoken turn is transcribed while it is spoken, on the same token.
+  h = await bootStaff({ voice: true, transcript: 'Make it shorter.' });
+  await h.send('Draft the email');
+  await h.speak();
+  const saBody = h.directCalls[1] ? JSON.parse(h.directCalls[1].body) : {};
+  const saLast = (saBody.messages || []).slice(-1)[0] || {};
+  check('Staff AI: the mic gets the live socket on the token for this conversation — its URL, the token, the thread and the last message as context',
+    show(h.starts) === show([{ url: SA_LIVE, token: 'tok-2', thread: 'th-1', context: 'Draft the email' }]), show(h.starts));
+  check('  … and the transcript goes as the message: via_voice, speech_out, no audio fields, straight to the platform',
+    h.directCalls.length === 2 && saLast.role === 'user' && saLast.content === 'Make it shorter.' && saBody.via_voice === true &&
+    saBody.speech_out === true && AUDIO.every(k => !(k in saBody)), show(saBody));
+
+  h = await bootStaff({ voice: true });
+  await h.speak();
+  const saClip = h.directCalls[0] ? JSON.parse(h.directCalls[0].body) : {};
+  check('Staff AI: a recording with no transcript sends the clip as before',
+    saClip.audio_base64 === 'AAAA' && saClip.audio_mime === 'audio/webm' && saClip.audio_seconds === 2 && saClip.via_voice === true &&
+    saClip.messages.slice(-1)[0].content === '', show(saClip));
+
+  h = await bootStaff({ voice: true });
+  h.api.open('th-7');
+  await h.speak();
+  check('Staff AI: a just-opened conversation (no token for it yet) → the mic gets no live socket', h.starts.length === 1 && !h.starts[0],
+    show(h.starts));
 
   // ── The voice module's log ─────────────────────────────────────────────────
   {

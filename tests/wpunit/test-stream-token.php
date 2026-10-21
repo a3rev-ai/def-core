@@ -111,7 +111,7 @@ class Test_Stream_Token extends WP_UnitTestCase {
 		foreach ( array( 'customer_chat', 'staff_ai' ) as $channel ) {
 			$response = $this->mint( $channel, '', wp_create_nonce( 'wp_rest' ) );
 			$this->assertSame( 200, $response->get_status() );
-			$this->assertSame( array( 'token', 'exp', 'stream_url' ), array_keys( $response->get_data() ) );
+			$this->assertSame( array( 'token', 'exp', 'stream_url', 'live_url' ), array_keys( $response->get_data() ) );
 			$this->assertStringNotContainsString( self::API_KEY, wp_json_encode( $response->get_data() ) . wp_json_encode( $this->claims( $response ) ) );
 		}
 	}
@@ -122,6 +122,15 @@ class Test_Stream_Token extends WP_UnitTestCase {
 		get_user_by( 'id', $staff_id )->add_cap( 'def_staff_access' );
 		wp_set_current_user( $staff_id );
 		$this->assertSame( DEF_Core::get_def_api_url() . '/api/staff-ai/chat/stream', $this->mint( 'staff_ai' )->get_data()['stream_url'] );
+	}
+
+	public function test_live_url_is_the_platform_voice_socket_for_the_channel(): void {
+		$this->assertSame( 'wss://api.defho.ai/api/customer/voice/live', $this->mint( 'customer_chat' )->get_data()['live_url'], 'https becomes wss' );
+		update_option( 'def_core_staff_ai_api_url', 'http://localhost:8000' );
+		$staff_id = self::factory()->user->create();
+		get_user_by( 'id', $staff_id )->add_cap( 'def_staff_access' );
+		wp_set_current_user( $staff_id );
+		$this->assertSame( 'ws://localhost:8000/api/staff_ai/voice/live', $this->mint( 'staff_ai' )->get_data()['live_url'], 'http becomes ws' );
 	}
 
 	public function test_logged_in_customer_with_a_bad_nonce_is_refused(): void {

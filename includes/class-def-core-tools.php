@@ -103,11 +103,14 @@ final class DEF_Core_Tools {
 			)
 		);
 
+		$api      = \DEF_Core::get_def_api_url();
 		$response = new \WP_REST_Response(
 			array(
 				'token'      => DEF_Core_JWT::issue_token( $claims, 600 ),
 				'exp'        => time() + 600,
-				'stream_url' => \DEF_Core::get_def_api_url() . ( $staff ? '/api/staff-ai/chat/stream' : '/api/chat/stream' ),
+				'stream_url' => $api . ( $staff ? '/api/staff-ai/chat/stream' : '/api/chat/stream' ),
+				// The voice socket a spoken turn is transcribed on while it is spoken (W75), on this token.
+				'live_url'   => preg_replace( '#^http#', 'ws', $api ) . ( $staff ? '/api/staff_ai/voice/live' : '/api/customer/voice/live' ),
 			),
 			200
 		);

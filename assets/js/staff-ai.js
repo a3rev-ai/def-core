@@ -2824,7 +2824,7 @@ function t(key, fallback) {
 	async function listen(fromTap) {
 		var started;
 		try {
-			started = await voiceRecorder.start();
+			started = await voiceRecorder.start(liveTranscription());
 		} catch (e) {
 			conversationOn = false;
 			voiceRecorder.release();   // a stream granted before the failure does not stay hot
@@ -2891,6 +2891,7 @@ function t(key, fallback) {
 	}
 
 	async function finishRecording() {
+		setMicState('transcribing', t('transcribing', 'Transcribing…'));   // stop() can wait for the live transcript
 		var recording = await voiceRecorder.stop();
 		restorePlaceholder();
 		if (!recording || recording.seconds < 0.5 || !recording.spoke) {
@@ -2898,7 +2899,10 @@ function t(key, fallback) {
 			endConversation(recording ? t('nothingHeard', 'Nothing was heard. Try again a little closer to the microphone.') : null);
 			return;
 		}
-		setMicState('transcribing', t('transcribing', 'Transcribing…'));
+		if (recording.transcript !== undefined) {
+			await sendSpoken({ transcript: recording.transcript });
+			return;
+		}
 		var base64;
 		try {
 			base64 = await DefVoice.toBase64(recording.blob);
@@ -2909,13 +2913,30 @@ function t(key, fallback) {
 		await sendSpoken({ audio_base64: base64, audio_mime: recording.mime, audio_seconds: recording.seconds });
 	}
 
+	// The previous message anchors the vendor's language on a short clip (7.7.9).
+	function spokenContext() {
+		for (var pi = messages.length - 1; pi >= 0; pi--) {
+			if (messages[pi].role === 'user' && messages[pi].content && !messages[pi].transcribing) return Array.from(String(messages[pi].content)).slice(0, 200).join('');   // by code point: never a half character
+		}
+		return '';
+	}
+
+	// A spoken turn is transcribed while it is spoken (W75), on the token the stream
+	// would go direct on; with none fitting, the recording rides the request as before.
+	function liveTranscription() {
+		return streamTokenLeft() >= 30000
+			? { url: streamToken.live, token: streamToken.token, thread: streamToken.thread, context: spokenContext() }
+			: null;
+	}
+
 	// The spoken turn goes out on the stream: an empty user message the server
 	// replaces with the transcript (the bubble reads "Transcribing…" until the
 	// `transcript` event fills it), the recording, whether to send her voice —
 	// and the files staged in the composer, exactly as a typed turn carries them
 	// (7.7.2: a photo attached then spoken about went out without the photo).
+	// A turn transcribed while it was spoken (W75) sends its words, not the recording.
 	async function sendSpoken(voice) {
-		if (!conversationOn) return;   // ended during "Transcribing…": the clip stays on the phone
+		if (!conversationOn) return;   // ended during "Transcribing…": nothing is sent (a live turn has already streamed its audio)
 		if (isLoading || isReadOnly) { endConversation(); return; }
 		if (!chatStreamUrl || typeof ReadableStream === 'undefined') {
 			endConversation(t('voiceNeedsStreaming', 'Voice needs a browser that can stream replies.'));
@@ -2946,7 +2967,7 @@ function t(key, fallback) {
 			if (!conversationOn) return;
 			if (isLoading || isReadOnly) { endConversation(); return; }
 		}
-		messages.push({ role: 'user', content: '', via_voice: true, transcribing: true, fileAttachments: fileAttachments });
+		messages.push({ role: 'user', content: voice.transcript || '', via_voice: true, transcribing: true, fileAttachments: fileAttachments });
 		messages.push({ role: 'assistant', content: '', isTyping: true });
 		renderMessages();
 		isLoading = true;
@@ -2956,10 +2977,7 @@ function t(key, fallback) {
 		readbackBuffer = '';
 		readbackCut = 0;
 		voice.speech_out = speaker.getMode() === 'server';
-		// The previous message anchors the vendor's language on a short clip (7.7.9).
-		for (var pi = messages.length - 1; pi >= 0; pi--) {
-			if (messages[pi].role === 'user' && messages[pi].content && !messages[pi].transcribing) { voice.audio_context = Array.from(String(messages[pi].content)).slice(0, 200).join(''); break; }   // by code point: never a half character
-		}
+		voice.audio_context = spokenContext();
 		setMicState('answering', t('answering', '%s is answering · tap to end').replace('%s', assistantName || t('assistant', 'Your assistant')));
 		await sendMessageStreaming('', fileIds, null, null, voice);
 	}
@@ -3253,10 +3271,12 @@ function t(key, fallback) {
 			}
 			if (voice) {
 				requestBody.via_voice = true;
+				requestBody.speech_out = !!voice.speech_out;
+			}
+			if (voice && voice.transcript === undefined) {
 				requestBody.audio_base64 = voice.audio_base64;
 				requestBody.audio_mime = voice.audio_mime;
 				requestBody.audio_seconds = voice.audio_seconds;
-				requestBody.speech_out = !!voice.speech_out;
 				if (voice.audio_context) requestBody.audio_context = voice.audio_context;
 			}
 			// Phase 10.1: Add suggestion feedback signal
@@ -3793,7 +3813,7 @@ function t(key, fallback) {
 	// WordPress mints for one conversation. Minted when the console opens, after a turn
 	// that changed the conversation or left under five minutes, and after a refusal; a
 	// send with no fitting token, or one the platform refuses, goes through the site.
-	var streamToken = null;   // { token, exp, url, thread }
+	var streamToken = null;   // { token, exp, url, live, thread }
 	var minting = false;
 
 	async function mintStreamToken() {
@@ -3808,7 +3828,7 @@ function t(key, fallback) {
 			});
 			var data = res.ok ? await res.json() : null;
 			streamToken = data && data.token && data.stream_url
-				? { token: data.token, exp: data.exp, url: data.stream_url, thread: thread } : null;
+				? { token: data.token, exp: data.exp, url: data.stream_url, live: data.live_url, thread: thread } : null;
 		} catch (e) {
 			streamToken = null;
 		} finally {
