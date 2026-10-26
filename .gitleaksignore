@@ -1,0 +1,15 @@
+# Gitleaks ignore file — add finding fingerprints here to suppress false positives.
+# Each line is a fingerprint from gitleaks output (`path:rule:line` under --no-git).
+# Always include a comment explaining WHY the finding is a false positive.
+# A fingerprint excuses that one line only: a new secret anywhere still fails the gate.
+
+# 22-char share-token / API-key fixtures.
+tests/browser/harness-artifact-share.js:generic-api-key:38
+tests/test-staff-ai.php:generic-api-key:850
+tests/test-staff-ai.php:generic-api-key:875
+tests/test-staff-ai.php:generic-api-key:876
+tests/test-staff-ai.php:generic-api-key:1052
+tests/test-staff-ai.php:generic-api-key:1064
+tests/test-wordfence-allowlist.php:generic-api-key:117
+# The literal placeholder test_api_key_12345.
+tests/test-admin-api.php:generic-api-key:624

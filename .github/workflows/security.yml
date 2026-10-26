@@ -1,0 +1,55 @@
+name: Security CI Gates
+
+# The shape of DEF's security.yml (a3rev-ai/digital-employee-framework), compliance C5-S3.
+# A workflow file does not ship to sites: no version bump, no changelog.
+on:
+  pull_request:
+    branches: [main]
+
+# A new push to a PR cancels the run it supersedes.
+concurrency:
+  group: security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Runs on every PR, docs included: gitleaks scans every file in the checkout. This repo
+  # is public, so a key committed here is published — this is the step that matters.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      # Gate 1 — Secret Scanning (gitleaks). Known false positives: .gitleaksignore.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+
+      - name: Run gitleaks (secret scanning)
+        run: ./gitleaks detect --source . --redact --no-git -v
+
+      # Gate 2 — Composer advisories. composer.json has only require-dev today; the gate is
+      # for whatever runtime dependency is added later. composer.lock is gitignored, so this
+      # audits a fresh resolve.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist
+
+      - name: Run composer audit
+        run: composer audit
+
+      # Informational, not a gate yet, as in DEFHO: criticals sit in dev tooling
+      # (@wordpress/env → simple-git). npm install, not npm ci: package-lock.json is gitignored.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - name: Run npm audit (informational — critical)
+        run: npm audit --audit-level=critical || true
