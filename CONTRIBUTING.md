@@ -181,6 +181,8 @@ def-core has a module system for adding new tool endpoints. See [MODULE_DEVELOPM
 
 ## Reporting Issues
 
+Do not report security issues in public issues. Email security@a3rev.com instead, as set out in [SECURITY.md](SECURITY.md).
+
 Open an issue at [github.com/a3rev-ai/def-core/issues](https://github.com/a3rev-ai/def-core/issues) with:
 
 - WordPress version and PHP version
