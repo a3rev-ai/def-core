@@ -2364,10 +2364,13 @@
 			while (i < streamBuffer.length && /\s/.test(streamBuffer[i])) { i++; }
 			while (i < streamBuffer.length && !/\s/.test(streamBuffer[i])) { i++; }
 			displayedLen = i;
+			// W58: follow the reply only while the visitor is at the end — one who
+			// scrolled up to read is not pulled back down every word.
+			var follow = isAtEnd();
 			// Render as progressive markdown (same pattern as Setup Assistant
 			// and Staff AI). Sanitized via DOMPurify inside renderMarkdown().
 			streamEl.innerHTML = renderMarkdown(streamBuffer.slice(0, displayedLen));
-			scrollToBottom();
+			if (follow) scrollToBottom();
 			wordDrainTimer = setTimeout(drainNextWord, 30);
 		}
 
@@ -4540,6 +4543,12 @@
 		}
 	}
 
+	// Within 40px of the thread's end: the visitor is following it (W58).
+	function isAtEnd() {
+		var m = els.messages;
+		return !!m && m.scrollHeight - m.scrollTop - m.clientHeight <= 40;
+	}
+
 	function setComposerDisabled(disabled) {
 		isComposerDisabled = disabled;
 		if (els.input) els.input.disabled = disabled;
@@ -4568,9 +4577,13 @@
 
 	function autoResizeInput() {
 		if (!els.input) return;
+		// W58: a taller composer (a suggestion, a long message) shortens the
+		// thread; one that was at its end stays at its end.
+		var follow = isAtEnd();
 		els.input.style.height = 'auto';
 		els.input.style.height =
 			Math.min(els.input.scrollHeight, 120) + 'px';
+		if (follow) scrollToBottom();
 	}
 
 	function updateGreeting() {
@@ -4732,9 +4745,14 @@
 		// The token the first send streams straight from the platform on (W74).
 		mintStreamToken();
 
-		// Focus input.
+		// Focus input — not on a phone (W58, 9.1.1), where it raises the on-screen
+		// keyboard over the chat the first time it opens. The loader's isMobile()
+		// test, which already keeps a reopen from doing it.
 		setTimeout(function () {
-			if (els.input && !destroyed) els.input.focus();
+			if (els.input && !destroyed &&
+				!window.matchMedia('(max-width: 480px), (pointer: coarse) and (max-height: 500px)').matches) {
+				els.input.focus();
+			}
 		}, 200);
 
 		// Keyboard: Escape closes menu.

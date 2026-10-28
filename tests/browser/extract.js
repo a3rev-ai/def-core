@@ -635,7 +635,24 @@ function cssRules(css) {
 	return { rules: rules, byClass: byClass };
 }
 
-module.exports = { REPO, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, projectChip, memories, installedShare, toolOutputCard,
+// jsdom has no matchMedia, and Customer Chat asks it whether this is a phone
+// (W58). Answers the width, height and pointer features the chat's queries use
+// from the window's innerWidth/innerHeight and `w.pointer` ('fine' unless a check
+// sets 'coarse'); an "a, b" list matches when either side does.
+function stubMatchMedia(w) {
+	w.pointer = w.pointer || 'fine';
+	const holds = f => {
+		const m = /\(\s*([\w-]+)\s*:\s*(\w+?)(px)?\s*\)/.exec(f);
+		if (!m) throw new Error('stubMatchMedia: cannot read ' + f);
+		if (m[1] === 'max-width') return w.innerWidth <= +m[2];
+		if (m[1] === 'max-height') return w.innerHeight <= +m[2];
+		if (m[1] === 'pointer') return w.pointer === m[2];
+		throw new Error('stubMatchMedia: no feature ' + m[1]);
+	};
+	w.matchMedia = q => ({ media: q, matches: q.split(',').some(part => part.split(/\band\b/).every(holds)) });
+}
+
+module.exports = { REPO, stubMatchMedia, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PATH, userAccess, creator, DRAFT_CARDS_PATH, TEMPLATE_PATH, slice, element, pageShell, consoleMenu, projects, projectChip, memories, installedShare, toolOutputCard,
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,

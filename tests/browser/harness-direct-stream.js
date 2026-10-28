@@ -56,6 +56,7 @@ async function bootChat(opts) {
   const dom = new JSDOM('<!doctype html><html><body><div id="host"></div></body></html>',
     { url: 'https://shop.test/', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
+  extract.stubMatchMedia(w);
   const realST = w.setTimeout.bind(w);
   w.setTimeout = (fn, ms) => realST(fn, (ms || 0) >= 1000 ? ms : Math.min(ms || 0, 1));
   for (const src of VENDOR) w.eval(src);

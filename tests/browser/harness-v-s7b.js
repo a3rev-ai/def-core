@@ -94,6 +94,7 @@ const CC_HEAD = `
 	var lastSuggestion = null, speaker = null, persisted = null;
 	function el(tag, cls) { var d = document.createElement(tag); if (cls) d.className = cls; return d; }
 	function scrollToBottom() {}
+	function isAtEnd() { return true; }
 	function renderMarkdown(s) { return s; }
 	function hideThinking() {}
 	function renderToolStatusForStream() {

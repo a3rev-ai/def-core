@@ -1,5 +1,7 @@
 /*
- * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 41 checks.
+ * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 41 checks;
+ * and phones (W58, 9.1.1), #42-46: no composer focus on a phone's first open, a phone
+ * held sideways is a phone, and with the keyboard up the open panel is the visual viewport.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
@@ -41,6 +43,8 @@
  * the named header, the 24h dismissal, the bubble's tail) and the checks that
  * the trap and lock do not over-reach (Ctrl+Tab, a closed panel, <html> left alone).
  * The loader with its host still live and no alert fails #39–41 and nothing else.
+ * 9.1.0's loader fails #43-45 and its module #42; #46 (nothing resized off a phone or
+ * with the chat closed) is the over-reach guard and passes on both.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -49,6 +53,8 @@
  * Bite: CC_LOADER=/path/to/old-loader.js and/or CC_MODULE=/path/to/old-chat.js
  *       node tests/browser/harness-cc-a11y.js  (the old module alone fails #28 and #29)
  */
+const fs = require('fs');
+const path = require('path');
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
 
@@ -66,6 +72,7 @@ async function boot(opts) {
       '</body></html>',
     { url: 'https://example.test/', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
+  extract.stubMatchMedia(w);
 
   // No layout in jsdom: a box for anything not display:none up to the host.
   w.Element.prototype.getClientRects = function () {
@@ -91,6 +98,7 @@ async function boot(opts) {
   if (w.document.readyState === 'loading') {
     await new Promise(r => w.document.addEventListener('DOMContentLoaded', r));
   }
+  if (opts.setup) opts.setup(w); // what the loader reads as it starts (a visualViewport)
   w.eval(LOADER);
 
   const host = w.document.getElementById('def-customer-chat-host');
@@ -523,6 +531,103 @@ function tag(el) {
     !!failSpan && failSpan.tagName === 'SPAN' && failed.textContent === 'Failed to load chat. Please refresh the page.' &&
     failSpan.getAttribute('role') === 'alert' && failSpan.getAttribute('style') === 'color:#ef4444;',
     failed ? failed.innerHTML : 'no .def-cc-loading');
+
+  // ── W58 (9.1.1): phones (appended, as above) ───────────────────────────
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const size = (w, width, height, pointer) => {
+    Object.defineProperty(w, 'innerWidth', { value: width, configurable: true });
+    Object.defineProperty(w, 'innerHeight', { value: height, configurable: true });
+    w.pointer = pointer;
+  };
+  // The shipped module, opened from the launcher for the first time, at a size.
+  async function firstOpen(width, height, pointer, opts) {
+    const f = await boot(Object.assign({ config: { chatDisplayMode: 'spotlight', apiBaseUrl: 'https://api.example.test' } }, opts));
+    size(f.w, width, height, pointer);
+    f.w.fetch = () => new Promise(() => {});
+    f.trigger.click();
+    f.w.eval(extract.customerChatSource());
+    f.w.DEFCustomerChat.init(f.root, f.w.DEFCore);
+    await sleep(250); // past the module's 200ms first-load focus
+    return f;
+  }
+
+  h = await firstOpen(390, 844, 'coarse');
+  const phoneFirst = h.active();
+  h = await firstOpen(1280, 800, 'fine');
+  check(42, 'first open over the shipped module: on a phone focus stays on the panel, so no keyboard comes up unasked; on a desktop the module still focuses its composer',
+    phoneFirst && phoneFirst.classList.contains('def-cc-panel') && !!h.active() && h.active().matches('.def-cc-composer-input'),
+    'phone=' + tag(phoneFirst) + ' desktop=' + tag(h.active()));
+
+  h = await boot();
+  size(h.w, 850, 390, 'coarse');
+  h.trigger.click();
+  const sideways = h.panel().classList.contains('def-cc-panel--mobile-open');
+  s = h.buildModule();
+  h.key(h.active(), 'Escape');
+  h.trigger.click();
+  const sidewaysFocus = h.active() === h.panel();
+  h = await boot();
+  size(h.w, 850, 390, 'fine');
+  h.trigger.click();
+  check(43, 'a phone held sideways (850×390, touch) is a phone — the mobile panel, and a reopen focuses the panel, not the composer; a short desktop window with a mouse is not',
+    sideways && sidewaysFocus && !h.panel().classList.contains('def-cc-panel--mobile-open'),
+    'sideways=' + sideways + ' focus=' + sidewaysFocus);
+
+  const PHONE = '@media (max-width: 480px), (pointer: coarse) and (max-height: 500px)';
+  const loaderPhone = extract.mediaBlock(h.root.querySelector('style').textContent, /@media \(max-width: 480px\)/).text;
+  const spot = extract.ruleBody(loaderPhone, '.def-cc-shell--spotlight') || '';
+  const moduleMedia = fs.readFileSync(path.join(extract.REPO, 'assets/css/def-core-customer-chat.css'), 'utf8')
+    .match(/@media[^{]*max-width: 480px[^{]*/g) || [];
+  check(44, 'the stylesheets agree: the loader\'s phone block and all three of the chat stylesheet\'s include a phone held sideways, and spotlight on a phone is 100svh tall (100vh kept for a browser without svh)',
+    loaderPhone.startsWith(PHONE) && /height: 100vh; height: 100svh;/.test(spot) &&
+    moduleMedia.length === 3 && moduleMedia.every(m => m.trim() === PHONE),
+    'loader=' + loaderPhone.slice(0, 80) + ' spotlight=' + spot + ' module=' + JSON.stringify(moduleMedia));
+
+  // A fake visual viewport, and a thread whose visible height follows the panel's
+  // (jsdom does no layout): scrollTop clamps the way a browser's does.
+  const viewport = w => { const vv = new w.EventTarget(); vv.height = 844; vv.offsetTop = 0; w.visualViewport = vv; };
+  const thread = (f, top) => {
+    const list = f.root.querySelector('.def-cc-messages');
+    const clientHeight = () => (f.panel().style.height ? parseFloat(f.panel().style.height) : 844) - 200;
+    Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(list, 'clientHeight', { get: clientHeight, configurable: true });
+    Object.defineProperty(list, 'scrollTop', { get: () => top,
+      set: v => { top = Math.max(0, Math.min(v, 1000 - clientHeight())); }, configurable: true });
+    return list;
+  };
+  const keyboard = (f, height, offsetTop, type) => {
+    const vv = f.w.visualViewport;
+    vv.height = height; vv.offsetTop = offsetTop;
+    vv.dispatchEvent(new f.w.Event(type || 'resize'));
+  };
+
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport });
+  p = h.panel();
+  let list = thread(h, 356); // at its end: 1000 - (844 - 200)
+  keyboard(h, 436, 0);
+  const up = [p.style.height, p.style.top, list.scrollTop];
+  keyboard(h, 436, 120, 'scroll');
+  const panned = p.style.top;
+  keyboard(h, 844, 0);
+  const down = [p.style.height, p.style.top];
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport });
+  list = thread(h, 100); // scrolled up to read
+  keyboard(h, 436, 0);
+  const readerLeft = list.scrollTop;
+  check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px), a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size is gone',
+    up[0] === '436px' && up[1] === '0px' && up[2] === 764 && panned === '120px' &&
+    down[0] === '' && down[1] === '' && readerLeft === 100,
+    'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft);
+
+  h = await firstOpen(1280, 800, 'fine', { setup: viewport });
+  keyboard(h, 500, 0);
+  const desktop = h.panel().style.height;
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport });
+  h.key(h.active(), 'Escape');
+  keyboard(h, 436, 0);
+  check(46, 'the visual viewport resizes nothing on a desktop, or on a phone with the chat closed',
+    desktop === '' && h.panel().style.height === '' && h.panel().style.top === '',
+    'desktop=' + desktop + ' closed=' + h.panel().style.height);
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));
