@@ -3,7 +3,8 @@
  * harness that drives the whole module over a stream, #33: a `speech` frame reaches the
  * speaker as it arrives, ahead of the paced queue (8.8.2). #34-35 (W58, 9.1.1): a streamed
  * reply or a suggestion moves the thread to its end only when it was already there
- * (9.1.0's module fails both).
+ * (9.1.0's module fails both). #36 (9.1.2): so does the rest of a reply that `done` renders
+ * at once, ahead of the word drain (9.1.1's module fails it).
  *
  * Runs the SHIPPED chat module (assets/js/def-core-customer-chat.js), whole, in a
  * jsdom page with the shipped marked, DOMPurify and product-card renderer, over a
@@ -628,6 +629,28 @@ const WELCOME = {
     atEnd.ghost === 'How long does delivery take to Perth?' && atEnd.height === '100px' &&
     atEnd.top === atEnd.max && atEnd.top > atEnd.before && scrolledUp.top === 50,
     'at end=' + show(atEnd) + ' scrolled up=' + show(scrolledUp));
+
+  // W58 (9.1.2): the stream ends while the 30ms-a-word drain is still behind, and
+  // `done` renders the rest of the reply at once (an iPhone: 859 of 2,298 characters).
+  const LONG = 'The quote plugin replaces the price and the add to cart button with a request form, '.repeat(6);
+  const ending = async startTop => {
+    const g = await boot({ stream: true });
+    const b = layout(g);
+    await g.send('Which plugin does quotes?');
+    await g.event({ type: 'text_delta', text: LONG });
+    g.messages().scrollTop = startTop;
+    await g.event({ type: 'done', choices: [{ message: { content: LONG } }] });
+    const done = { top: b.top(), max: b.max() };
+    Object.defineProperty(g.input(), 'scrollHeight', { value: 100, configurable: true });
+    await g.event({ type: 'suggestions', suggestion: 'How does Manual Quote mode work?' });
+    return { done: done, top: b.top(), max: b.max(), whole: g.messages().textContent.includes(LONG.trim()) };
+  };
+  const following = await ending(END);
+  const readingUp = await ending(50);
+  check(36, 'a stream that ends ahead of the word drain: the rest of the reply lands at once, and a thread that was at its end follows it there and stays there when the suggestion grows the composer; one scrolled up is left where it is',
+    following.whole && following.done.top === following.done.max && following.top === following.max && following.max > 1000 &&
+    readingUp.done.top === 50 && readingUp.top === 50,
+    'following=' + show(following) + ' reading=' + show(readingUp));
 
   console.log('Customer Chat announcer harness (what a screen reader hears)');
   console.log(results.join('\n'));

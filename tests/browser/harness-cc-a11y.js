@@ -1,7 +1,9 @@
 /*
  * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 41 checks;
  * and phones (W58, 9.1.1), #42-46: no composer focus on a phone's first open, a phone
- * held sideways is a phone, and with the keyboard up the open panel is the visual viewport.
+ * held sideways is a phone, and with the keyboard up the open panel is the visual viewport;
+ * 9.1.2 (#44-47): spotlight is 100dvh, the strip under a keyboard-fitted panel is painted,
+ * and a phone's spotlight hides the launcher while open.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
@@ -44,7 +46,8 @@
  * the trap and lock do not over-reach (Ctrl+Tab, a closed panel, <html> left alone).
  * The loader with its host still live and no alert fails #39–41 and nothing else.
  * 9.1.0's loader fails #43-45 and its module #42; #46 (nothing resized off a phone or
- * with the chat closed) is the over-reach guard and passes on both.
+ * with the chat closed) is the over-reach guard and passes on both. 9.1.1's loader fails
+ * #44, #45 and #47.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -583,8 +586,8 @@ function tag(el) {
     .match(/@media[^{]*max-width: 480px[^{]*/g) || [];
   const moduleMedia = phoneMedia('def-core-customer-chat.css');
   const cardsMedia = phoneMedia('def-core-product-cards.css');
-  check(44, 'the stylesheets agree: the loader\'s phone block, both of the chat stylesheet\'s and the product cards\' 44px button floor include a phone held sideways, and spotlight on a phone is 100svh tall (100vh kept for a browser without svh)',
-    loaderPhone.startsWith(PHONE) && /height: 100vh; height: 100svh;/.test(spot) &&
+  check(44, 'the stylesheets agree: the loader\'s phone block, both of the chat stylesheet\'s and the product cards\' 44px button floor include a phone held sideways, and spotlight on a phone is 100dvh tall, following Safari\'s bar as it shrinks (100vh kept for a browser without dvh)',
+    loaderPhone.startsWith(PHONE) && /height: 100vh; height: 100dvh;/.test(spot) &&
     moduleMedia.length === 2 && cardsMedia.length === 1 && moduleMedia.concat(cardsMedia).every(m => m.trim() === PHONE),
     'loader=' + loaderPhone.slice(0, 80) + ' spotlight=' + spot + ' module=' + JSON.stringify(moduleMedia) + ' cards=' + JSON.stringify(cardsMedia));
 
@@ -610,19 +613,21 @@ function tag(el) {
   p = h.panel();
   let list = thread(h, 356); // at its end: 1000 - (844 - 200)
   keyboard(h, 436, 0);
-  const up = [p.style.height, p.style.top, list.scrollTop];
+  const up = [p.style.height, p.style.top, list.scrollTop, p.classList.contains('def-cc-panel--keyboard')];
   keyboard(h, 436, 120, 'scroll');
   const panned = p.style.top;
   keyboard(h, 844, 0);
-  const down = [p.style.height, p.style.top];
+  const down = [p.style.height, p.style.top, p.classList.contains('def-cc-panel--keyboard')];
   h = await firstOpen(390, 844, 'coarse', { setup: viewport });
   list = thread(h, 100); // scrolled up to read
   keyboard(h, 436, 0);
   const readerLeft = list.scrollTop;
-  check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px), a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size is gone',
-    up[0] === '436px' && up[1] === '0px' && up[2] === 764 && panned === '120px' &&
-    down[0] === '' && down[1] === '' && readerLeft === 100,
-    'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft);
+  const band = extract.ruleBody(h.root.querySelector('style').textContent, '.def-cc-panel--keyboard') || '';
+  check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px) and paints the strip under it, behind Safari\'s pill, in its footer\'s colour; a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size and the strip are gone',
+    up[0] === '436px' && up[1] === '0px' && up[2] === 764 && up[3] === true && panned === '120px' &&
+    down[0] === '' && down[1] === '' && down[2] === false && readerLeft === 100 &&
+    /box-shadow: 0 100px 0 var\(--def-cc-footer-bg, #f9fafb\)/.test(band),
+    'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft + ' band=' + band);
 
   h = await firstOpen(1280, 800, 'fine', { setup: viewport });
   keyboard(h, 500, 0);
@@ -630,9 +635,35 @@ function tag(el) {
   h = await firstOpen(390, 844, 'coarse', { setup: viewport });
   h.key(h.active(), 'Escape');
   keyboard(h, 436, 0);
-  check(46, 'the visual viewport resizes nothing on a desktop, or on a phone with the chat closed',
-    desktop === '' && h.panel().style.height === '' && h.panel().style.top === '',
-    'desktop=' + desktop + ' closed=' + h.panel().style.height);
+  const closed = h.panel().style.height + h.panel().style.top;
+  // Turned sideways with the keyboard down: on an iPhone the window and the visual
+  // viewport report the new height together (430 and 430), and the stylesheet's
+  // 100dvh is the size — nothing inline.
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport });
+  size(h.w, 844, 390, 'coarse');
+  keyboard(h, 390, 0);
+  const turned = h.panel().style.height + h.panel().style.top;
+  check(46, 'the visual viewport resizes nothing on a desktop, on a phone with the chat closed, or on a phone turned sideways with the keyboard down',
+    desktop === '' && closed === '' && turned === '' && !h.panel().classList.contains('def-cc-panel--keyboard'),
+    'desktop=' + desktop + ' closed=' + closed + ' turned=' + turned);
+
+  // W58 (9.1.2): a phone's spotlight hides the launcher while it is open, rather than
+  // relying on covering it — upright or turned sideways after opening; back on close.
+  h = await boot({ config: { chatDisplayMode: 'spotlight' } });
+  size(h.w, 390, 844, 'coarse');
+  h.trigger.click();
+  const hiddenOpen = h.trigger.classList.contains('def-cc-trigger--hidden');
+  size(h.w, 844, 390, 'coarse');
+  const hiddenTurned = h.trigger.classList.contains('def-cc-trigger--hidden');
+  h.key(h.active(), 'Escape');
+  const backOnClose = !h.trigger.classList.contains('def-cc-trigger--hidden') && h.active() === h.trigger;
+  h = await boot({ config: { chatDisplayMode: 'spotlight' } });
+  size(h.w, 1280, 800, 'fine');
+  h.trigger.click();
+  const desktopLauncher = !h.trigger.classList.contains('def-cc-trigger--hidden');
+  check(47, 'spotlight on a phone hides the launcher while the chat is open (turned sideways too) and gives it back, with focus, on close; on a desktop the launcher stays',
+    hiddenOpen && hiddenTurned && backOnClose && desktopLauncher,
+    'open=' + hiddenOpen + ' turned=' + hiddenTurned + ' close=' + backOnClose + ' desktop=' + desktopLauncher);
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));
