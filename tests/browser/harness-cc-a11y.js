@@ -553,10 +553,13 @@ function tag(el) {
 
   h = await firstOpen(390, 844, 'coarse');
   const phoneFirst = h.active();
+  h = await firstOpen(850, 390, 'coarse');
+  const sidewaysFirst = h.active();
   h = await firstOpen(1280, 800, 'fine');
-  check(42, 'first open over the shipped module: on a phone focus stays on the panel, so no keyboard comes up unasked; on a desktop the module still focuses its composer',
-    phoneFirst && phoneFirst.classList.contains('def-cc-panel') && !!h.active() && h.active().matches('.def-cc-composer-input'),
-    'phone=' + tag(phoneFirst) + ' desktop=' + tag(h.active()));
+  check(42, 'first open over the shipped module: on a phone, upright or sideways (850×390, touch), focus stays on the panel, so no keyboard comes up unasked; on a desktop the module still focuses its composer',
+    phoneFirst && phoneFirst.classList.contains('def-cc-panel') && sidewaysFirst && sidewaysFirst.classList.contains('def-cc-panel') &&
+    !!h.active() && h.active().matches('.def-cc-composer-input'),
+    'phone=' + tag(phoneFirst) + ' sideways=' + tag(sidewaysFirst) + ' desktop=' + tag(h.active()));
 
   h = await boot();
   size(h.w, 850, 390, 'coarse');
@@ -576,12 +579,14 @@ function tag(el) {
   const PHONE = '@media (max-width: 480px), (pointer: coarse) and (max-height: 500px)';
   const loaderPhone = extract.mediaBlock(h.root.querySelector('style').textContent, /@media \(max-width: 480px\)/).text;
   const spot = extract.ruleBody(loaderPhone, '.def-cc-shell--spotlight') || '';
-  const moduleMedia = fs.readFileSync(path.join(extract.REPO, 'assets/css/def-core-customer-chat.css'), 'utf8')
+  const phoneMedia = f => fs.readFileSync(path.join(extract.REPO, 'assets/css', f), 'utf8')
     .match(/@media[^{]*max-width: 480px[^{]*/g) || [];
-  check(44, 'the stylesheets agree: the loader\'s phone block and all three of the chat stylesheet\'s include a phone held sideways, and spotlight on a phone is 100svh tall (100vh kept for a browser without svh)',
+  const moduleMedia = phoneMedia('def-core-customer-chat.css');
+  const cardsMedia = phoneMedia('def-core-product-cards.css');
+  check(44, 'the stylesheets agree: the loader\'s phone block, both of the chat stylesheet\'s and the product cards\' 44px button floor include a phone held sideways, and spotlight on a phone is 100svh tall (100vh kept for a browser without svh)',
     loaderPhone.startsWith(PHONE) && /height: 100vh; height: 100svh;/.test(spot) &&
-    moduleMedia.length === 3 && moduleMedia.every(m => m.trim() === PHONE),
-    'loader=' + loaderPhone.slice(0, 80) + ' spotlight=' + spot + ' module=' + JSON.stringify(moduleMedia));
+    moduleMedia.length === 2 && cardsMedia.length === 1 && moduleMedia.concat(cardsMedia).every(m => m.trim() === PHONE),
+    'loader=' + loaderPhone.slice(0, 80) + ' spotlight=' + spot + ' module=' + JSON.stringify(moduleMedia) + ' cards=' + JSON.stringify(cardsMedia));
 
   // A fake visual viewport, and a thread whose visible height follows the panel's
   // (jsdom does no layout): scrollTop clamps the way a browser's does.

@@ -168,8 +168,8 @@
 	transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-/* WCAG touch-target floor on mobile. */
-@media (max-width: 480px) {
+/* WCAG touch-target floor on mobile (a phone held sideways too: W58, 9.1.1). */
+@media (max-width: 480px), (pointer: coarse) and (max-height: 500px) {
 	.def-cc-result-card-add,
 	.def-cc-result-card-view,
 	.def-cc-result-card-edit {

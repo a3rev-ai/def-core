@@ -1989,33 +1989,14 @@
 	}
 }
 
-/* ─── Mobile keyboard + safe-area clearance ───────────────────────
+/* ─── Safe-area clearance ─────────────────────────────────────────
  * env(safe-area-inset-bottom) pads the composer above the home
  * indicator / gesture bar on notched and gesture-nav iPhones.
  * Falls back to 0px on browsers that don't support it so the base
  * padding is unchanged.
- *
- * @supports (height: 100svh): svh = "small viewport height" — the
- * viewport height with the browser's toolbars showing, so the panel's
- * foot is not under them. It does NOT change when the on-screen
- * keyboard opens; the loader's fitToKeyboard() handles that, from the
- * visual viewport (W58, 9.1.1). Supported in Safari 16+, Chrome 108+,
- * Firefox 101+; older browsers keep the vh value.
  */
 
 .def-cc-composer {
 	padding-bottom: calc(var(--def-cc-space-panel-y) + env(safe-area-inset-bottom, 0px));
-}
-
-@supports (height: 100svh) {
-	.def-cc-shell--modal {
-		height: min(560px, 78svh);
-	}
-
-	@media (max-width: 480px), (pointer: coarse) and (max-height: 500px) {
-		.def-cc-shell--modal {
-			height: min(80svh, 620px);
-		}
-	}
 }
 
