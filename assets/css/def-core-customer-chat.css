@@ -1644,7 +1644,7 @@
 
 /* ─── Mobile Responsive ─────────────────────────────────────────── */
 
-@media (max-width: 480px) {
+@media (max-width: 480px), (pointer: coarse) and (max-height: 500px) {
 	.def-cc-trigger {
 		padding: 10px 12px;
 	}
@@ -1975,7 +1975,7 @@
  * as a substantial but non-dominating banner. Cap at 160px so a
  * tenant who uploads a taller image gets cropped, but the
  * recommended aspect renders fully. */
-@media (max-width: 480px) {
+@media (max-width: 480px), (pointer: coarse) and (max-height: 500px) {
 	/* Hand-paired with the mobile .def-cc-messages padding: 12px literal
 	   above — change them together. (The desktop pair derives from
 	   --def-cc-space-panel-x; mobile stays literal by design.) */
@@ -1989,33 +1989,14 @@
 	}
 }
 
-/* ─── Mobile keyboard + safe-area clearance ───────────────────────
+/* ─── Safe-area clearance ─────────────────────────────────────────
  * env(safe-area-inset-bottom) pads the composer above the home
  * indicator / gesture bar on notched and gesture-nav iPhones.
  * Falls back to 0px on browsers that don't support it so the base
  * padding is unchanged.
- *
- * @supports (height: 100svh): svh = "small viewport height" — the
- * viewport height WITH the software keyboard fully open. Using it
- * for modal-mode height prevents the keyboard from sliding over the
- * bottom of the panel on iOS Safari (where vh is the layout viewport
- * and does not shrink when the keyboard opens). Supported in Safari
- * 16+, Chrome 108+, Firefox 101+; older browsers keep the vh value.
  */
 
 .def-cc-composer {
 	padding-bottom: calc(var(--def-cc-space-panel-y) + env(safe-area-inset-bottom, 0px));
-}
-
-@supports (height: 100svh) {
-	.def-cc-shell--modal {
-		height: min(560px, 78svh);
-	}
-
-	@media (max-width: 480px) {
-		.def-cc-shell--modal {
-			height: min(80svh, 620px);
-		}
-	}
 }
 

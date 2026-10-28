@@ -1,7 +1,9 @@
 /*
  * Customer Chat — what a screen reader hears (v8.7.3), 32 checks; and, as this is the
  * harness that drives the whole module over a stream, #33: a `speech` frame reaches the
- * speaker as it arrives, ahead of the paced queue (8.8.2).
+ * speaker as it arrives, ahead of the paced queue (8.8.2). #34-35 (W58, 9.1.1): a streamed
+ * reply or a suggestion moves the thread to its end only when it was already there
+ * (9.1.0's module fails both).
  *
  * Runs the SHIPPED chat module (assets/js/def-core-customer-chat.js), whole, in a
  * jsdom page with the shipped marked, DOMPurify and product-card renderer, over a
@@ -84,6 +86,7 @@ async function boot(opts) {
   const dom = new JSDOM('<!doctype html><html><body><div id="host"></div></body></html>',
     { url: 'https://shop.test/', runScripts: 'outside-only', pretendToBeVisual: true });
   const w = dom.window;
+  extract.stubMatchMedia(w);
   // Time runs fast: the word drain, the stream's pacing and the focus delays
   // shrink to a millisecond. Long timers (a toast's life, the token refresh) keep theirs.
   const realST = w.setTimeout.bind(w);
@@ -577,6 +580,54 @@ const WELCOME = {
   check(32, 'over the whole session every message is said exactly once, in order, and no line is ever edited in place',
     same(all, ['Is the drill in stock?', 'Yes, 4 left.', 'Thanks!', 'Any time.']) && edits.length === 0,
     'said=' + show(all) + ' edits=' + edits.length);
+
+  // ── W58 (9.1.1): where the thread is left, on a phone's small screen ───────
+  // jsdom does no layout: the log grows 4px a character as words render, its
+  // visible height is what the composer leaves of 400px, and scrollTop clamps
+  // the way a browser's does. END is "scroll as far as it goes".
+  const END = 1e6;
+  const layout = hh => {
+    const list = hh.messages();
+    let top = 0;
+    const scrollHeight = () => 600 + 4 * list.textContent.length;
+    const clientHeight = () => 400 - (parseFloat(hh.input().style.height) || 40);
+    const max = () => Math.max(0, scrollHeight() - clientHeight());
+    Object.defineProperty(list, 'scrollHeight', { get: scrollHeight, configurable: true });
+    Object.defineProperty(list, 'clientHeight', { get: clientHeight, configurable: true });
+    Object.defineProperty(list, 'scrollTop', { get: () => top, set: v => { top = Math.max(0, Math.min(v, max())); }, configurable: true });
+    return { top: () => top, max: max };
+  };
+
+  h = await boot({ stream: true });
+  let box = layout(h);
+  await h.send('Tell me about your drills');
+  await h.event({ type: 'text_delta', text: 'We have three cordless models in stock. ' });
+  h.messages().scrollTop = 100; // the visitor scrolls up to read
+  await h.event({ type: 'text_delta', text: 'Two come with a second battery and a hard case. ' });
+  const reading = box.top();
+  h.messages().scrollTop = END; // back to the end
+  await h.event({ type: 'text_delta', text: 'The third is the lightest, at 1.2 kg.' });
+  check(34, 'a streamed reply follows the visitor only while they are at the end: scrolled up to read, they are left where they are; back at the end, it follows again',
+    reading === 100 && box.top() === box.max() && box.max() > 100, 'reading=' + reading + ' after=' + box.top() + '/' + box.max());
+
+  const ghost = async startTop => {
+    const g = await boot({ stream: true });
+    const b = layout(g);
+    await g.send('Do you deliver?');
+    await g.event({ type: 'text_delta', text: 'Yes, Australia-wide, usually within a week.' });
+    await g.event({ type: 'done', choices: [{ message: { content: 'Yes, Australia-wide, usually within a week.' } }] });
+    g.messages().scrollTop = startTop;
+    const before = b.top();
+    Object.defineProperty(g.input(), 'scrollHeight', { value: 100, configurable: true }); // the ghost text wraps to three lines
+    await g.event({ type: 'suggestions', suggestion: 'How long does delivery take to Perth?' });
+    return { before: before, top: b.top(), max: b.max(), ghost: g.input().value, height: g.input().style.height };
+  };
+  const atEnd = await ghost(END);
+  const scrolledUp = await ghost(50);
+  check(35, 'a suggestion grows the composer and shortens the thread: a thread that was at its end stays at its end; one scrolled up is left where it is',
+    atEnd.ghost === 'How long does delivery take to Perth?' && atEnd.height === '100px' &&
+    atEnd.top === atEnd.max && atEnd.top > atEnd.before && scrolledUp.top === 50,
+    'at end=' + show(atEnd) + ' scrolled up=' + show(scrolledUp));
 
   console.log('Customer Chat announcer harness (what a screen reader hears)');
   console.log(results.join('\n'));

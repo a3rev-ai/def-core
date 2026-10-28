@@ -41,6 +41,9 @@
 	var returnFocusTo = null;
 	// 8.7.1: the page's own inline overflow styles, held while the chat locks its scroll.
 	var scrollLock = null;
+	// W58 (9.1.1): a phone — narrow, or a touch screen held sideways (~850px wide,
+	// ~400px tall). The stylesheets' phone @media say the same.
+	var PHONE_MEDIA = '(max-width: 480px), (pointer: coarse) and (max-height: 500px)';
 
 	// ─── localStorage helpers ───────────────────────────────────────
 
@@ -396,14 +399,16 @@
 			'  to { opacity: 1; transform: translateY(0); }' +
 			'}' +
 			/* Mobile */
-			'@media (max-width: 480px) {' +
+			'@media ' + PHONE_MEDIA + ' {' +
 			'  .def-cc-trigger { padding: 10px 12px; }' +
 			'  .def-cc-shell--modal { width: calc(100vw - 24px); height: min(80vh, 620px); ' +
 			pos +
 			': 12px; bottom: 60px; }' +
 			'  .def-cc-shell--drawer { width: 100vw; border-radius: 0; }' +
-			/* Spotlight goes full-screen on mobile — same intent as Modal. */
-			'  .def-cc-shell--spotlight { top: 0; left: 0; width: 100vw; height: 100vh; border-radius: 0; transform: translate(0, 24px); }' +
+			/* Spotlight goes full-screen on mobile — same intent as Modal. 100svh is
+			   the height with the browser's toolbars showing (W58: 100vh ran 56px
+			   under Chrome's URL bar); a browser without svh keeps 100vh. */
+			'  .def-cc-shell--spotlight { top: 0; left: 0; width: 100vw; height: 100vh; height: 100svh; border-radius: 0; transform: translate(0, 24px); }' +
 			'  .def-cc-shell--spotlight.def-cc-panel--open { transform: translate(0, 0); }' +
 			'  .def-cc-greeting-bubble { max-width: calc(100vw - 88px); font-size: 13px; }' +
 			'  .def-cc-greeting-bubble-open { padding: 12px 14px; }' +
@@ -781,6 +786,22 @@
 		target.focus({ preventScroll: true });
 	}
 
+	// W58 (9.1.1): while the on-screen keyboard is up, the open panel on a phone is
+	// sized to the part of the page the visitor can see (the visual viewport) —
+	// without it iOS pushed the whole panel up and Chrome scrolled the header and
+	// close button off the top. Keyboard down, the stylesheet's size comes back. A
+	// thread that was at its end stays at its end.
+	function fitToKeyboard() {
+		if (!panel) return;
+		var vv = window.visualViewport;
+		var fit = isOpen && isMobile() && vv.height < window.innerHeight;
+		var list = panel.querySelector('.def-cc-messages');
+		var atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight <= 40;
+		panel.style.height = fit ? vv.height + 'px' : '';
+		panel.style.top = fit ? vv.offsetTop + 'px' : '';
+		if (atEnd) list.scrollTop = list.scrollHeight;
+	}
+
 	var TAB_STOP_SELECTOR =
 		'a[href], area[href], button, input, select, textarea, summary, iframe,' +
 		' audio[controls], video[controls], [contenteditable], [tabindex]';
@@ -1012,6 +1033,12 @@
 		// 8.7.1: Tab stays inside the open panel.
 		document.addEventListener('keydown', trapTab, { signal: signal });
 
+		// W58: the keyboard opening, closing, or the page panning under it.
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', fitToKeyboard, { signal: signal });
+			window.visualViewport.addEventListener('scroll', fitToKeyboard, { signal: signal });
+		}
+
 		// Click outside closes panel (modal mode — drawer uses backdrop).
 		document.addEventListener(
 			'click',
@@ -1034,7 +1061,7 @@
 	// ─── Helpers ────────────────────────────────────────────────────
 
 	function isMobile() {
-		return window.innerWidth <= 480;
+		return window.matchMedia(PHONE_MEDIA).matches;
 	}
 
 	// ─── Destroy (for SPA cleanup) ──────────────────────────────────
