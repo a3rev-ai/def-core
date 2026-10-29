@@ -47,7 +47,7 @@
  * The loader with its host still live and no alert fails #39–41 and nothing else.
  * 9.1.0's loader fails #43-45 and its module #42; #46 (nothing resized off a phone or
  * with the chat closed) is the over-reach guard and passes on both. 9.1.1's loader fails
- * #44, #45 and #47.
+ * #44, #45 and #47; with the strip's rule above the modes' own shadows, #45 alone.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -613,21 +613,26 @@ function tag(el) {
   p = h.panel();
   let list = thread(h, 356); // at its end: 1000 - (844 - 200)
   keyboard(h, 436, 0);
-  const up = [p.style.height, p.style.top, list.scrollTop, p.classList.contains('def-cc-panel--keyboard')];
+  // jsdom does not cascade a shadow root's <style> into getComputedStyle, so the
+  // panel's classes, as they stand, are computed against that stylesheet in a light DOM.
+  const shadow = () => {
+    const d = new JSDOM('<style>' + h.root.querySelector('style').textContent + '</style><div class="' + p.className + '"></div>').window;
+    return d.getComputedStyle(d.document.querySelector('div')).boxShadow;
+  };
+  const up = [p.style.height, p.style.top, list.scrollTop, p.classList.contains('def-cc-panel--keyboard'), shadow()];
   keyboard(h, 436, 120, 'scroll');
   const panned = p.style.top;
   keyboard(h, 844, 0);
-  const down = [p.style.height, p.style.top, p.classList.contains('def-cc-panel--keyboard')];
+  const down = [p.style.height, p.style.top, p.classList.contains('def-cc-panel--keyboard'), shadow()];
   h = await firstOpen(390, 844, 'coarse', { setup: viewport });
   list = thread(h, 100); // scrolled up to read
   keyboard(h, 436, 0);
   const readerLeft = list.scrollTop;
-  const band = extract.ruleBody(h.root.querySelector('style').textContent, '.def-cc-panel--keyboard') || '';
   check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px) and paints the strip under it, behind Safari\'s pill, in its footer\'s colour; a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size and the strip are gone',
     up[0] === '436px' && up[1] === '0px' && up[2] === 764 && up[3] === true && panned === '120px' &&
     down[0] === '' && down[1] === '' && down[2] === false && readerLeft === 100 &&
-    /box-shadow: 0 100px 0 var\(--def-cc-footer-bg, #f9fafb\)/.test(band),
-    'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft + ' band=' + band);
+    up[4] === '0 100px 0 var(--def-cc-footer-bg, #f9fafb)' && !down[3].includes('100px'),
+    'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft);
 
   h = await firstOpen(1280, 800, 'fine', { setup: viewport });
   keyboard(h, 500, 0);

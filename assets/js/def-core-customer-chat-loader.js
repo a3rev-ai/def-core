@@ -258,10 +258,6 @@
 			'.def-cc-panel--open {' +
 			'  transform: translateY(0); opacity: 1; pointer-events: auto;' +
 			'}' +
-			/* Keyboard up on iOS, Safari's address pill floats over the strip between
-			   the visual viewport and the keyboard, with the page drawn behind it; the
-			   panel paints that strip in its footer's colour (W58, 9.1.2). */
-			'.def-cc-panel--keyboard { box-shadow: 0 100px 0 var(--def-cc-footer-bg, #f9fafb); }' +
 			/* 8.7.1: the panel takes focus itself (tabindex="-1") while the chat
 			   module loads. It is a container, not a control, so it keeps the look
 			   it always had rather than growing a ring round the whole chat. */
@@ -321,6 +317,10 @@
 			'.def-cc-shell--spotlight.def-cc-panel--open {' +
 			'  transform: translate(-50%, -50%); opacity: 1;' +
 			'}' +
+			/* Keyboard up on iOS, Safari's address pill floats over the strip between
+			   the visual viewport and the keyboard, with the page drawn behind it; the
+			   panel paints that strip in its footer's colour (W58, 9.1.2). */
+			'.def-cc-panel--keyboard { box-shadow: 0 100px 0 var(--def-cc-footer-bg, #f9fafb); }' +
 			/* Loading spinner */
 			'.def-cc-loading {' +
 			'  display: flex; align-items: center; justify-content: center;' +

@@ -120,7 +120,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 9.1.2 - 2026-10-28 =
+= 9.1.2 - 2026-10-29 =
 * Fix - Customer Chat on iPhone: in Spotlight mode the chat now fills the screen when Safari's toolbar shrinks and when the phone is turned sideways, and the Ask button no longer shows behind it; with the keyboard up, the page no longer shows through under the chat; and the end of a long reply stays in view when it finishes and a suggestion fills the message box.
 
 = 9.1.1 - 2026-10-28 =
