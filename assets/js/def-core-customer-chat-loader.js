@@ -798,21 +798,24 @@
 	// without it iOS pushed the whole panel up and Chrome scrolled the header and
 	// close button off the top. Keyboard down, the stylesheet's size comes back. A
 	// thread that was at its end stays at its end.
-	// W58 (9.1.3): with <body> pinned (lockPageScroll), iOS shrinks innerHeight to
-	// the visual viewport as the keyboard comes up (428 and 428, offset 347), so the
-	// keyboard shows as the visual viewport moved down while a field in the chat
-	// has focus. Pinning itself moves it for one event (815 at 214) with the panel
-	// focused, which is not the keyboard.
+	// W58 (9.1.3): with <body> pinned (lockPageScroll) the page cannot scroll, and
+	// iOS makes room for the keyboard by scrolling it anyway: innerHeight shrinks to
+	// the visual viewport (428 and 428) and scrollY is the pan (347). The visual
+	// viewport's offsetTop reads 0 for ~400ms before it says 347 too, so the pan is
+	// whichever of the two reports it (a browser that pans only the visual viewport
+	// keeps scrollY at 0). Pinning itself scrolls for one event (815 at 105) with the
+	// panel focused, which is not the keyboard: a field in the chat has focus.
 	function fitToKeyboard() {
 		if (!panel) return;
 		var vv = window.visualViewport;
 		var field = focusedElement();
 		var typing = !!field && panel.contains(field) && field.matches('input, textarea');
-		var fit = isOpen && isMobile() && (vv.height < window.innerHeight || (vv.offsetTop > 0 && typing));
+		var pinned = !!(scrollLock && scrollLock.pin);
+		var fit = isOpen && isMobile() && (vv.height < window.innerHeight || (pinned && typing && window.scrollY > 0));
 		var list = panel.querySelector('.def-cc-messages');
 		var atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight <= 40;
 		panel.style.height = fit ? vv.height + 'px' : '';
-		panel.style.top = fit ? vv.offsetTop + 'px' : '';
+		panel.style.top = fit ? (pinned ? Math.max(window.scrollY, vv.offsetTop) : vv.offsetTop) + 'px' : '';
 		paintKeyboardStrip(fit);
 		if (atEnd) list.scrollTop = list.scrollHeight;
 	}
@@ -949,9 +952,14 @@
 			restoreInline(document.documentElement, 'scrollbar-gutter', 'stable', scrollLock.gutter);
 		}
 		// Only a page that was still pinned is scrolled back: one a theme unpinned
-		// while the chat was open has scrolled on its own since.
+		// while the chat was open has scrolled on its own since. In one jump — a page
+		// with scroll-behavior: smooth would otherwise scroll there from the top.
 		if (pin && stillPinned) {
+			var html = document.documentElement;
+			var behavior = saveInline(html, 'scroll-behavior');
+			html.style.setProperty('scroll-behavior', 'auto', 'important');
 			window.scrollTo(0, pin.scrollY);
+			restoreInline(html, 'scroll-behavior', 'auto', behavior);
 		}
 		scrollLock = null;
 	}

@@ -89,8 +89,9 @@ async function boot(opts) {
   // The greeting waits 5s before it shows; the harness does not.
   const realTimeout = w.setTimeout.bind(w);
   w.setTimeout = (fn, ms) => realTimeout(fn, ms === 5000 ? 0 : ms);
-  // jsdom has no scrolling: the last scrollTo() is kept for the checks to read.
-  w.scrollTo = (x, y) => { w.scrolledTo = [x, y]; };
+  // jsdom has no scrolling: the last scrollTo() is kept for the checks to read, with
+  // the scroll-behavior <html> carried inline at that moment.
+  w.scrollTo = (x, y) => { w.scrolledTo = [x, y, w.document.documentElement.style.scrollBehavior]; };
 
   if (opts.storage) {
     for (const k of Object.keys(opts.storage)) w.localStorage.setItem(k, opts.storage[k]);
@@ -679,10 +680,10 @@ function tag(el) {
     f.trigger.click();
     return f;
   };
-  h = await phoneAt(170, { bodyAttrs: ' style="color: red; top: 3px"' });
+  h = await phoneAt(170, { bodyAttrs: ' style="color: red; top: 3px"', head: '<style>html { scroll-behavior: smooth; }</style>' });
   const pinnedAt = pinOf(h);
   h.key(h.active(), 'Escape');
-  const unpinned = [h.doc.body.style.cssText, h.w.scrolledTo];
+  const unpinned = [h.doc.body.style.cssText, h.w.scrolledTo, h.doc.documentElement.hasAttribute('style')];
   h = await phoneAt(170);
   h.w.DEFCustomerChatLoader.destroy();
   const destroyed = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
@@ -691,30 +692,36 @@ function tag(el) {
   h.doc.body.style.removeProperty('position');
   h.key(h.active(), 'Escape');
   const themeUnpinned = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
-  check(48, 'phone: the open chat pins <body> where the page stood (fixed at -170px), and closing or destroy() gives back its inline style exactly and scrolls the page to 170; a <body> a theme unpinned meanwhile is not scrolled back',
+  check(48, 'phone: the open chat pins <body> where the page stood (fixed at -170px), and closing or destroy() gives back its inline style exactly and scrolls the page to 170 in one jump (scroll-behavior auto for that call, on a smooth-scrolling page too, then gone); a <body> a theme unpinned meanwhile is not scrolled back',
     pinnedAt === 'fixed! -170px! 0px! 0px!' &&
-    unpinned[0] === 'color: red; top: 3px;' && JSON.stringify(unpinned[1]) === '[0,170]' &&
-    destroyed[0] === false && JSON.stringify(destroyed[1]) === '[0,170]' &&
+    unpinned[0] === 'color: red; top: 3px;' && JSON.stringify(unpinned[1]) === '[0,170,"auto"]' && unpinned[2] === false &&
+    destroyed[0] === false && JSON.stringify(destroyed[1]) === '[0,170,"auto"]' &&
     themeUnpinned[0] === false && themeUnpinned[1] === undefined,
     'pinned=' + pinnedAt + ' closed=' + JSON.stringify(unpinned) + ' destroyed=' + JSON.stringify(destroyed) + ' theme=' + JSON.stringify(themeUnpinned));
 
-  // W58 (9.1.3): pinned, iOS reports innerHeight equal to the visual viewport as the
-  // keyboard comes up (428 at 347, measured), so the keyboard is the visual viewport
-  // moved down with the message box focused; the strip under the panel takes the
-  // footer's colour on <html>. Pinning moves the visual viewport for one event
-  // (844 at 214) with the panel focused: that is not the keyboard.
+  // W58 (9.1.3): pinned, iOS makes room for the keyboard by scrolling the page anyway,
+  // as measured: innerHeight shrinks to the visual viewport (428) and scrollY is the
+  // pan (347), while offsetTop reads 0 for ~400ms before it says 347 too. The strip
+  // under the panel takes the footer's colour on <html>. Pinning itself scrolls for
+  // one event (offset and scrollY 105) with the panel focused: that is not the keyboard.
   const stripOf = f => f.doc.documentElement.style.getPropertyValue('background-color') +
     (f.doc.documentElement.style.getPropertyPriority('background-color') ? '!' : '');
   const typeIn = f => f.root.querySelector('.def-cc-composer-input').focus();
-  const pinnedKeyboard = f => { size(f.w, 390, 428, 'coarse'); keyboard(f, 428, 347); };
+  const scrolled = (f, y) => Object.defineProperty(f.w, 'scrollY', { value: y, configurable: true });
+  const pinnedKeyboard = (f, offsetTop) => { size(f.w, 390, 428, 'coarse'); scrolled(f, 347); keyboard(f, 428, offsetTop || 0); };
   h = await firstOpen(390, 844, 'coarse', { setup: viewport, head: '<style>html { background-color: white; }</style>' });
   p = h.panel();
-  keyboard(h, 844, 214, 'scroll');
+  scrolled(h, 105);
+  keyboard(h, 844, 105, 'scroll');
   const pinMove = p.style.height + p.style.top + stripOf(h);
+  scrolled(h, 0);
   typeIn(h);
   pinnedKeyboard(h);
+  const kbRising = [p.style.height, p.style.top];
+  keyboard(h, 428, 347, 'scroll');
   const kbUp = [p.style.height, p.style.top, stripOf(h)];
   size(h.w, 390, 844, 'coarse');
+  scrolled(h, 0);
   keyboard(h, 844, 0);
   const kbDown = [p.style.height, p.style.top, stripOf(h)];
   typeIn(h);
@@ -726,11 +733,11 @@ function tag(el) {
   pinnedKeyboard(h);
   h.w.DEFCustomerChatLoader.destroy();
   const stripDestroyed = h.doc.documentElement.hasAttribute('style');
-  check(49, 'phone, <body> pinned, keyboard up (innerHeight 428 = visual viewport 428 at 347, message box focused): the panel is the visual viewport and <html> paints the strip in the footer\'s colour; keyboard down the colour is gone, and on close and on destroy() <html> has nothing inline; the one-event move of pinning itself fits nothing',
-    pinMove === '' &&
+  check(49, 'phone, <body> pinned, keyboard up (innerHeight 428 = visual viewport 428, scrollY 347, message box focused): the panel is the visual viewport from the first event, while offsetTop still reads 0, and <html> paints the strip in the footer\'s colour; keyboard down the colour is gone, and on close and on destroy() <html> has nothing inline; the one-event move of pinning itself fits nothing',
+    pinMove === '' && kbRising[0] === '428px' && kbRising[1] === '347px' &&
     kbUp[0] === '428px' && kbUp[1] === '347px' && kbUp[2] === 'rgb(249, 250, 251)!' &&
     kbDown[0] === '' && kbDown[1] === '' && kbDown[2] === '' && stripClosed === false && stripDestroyed === false,
-    'pinMove=' + pinMove + ' up=' + JSON.stringify(kbUp) + ' down=' + JSON.stringify(kbDown) + ' closed=' + stripClosed + ' destroyed=' + stripDestroyed);
+    'pinMove=' + pinMove + ' rising=' + JSON.stringify(kbRising) + ' up=' + JSON.stringify(kbUp) + ' down=' + JSON.stringify(kbDown) + ' closed=' + stripClosed + ' destroyed=' + stripDestroyed);
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));
