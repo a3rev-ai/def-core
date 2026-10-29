@@ -3,7 +3,9 @@
  * and phones (W58, 9.1.1), #42-46: no composer focus on a phone's first open, a phone
  * held sideways is a phone, and with the keyboard up the open panel is the visual viewport;
  * 9.1.2 (#44, #46-47): spotlight is 100dvh, nothing is resized on a phone turned sideways,
- * and a phone's spotlight hides the launcher while open.
+ * and a phone's spotlight hides the launcher while open; 9.1.3 (#46, #48-49): a phone's
+ * lock pins <body> and scrolls the page back on close, and with the keyboard up over
+ * the pinned page the panel still fits and <html> paints the strip under it.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
  * a jsdom page, and drives it through real events: focus, click, keydown.
@@ -47,7 +49,7 @@
  * The loader with its host still live and no alert fails #39–41 and nothing else.
  * 9.1.0's loader fails #43-45 and its module #42; #46 (nothing resized off a phone or
  * with the chat closed) is the over-reach guard and passes on both. 9.1.1's loader fails
- * #44 and #47.
+ * #44 and #47; 9.1.2's, #48 and #49.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -87,6 +89,8 @@ async function boot(opts) {
   // The greeting waits 5s before it shows; the harness does not.
   const realTimeout = w.setTimeout.bind(w);
   w.setTimeout = (fn, ms) => realTimeout(fn, ms === 5000 ? 0 : ms);
+  // jsdom has no scrolling: the last scrollTo() is kept for the checks to read.
+  w.scrollTo = (x, y) => { w.scrolledTo = [x, y]; };
 
   if (opts.storage) {
     for (const k of Object.keys(opts.storage)) w.localStorage.setItem(k, opts.storage[k]);
@@ -629,11 +633,11 @@ function tag(el) {
 
   h = await firstOpen(1280, 800, 'fine', { setup: viewport });
   keyboard(h, 500, 0);
-  const desktop = h.panel().style.height;
+  const desktop = h.panel().style.height + h.doc.documentElement.style.backgroundColor + h.doc.body.style.position;
   h = await firstOpen(390, 844, 'coarse', { setup: viewport });
   h.key(h.active(), 'Escape');
   keyboard(h, 436, 0);
-  const closed = h.panel().style.height + h.panel().style.top;
+  const closed = h.panel().style.height + h.panel().style.top + h.doc.documentElement.style.cssText + h.doc.body.style.cssText;
   // Turned sideways with the keyboard down: on an iPhone the window and the visual
   // viewport report the new height together (430 and 430), and the stylesheet's
   // 100dvh is the size — nothing inline.
@@ -641,7 +645,7 @@ function tag(el) {
   size(h.w, 844, 390, 'coarse');
   keyboard(h, 390, 0);
   const turned = h.panel().style.height + h.panel().style.top;
-  check(46, 'the visual viewport resizes nothing on a desktop, on a phone with the chat closed, or on a phone turned sideways with the keyboard down',
+  check(46, 'the visual viewport resizes nothing on a desktop, on a phone with the chat closed, or on a phone turned sideways with the keyboard down; on a desktop <body> is not pinned, and neither a desktop nor a closed chat leaves anything inline on <html> or <body>',
     desktop === '' && closed === '' && turned === '',
     'desktop=' + desktop + ' closed=' + closed + ' turned=' + turned);
 
@@ -662,6 +666,71 @@ function tag(el) {
   check(47, 'spotlight on a phone hides the launcher while the chat is open (turned sideways too) and gives it back, with focus, on close; on a desktop the launcher stays',
     hiddenOpen && hiddenTurned && backOnClose && desktopLauncher,
     'open=' + hiddenOpen + ' turned=' + hiddenTurned + ' close=' + backOnClose + ' desktop=' + desktopLauncher);
+
+  // W58 (9.1.3): on a phone overflow:hidden does not hold (iOS scrolled the page 520pt
+  // on each tap into the message box), so the lock also pins <body> where the page
+  // stood, and closing puts both the inline style and the scroll position back.
+  const pinOf = f => ['position', 'top', 'left', 'right']
+    .map(k => f.doc.body.style.getPropertyValue(k) + (f.doc.body.style.getPropertyPriority(k) ? '!' : '')).join(' ');
+  const phoneAt = async (y, opts) => {
+    const f = await boot(opts);
+    Object.defineProperty(f.w, 'scrollY', { value: y, configurable: true });
+    size(f.w, 390, 844, 'coarse');
+    f.trigger.click();
+    return f;
+  };
+  h = await phoneAt(170, { bodyAttrs: ' style="color: red; top: 3px"' });
+  const pinnedAt = pinOf(h);
+  h.key(h.active(), 'Escape');
+  const unpinned = [h.doc.body.style.cssText, h.w.scrolledTo];
+  h = await phoneAt(170);
+  h.w.DEFCustomerChatLoader.destroy();
+  const destroyed = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
+  // A theme that unpinned <body> while the chat was open: its page has scrolled on its own.
+  h = await phoneAt(170);
+  h.doc.body.style.removeProperty('position');
+  h.key(h.active(), 'Escape');
+  const themeUnpinned = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
+  check(48, 'phone: the open chat pins <body> where the page stood (fixed at -170px), and closing or destroy() gives back its inline style exactly and scrolls the page to 170; a <body> a theme unpinned meanwhile is not scrolled back',
+    pinnedAt === 'fixed! -170px! 0px! 0px!' &&
+    unpinned[0] === 'color: red; top: 3px;' && JSON.stringify(unpinned[1]) === '[0,170]' &&
+    destroyed[0] === false && JSON.stringify(destroyed[1]) === '[0,170]' &&
+    themeUnpinned[0] === false && themeUnpinned[1] === undefined,
+    'pinned=' + pinnedAt + ' closed=' + JSON.stringify(unpinned) + ' destroyed=' + JSON.stringify(destroyed) + ' theme=' + JSON.stringify(themeUnpinned));
+
+  // W58 (9.1.3): pinned, iOS reports innerHeight equal to the visual viewport as the
+  // keyboard comes up (428 at 347, measured), so the keyboard is the visual viewport
+  // moved down with the message box focused; the strip under the panel takes the
+  // footer's colour on <html>. Pinning moves the visual viewport for one event
+  // (844 at 214) with the panel focused: that is not the keyboard.
+  const stripOf = f => f.doc.documentElement.style.getPropertyValue('background-color') +
+    (f.doc.documentElement.style.getPropertyPriority('background-color') ? '!' : '');
+  const typeIn = f => f.root.querySelector('.def-cc-composer-input').focus();
+  const pinnedKeyboard = f => { size(f.w, 390, 428, 'coarse'); keyboard(f, 428, 347); };
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport, head: '<style>html { background-color: white; }</style>' });
+  p = h.panel();
+  keyboard(h, 844, 214, 'scroll');
+  const pinMove = p.style.height + p.style.top + stripOf(h);
+  typeIn(h);
+  pinnedKeyboard(h);
+  const kbUp = [p.style.height, p.style.top, stripOf(h)];
+  size(h.w, 390, 844, 'coarse');
+  keyboard(h, 844, 0);
+  const kbDown = [p.style.height, p.style.top, stripOf(h)];
+  typeIn(h);
+  pinnedKeyboard(h);
+  h.key(h.active(), 'Escape');
+  const stripClosed = h.doc.documentElement.hasAttribute('style');
+  h = await firstOpen(390, 844, 'coarse', { setup: viewport });
+  typeIn(h);
+  pinnedKeyboard(h);
+  h.w.DEFCustomerChatLoader.destroy();
+  const stripDestroyed = h.doc.documentElement.hasAttribute('style');
+  check(49, 'phone, <body> pinned, keyboard up (innerHeight 428 = visual viewport 428 at 347, message box focused): the panel is the visual viewport and <html> paints the strip in the footer\'s colour; keyboard down the colour is gone, and on close and on destroy() <html> has nothing inline; the one-event move of pinning itself fits nothing',
+    pinMove === '' &&
+    kbUp[0] === '428px' && kbUp[1] === '347px' && kbUp[2] === 'rgb(249, 250, 251)!' &&
+    kbDown[0] === '' && kbDown[1] === '' && kbDown[2] === '' && stripClosed === false && stripDestroyed === false,
+    'pinMove=' + pinMove + ' up=' + JSON.stringify(kbUp) + ' down=' + JSON.stringify(kbDown) + ' closed=' + stripClosed + ' destroyed=' + stripDestroyed);
 
   console.log('Customer Chat panel + greeting bubble a11y harness');
   console.log(results.join('\n'));

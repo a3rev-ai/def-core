@@ -41,6 +41,8 @@
 	var returnFocusTo = null;
 	// 8.7.1: the page's own inline overflow styles, held while the chat locks its scroll.
 	var scrollLock = null;
+	// W58 (9.1.3): <html>'s own inline background, held while the keyboard strip is painted.
+	var keyboardStrip = null;
 	// W58 (9.1.1): a phone — narrow, or a touch screen held sideways (~850px wide,
 	// ~400px tall). The stylesheets' phone @media say the same.
 	var PHONE_MEDIA = '(max-width: 480px), (pointer: coarse) and (max-height: 500px)';
@@ -730,6 +732,7 @@
 		setState(panel, 'def-cc-panel--open', false);
 		setState(panel, 'def-cc-panel--mobile-open', false);
 		panel.toggleAttribute('inert', true);
+		paintKeyboardStrip(false);
 		unlockPageScroll();
 
 		// Hide backdrop.
@@ -795,15 +798,41 @@
 	// without it iOS pushed the whole panel up and Chrome scrolled the header and
 	// close button off the top. Keyboard down, the stylesheet's size comes back. A
 	// thread that was at its end stays at its end.
+	// W58 (9.1.3): with <body> pinned (lockPageScroll), iOS shrinks innerHeight to
+	// the visual viewport as the keyboard comes up (428 and 428, offset 347), so the
+	// keyboard shows as the visual viewport moved down while a field in the chat
+	// has focus. Pinning itself moves it for one event (815 at 214) with the panel
+	// focused, which is not the keyboard.
 	function fitToKeyboard() {
 		if (!panel) return;
 		var vv = window.visualViewport;
-		var fit = isOpen && isMobile() && vv.height < window.innerHeight;
+		var field = focusedElement();
+		var typing = !!field && panel.contains(field) && field.matches('input, textarea');
+		var fit = isOpen && isMobile() && (vv.height < window.innerHeight || (vv.offsetTop > 0 && typing));
 		var list = panel.querySelector('.def-cc-messages');
 		var atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight <= 40;
 		panel.style.height = fit ? vv.height + 'px' : '';
 		panel.style.top = fit ? vv.offsetTop + 'px' : '';
+		paintKeyboardStrip(fit);
 		if (atEnd) list.scrollTop = list.scrollHeight;
+	}
+
+	// W58 (9.1.3): with the keyboard up, iOS shows the strip between the visual
+	// viewport and the keyboard (where Safari's address pill floats) past the end of
+	// the pinned page, and paints it with the page's root background; nothing
+	// fixed-position paints there. So <html> takes the footer's colour while the
+	// fit applies, and gets its own inline value back after.
+	function paintKeyboardStrip(on) {
+		var html = document.documentElement;
+		if (on && !keyboardStrip) {
+			keyboardStrip = saveInline(html, 'background-color');
+			var colour = getComputedStyle(panel).getPropertyValue('--def-cc-footer-bg').trim();
+			html.style.setProperty('background-color', colour || '#f9fafb', 'important');
+			keyboardStrip.ours = html.style.getPropertyValue('background-color');
+		} else if (!on && keyboardStrip) {
+			restoreInline(html, 'background-color', keyboardStrip.ours, keyboardStrip);
+			keyboardStrip = null;
+		}
 	}
 
 	var TAB_STOP_SELECTOR =
@@ -867,6 +896,10 @@
 	// theme's sticky header. The scroll offset is untouched, so closing needs to
 	// put back only the page's own inline values. Where the page showed a
 	// classic scrollbar, scrollbar-gutter keeps its width so nothing shifts.
+	// W58 (9.1.3): on a phone overflow:hidden does not hold — iOS scrolled the page
+	// 520pt to bring the message box into view on each tap, and a drag with the
+	// keyboard up scrolled it under the chat — so <body> is also pinned where it
+	// stands, and closing scrolls the page back to it.
 	function lockPageScroll() {
 		if (scrollLock) return;
 		var html = document.documentElement;
@@ -876,8 +909,16 @@
 			body && htmlStyle.overflowX === 'visible' && htmlStyle.overflowY === 'visible';
 		var target = viewportFromBody ? body : html;
 		var hadScrollbar = window.innerWidth - html.clientWidth > 0;
+		var pinAt = body && isMobile() ? window.scrollY : null;
 		scrollLock = {
 			target: target,
+			pin: pinAt === null ? null : {
+				scrollY: pinAt,
+				position: saveInline(body, 'position'),
+				top: saveInline(body, 'top'),
+				left: saveInline(body, 'left'),
+				right: saveInline(body, 'right'),
+			},
 			overflow: saveInline(target, 'overflow'),
 			gutter: hadScrollbar ? saveInline(html, 'scrollbar-gutter') : null,
 		};
@@ -885,13 +926,32 @@
 		if (hadScrollbar) {
 			html.style.setProperty('scrollbar-gutter', 'stable', 'important');
 		}
+		if (scrollLock.pin) {
+			body.style.setProperty('position', 'fixed', 'important');
+			body.style.setProperty('top', -pinAt + 'px', 'important');
+			body.style.setProperty('left', '0px', 'important');
+			body.style.setProperty('right', '0px', 'important');
+		}
 	}
 
 	function unlockPageScroll() {
 		if (!scrollLock) return;
+		var pin = scrollLock.pin;
+		if (pin) {
+			var body = document.body;
+			var stillPinned = restoreInline(body, 'position', 'fixed', pin.position);
+			restoreInline(body, 'top', -pin.scrollY + 'px', pin.top);
+			restoreInline(body, 'left', '0px', pin.left);
+			restoreInline(body, 'right', '0px', pin.right);
+		}
 		restoreInline(scrollLock.target, 'overflow', 'hidden', scrollLock.overflow);
 		if (scrollLock.gutter) {
 			restoreInline(document.documentElement, 'scrollbar-gutter', 'stable', scrollLock.gutter);
+		}
+		// Only a page that was still pinned is scrolled back: one a theme unpinned
+		// while the chat was open has scrolled on its own since.
+		if (pin && stillPinned) {
+			window.scrollTo(0, pin.scrollY);
 		}
 		scrollLock = null;
 	}
@@ -912,7 +972,7 @@
 	// unable to scroll until a reload. Whatever the page wrote since is its own.
 	function restoreInline(el, prop, ours, saved) {
 		if (el.style.getPropertyValue(prop) !== ours || el.style.getPropertyPriority(prop) !== 'important') {
-			return;
+			return false;
 		}
 		if (saved.value) {
 			el.style.setProperty(prop, saved.value, saved.priority);
@@ -922,6 +982,7 @@
 		if (!saved.hadStyle && el.getAttribute('style') === '') {
 			el.removeAttribute('style');
 		}
+		return true;
 	}
 
 	// ─── Lazy load chat module ──────────────────────────────────────
@@ -1081,6 +1142,7 @@
 			host.remove();
 		}
 
+		paintKeyboardStrip(false);
 		unlockPageScroll();
 		returnFocusTo = null;
 		shadowRoot = null;
