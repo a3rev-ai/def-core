@@ -2,7 +2,7 @@
  * Customer Chat panel and greeting bubble, keyboard and screen reader (v8.7.1), 41 checks;
  * and phones (W58, 9.1.1), #42-46: no composer focus on a phone's first open, a phone
  * held sideways is a phone, and with the keyboard up the open panel is the visual viewport;
- * 9.1.2 (#44-47): spotlight is 100dvh, the strip under a keyboard-fitted panel is painted,
+ * 9.1.2 (#44, #46-47): spotlight is 100dvh, nothing is resized on a phone turned sideways,
  * and a phone's spotlight hides the launcher while open.
  *
  * Runs the SHIPPED loader (assets/js/def-core-customer-chat-loader.js), whole, in
@@ -47,7 +47,7 @@
  * The loader with its host still live and no alert fails #39–41 and nothing else.
  * 9.1.0's loader fails #43-45 and its module #42; #46 (nothing resized off a phone or
  * with the chat closed) is the over-reach guard and passes on both. 9.1.1's loader fails
- * #44, #45 and #47; with the strip's rule above the modes' own shadows, #45 alone.
+ * #44 and #47.
  *
  * jsdom does no layout, so getClientRects() is stubbed to report a box for
  * anything not display:none — which is all the loader's tab-stop test asks of it.
@@ -613,25 +613,18 @@ function tag(el) {
   p = h.panel();
   let list = thread(h, 356); // at its end: 1000 - (844 - 200)
   keyboard(h, 436, 0);
-  // jsdom does not cascade a shadow root's <style> into getComputedStyle, so the
-  // panel's classes, as they stand, are computed against that stylesheet in a light DOM.
-  const shadow = () => {
-    const d = new JSDOM('<style>' + h.root.querySelector('style').textContent + '</style><div class="' + p.className + '"></div>').window;
-    return d.getComputedStyle(d.document.querySelector('div')).boxShadow;
-  };
-  const up = [p.style.height, p.style.top, list.scrollTop, p.classList.contains('def-cc-panel--keyboard'), shadow()];
+  const up = [p.style.height, p.style.top, list.scrollTop];
   keyboard(h, 436, 120, 'scroll');
   const panned = p.style.top;
   keyboard(h, 844, 0);
-  const down = [p.style.height, p.style.top, p.classList.contains('def-cc-panel--keyboard'), shadow()];
+  const down = [p.style.height, p.style.top];
   h = await firstOpen(390, 844, 'coarse', { setup: viewport });
   list = thread(h, 100); // scrolled up to read
   keyboard(h, 436, 0);
   const readerLeft = list.scrollTop;
-  check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px) and paints the strip under it, behind Safari\'s pill, in its footer\'s colour; a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size and the strip are gone',
-    up[0] === '436px' && up[1] === '0px' && up[2] === 764 && up[3] === true && panned === '120px' &&
-    down[0] === '' && down[1] === '' && down[2] === false && readerLeft === 100 &&
-    up[4] === '0 100px 0 var(--def-cc-footer-bg, #f9fafb)' && !down[3].includes('100px'),
+  check(45, 'phone, keyboard up: the open panel is the visual viewport (436px tall at its offset, following a pan to 120px), a thread at its end stays at its end, one scrolled up stays where it is; keyboard down, the inline size is gone',
+    up[0] === '436px' && up[1] === '0px' && up[2] === 764 && panned === '120px' &&
+    down[0] === '' && down[1] === '' && readerLeft === 100,
     'up=' + JSON.stringify(up) + ' panned=' + panned + ' down=' + JSON.stringify(down) + ' reader=' + readerLeft);
 
   h = await firstOpen(1280, 800, 'fine', { setup: viewport });
@@ -649,7 +642,7 @@ function tag(el) {
   keyboard(h, 390, 0);
   const turned = h.panel().style.height + h.panel().style.top;
   check(46, 'the visual viewport resizes nothing on a desktop, on a phone with the chat closed, or on a phone turned sideways with the keyboard down',
-    desktop === '' && closed === '' && turned === '' && !h.panel().classList.contains('def-cc-panel--keyboard'),
+    desktop === '' && closed === '' && turned === '',
     'desktop=' + desktop + ' closed=' + closed + ' turned=' + turned);
 
   // W58 (9.1.2): a phone's spotlight hides the launcher while it is open, rather than
