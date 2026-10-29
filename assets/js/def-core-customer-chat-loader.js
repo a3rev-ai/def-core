@@ -1110,6 +1110,16 @@
 		if (window.visualViewport) {
 			window.visualViewport.addEventListener('resize', fitToKeyboard, { signal: signal });
 			window.visualViewport.addEventListener('scroll', fitToKeyboard, { signal: signal });
+			// W58 (9.1.3): pinned, iOS scrolls the window after the visual viewport's
+			// resize (scrollY 347, 12ms on) and while a drag pans it, with no event of
+			// the visual viewport's own until ~400ms later.
+			window.addEventListener(
+				'scroll',
+				function () {
+					if (scrollLock && scrollLock.pin) fitToKeyboard();
+				},
+				{ signal: signal, passive: true }
+			);
 		}
 
 		// Click outside closes panel (modal mode — drawer uses backdrop).

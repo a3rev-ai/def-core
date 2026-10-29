@@ -700,8 +700,9 @@ function tag(el) {
     'pinned=' + pinnedAt + ' closed=' + JSON.stringify(unpinned) + ' destroyed=' + JSON.stringify(destroyed) + ' theme=' + JSON.stringify(themeUnpinned));
 
   // W58 (9.1.3): pinned, iOS makes room for the keyboard by scrolling the page anyway,
-  // as measured: innerHeight shrinks to the visual viewport (428) and scrollY is the
-  // pan (347), while offsetTop reads 0 for ~400ms before it says 347 too. The strip
+  // as measured: the visual viewport's resize (428, innerHeight still 844) comes first,
+  // the window's scroll to 347 12ms later with innerHeight 428, and offsetTop reads 0
+  // for ~400ms before it says 347 too. The strip
   // under the panel takes the footer's colour on <html>. Pinning itself scrolls for
   // one event (offset and scrollY 105) with the panel focused: that is not the keyboard.
   const stripOf = f => f.doc.documentElement.style.getPropertyValue('background-color') +
@@ -716,7 +717,10 @@ function tag(el) {
   const pinMove = p.style.height + p.style.top + stripOf(h);
   scrolled(h, 0);
   typeIn(h);
-  pinnedKeyboard(h);
+  keyboard(h, 428, 0);
+  size(h.w, 390, 428, 'coarse');
+  scrolled(h, 347);
+  h.w.dispatchEvent(new h.w.Event('scroll'));
   const kbRising = [p.style.height, p.style.top];
   keyboard(h, 428, 347, 'scroll');
   const kbUp = [p.style.height, p.style.top, stripOf(h)];
@@ -733,7 +737,7 @@ function tag(el) {
   pinnedKeyboard(h);
   h.w.DEFCustomerChatLoader.destroy();
   const stripDestroyed = h.doc.documentElement.hasAttribute('style');
-  check(49, 'phone, <body> pinned, keyboard up (innerHeight 428 = visual viewport 428, scrollY 347, message box focused): the panel is the visual viewport from the first event, while offsetTop still reads 0, and <html> paints the strip in the footer\'s colour; keyboard down the colour is gone, and on close and on destroy() <html> has nothing inline; the one-event move of pinning itself fits nothing',
+  check(49, 'phone, <body> pinned, keyboard up (innerHeight 428 = visual viewport 428, scrollY 347, message box focused): the panel is the visual viewport once the window has scrolled, while offsetTop still reads 0, and <html> paints the strip in the footer\'s colour; keyboard down the colour is gone, and on close and on destroy() <html> has nothing inline; the one-event move of pinning itself fits nothing',
     pinMove === '' && kbRising[0] === '428px' && kbRising[1] === '347px' &&
     kbUp[0] === '428px' && kbUp[1] === '347px' && kbUp[2] === 'rgb(249, 250, 251)!' &&
     kbDown[0] === '' && kbDown[1] === '' && kbDown[2] === '' && stripClosed === false && stripDestroyed === false,
