@@ -41,6 +41,8 @@
 	var returnFocusTo = null;
 	// 8.7.1: the page's own inline overflow styles, held while the chat locks its scroll.
 	var scrollLock = null;
+	// W58 (9.1.3): <html>'s own inline background, held while the keyboard strip is painted.
+	var keyboardStrip = null;
 	// W58 (9.1.1): a phone — narrow, or a touch screen held sideways (~850px wide,
 	// ~400px tall). The stylesheets' phone @media say the same.
 	var PHONE_MEDIA = '(max-width: 480px), (pointer: coarse) and (max-height: 500px)';
@@ -730,6 +732,7 @@
 		setState(panel, 'def-cc-panel--open', false);
 		setState(panel, 'def-cc-panel--mobile-open', false);
 		panel.toggleAttribute('inert', true);
+		paintKeyboardStrip(false);
 		unlockPageScroll();
 
 		// Hide backdrop.
@@ -795,15 +798,45 @@
 	// without it iOS pushed the whole panel up and Chrome scrolled the header and
 	// close button off the top. Keyboard down, the stylesheet's size comes back. A
 	// thread that was at its end stays at its end.
+	// W58 (9.1.3): with <body> pinned (lockPageScroll) the page cannot scroll, and
+	// iOS makes room for the keyboard by scrolling it anyway: innerHeight shrinks to
+	// the visual viewport (428 and 428) and scrollY is the pan (347). The visual
+	// viewport's offsetTop reads 0 for ~400ms before it says 347 too, so the pan is
+	// whichever of the two reports it (a browser that pans only the visual viewport
+	// keeps scrollY at 0). Pinning itself scrolls for one event (offset and scrollY
+	// 105, the keyboard still down) with the panel focused, which is not the
+	// keyboard: a field in the chat has focus.
 	function fitToKeyboard() {
 		if (!panel) return;
 		var vv = window.visualViewport;
-		var fit = isOpen && isMobile() && vv.height < window.innerHeight;
+		var field = focusedElement();
+		var typing = !!field && panel.contains(field) && field.matches('input, textarea');
+		var pinned = !!(scrollLock && scrollLock.pin);
+		var fit = isOpen && isMobile() && (vv.height < window.innerHeight || (pinned && typing && window.scrollY > 0));
 		var list = panel.querySelector('.def-cc-messages');
 		var atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight <= 40;
 		panel.style.height = fit ? vv.height + 'px' : '';
-		panel.style.top = fit ? vv.offsetTop + 'px' : '';
+		panel.style.top = fit ? (pinned ? Math.max(window.scrollY, vv.offsetTop) : vv.offsetTop) + 'px' : '';
+		paintKeyboardStrip(fit);
 		if (atEnd) list.scrollTop = list.scrollHeight;
+	}
+
+	// W58 (9.1.3): with the keyboard up, iOS shows the strip between the visual
+	// viewport and the keyboard (where Safari's address pill floats) past the end of
+	// the pinned page, and paints it with the page's root background; nothing
+	// fixed-position paints there. So <html> takes the footer's colour while the
+	// fit applies, and gets its own inline value back after.
+	function paintKeyboardStrip(on) {
+		var html = document.documentElement;
+		if (on && !keyboardStrip) {
+			keyboardStrip = saveInline(html, 'background-color');
+			var colour = getComputedStyle(panel).getPropertyValue('--def-cc-footer-bg').trim();
+			html.style.setProperty('background-color', colour || '#f9fafb', 'important');
+			keyboardStrip.ours = html.style.getPropertyValue('background-color');
+		} else if (!on && keyboardStrip) {
+			restoreInline(html, 'background-color', keyboardStrip.ours, keyboardStrip);
+			keyboardStrip = null;
+		}
 	}
 
 	var TAB_STOP_SELECTOR =
@@ -864,9 +897,14 @@
 	// goes on whichever element the viewport takes its overflow from — <body>
 	// when <html> leaves it visible (CSS Overflow 3 §3.3), else <html> — so
 	// <body> never becomes a scroll container of its own, which would unstick a
-	// theme's sticky header. The scroll offset is untouched, so closing needs to
-	// put back only the page's own inline values. Where the page showed a
-	// classic scrollbar, scrollbar-gutter keeps its width so nothing shifts.
+	// theme's sticky header. On a desktop the scroll offset is untouched, so closing
+	// needs to put back only the page's own inline values (a phone, below, also
+	// scrolls back). Where the page showed a classic scrollbar, scrollbar-gutter
+	// keeps its width so nothing shifts.
+	// W58 (9.1.3): on a phone overflow:hidden does not hold — iOS scrolled the page
+	// 520pt to bring the message box into view on each tap, and a drag with the
+	// keyboard up scrolled it under the chat — so <body> is also pinned where it
+	// stands, and closing scrolls the page back to it.
 	function lockPageScroll() {
 		if (scrollLock) return;
 		var html = document.documentElement;
@@ -876,8 +914,16 @@
 			body && htmlStyle.overflowX === 'visible' && htmlStyle.overflowY === 'visible';
 		var target = viewportFromBody ? body : html;
 		var hadScrollbar = window.innerWidth - html.clientWidth > 0;
+		var pinAt = body && isMobile() ? window.scrollY : null;
 		scrollLock = {
 			target: target,
+			pin: pinAt === null ? null : {
+				scrollY: pinAt,
+				position: saveInline(body, 'position'),
+				top: saveInline(body, 'top'),
+				left: saveInline(body, 'left'),
+				right: saveInline(body, 'right'),
+			},
 			overflow: saveInline(target, 'overflow'),
 			gutter: hadScrollbar ? saveInline(html, 'scrollbar-gutter') : null,
 		};
@@ -885,13 +931,40 @@
 		if (hadScrollbar) {
 			html.style.setProperty('scrollbar-gutter', 'stable', 'important');
 		}
+		if (scrollLock.pin) {
+			body.style.setProperty('position', 'fixed', 'important');
+			body.style.setProperty('top', -pinAt + 'px', 'important');
+			// As the browser keeps it: Chrome on Android scrolls in fractions and
+			// stores -151.61904907226562px as -151.619px.
+			scrollLock.pin.ours = body.style.getPropertyValue('top');
+			body.style.setProperty('left', '0px', 'important');
+			body.style.setProperty('right', '0px', 'important');
+		}
 	}
 
 	function unlockPageScroll() {
 		if (!scrollLock) return;
+		var pin = scrollLock.pin;
+		if (pin) {
+			var body = document.body;
+			var stillPinned = restoreInline(body, 'position', 'fixed', pin.position);
+			restoreInline(body, 'top', pin.ours, pin.top);
+			restoreInline(body, 'left', '0px', pin.left);
+			restoreInline(body, 'right', '0px', pin.right);
+		}
 		restoreInline(scrollLock.target, 'overflow', 'hidden', scrollLock.overflow);
 		if (scrollLock.gutter) {
 			restoreInline(document.documentElement, 'scrollbar-gutter', 'stable', scrollLock.gutter);
+		}
+		// Only a page that was still pinned is scrolled back: one a theme unpinned
+		// while the chat was open has scrolled on its own since. In one jump — a page
+		// with scroll-behavior: smooth would otherwise scroll there from the top.
+		if (pin && stillPinned) {
+			var html = document.documentElement;
+			var behavior = saveInline(html, 'scroll-behavior');
+			html.style.setProperty('scroll-behavior', 'auto', 'important');
+			window.scrollTo(0, pin.scrollY);
+			restoreInline(html, 'scroll-behavior', 'auto', behavior);
 		}
 		scrollLock = null;
 	}
@@ -912,7 +985,7 @@
 	// unable to scroll until a reload. Whatever the page wrote since is its own.
 	function restoreInline(el, prop, ours, saved) {
 		if (el.style.getPropertyValue(prop) !== ours || el.style.getPropertyPriority(prop) !== 'important') {
-			return;
+			return false;
 		}
 		if (saved.value) {
 			el.style.setProperty(prop, saved.value, saved.priority);
@@ -922,6 +995,7 @@
 		if (!saved.hadStyle && el.getAttribute('style') === '') {
 			el.removeAttribute('style');
 		}
+		return true;
 	}
 
 	// ─── Lazy load chat module ──────────────────────────────────────
@@ -1041,6 +1115,16 @@
 		if (window.visualViewport) {
 			window.visualViewport.addEventListener('resize', fitToKeyboard, { signal: signal });
 			window.visualViewport.addEventListener('scroll', fitToKeyboard, { signal: signal });
+			// W58 (9.1.3): pinned, iOS scrolls the window after the visual viewport's
+			// resize (scrollY 347, 12ms on) and while a drag pans it, with no event of
+			// the visual viewport's own until ~400ms later.
+			window.addEventListener(
+				'scroll',
+				function () {
+					if (scrollLock && scrollLock.pin) fitToKeyboard();
+				},
+				{ signal: signal, passive: true }
+			);
 		}
 
 		// Click outside closes panel (modal mode — drawer uses backdrop).
@@ -1081,6 +1165,7 @@
 			host.remove();
 		}
 
+		paintKeyboardStrip(false);
 		unlockPageScroll();
 		returnFocusTo = null;
 		shadowRoot = null;

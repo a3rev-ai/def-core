@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.1.2
+Stable tag: 9.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.1.3 - 2026-10-29 =
+* Fix - Customer Chat on iPhone: with the keyboard up, the space between the chat and the keyboard shows the chat's footer colour rather than the page, the page behind the chat no longer moves when the message box is tapped or dragged, and closing the chat leaves the page where it was.
 
 = 9.1.2 - 2026-10-29 =
 * Fix - Customer Chat on iPhone: in Spotlight mode the chat now fills the screen when Safari's toolbar shrinks and when the phone is turned sideways, and the Ask button no longer shows behind it; and the end of a long reply stays in view when it finishes and a suggestion fills the message box.
