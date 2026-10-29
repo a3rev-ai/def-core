@@ -678,6 +678,8 @@ function tag(el) {
     Object.defineProperty(f.w, 'scrollY', { value: y, configurable: true });
     size(f.w, 390, 844, 'coarse');
     f.trigger.click();
+    // A browser reads 0 once <body> is fixed: the scroll-back must use the open-time 170.
+    Object.defineProperty(f.w, 'scrollY', { value: 0, configurable: true });
     return f;
   };
   h = await phoneAt(170, { bodyAttrs: ' style="color: red; top: 3px"', head: '<style>html { scroll-behavior: smooth; }</style>' });
