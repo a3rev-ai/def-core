@@ -6425,7 +6425,7 @@ function t(key, fallback) {
 				const data = await apiRequest('/memories');
 				const memories = Array.isArray(data.memories) ? data.memories : [];
 				if (memories.length === 0) {
-					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet.'), 'muted');
+					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet. Bringing memories from another assistant? Paste them into a chat and ask Staff AI to sort them.'), 'muted');
 					return;
 				}
 				setStatus('', '');
@@ -6485,7 +6485,7 @@ function t(key, fallback) {
 				row.remove();
 				setStatus('', '');
 				if (!listEl.children.length) {
-					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet.'), 'muted');
+					setStatus(t('memoriesEmpty', 'Staff AI has not noted anything about you yet. Bringing memories from another assistant? Paste them into a chat and ask Staff AI to sort them.'), 'muted');
 				}
 			} catch (e) {
 				btn.disabled = false;
