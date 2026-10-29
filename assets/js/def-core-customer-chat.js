@@ -2529,7 +2529,11 @@
 					var finalContent = streamedText || doneContent;
 
 					if (streamEl) {
+						// W58 (9.1.2): the stream can end ahead of the word drain, and the
+						// rest of the reply lands here at once — follow it from the end.
+						var follow = isAtEnd();
 						streamEl.innerHTML = renderMarkdown(finalContent);
+						if (follow) scrollToBottom();
 						setState(streamEl.parentNode, 'def-cc-message--streaming', false);
 						// Whole now: the one time a streamed reply is spoken (8.7.3).
 						announce(streamEl);
