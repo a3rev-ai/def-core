@@ -803,8 +803,9 @@
 	// the visual viewport (428 and 428) and scrollY is the pan (347). The visual
 	// viewport's offsetTop reads 0 for ~400ms before it says 347 too, so the pan is
 	// whichever of the two reports it (a browser that pans only the visual viewport
-	// keeps scrollY at 0). Pinning itself scrolls for one event (815 at 105) with the
-	// panel focused, which is not the keyboard: a field in the chat has focus.
+	// keeps scrollY at 0). Pinning itself scrolls for one event (offset and scrollY
+	// 105, the keyboard still down) with the panel focused, which is not the
+	// keyboard: a field in the chat has focus.
 	function fitToKeyboard() {
 		if (!panel) return;
 		var vv = window.visualViewport;
@@ -896,9 +897,10 @@
 	// goes on whichever element the viewport takes its overflow from — <body>
 	// when <html> leaves it visible (CSS Overflow 3 §3.3), else <html> — so
 	// <body> never becomes a scroll container of its own, which would unstick a
-	// theme's sticky header. The scroll offset is untouched, so closing needs to
-	// put back only the page's own inline values. Where the page showed a
-	// classic scrollbar, scrollbar-gutter keeps its width so nothing shifts.
+	// theme's sticky header. On a desktop the scroll offset is untouched, so closing
+	// needs to put back only the page's own inline values (a phone, below, also
+	// scrolls back). Where the page showed a classic scrollbar, scrollbar-gutter
+	// keeps its width so nothing shifts.
 	// W58 (9.1.3): on a phone overflow:hidden does not hold — iOS scrolled the page
 	// 520pt to bring the message box into view on each tap, and a drag with the
 	// keyboard up scrolled it under the chat — so <body> is also pinned where it
@@ -932,6 +934,9 @@
 		if (scrollLock.pin) {
 			body.style.setProperty('position', 'fixed', 'important');
 			body.style.setProperty('top', -pinAt + 'px', 'important');
+			// As the browser keeps it: Chrome on Android scrolls in fractions and
+			// stores -151.61904907226562px as -151.619px.
+			scrollLock.pin.ours = body.style.getPropertyValue('top');
 			body.style.setProperty('left', '0px', 'important');
 			body.style.setProperty('right', '0px', 'important');
 		}
@@ -943,7 +948,7 @@
 		if (pin) {
 			var body = document.body;
 			var stillPinned = restoreInline(body, 'position', 'fixed', pin.position);
-			restoreInline(body, 'top', -pin.scrollY + 'px', pin.top);
+			restoreInline(body, 'top', pin.ours, pin.top);
 			restoreInline(body, 'left', '0px', pin.left);
 			restoreInline(body, 'right', '0px', pin.right);
 		}

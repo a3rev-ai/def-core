@@ -677,6 +677,7 @@ function tag(el) {
     const f = await boot(opts);
     Object.defineProperty(f.w, 'scrollY', { value: y, configurable: true });
     size(f.w, 390, 844, 'coarse');
+    if (opts && opts.beforeOpen) opts.beforeOpen(f);
     f.trigger.click();
     // A browser reads 0 once <body> is fixed: the scroll-back must use the open-time 170.
     Object.defineProperty(f.w, 'scrollY', { value: 0, configurable: true });
@@ -694,12 +695,23 @@ function tag(el) {
   h.doc.body.style.removeProperty('position');
   h.key(h.active(), 'Escape');
   const themeUnpinned = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
-  check(48, 'phone: the open chat pins <body> where the page stood (fixed at -170px), and closing or destroy() gives back its inline style exactly and scrolls the page to 170 in one jump (scroll-behavior auto for that call, on a smooth-scrolling page too, then gone); a <body> a theme unpinned meanwhile is not scrolled back',
+  // Chrome on Android scrolls in fractions (151.619… at 2.625 device pixels per px) and
+  // keeps a length to 6 significant digits, so the top it reads back is not the one written.
+  h = await phoneAt(151.61904907226562, { beforeOpen: f => {
+    const set = f.doc.body.style.setProperty.bind(f.doc.body.style);
+    f.doc.body.style.setProperty = (p, v, pr) => set(p, String(v).replace(/-?\d*\.\d+/g, n => String(+(+n).toPrecision(6))), pr);
+  } });
+  const pinnedFraction = pinOf(h);
+  h.key(h.active(), 'Escape');
+  const fractional = [h.doc.body.hasAttribute('style'), h.w.scrolledTo];
+  check(48, 'phone: the open chat pins <body> where the page stood (fixed at -170px), and closing or destroy() gives back its inline style exactly and scrolls the page to 170 in one jump (scroll-behavior auto for that call, on a smooth-scrolling page too, then gone); a <body> a theme unpinned meanwhile is not scrolled back; a fractional scroll (Android) whose top the browser shortened is given back too',
     pinnedAt === 'fixed! -170px! 0px! 0px!' &&
     unpinned[0] === 'color: red; top: 3px;' && JSON.stringify(unpinned[1]) === '[0,170,"auto"]' && unpinned[2] === false &&
     destroyed[0] === false && JSON.stringify(destroyed[1]) === '[0,170,"auto"]' &&
-    themeUnpinned[0] === false && themeUnpinned[1] === undefined,
-    'pinned=' + pinnedAt + ' closed=' + JSON.stringify(unpinned) + ' destroyed=' + JSON.stringify(destroyed) + ' theme=' + JSON.stringify(themeUnpinned));
+    themeUnpinned[0] === false && themeUnpinned[1] === undefined &&
+    pinnedFraction === 'fixed! -151.619px! 0px! 0px!' && fractional[0] === false && JSON.stringify(fractional[1]) === '[0,151.61904907226562,"auto"]',
+    'pinned=' + pinnedAt + ' closed=' + JSON.stringify(unpinned) + ' destroyed=' + JSON.stringify(destroyed) + ' theme=' + JSON.stringify(themeUnpinned) +
+    ' fraction=' + pinnedFraction + ' ' + JSON.stringify(fractional));
 
   // W58 (9.1.3): pinned, iOS makes room for the keyboard by scrolling the page anyway,
   // as measured: the visual viewport's resize (428, innerHeight still 844) comes first,
