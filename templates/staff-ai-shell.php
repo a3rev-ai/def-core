@@ -994,7 +994,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			documentsDeleteFailed: <?php echo wp_json_encode( __( 'Could not delete the document.', 'digital-employees' ) ); ?>,
 			documentsNoMatches: <?php echo wp_json_encode( __( 'No documents match your search.', 'digital-employees' ) ); ?>,
 			memoriesLoading: <?php echo wp_json_encode( __( 'Loading what Staff AI remembers…', 'digital-employees' ) ); ?>,
-			memoriesEmpty: <?php echo wp_json_encode( __( 'Staff AI has not noted anything about you yet.', 'digital-employees' ) ); ?>,
+			memoriesEmpty: <?php echo wp_json_encode( __( 'Staff AI has not noted anything about you yet. Bringing memories from another assistant? Paste them into a chat and ask Staff AI to sort them.', 'digital-employees' ) ); ?>,
 			memoriesLoadFailed: <?php echo wp_json_encode( __( 'Could not load what Staff AI remembers. Nothing has been forgotten — try again in a moment.', 'digital-employees' ) ); ?>,
 			memoriesDelete: <?php echo wp_json_encode( __( 'Delete', 'digital-employees' ) ); ?>,
 			memoriesConfirmDelete: <?php /* translators: %s: the remembered fact. */ echo wp_json_encode( __( 'Delete "%s"? It is removed now, but can be noted again from conversations you still have.', 'digital-employees' ) ); ?>,

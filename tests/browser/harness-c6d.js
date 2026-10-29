@@ -285,7 +285,7 @@ const del = row => row && row.querySelector('.memory-btn-delete');
   {
     const t = boot({ memories: [] }); await enter(t);
     check(++n, 'an empty store says so in the muted kind, with no rows',
-      t.line() === 'console-status console-status-muted :: Staff AI has not noted anything about you yet.' &&
+      t.line() === 'console-status console-status-muted :: Staff AI has not noted anything about you yet. Bringing memories from another assistant? Paste them into a chat and ask Staff AI to sort them.' &&
       t.rows().length === 0, JSON.stringify(t.line()));
   }
   {
@@ -356,7 +356,7 @@ const del = row => row && row.querySelector('.memory-btn-delete');
     click(t.window, del(t.rows()[0]));
     await tick(t.window, 80);
     const emptied = t.rows().length === 0 &&
-      t.line() === 'console-status console-status-muted :: Staff AI has not noted anything about you yet.';
+      t.line() === 'console-status console-status-muted :: Staff AI has not noted anything about you yet. Bringing memories from another assistant? Paste them into a chat and ask Staff AI to sort them.';
     // Re-entering reloads: the page has no Refresh because entering IS the refresh.
     t.api.showChat(); await tick(t.window);
     await enter(t);
