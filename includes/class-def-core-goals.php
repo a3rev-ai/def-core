@@ -30,6 +30,8 @@ final class DEF_Core_Goals {
 	const COOKIE           = 'def_chat_ref';
 	const CHAT_REF_PATTERN = '/^orch-[0-9a-f]{16}$/';
 	const PAGE_RATE_LIMIT  = 30;
+	const PAGE_PATH_MAX    = 500;
+	const MAX_PENDING      = 1000;
 
 	/**
 	 * Register the queue worker, the page route and the outcome hooks.
@@ -47,7 +49,7 @@ final class DEF_Core_Goals {
 		add_action( 'wpcf7_mail_sent', array( __CLASS__, 'on_contact_form_7' ), 10, 1 );
 		add_action( 'wpforms_process_complete', array( __CLASS__, 'on_wpforms' ), 10, 3 );
 		add_action( 'fluentform/submission_inserted', array( __CLASS__, 'on_fluentform' ), 10, 3 );
-		add_action( 'fluentform_submission_inserted', array( __CLASS__, 'on_fluentform' ), 10, 3 ); // Before 4.3.22 only.
+		add_action( 'fluentform_submission_inserted', array( __CLASS__, 'on_fluentform' ), 10, 3 ); // Legacy name; current versions fire both (deduped below).
 		add_action( 'frm_after_create_entry', array( __CLASS__, 'on_formidable' ), 10, 3 );
 		add_action( 'ninja_forms_after_submission', array( __CLASS__, 'on_ninja_forms' ), 10, 1 );
 		add_action( 'elementor_pro/forms/new_record', array( __CLASS__, 'on_elementor' ), 10, 1 );
@@ -187,11 +189,45 @@ final class DEF_Core_Goals {
 			}
 			// The path alone: a form plugin can put field values in the query string.
 			$path = (string) wp_parse_url( (string) $request->get_param( 'path' ), PHP_URL_PATH );
-			if ( '' !== $path && '/' === $path[0] ) {
+			if ( '' !== $path && '/' === $path[0] && strlen( $path ) <= self::PAGE_PATH_MAX
+				&& ! self::is_order_path( $path ) && self::pending() < self::MAX_PENDING ) {
 				self::queue( 'page_reached', $path, $chat_ref, 'page:' . $chat_ref . ':' . $path );
 			}
 		}
 		return new WP_REST_Response( null, 204 );
+	}
+
+	/**
+	 * A WooCommerce order-received, view-order or order-pay path carries the order
+	 * number; the order leg reports the order instead.
+	 *
+	 * @param string $path The page path.
+	 */
+	private static function is_order_path( string $path ): bool {
+		$endpoints = array(
+			'woocommerce_checkout_order_received_endpoint' => 'order-received',
+			'woocommerce_myaccount_view_order_endpoint'    => 'view-order',
+			'woocommerce_checkout_pay_endpoint'            => 'order-pay',
+		);
+		foreach ( $endpoints as $option => $default ) {
+			$slug = (string) get_option( $option, $default );
+			if ( '' !== $slug && false !== strpos( $path, '/' . $slug . '/' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Reports still waiting in WP-Cron — a ceiling that per-IP limits cannot give
+	 * when IPs rotate.
+	 */
+	private static function pending(): int {
+		$count = 0;
+		foreach ( (array) _get_cron_array() as $hooks ) {
+			$count += count( $hooks[ self::CRON_HOOK ] ?? array() );
+		}
+		return $count;
 	}
 
 	// ── Order leg ───────────────────────────────────────────────────────
@@ -259,6 +295,9 @@ final class DEF_Core_Goals {
 	 * @param mixed $form      The form.
 	 */
 	public static function on_fluentform( $insert_id, $form_data, $form ): void {
+		if ( '' === self::chat_ref() ) {
+			return;
+		}
 		global $wpdb;
 		static $seen = array();
 		$insert_id   = (int) $insert_id;
@@ -282,6 +321,9 @@ final class DEF_Core_Goals {
 	 * @param mixed $args     ['is_child' => bool].
 	 */
 	public static function on_formidable( $entry_id, $form_id, $args = array() ): void {
+		if ( '' === self::chat_ref() ) {
+			return;
+		}
 		if ( ! empty( $args['is_child'] ) || ! class_exists( 'FrmEntry' ) ) {
 			return;
 		}

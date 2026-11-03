@@ -50,6 +50,15 @@ if ( ! class_exists( 'WC_Order' ) ) {
 		public function get_meta( string $key ) {
 			return $this->meta[ $key ] ?? '';
 		}
+		public function update_meta_data( $k, $v ) {
+			$this->meta[ $k ] = $v;
+		}
+		public function save() {}
+	}
+}
+if ( ! function_exists( '_get_cron_array' ) ) {
+	function _get_cron_array() {
+		return $GLOBALS['_wp_test_cron_array'] ?? array();
 	}
 }
 
@@ -91,6 +100,7 @@ final class GoalsTest extends TestCase {
 		$GLOBALS['_wp_test_cron_scheduled'] = array();
 		$GLOBALS['_wp_test_transients']     = array();
 		$GLOBALS['_wp_test_posts']          = array();
+		$GLOBALS['_wp_test_cron_array']     = array();
 		$_COOKIE                            = array( DEF_Core_Goals::COOKIE => self::REF );
 	}
 
@@ -215,6 +225,37 @@ final class GoalsTest extends TestCase {
 		$this->assertSame( wp_hash( 'page:' . self::REF . ':/thank-you/' ), $q[0]['idempotency_key'] );
 	}
 
+	private function page( string $path ): void {
+		$request = new WP_REST_Request( 'POST', '/a3-ai/v1/goals/page' );
+		$request->set_param( 'path', $path );
+		DEF_Core_Goals::rest_page( $request );
+	}
+
+	public function test_an_over_long_path_is_not_queued(): void {
+		$this->page( '/' . str_repeat( 'a', DEF_Core_Goals::PAGE_PATH_MAX ) );
+		$this->assertSame( array(), $this->queued() );
+		$this->page( '/' . str_repeat( 'a', DEF_Core_Goals::PAGE_PATH_MAX - 1 ) );
+		$this->assertCount( 1, $this->queued() );
+	}
+
+	public function test_no_page_report_is_queued_at_the_pending_ceiling(): void {
+		$GLOBALS['_wp_test_cron_array'] = array(
+			time() => array( DEF_Core_Goals::CRON_HOOK => array_fill( 0, DEF_Core_Goals::MAX_PENDING, array() ) ),
+		);
+		$this->page( '/pricing/' );
+		$this->assertSame( array(), $this->queued() );
+	}
+
+	public function test_an_order_number_path_is_not_queued(): void {
+		update_option( 'woocommerce_checkout_pay_endpoint', 'pay-now' );
+		$this->page( '/checkout/order-received/1234/' );
+		$this->page( '/my-account/view-order/1234/' );
+		$this->page( '/checkout/pay-now/1234/' );
+		$this->assertSame( array(), $this->queued() );
+		$this->page( '/checkout/order-pay/1234/' ); // Not this site's slug.
+		$this->assertCount( 1, $this->queued() );
+	}
+
 	public function test_a_page_report_past_the_ip_limit_is_refused(): void {
 		$request = new WP_REST_Request( 'POST', '/a3-ai/v1/goals/page' );
 		$request->set_param( 'path', '/pricing/' );
@@ -244,11 +285,15 @@ final class GoalsTest extends TestCase {
 		$this->assertSame( array(), $this->queued() );
 	}
 
-	public function test_a_handoff_key_is_per_chat(): void {
-		DEF_Core_Goals::queue( 'handoff_sent', '', self::REF, 'handoff:' . self::REF );
+	public function test_the_order_stamp_takes_the_cookie_and_the_order_is_reported_with_it(): void {
+		$order = new WC_Order( 55, array() );
+		DEF_Core_Chat_Attribution::stamp_order( $order );
+		DEF_Core_Goals::report_order( $order );
+
 		$q = $this->queued();
-		$this->assert_wire_shape( $q[0] );
-		$this->assertSame( wp_hash( 'handoff:' . self::REF ), $q[0]['idempotency_key'] );
+		$this->assertCount( 1, $q );
+		$this->assertSame( 'order_placed', $q[0]['type'] );
+		$this->assertSame( self::REF, $q[0]['chat_ref'] );
 	}
 
 	// ── Send ────────────────────────────────────────────────────────────
