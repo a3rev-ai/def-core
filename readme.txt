@@ -121,7 +121,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 == Changelog ==
 
 = 9.2.0 - 2026-11-03 =
-* Tweak - Customer Chat and the Setup Assistant: when the assistant offers to put you in touch with a person, its reply stays in view with one button under it, and the hand-off form opens only when that button is clicked. In Customer Chat the button reads as the form's title (Escalation → Customer Chat Hand-off Form → Form title); in the Setup Assistant it reads "Talk to a person".
+* New - Customer Chat and the Setup Assistant: when the assistant offers to put you in touch with a person, its reply stays in view with one button under it, and the hand-off form opens only when that button is clicked; in the Setup Assistant, Cancel puts the button back. In Customer Chat the button reads as the form's title (Escalation → Customer Chat Hand-off Form → Form title); in the Setup Assistant it reads "Talk to a person".
 
 = 9.1.5 - 2026-11-03 =
 * Tweak - Staff AI: the Export button is gone from the header and the More options menu. It never did anything; a person's data is exported from Privacy Requests, and memories from another assistant can be pasted into a chat.

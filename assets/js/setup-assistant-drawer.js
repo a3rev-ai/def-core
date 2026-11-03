@@ -1063,7 +1063,8 @@
 	};
 
 	// G0: an escalation offer puts one "Talk to a person" button under the
-	// reply; the request form renders, in its place, only when the admin clicks it.
+	// reply; the request form renders only when the admin clicks it, and Cancel
+	// puts the button back in the form's place.
 	SetupAssistantDrawer.prototype.offerEscalation = function (data) {
 		var self = this;
 		var btn = document.createElement('button');
@@ -1072,13 +1073,13 @@
 		btn.textContent = config.talkToPerson || 'Talk to a person';
 		btn.addEventListener('click', function () {
 			btn.remove();
-			self.renderEscalationCard(data);
+			self.renderEscalationCard(data, function (card) { card.replaceWith(btn); });
 		});
 		this.messagesEl.appendChild(btn);
 		this.scrollToBottom();
 	};
 
-	SetupAssistantDrawer.prototype.renderEscalationCard = function (data) {
+	SetupAssistantDrawer.prototype.renderEscalationCard = function (data, onCancel) {
 		var self = this;
 		var card = document.createElement('div');
 		card.className = 'def-sa-escalation-card';
@@ -1143,13 +1144,7 @@
 			if (inflightController) {
 				try { inflightController.abort(); } catch (e) {}
 			}
-			card.style.opacity = '0.5';
-			sendBtn.disabled = true;
-			cancelBtn.disabled = true;
-			subjectInput.disabled = true;
-			messageInput.disabled = true;
-			status.style.display = '';
-			status.textContent = 'Escalation cancelled.';
+			onCancel(card);
 		});
 
 		// Clear the status line when the user resumes typing after a

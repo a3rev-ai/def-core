@@ -1305,6 +1305,11 @@
 	background: var(--def-cc-primary-hover);
 }
 
+.def-cc-handoff-btn:focus-visible {
+	outline: 2px solid var(--def-cc-primary);
+	outline-offset: 2px;
+}
+
 .def-cc-escalation-submit {
 	flex: 1;
 	padding: 10px 16px;

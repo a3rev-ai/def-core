@@ -406,6 +406,11 @@
 	background: #135e96;
 }
 
+.def-sa-handoff-btn:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
 .def-sa-escalation-card {
 	align-self: stretch;
 	border: 1px solid #e0e0e0;

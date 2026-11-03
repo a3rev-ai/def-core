@@ -11,8 +11,11 @@
  * Sam: the SHIPPED Setup Assistant drawer, whole, in jsdom, over a streamed turn and
  * through processToolOutputs. The button reads "Talk to a person".
  *
- * 19 checks. Bite: on 9.1.5 every check fails but the four guards (no offer, no button;
- * a restored thread re-opens nothing — 7, 11, 13, 19) — the form opened at once, no button.
+ * Joe's log is silent, so the button is said through the announcer, after the reply.
+ * Sam's Cancel puts the button back, as Tess's and Pip's does.
+ *
+ * 22 checks. Bite: on 9.1.5 every check fails but the four guards (no offer, no button;
+ * a restored thread re-opens nothing — 9, 13, 15, 22) — the form opened at once, no button.
  */
 const fs = require('fs');
 const path = require('path');
@@ -83,6 +86,7 @@ async function bootJoe(opts) {
 		formOpen: () => root.querySelector('.def-cc-escalation-overlay').classList.contains('def-cc-escalation-overlay--open'),
 		buttons: () => Array.from(root.querySelectorAll('.def-cc-handoff-btn')),
 		reply: bubbles.length ? bubbles[bubbles.length - 1] : null,
+		said: () => Array.from(root.querySelectorAll('.def-cc-announcer > div')).map(d => d.textContent),
 	};
 }
 
@@ -146,6 +150,9 @@ async function bootSam(opts) {
 			btns.length === 1 && btns[0].textContent === 'Request Human Support' &&
 			!!(j.reply.compareDocumentPosition(btns[0]) & 4 /* FOLLOWING */),
 			JSON.stringify(btns.map(b => b.textContent)));
+		check('  … which the screen reader hears, after the reply',
+			JSON.stringify(j.said().slice(-2)) === JSON.stringify([REPLY, 'Request Human Support']),
+			JSON.stringify(j.said()));
 		const closed = !j.formOpen();
 		if (btns[0]) btns[0].click();
 		check('  … and clicking it opens the form, closed until then', closed && j.formOpen());
@@ -189,6 +196,12 @@ async function bootSam(opts) {
 	if (s.buttons()[0]) s.buttons()[0].click();
 	check('  … and clicking it renders the request form once, none until then',
 		before === 0 && s.cards().length === 1 && s.buttons().length === 0, 'before=' + before + ' cards=' + s.cards().length);
+	const decline = s.messages.querySelector('.def-sa-escalation-decline');
+	if (decline) decline.click();
+	check('  … and Cancel closes the form and puts the one button back under the reply, to open it again',
+		s.cards().length === 0 && s.buttons().length === 1 && !!(reply && reply.compareDocumentPosition(s.buttons()[0]) & 4) &&
+		(s.buttons()[0].click(), s.cards().length === 1 && s.buttons().length === 0),
+		JSON.stringify({ cards: s.cards().length, buttons: s.buttons().length }));
 
 	s = await bootSam({ outputs: [OFFER, OFFER] });
 	await s.send();

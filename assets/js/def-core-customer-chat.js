@@ -3226,9 +3226,9 @@
 	// ─── 7. ESCALATION FORM ───────────────────────────────────────
 
 	// G0: an escalation_offer puts one button under the reply, labelled with the
-	// form's own title; the form opens only when the visitor clicks it.
+	// form's own title; the form opens only when the visitor clicks it. The log
+	// is silent, so the button is said through the announcer, after the reply.
 	function appendHandoffButton(reason) {
-		if (!els.messages) return;
 		var btn = el('button', 'def-cc-handoff-btn');
 		btn.type = 'button';
 		btn.textContent = t('escalate');
@@ -3237,6 +3237,7 @@
 		});
 		els.messages.appendChild(btn);
 		scrollToBottom();
+		announce(btn);
 	}
 
 	function showEscalation(reason) {
