@@ -658,4 +658,4 @@ module.exports = { REPO, stubMatchMedia, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PAT
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
 	staffAiStream, customerChatStream, scheduled,
 	attachGate, uploadStaged, chatAsk, chatOpening, customerChatSource, customerChatLoader, voice, chatVoice, chatStrings,
-	templateSource, templatePage, templateNav, templateModal };
+	templateSource, templatePage, templateNav, templateModal, phpToHtml };
