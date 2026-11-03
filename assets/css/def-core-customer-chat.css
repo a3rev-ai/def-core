@@ -1287,6 +1287,29 @@
 	padding: 12px 0 24px;
 }
 
+.def-cc-handoff-btn {
+	align-self: flex-start;
+	padding: 8px 16px;
+	border: none;
+	border-radius: var(--def-cc-radius-sm);
+	background: var(--def-cc-primary);
+	color: var(--def-cc-primary-text);
+	font-family: var(--def-cc-font);
+	font-size: var(--def-cc-font-size);
+	font-weight: var(--def-cc-font-weight-medium);
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.def-cc-handoff-btn:hover {
+	background: var(--def-cc-primary-hover);
+}
+
+.def-cc-handoff-btn:focus-visible {
+	outline: 2px solid var(--def-cc-primary);
+	outline-offset: 2px;
+}
+
 .def-cc-escalation-submit {
 	flex: 1;
 	padding: 10px 16px;

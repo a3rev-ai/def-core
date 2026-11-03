@@ -2849,11 +2849,13 @@
 		// EITHER a `type` field (escalation_offer / wp_rest_call) OR a
 		// `result_type` field (wp_product / future wp_post / wp_<cpt>).
 		// Both fields don't co-exist on a single output.
+		var offered = false;
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
 				if (output.type === 'escalation_offer') {
-					showEscalation(output.reason);
+					if (!offered) appendHandoffButton(output.reason);
+					offered = true;
 				} else if (output.type === 'wp_rest_call') {
 					handleWpRestCall(output);
 				} else if (output.result_type === 'wp_product') {
@@ -2920,11 +2922,13 @@
 		// `result_type` field (wp_product / future wp_post / wp_<cpt>).
 		// Both fields don't co-exist on a single output.
 		var dispatchedAsyncByName = {};
+		var offered = false;
 		if (data.tool_outputs) {
 			for (var i = 0; i < data.tool_outputs.length; i++) {
 				var output = data.tool_outputs[i];
 				if (output.type === 'escalation_offer') {
-					showEscalation(output.reason);
+					if (!offered) appendHandoffButton(output.reason);
+					offered = true;
 				} else if (output.type === 'wp_rest_call') {
 					handleWpRestCall(output);
 					if (output.tool_name) {
@@ -3220,6 +3224,21 @@
 	}
 
 	// ─── 7. ESCALATION FORM ───────────────────────────────────────
+
+	// G0: an escalation_offer puts one button under the reply, labelled with the
+	// form's own title; the form opens only when the visitor clicks it. The log
+	// is silent, so the button is said through the announcer, after the reply.
+	function appendHandoffButton(reason) {
+		var btn = el('button', 'def-cc-handoff-btn');
+		btn.type = 'button';
+		btn.textContent = t('escalate');
+		btn.addEventListener('click', function () {
+			showEscalation(reason);
+		});
+		els.messages.appendChild(btn);
+		scrollToBottom();
+		announce(btn);
+	}
 
 	function showEscalation(reason) {
 		if (!els.escalationOverlay) return;

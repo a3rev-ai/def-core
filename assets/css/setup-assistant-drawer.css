@@ -390,6 +390,27 @@
 
 /* ─── Escalation Card ─────────────────────────────────────────── */
 
+.def-sa-handoff-btn {
+	align-self: flex-start;
+	padding: 6px 16px;
+	background: #2271b1;
+	color: #fff;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.def-sa-handoff-btn:hover {
+	background: #135e96;
+}
+
+.def-sa-handoff-btn:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
 .def-sa-escalation-card {
 	align-self: stretch;
 	border: 1px solid #e0e0e0;
