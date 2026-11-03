@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.2.1
+Stable tag: 9.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,7 +109,7 @@ Go to **Digital Employees > Chat Settings**. You can set button position (left/r
 
 = What data is sent to the AI service? =
 
-Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. No data is transmitted when chat features are not in use. See the External Services section below.
+Chat messages, user display name, session context, and the visitor's IP address (so the service can tell one visitor from another for flood protection) — only when a user actively sends a message. After a visitor has chatted, the site also reports that visitor's outcomes — a page reached, a form submitted, an order placed, the hand-off form sent — as which chat, which page or form, and when; never a form's contents, an order number, a name or an email. No data is transmitted when chat features are not in use. See the External Services section below.
 
 == Screenshots ==
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.3.0 - 2026-11-03 =
+* New - Goals: after a visitor has chatted with Customer Chat, the site tells the Digital Employee Framework when that visitor submits a form (Gravity Forms, Contact Form 7, WPForms, Fluent Forms, Formidable, Ninja Forms or Elementor Pro Forms), reaches a page, places an order, or sends the hand-off form, so the chat's Goals can be counted. Only which chat, which form or page, and when are sent — never what was typed into a form, an order number, a name or an email. Customer Chat keeps the chat's reference in one first-party cookie, def_chat_ref, for this; Clear conversation removes it.
 
 = 9.2.1 - 2026-11-03 =
 * Fix - Connect to DEFHO: on a server whose PHP has no sodium extension (it is optional for WordPress), clicking Authorize ended in a critical error and the site never connected. The connection credentials now save and read on those servers too.
@@ -1065,6 +1068,7 @@ When the Customer Chat widget or Staff AI panel is used, chat messages are sent 
 
 * **What is sent:** Chat messages, user display name, session context, and the visitor's IP address — the last so the service can distinguish one visitor from another when applying flood protection.
 * **When:** Only when a user or visitor actively sends a message via the chat interface.
+* **Chat outcomes:** After a visitor has chatted, the site's server reports when that visitor reaches a page (its path, without the query string), submits a form (the form plugin and form id), places an order, or sends the hand-off form — with the chat's reference and the time, and never a form's contents, an order number, a name or an email. The chat's reference is kept in the first-party cookie `def_chat_ref`, renewed for 30 days on each visit and removed by Clear conversation.
 * **Service URL:** Configured by the site administrator on the Connection tab (typically `https://api.defho.ai`).
 * **Service provider:** [DEFHO](https://defho.ai/) by a3rev Software.
 * **Terms of Service:** [https://defho.ai/terms](https://defho.ai/terms)
@@ -1074,7 +1078,7 @@ No data is sent to external services when the chat features are not in use. Site
 
 == Privacy Policy ==
 
-This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design. When chat features are used, messages are processed by the external AI service described in the External Services section above, and the visitor's IP address is sent with them so that service can apply per-visitor flood protection.
+This plugin does not collect or store any personal data beyond what WordPress already collects. JWT tokens contain only the minimum necessary user information and are short-lived by design. When chat features are used, messages are processed by the external AI service described in the External Services section above, and the visitor's IP address is sent with them so that service can apply per-visitor flood protection. Customer Chat sets one first-party cookie, `def_chat_ref`, holding the chat's reference (never a name or email), so the outcomes listed under External Services can be counted.
 
 == License ==
 

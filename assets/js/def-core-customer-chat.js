@@ -161,9 +161,19 @@
 	var SSE_TOOL_PACING_MS = 400;
 
 	var THREAD_KEY = 'a3rev_thread_id';
+	// W75 G2: a first-party copy of THREAD_KEY, so the site's server can tell DEF a
+	// chatting visitor reached a Goal (a form, an order, a page). Host-only, 30 days,
+	// readable by JS; no wordpress_/wp-/woocommerce_ prefix, so page caches still cache.
+	var CHAT_REF_COOKIE = 'def_chat_ref';
 	var HISTORY_KEY = 'a3rev_threads';
 	var USER_KEY = 'def:customer-chat:user';
 	var AUTH_STATE_KEY = 'def:auth_state';
+
+	function setChatRefCookie(id) {
+		document.cookie = CHAT_REF_COOKIE + '=' +
+			(id ? encodeURIComponent(id) + '; Max-Age=2592000' : '; Max-Age=0') +
+			'; Path=/; SameSite=Lax; Secure';
+	}
 
 	function t(key) {
 		return (
@@ -1816,6 +1826,8 @@
 	function handleSubmit(e) {
 		if (e && e.preventDefault) e.preventDefault();
 		if (destroyed || isComposerDisabled) return;
+		// A page button's question (ask) is not one the visitor wrote (W75 G-2).
+		var seeded = !!(e && e.seeded);
 
 		var text = (els.input.value || '').trim();
 		var hasFiles =
@@ -1894,6 +1906,9 @@
 				var thinkingEl = showThinking();
 
 				var req = buildTurnRequest(text, fileIds, null);
+				if (seeded) {
+					req.body.seeded_prompt = true;
+				}
 
 				// Feature detection: stream if ReadableStream supported
 				if (typeof ReadableStream !== 'undefined') {
@@ -2825,6 +2840,7 @@
 			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
+				setChatRefCookie(threadId);
 				// Fresh thread started — clear the cleared-session marker so it
 				// doesn't accumulate as dead weight in localStorage. The marker
 				// only exists to suppress adoption between Clear and the next
@@ -2899,6 +2915,7 @@
 			setThreadId(data.thread_id);
 			try {
 				localStorage.setItem(THREAD_KEY, threadId);
+				setChatRefCookie(threadId);
 				// Fresh thread started — clear the cleared-session marker. See
 				// processChatResponse for the rationale.
 				localStorage.removeItem('def:cleared_session');
@@ -3488,6 +3505,10 @@
 			// hand-off filter (7.6.5). Server-side only; never rendered back.
 			page_url: window.location.href,
 		};
+		// W75 G2: the chat the hand-off came from; def-core reports it once sent.
+		if (threadId) {
+			payload.thread_id = threadId;
+		}
 		if (replyTo) {
 			payload.reply_to = replyTo;
 		}
@@ -4299,7 +4320,10 @@
 
 		setThreadId(picked.id);
 		isContinuing = true;
-		try { localStorage.setItem(THREAD_KEY, threadId); } catch (e) {}
+		try {
+			localStorage.setItem(THREAD_KEY, threadId);
+			setChatRefCookie(threadId);
+		} catch (e) {}
 		loadThreadMessages(threadId);
 	}
 
@@ -4357,6 +4381,7 @@
 		// returns the (still server-side) prior threads.
 		try {
 			localStorage.removeItem(THREAD_KEY);
+			setChatRefCookie(null);
 			localStorage.removeItem('def:session_cookie');
 			localStorage.setItem('def:cleared_session', '1');
 		} catch (e) {}
@@ -4724,6 +4749,7 @@
 		loadLocalThreads();
 		try {
 			setThreadId(localStorage.getItem(THREAD_KEY));
+			if (threadId) setChatRefCookie(threadId);
 		} catch (e) {}
 
 		// Detect WordPress auth state change (login/logout outside widget).
@@ -4941,7 +4967,7 @@
 		setState(els.input, 'def-cc-suggestion-text', false);
 		autoResizeInput();
 		updateSendButton();
-		handleSubmit({ preventDefault: function () {} });
+		handleSubmit({ preventDefault: function () {}, seeded: true });
 		return true;
 	}
 	// ── end ask ──

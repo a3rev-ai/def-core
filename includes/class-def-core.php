@@ -76,6 +76,7 @@ final class DEF_Core {
 		DEF_Core_Logs_Page::init();
 		DEF_Core_Content_Drafts_Page::init();
 		DEF_Core_Chat_Attribution::init();
+		DEF_Core_Goals::init();
 		DEF_Core_Chat_Button_Block::init();
 
 		// Schedule log cleanup cron.
@@ -187,6 +188,9 @@ final class DEF_Core {
 
 		// Chat-driven sale attribution (stamps _def_chat_id onto orders).
 		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-chat-attribution.php';
+
+		// Goal outcome reports (W75 G2).
+		require_once DEF_CORE_PLUGIN_DIR . 'includes/class-def-core-goals.php';
 
 		// Plugin inited action hook.
 		add_action(

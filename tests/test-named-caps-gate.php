@@ -139,6 +139,10 @@ const CAPS_REGISTRY = array(
 		'class' => 'system',
 		'why'   => 'The abuse ceiling inside that window.',
 	),
+	'includes/class-def-core-goals.php::PAGE_RATE_LIMIT' => array(
+		'class' => 'system',
+		'why'   => 'Anyone can POST the page route; each report is a WP-Cron event and an outbound call. Refuses with 429.',
+	),
 	'includes/class-def-core-logger.php::MAX_MESSAGE_LENGTH' => array(
 		'class' => 'system',
 		'why'   => 'Bounded log line — logs are the sanctioned truncation target, not user data.',

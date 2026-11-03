@@ -132,14 +132,18 @@ final class DEF_Core_Chat_Attribution {
 	 * @return void
 	 */
 	private static function copy_to_order( $order, bool $save ): void {
-		if ( ! is_a( $order, 'WC_Order' ) || ! function_exists( 'WC' ) || ! WC()->session ) {
+		if ( ! is_a( $order, 'WC_Order' ) ) {
 			return;
 		}
-		$chat_id = WC()->session->get( self::SESSION_KEY );
-		if ( ! $chat_id ) {
+		// The chat cookie reaches every checkout (W75 G2); the session value is the fallback.
+		$chat_id = DEF_Core_Goals::chat_ref();
+		if ( '' === $chat_id && function_exists( 'WC' ) && WC()->session ) {
+			$chat_id = (string) WC()->session->get( self::SESSION_KEY );
+		}
+		if ( '' === $chat_id ) {
 			return;
 		}
-		$order->update_meta_data( self::ORDER_META_KEY, (string) $chat_id );
+		$order->update_meta_data( self::ORDER_META_KEY, $chat_id );
 		if ( $save ) {
 			$order->save();
 		}

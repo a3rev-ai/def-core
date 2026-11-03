@@ -259,7 +259,7 @@ final class DEF_Core_Escalation {
 	 * @return string Sanitized client IP, or "unknown" if unavailable.
 	 * @since 2.1.7
 	 */
-	private static function get_client_ip(): string {
+	public static function get_client_ip(): string {
 		if ( empty( $_SERVER['REMOTE_ADDR'] ) ) {
 			return 'unknown';
 		}
@@ -276,13 +276,14 @@ final class DEF_Core_Escalation {
 	 * a precise cap. A small margin of error is acceptable.
 	 *
 	 * @param string $bucket Unique per-endpoint bucket key (e.g. "customer_chat_escalation:1.2.3.4").
+	 * @param int    $max    Requests allowed per window.
 	 * @return bool True if the request is within the limit, false if exceeded.
 	 * @since 2.1.7
 	 */
-	private static function check_rate_limit( string $bucket ): bool {
+	public static function check_rate_limit( string $bucket, int $max = self::RATE_LIMIT_MAX_REQUESTS ): bool {
 		$transient_key = 'def_core_rl_' . md5( $bucket );
 		$count         = (int) get_transient( $transient_key );
-		if ( $count >= self::RATE_LIMIT_MAX_REQUESTS ) {
+		if ( $count >= $max ) {
 			return false;
 		}
 		set_transient( $transient_key, $count + 1, self::RATE_LIMIT_WINDOW_SECONDS );
@@ -561,6 +562,11 @@ final class DEF_Core_Escalation {
 		}
 
 		$response = self::send_escalation_email( $inner_request );
+
+		// The hand-off is a Goal outcome only once it has actually been sent (W75 G2).
+		if ( 200 === $response->get_status() && is_string( $body['thread_id'] ?? null ) ) {
+			DEF_Core_Goals::queue( 'handoff_sent', '', $body['thread_id'], 'handoff:' . $body['thread_id'] );
+		}
 
 		// Auto-acknowledgement (5.6.0): a static, admin-configured "we'll be in
 		// touch" note to the person who reached out. Content is NEVER built from
