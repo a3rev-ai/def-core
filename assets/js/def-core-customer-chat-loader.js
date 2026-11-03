@@ -1285,6 +1285,22 @@
 		} catch (e) { /* best-effort dismissal */ }
 	}
 
+	// W75 G2: while the visitor has a chat (the widget's def_chat_ref cookie), each
+	// page is reported — a thank-you page can be a Goal. The path only: a form plugin
+	// can put field values in the query string. def-core re-issues the cookie.
+	function reportPageReached() {
+		if (!config.wpRestUrl || !/(?:^|;\s*)def_chat_ref=orch-[0-9a-f]{16}(?:;|$)/.test(document.cookie)) {
+			return;
+		}
+		fetch(config.wpRestUrl + 'goals/page', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ path: window.location.pathname }),
+			credentials: 'same-origin',
+			keepalive: true,
+		}).catch(function () {});
+	}
+
 	// ─── Init ───────────────────────────────────────────────────────
 
 	function init() {
@@ -1293,6 +1309,7 @@
 		initHeaderButtons();
 		bindEvents();
 		maybeShowGreetingBubble();
+		reportPageReached();
 
 		// Restore open state from previous page view.
 		var stored = getStoredState();

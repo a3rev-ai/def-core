@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.3.0 - 2026/11/03 =
+* New - Goals: after a visitor has chatted with Customer Chat, the site tells the Digital Employee Framework when that visitor submits a form (Gravity Forms, Contact Form 7, WPForms, Fluent Forms, Formidable, Ninja Forms or Elementor Pro Forms), reaches a page, places an order, or sends the hand-off form, so the chat's Goals can be counted. Only which chat, which form or page, and when are sent — never what was typed into a form, an order number, a name or an email. Customer Chat keeps the chat's reference in one first-party cookie, def_chat_ref, for this; Clear conversation removes it.
+
 = 9.2.1 - 2026/11/03 =
 * Fix - Connect to DEFHO: on a server whose PHP has no sodium extension (it is optional for WordPress), clicking Authorize ended in a critical error and the site never connected. The connection credentials now save and read on those servers too.
 

@@ -1,5 +1,5 @@
 /*
- * Customer Chat ask() - behavioural harness (v8.5.0), 6 checks.
+ * Customer Chat ask() - behavioural harness (v8.5.0), 7 checks.
  *
  * Runs the SHIPPED ask() block (extracted by marker from
  * assets/js/def-core-customer-chat.js) over a fake of the closure it lives in.
@@ -7,7 +7,8 @@
  * What it holds: a page trigger's question is sent as the visitor's message,
  * trimmed, through the same submit a typed message takes; an empty question,
  * a destroyed widget, or a turn already in flight sends nothing and leaves the
- * composer alone.
+ * composer alone. The submit is marked seeded (W75 G-2: a page button's question
+ * is not one the visitor wrote, so DEF does not count it as an engagement).
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -20,13 +21,14 @@ function boot(opts) {
   const input = dom.window.document.querySelector('.def-cc-input');
   input.value = opts.draft || '';
   const submits = [];
+  const events = [];
   const factory = new dom.window.Function(
     'els', 'destroyed', 'isComposerDisabled', 'setState', 'autoResizeInput', 'updateSendButton', 'handleSubmit',
     ASK + '\nreturn ask;');
   const ask = factory(
     { input: opts.noInput ? null : input }, !!opts.destroyed, !!opts.disabled,
-    () => {}, () => {}, () => {}, e => submits.push(input.value));
-  return { ask, input, submits };
+    () => {}, () => {}, () => {}, e => { submits.push(input.value); events.push(e); });
+  return { ask, input, submits, events };
 }
 
 let pass = 0, fail = 0;
@@ -60,6 +62,10 @@ function check(n, label, cond, detail) {
 
   h = boot();
   check(6, 'a non-string is coerced, not thrown on', h.ask(42) === true && h.submits[0] === '42');
+
+  h = boot();
+  h.ask('What does it cost?');
+  check(7, 'the question is sent marked seeded', h.events[0] && h.events[0].seeded === true);
 
   console.log('Customer Chat ask() harness');
   console.log(results.join('\n'));

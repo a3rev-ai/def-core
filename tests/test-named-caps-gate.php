@@ -139,6 +139,18 @@ const CAPS_REGISTRY = array(
 		'class' => 'system',
 		'why'   => 'The abuse ceiling inside that window.',
 	),
+	'includes/class-def-core-goals.php::PAGE_PATH_MAX' => array(
+		'class' => 'system',
+		'why'   => 'An anonymous route must not write an unbounded string into the cron option.',
+	),
+	'includes/class-def-core-goals.php::MAX_PENDING' => array(
+		'class' => 'system',
+		'why'   => 'A ceiling on queued page reports when IPs rotate past PAGE_RATE_LIMIT; the cron option is autoloaded.',
+	),
+	'includes/class-def-core-goals.php::PAGE_RATE_LIMIT' => array(
+		'class' => 'system',
+		'why'   => 'Anyone can POST the page route; each report is a WP-Cron event and an outbound call. Refuses with 429.',
+	),
 	'includes/class-def-core-logger.php::MAX_MESSAGE_LENGTH' => array(
 		'class' => 'system',
 		'why'   => 'Bounded log line — logs are the sanctioned truncation target, not user data.',
