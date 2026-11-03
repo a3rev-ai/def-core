@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.1.4
+Stable tag: 9.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.1.5 - 2026-11-03 =
+* Tweak - Staff AI: the Export button is gone from the header and the More options menu. It never did anything; a person's data is exported from Privacy Requests, and memories from another assistant can be pasted into a chat.
 
 = 9.1.4 - 2026-10-30 =
 * Tweak - Staff AI Memories: when nothing is remembered yet, the panel now says that memories from another assistant can be pasted into a chat for Staff AI to sort.

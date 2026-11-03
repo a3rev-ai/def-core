@@ -150,7 +150,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<div class="header-logo"><?php echo $logo_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Logo is escaped in wp_get_attachment_image or esc_html ?></div>
 				<span class="readonly-indicator" id="readonlyIndicator"><?php echo esc_html__( 'Read-only (shared)', 'digital-employees' ); ?></span>
 				<div class="header-actions">
-					<button type="button" class="header-btn" id="exportBtn" disabled><?php echo esc_html__( 'Export', 'digital-employees' ); ?></button>
 					<button type="button" class="header-btn" id="shareBtn" disabled><?php echo esc_html__( 'Share', 'digital-employees' ); ?></button>
 					<button type="button" class="header-btn header-btn-install" id="installBtn" style="display:none;" title="<?php echo esc_attr__( 'Install app', 'digital-employees' ); ?>">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -199,7 +198,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 						</svg>
 					</button>
 					<div class="header-overflow-menu" id="headerOverflowMenu">
-						<button type="button" id="overflowExport"><?php echo esc_html__( 'Export', 'digital-employees' ); ?></button>
 						<button type="button" id="overflowShare"><?php echo esc_html__( 'Share', 'digital-employees' ); ?></button>
 						<button type="button" id="overflowCreate">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -473,13 +473,6 @@ function t(key, fallback) {
 		overflowMenu.addEventListener('click', function(e) {
 			e.stopPropagation();
 		});
-		var overflowExport = document.getElementById('overflowExport');
-		if (overflowExport) {
-			overflowExport.addEventListener('click', function() {
-				overflowMenu.classList.remove('open');
-				document.getElementById('exportBtn').click();
-			});
-		}
 		var overflowShare = document.getElementById('overflowShare');
 		if (overflowShare) {
 			overflowShare.addEventListener('click', function() {
