@@ -91,6 +91,34 @@ final class EncryptionTest extends TestCase {
 		$this->assertSame( $plaintext, DEF_Core_Encryption::decrypt( $encrypted2 ) );
 	}
 
+	/**
+	 * Without the extension WordPress loads sodium_compat: its secretbox works but its
+	 * memzero throws. The stand-ins mirror that.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_secrets_round_trip_on_sodium_compat_without_the_extension(): void {
+		if ( extension_loaded( 'sodium' ) ) {
+			$this->markTestSkipped( 'needs PHP without the sodium extension' );
+		}
+		define( 'SODIUM_CRYPTO_SECRETBOX_KEYBYTES', 32 );
+		define( 'SODIUM_CRYPTO_SECRETBOX_NONCEBYTES', 24 );
+		function sodium_crypto_secretbox( $m, $n, $k ) {
+			return $n . $k . $m;
+		}
+		function sodium_crypto_secretbox_open( $c, $n, $k ) {
+			return 0 === strpos( $c, $n . $k ) ? substr( $c, strlen( $n . $k ) ) : false;
+		}
+		function sodium_memzero( &$var ) {
+			throw new RuntimeException( 'This is not implemented in sodium_compat' );
+		}
+
+		$this->assertTrue( DEF_Core_Encryption::set_secret( 'def_core_api_key', 'connect-key' ) );
+		$this->assertSame( 1, json_decode( get_option( 'def_core_api_key' ), true )['version'] );
+		$this->assertSame( 'connect-key', DEF_Core_Encryption::get_secret( 'def_core_api_key' ) );
+	}
+
 	// ── 2. GCM encrypt/decrypt round-trip ───────────────────────────────
 
 	public function test_gcm_decrypt_roundtrip(): void {

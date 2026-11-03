@@ -174,7 +174,10 @@ final class DEF_Core_Encryption {
 		$nonce = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 
 		$ciphertext = sodium_crypto_secretbox( $plaintext, $nonce, $key );
-		sodium_memzero( $key );
+		// Without the extension WordPress loads sodium_compat, whose memzero throws.
+		if ( extension_loaded( 'sodium' ) ) {
+			sodium_memzero( $key );
+		}
 
 		return wp_json_encode( array(
 			'version'    => self::VERSION_SODIUM,
@@ -211,7 +214,9 @@ final class DEF_Core_Encryption {
 
 		$key       = self::derive_key_sodium();
 		$plaintext = sodium_crypto_secretbox_open( $ciphertext, $nonce, $key );
-		sodium_memzero( $key );
+		if ( extension_loaded( 'sodium' ) ) {
+			sodium_memzero( $key );
+		}
 
 		if ( false === $plaintext ) {
 			return null; // Decryption failed — key changed (salt rotation).
