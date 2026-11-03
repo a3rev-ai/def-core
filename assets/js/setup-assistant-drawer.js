@@ -872,14 +872,16 @@
 					persona.reset();
 
 					// Process tool_outputs (for ui_actions like tab highlighting, field updates).
+					var offered = false;
 					if (event.tool_outputs && event.tool_outputs.length) {
 						for (var i = 0; i < event.tool_outputs.length; i++) {
 							var output = event.tool_outputs[i];
 							if (output.ui_actions && output.ui_actions.length) {
 								self.processUiActions(output.ui_actions);
 							}
-							if (output.type === 'escalation_offer') {
-								self.renderEscalationCard({ message: output.reason });
+							if (output.type === 'escalation_offer' && !offered) {
+								offered = true;
+								self.offerEscalation({ message: output.reason });
 							}
 						}
 					}
@@ -1058,6 +1060,22 @@
 		this.messagesEl.appendChild(div);
 		this.scrollToBottom();
 		return div;
+	};
+
+	// G0: an escalation offer puts one "Talk to a person" button under the
+	// reply; the request form renders, in its place, only when the admin clicks it.
+	SetupAssistantDrawer.prototype.offerEscalation = function (data) {
+		var self = this;
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'def-sa-handoff-btn';
+		btn.textContent = config.talkToPerson || 'Talk to a person';
+		btn.addEventListener('click', function () {
+			btn.remove();
+			self.renderEscalationCard(data);
+		});
+		this.messagesEl.appendChild(btn);
+		this.scrollToBottom();
 	};
 
 	SetupAssistantDrawer.prototype.renderEscalationCard = function (data) {
@@ -1321,6 +1339,7 @@
 	// ─── Tool Outputs Processing ─────────────────────────────────
 
 	SetupAssistantDrawer.prototype.processToolOutputs = function (outputs) {
+		var offered = false;
 		for (var i = 0; i < outputs.length; i++) {
 			var output = outputs[i];
 			var statusEl = this.renderToolStatus(output);
@@ -1331,8 +1350,9 @@
 			}
 
 			// Check for escalation.
-			if (output.escalation) {
-				this.renderEscalationCard(output.escalation);
+			if (output.escalation && !offered) {
+				offered = true;
+				this.offerEscalation(output.escalation);
 			}
 
 			// Mark tool status as complete (replace spinner with checkmark, or ✗ on failure).

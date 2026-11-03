@@ -626,6 +626,8 @@ final class DEF_Core_Admin {
 			// a translator.
 			'collapseLabel'  => __( 'Collapse Setup Assistant', 'digital-employees' ),
 			'expandLabel'    => __( 'Expand Setup Assistant', 'digital-employees' ),
+			// G0: the button an escalation offer puts under Sam's reply.
+			'talkToPerson'   => __( 'Talk to a person', 'digital-employees' ),
 		) );
 	}
 
