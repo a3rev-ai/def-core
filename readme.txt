@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.2.0
+Stable tag: 9.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.2.1 - 2026-11-03 =
+* Fix - Connect to DEFHO: on a server whose PHP has no sodium extension (it is optional for WordPress), clicking Authorize ended in a critical error and the site never connected. The connection credentials now save and read on those servers too.
 
 = 9.2.0 - 2026-11-03 =
 * New - Customer Chat and the Setup Assistant: when the assistant offers to put you in touch with a person, its reply stays in view with one button under it, and the hand-off form opens only when that button is clicked; in the Setup Assistant, Cancel puts the button back. In Customer Chat the button reads as the form's title (Escalation → Customer Chat Hand-off Form → Form title); in the Setup Assistant it reads "Talk to a person".
