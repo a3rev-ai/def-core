@@ -538,15 +538,6 @@ final class DEF_Core_Escalation {
 		// a different escalation channel through this route.
 		$safe_body['channel'] = 'customer';
 
-		// A signed-in customer's form hides the contact fields, so the widget sends no
-		// reply_to and no From line: who they are comes from their account.
-		if ( empty( $safe_body['reply_to'] ) && ! empty( $safe_body['body'] ) && is_user_logged_in() ) {
-			$current_user          = wp_get_current_user();
-			$display_name          = $current_user->display_name ? $current_user->display_name : $current_user->user_login;
-			$safe_body['reply_to'] = $current_user->user_email;
-			$safe_body['body']     = 'From: ' . $display_name . "\nEmail: " . $current_user->user_email . "\n\n" . $safe_body['body'];
-		}
-
 		// Site companions (7.6.5) may stamp a hand-off that can actually send
 		// (non-empty subject + body, mirroring send_escalation_email's checks).
 		// They get the allowlisted fields AND the raw body (page_url, the contact
@@ -560,6 +551,16 @@ final class DEF_Core_Escalation {
 			 * @param array  $raw       The raw request body as posted by the widget.
 			 */
 			$safe_body['body'] = (string) apply_filters( 'def_core_customer_chat_handoff_body', (string) $safe_body['body'], $safe_body, is_array( $body ) ? $body : array() );
+		}
+
+		// A signed-in customer's form hides the contact fields, so the widget sends no
+		// reply_to and no From line: who they are comes from their account. After the
+		// filter, because companions treat a reply_to as a prospect and this is a customer.
+		if ( empty( $safe_body['reply_to'] ) && '' !== trim( (string) ( $safe_body['body'] ?? '' ) ) && is_user_logged_in() ) {
+			$current_user          = wp_get_current_user();
+			$display_name          = $current_user->display_name ? $current_user->display_name : $current_user->user_login;
+			$safe_body['reply_to'] = $current_user->user_email;
+			$safe_body['body']     = 'From: ' . wp_specialchars_decode( $display_name, ENT_QUOTES ) . "\nEmail: " . $current_user->user_email . "\n\n" . $safe_body['body'];
 		}
 
 		// Delegate to the shared escalation send-email handler.

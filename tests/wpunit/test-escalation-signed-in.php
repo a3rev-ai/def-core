@@ -43,11 +43,11 @@ class Test_Escalation_Signed_In extends WP_UnitTestCase {
 		return '';
 	}
 
-	private function sign_in(): void {
+	private function sign_in( string $name = 'Pat Lee' ): void {
 		wp_set_current_user(
 			self::factory()->user->create(
 				array(
-					'display_name' => 'Pat Lee',
+					'display_name' => $name,
 					'user_email'   => 'pat@example.com',
 				)
 			)
@@ -62,19 +62,46 @@ class Test_Escalation_Signed_In extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Please call me back', $this->mail[0]['message'] );
 	}
 
+	public function test_a_name_reads_as_typed(): void {
+		$this->sign_in( 'Ben & Co' );
+		$this->send( array( 'body' => 'Hello' ) );
+		$this->assertStringStartsWith( 'From: Ben & Co', $this->mail[0]['message'] );
+	}
+
+	public function test_a_companion_is_not_handed_a_customers_address(): void {
+		$seen = null;
+		add_filter(
+			'def_core_customer_chat_handoff_body',
+			function ( $body, $safe_body ) use ( &$seen ) {
+				$seen = $safe_body;
+				return $body;
+			},
+			10,
+			2
+		);
+		$this->sign_in();
+		$this->send( array( 'body' => 'Hello' ) );
+		$this->assertArrayNotHasKey( 'reply_to', $seen );
+		$this->assertSame( 'pat@example.com', $this->reply_to() );
+	}
+
 	public function test_details_typed_into_the_form_are_not_repeated(): void {
 		$this->sign_in();
 		$body = "From: Sam Kay\nEmail: sam@example.com\n\nHello";
 		$this->assertSame( 200, $this->send( array( 'body' => $body, 'reply_to' => 'sam@example.com' ) ) );
 		$this->assertSame( 'sam@example.com', $this->reply_to() );
-		$this->assertStringStartsWith( 'From: Sam Kay', $this->mail[0]['message'] );
 		$this->assertStringNotContainsString( 'pat@example.com', $this->mail[0]['message'] );
 	}
 
+	public function test_an_empty_request_stays_empty(): void {
+		$this->sign_in();
+		$this->send( array( 'body' => '' ) );
+		$this->assertSame( array(), $this->mail );
+	}
+
 	public function test_an_anonymous_visitor_gains_no_account_details(): void {
-		$body = "From: Sam Kay\nEmail: sam@example.com\n\nHello";
-		$this->assertSame( 200, $this->send( array( 'body' => $body, 'reply_to' => 'sam@example.com' ) ) );
-		$this->assertSame( 'sam@example.com', $this->reply_to() );
-		$this->assertStringStartsWith( 'From: Sam Kay', $this->mail[0]['message'] );
+		$this->assertSame( 200, $this->send( array( 'body' => 'Hello' ) ) );
+		$this->assertSame( '', $this->reply_to() );
+		$this->assertStringStartsWith( 'Hello', $this->mail[0]['message'] );
 	}
 }

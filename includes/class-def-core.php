@@ -761,6 +761,13 @@ final class DEF_Core {
 
 		// Login successful - set the auth cookie.
 		wp_set_current_user( $user->ID );
+		// A nonce is bound to the session in $_COOKIE, which this request doesn't hold yet.
+		add_action(
+			'set_logged_in_cookie',
+			static function ( $cookie ) {
+				$_COOKIE[ LOGGED_IN_COOKIE ] = $cookie;
+			}
+		);
 		wp_set_auth_cookie( $user->ID, true, is_ssl() );
 
 		// Generate a context token for the newly logged-in user.
@@ -782,6 +789,7 @@ final class DEF_Core {
 			array(
 				'user_id' => $user->ID,
 				'token'   => $token,
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
 			)
 		);
 	}

@@ -1240,6 +1240,8 @@
 					// Login success — set authenticated token.
 					setContextToken(result.data.token);
 					dropStreamToken();   // minted for the visitor before they logged in
+					// The page's nonces were minted for the visitor too; WordPress now refuses them.
+					config.nonce = config.wpRestNonce = result.data.nonce;
 					try { localStorage.setItem(AUTH_STATE_KEY, 'logged_in'); } catch (e) {}
 					onAuthChange();
 
