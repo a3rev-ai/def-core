@@ -379,6 +379,7 @@ final class DEF_Core_Admin_API {
 		'def_core_logo_max_height' => array(
 			'type'      => 'integer',
 			'validate'  => 'validate_logo_max_height',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_max_height' ),
 			'default'   => '40',
 			'read_mode' => 'value',
 		),
@@ -1445,6 +1446,9 @@ final class DEF_Core_Admin_API {
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_logo_id( $value ) {
+		if ( '' !== $value && ! is_numeric( $value ) ) {
+			return 'Logo ID must be a number.';
+		}
 		$id = intval( $value );
 		if ( $id < 0 ) {
 			return 'Logo ID must be a non-negative integer.';
@@ -1616,7 +1620,7 @@ final class DEF_Core_Admin_API {
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_logo_max_height( $value ) {
-		return is_numeric( $value ) && (int) $value === DEF_Core_Admin::sanitize_logo_max_height( $value ) ? true : 'Logo height must be between 24 and 120 pixels.';
+		return is_scalar( $value ) && (string) (int) $value === (string) $value && (int) $value === DEF_Core_Admin::sanitize_logo_max_height( $value ) ? true : 'Logo height must be a whole number between 24 and 120.';
 	}
 
 	/**

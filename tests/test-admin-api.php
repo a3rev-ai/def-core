@@ -1413,7 +1413,15 @@ foreach ( array( 'def_core_app_icon_id', 'def_core_chat_button_icon_id', 'def_co
 // A value the save would quietly change is refused, so the assistant can't report one it didn't store.
 assert_equals( 200, $write( 'def_core_logo_max_height', '60' ), 'logo height in range saves' );
 assert_equals( 400, $write( 'def_core_logo_max_height', '200' ), 'logo height out of range is refused' );
-assert_equals( 400, $write( 'def_core_logo_max_height', 'tall' ), 'logo height must be a number' );
+assert_equals( 60, get_option( 'def_core_logo_max_height' ), 'logo height is stored as a whole number' );
+foreach ( array( 'tall', '60.5', ' 60', '+60', '6e1', '0060' ) as $bad ) {
+	assert_equals( 400, $write( 'def_core_logo_max_height', $bad ), "logo height refuses '$bad'" );
+}
+// A file name must not read as 0, which clears the image and reports success.
+update_option( 'def_core_app_icon_id', 7 );
+assert_equals( 400, $write( 'def_core_app_icon_id', 'logo.png' ), 'an image ID must be a number' );
+assert_equals( 7, get_option( 'def_core_app_icon_id' ), 'a refused image ID leaves the saved one' );
+assert_equals( 200, $write( 'def_core_app_icon_id', '' ), 'an image can still be cleared' );
 assert_equals( 200, $write( 'def_core_chat_button_position', 'left' ), 'button position takes left' );
 assert_equals( 400, $write( 'def_core_chat_button_position', 'top' ), 'button position refuses anything else' );
 assert_equals( 200, $write( 'def_core_chat_privacy_url', '/terms/' ), 'legal link takes a path' );
