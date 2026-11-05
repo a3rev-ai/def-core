@@ -1539,8 +1539,8 @@ final class DEF_Core_Admin {
 		}
 
 		$channel_label = ucwords( str_replace( '_', ' ', $channel ) );
-		$subject       = sprintf( '[DEF Test] Escalation test — %s', $channel_label );
-		$body          = __( 'This is a test escalation email from Digital Employee Framework. If you received this, escalation is working correctly.', 'digital-employees' );
+		$subject       = sprintf( '[DEF Test] Contact request test — %s', $channel_label );
+		$body          = __( 'This is a test contact request from Digital Employee Framework. If you received this, contact requests are working correctly.', 'digital-employees' );
 
 		set_transient( $transient_key, 1, 30 );
 		$sent = wp_mail( $to, $subject, $body );

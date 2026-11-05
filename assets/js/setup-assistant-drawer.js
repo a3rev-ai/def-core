@@ -1277,7 +1277,7 @@
 		var capabilities = [
 			'Check your plugin setup status',
 			'Test the connection to the DEF backend',
-			'Configure display name, chat mode, colors and escalation emails',
+			'Configure display name, chat mode, colors and contact emails',
 			'Find users and manage their DEF access roles',
 			'Troubleshoot connection issues or chat widget problems',
 			'Guide you through the full setup flow'

@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $tabs = array(
 	'branding'        => __( 'Branding', 'digital-employees' ),
 	'chat-settings'   => __( 'Chat Settings', 'digital-employees' ),
-	'escalation'      => __( 'Escalation', 'digital-employees' ),
+	'escalation'      => __( 'Contact Form', 'digital-employees' ),
 	'user-roles'      => __( 'User Roles', 'digital-employees' ),
 	'connection'      => __( 'Connection', 'digital-employees' ),
 );
@@ -831,20 +831,20 @@ $first_tab = 'branding';
 		hidden
 	>
 		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Escalation Email Settings', 'digital-employees' ); ?></h2>
+			<h2><?php esc_html_e( 'Where Contact Requests Are Sent', 'digital-employees' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'When a user accepts an AI escalation offer, the request is emailed to the address configured for each channel. If no email is set, the WordPress admin email is used.', 'digital-employees' ); ?>
+				<?php esc_html_e( 'When a visitor asks to talk to a person, their request is emailed to the address set for each channel. If no email is set, the WordPress admin email is used.', 'digital-employees' ); ?>
 			</p>
 
 			<?php
 			$channels_info = array(
 				'customer'        => array(
 					'label' => __( 'Customer Chat', 'digital-employees' ),
-					'help'  => __( 'Receives escalation emails from anonymous or logged-in customer chat sessions.', 'digital-employees' ),
+					'help'  => __( 'Receives contact requests from Customer Chat, from visitors and signed-in customers.', 'digital-employees' ),
 				),
 				'setup_assistant' => array(
 					'label' => __( 'Setup Assistant', 'digital-employees' ),
-					'help'  => __( "Enter your DEF Partner's email address here for Setup Assistant human escalation.", 'digital-employees' ),
+					'help'  => __( "Enter your DEF Partner's email address here to receive Setup Assistant contact requests.", 'digital-employees' ),
 				),
 			);
 			?>
@@ -875,7 +875,7 @@ $first_tab = 'branding';
 		</div>
 
 		<div class="def-core-card">
-			<h2><?php esc_html_e( 'Customer Chat Hand-off Form', 'digital-employees' ); ?></h2>
+			<h2><?php esc_html_e( 'Customer Chat Contact Form', 'digital-employees' ); ?></h2>
 			<p class="description">
 				<?php esc_html_e( 'The form shown when a visitor asks to be connected with a person. On a support site the defaults fit; on a sales site you can reframe it as a next-step / contact form.', 'digital-employees' ); ?>
 			</p>
