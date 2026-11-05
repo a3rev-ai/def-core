@@ -538,6 +538,15 @@ final class DEF_Core_Escalation {
 		// a different escalation channel through this route.
 		$safe_body['channel'] = 'customer';
 
+		// A signed-in customer's form hides the contact fields, so the widget sends no
+		// reply_to and no From line: who they are comes from their account.
+		if ( empty( $safe_body['reply_to'] ) && ! empty( $safe_body['body'] ) && is_user_logged_in() ) {
+			$current_user          = wp_get_current_user();
+			$display_name          = $current_user->display_name ? $current_user->display_name : $current_user->user_login;
+			$safe_body['reply_to'] = $current_user->user_email;
+			$safe_body['body']     = 'From: ' . $display_name . "\nEmail: " . $current_user->user_email . "\n\n" . $safe_body['body'];
+		}
+
 		// Site companions (7.6.5) may stamp a hand-off that can actually send
 		// (non-empty subject + body, mirroring send_escalation_email's checks).
 		// They get the allowlisted fields AND the raw body (page_url, the contact
