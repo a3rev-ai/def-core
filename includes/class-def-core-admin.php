@@ -928,16 +928,22 @@ final class DEF_Core_Admin {
 	}
 
 	/**
-	 * Sanitize chat display mode.
+	 * Sanitize the hand-off form's Business name and website setting.
 	 *
 	 * @param mixed $value The value to sanitize.
-	 * @return string 'modal', 'drawer', or 'spotlight'.
+	 * @return string 'required', 'optional', or 'hidden'.
 	 */
 	public static function sanitize_escalation_business_fields( $value ): string {
 		$value = sanitize_text_field( (string) $value );
 		return in_array( $value, array( 'required', 'optional', 'hidden' ), true ) ? $value : 'hidden';
 	}
 
+	/**
+	 * Sanitize chat display mode.
+	 *
+	 * @param mixed $value The value to sanitize.
+	 * @return string 'modal', 'drawer', or 'spotlight'.
+	 */
 	public static function sanitize_chat_display_mode( $value ): string {
 		$value = sanitize_text_field( (string) $value );
 		return in_array( $value, array( 'modal', 'drawer', 'spotlight' ), true ) ? $value : 'modal';

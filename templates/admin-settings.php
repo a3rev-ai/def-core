@@ -882,7 +882,7 @@ $first_tab = 'branding';
 
 			<div class="def-core-field">
 				<label for="def_core_chat_escalation_title"><?php esc_html_e( 'Form title', 'digital-employees' ); ?></label>
-				<input type="text" id="def_core_chat_escalation_title" data-setting="def_core_chat_escalation_title" value="<?php echo esc_attr( $escalation_form['title'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Request Human Support', 'digital-employees' ); ?>" />
+				<input type="text" id="def_core_chat_escalation_title" data-setting="def_core_chat_escalation_title" value="<?php echo esc_attr( $escalation_form['title'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Talk to a person', 'digital-employees' ); ?>" />
 				<p class="description"><?php esc_html_e( 'Leave empty for the default.', 'digital-employees' ); ?></p>
 			</div>
 
