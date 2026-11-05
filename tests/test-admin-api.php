@@ -1363,6 +1363,12 @@ $request->set_body_params( array( 'value' => 'sometimes' ) );
 assert_equals( 400, $sa->rest_update_setting( $request )->get_status(), 'business fields rejects an unknown mode' );
 assert_equals( 'required', get_option( $key ), 'a rejected mode leaves the saved value' );
 
+// A switch that was never saved reads as off, in the form the bridge accepts.
+$key     = 'def_core_chat_escalation_ack_enabled';
+$request = new WP_REST_Request( 'GET', "/def-core/v1/setup/setting/$key" );
+$request->set_param( 'key', $key );
+assert_equals( '0', $sa->rest_get_setting( $request )->get_data()['data']['value'], 'unset switch reads as 0' );
+
 // The harness stubs WordPress's sanitisers, so assert the wiring, not the stub.
 $allowlist = DEF_Core_Admin_API::get_setting_allowlist();
 foreach ( array( 'title', 'desc', 'ack_subject' ) as $suffix ) {

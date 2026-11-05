@@ -319,6 +319,7 @@ final class DEF_Core_Admin_API {
 			'type'      => 'boolean',
 			'validate'  => 'validate_boolean',
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '0',
 			'read_mode' => 'value',
 		),
 		'def_core_chat_escalation_pref_options' => array(
@@ -331,6 +332,7 @@ final class DEF_Core_Admin_API {
 			'type'      => 'boolean',
 			'validate'  => 'validate_boolean',
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '0',
 			'read_mode' => 'value',
 		),
 		'def_core_chat_escalation_ack_subject' => array(
@@ -1635,7 +1637,7 @@ final class DEF_Core_Admin_API {
 		if ( $value === '0' || $value === '1' || $value === 0 || $value === 1 ) {
 			return true;
 		}
-		return 'Value must be a boolean.';
+		return 'Value must be 1 (on) or 0 (off).';
 	}
 
 	// ─── Rate Limiting ──────────────────────────────────────────────────
