@@ -49,5 +49,6 @@ class Test_Inline_Login_Nonce extends WP_Ajax_UnitTestCase {
 		$_COOKIE[ LOGGED_IN_COOKIE ] = $cookie;
 		$this->assertSame( $user_id, get_current_user_id() );
 		$this->assertNotFalse( wp_verify_nonce( $response['data']['nonce'], 'wp_rest' ) );
+		$this->assertNotFalse( wp_verify_nonce( $response['data']['store_nonce'], 'wc_store_api' ) );
 	}
 }

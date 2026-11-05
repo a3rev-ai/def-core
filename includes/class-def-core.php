@@ -787,9 +787,10 @@ final class DEF_Core {
 
 		wp_send_json_success(
 			array(
-				'user_id' => $user->ID,
-				'token'   => $token,
-				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'user_id'     => $user->ID,
+				'token'       => $token,
+				'nonce'       => wp_create_nonce( 'wp_rest' ),
+				'store_nonce' => wp_create_nonce( 'wc_store_api' ),
 			)
 		);
 	}
