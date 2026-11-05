@@ -296,6 +296,55 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_greeting_bubble_text' ),
 			'read_mode' => 'value',
 		),
+		// Customer Chat Contact Form card — same sanitisers as the settings page save.
+		'def_core_chat_escalation_title' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_text',
+			'sanitize'  => 'sanitize_text_field',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_desc' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_text',
+			'sanitize'  => 'sanitize_text_field',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_business_fields' => array(
+			'type'      => 'enum',
+			'validate'  => 'validate_business_fields',
+			'default'   => 'hidden',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_pref_enabled' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_pref_options' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_text',
+			'sanitize'  => 'sanitize_textarea_field',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_ack_enabled' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_ack_subject' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_text',
+			'sanitize'  => 'sanitize_text_field',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_escalation_ack_body' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_text',
+			'sanitize'  => 'sanitize_textarea_field',
+			'read_mode' => 'value',
+		),
 		// Connection-log verbosity — lets the platform/Setup Assistant dial log
 		// noise remotely (debug | info | warning | error). Reuses the same
 		// sanitiser the admin AJAX save path uses.
@@ -695,7 +744,7 @@ final class DEF_Core_Admin_API {
 		}
 
 		// Value mode: return actual value.
-		$value = get_option( $key, '' );
+		$value = get_option( $key, $config['default'] ?? '' );
 		return $this->success_response( array(
 			'key'   => $key,
 			'value' => $value,
@@ -796,6 +845,14 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_hero_image_mobile_id' => 'branding',
 			'def_core_escalation_customer'       => 'escalation',
 			'def_core_escalation_setup_assistant' => 'escalation',
+			'def_core_chat_escalation_title' => 'escalation',
+			'def_core_chat_escalation_desc' => 'escalation',
+			'def_core_chat_escalation_business_fields' => 'escalation',
+			'def_core_chat_escalation_pref_enabled' => 'escalation',
+			'def_core_chat_escalation_pref_options' => 'escalation',
+			'def_core_chat_escalation_ack_enabled' => 'escalation',
+			'def_core_chat_escalation_ack_subject' => 'escalation',
+			'def_core_chat_escalation_ack_body' => 'escalation',
 			'def_core_chat_display_mode'         => 'chat-settings',
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_spotlight_width'      => 'chat-settings',
@@ -1453,6 +1510,26 @@ final class DEF_Core_Admin_API {
 	 */
 	private function validate_compliance_text( $value ) {
 		return is_scalar( $value ) ? true : 'Compliance text must be text.';
+	}
+
+	/**
+	 * Validate a free-text setting.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_text( $value ) {
+		return is_scalar( $value ) ? true : 'Value must be text.';
+	}
+
+	/**
+	 * Validate the Contact Form business fields mode.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_business_fields( $value ) {
+		return in_array( $value, array( 'required', 'optional', 'hidden' ), true ) ? true : 'Must be required, optional or hidden.';
 	}
 
 	/**

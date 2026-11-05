@@ -1336,6 +1336,42 @@ $request->set_body_params( array( 'value' => '' ) );
 $response = $sa->rest_update_setting( $request );
 assert_equals( 200, $response->get_status(), 'empty email allowed (to clear)' );
 
+// ── 41b. Contact Form card settings ─────────────────────────────────────
+echo "\n[41b] Contact Form card settings\n";
+reset_test_state();
+setup_admin_user();
+
+$contact_form_keys = array( 'title', 'desc', 'business_fields', 'pref_enabled', 'pref_options', 'ack_enabled', 'ack_subject', 'ack_body' );
+foreach ( $contact_form_keys as $suffix ) {
+	$key     = "def_core_chat_escalation_$suffix";
+	$request = new WP_REST_Request( 'GET', "/def-core/v1/setup/setting/$key" );
+	$request->set_param( 'key', $key );
+	assert_equals( 200, $sa->rest_get_setting( $request )->get_status(), "$key is readable" );
+}
+
+// Unset reads as what the form actually does, not blank.
+$key     = 'def_core_chat_escalation_business_fields';
+$request = new WP_REST_Request( 'GET', "/def-core/v1/setup/setting/$key" );
+$request->set_param( 'key', $key );
+assert_equals( 'hidden', $sa->rest_get_setting( $request )->get_data()['data']['value'], 'unset business fields read as hidden' );
+
+$request = new WP_REST_Request( 'POST', "/def-core/v1/setup/setting/$key" );
+$request->set_param( 'key', $key );
+$request->set_body_params( array( 'value' => 'required' ) );
+assert_equals( 200, $sa->rest_update_setting( $request )->get_status(), 'business fields accepts required' );
+$request->set_body_params( array( 'value' => 'sometimes' ) );
+assert_equals( 400, $sa->rest_update_setting( $request )->get_status(), 'business fields rejects an unknown mode' );
+assert_equals( 'required', get_option( $key ), 'a rejected mode leaves the saved value' );
+
+// The harness stubs WordPress's sanitisers, so assert the wiring, not the stub.
+$allowlist = DEF_Core_Admin_API::get_setting_allowlist();
+foreach ( array( 'title', 'desc', 'ack_subject' ) as $suffix ) {
+	assert_equals( 'sanitize_text_field', $allowlist[ "def_core_chat_escalation_$suffix" ]['sanitize'], "$suffix is single-line text" );
+}
+foreach ( array( 'pref_options', 'ack_body' ) as $suffix ) {
+	assert_equals( 'sanitize_textarea_field', $allowlist[ "def_core_chat_escalation_$suffix" ]['sanitize'], "$suffix is multi-line text" );
+}
+
 // ── 42. Logo ID validation ──────────────────────────────────────────────
 echo "\n[42] Logo ID validation\n";
 reset_test_state();

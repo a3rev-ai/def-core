@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.5.0
+Stable tag: 9.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.5.1 - 2026-11-05 =
+* Fix - Setup Assistant: it can now read and change the Customer Chat Contact Form settings (form title, description, business fields, contact options and the acknowledgement email). Before this, asking about them failed.
 
 = 9.5.0 - 2026-11-05 =
 * New - Staff AI: when you scroll up in a long conversation, a small arrow appears above the message box. One click takes you back to the latest message, and it hides once you are there.
