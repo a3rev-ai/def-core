@@ -123,6 +123,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 = 9.3.1 - 2026-11-05 =
 * Fix - Customer Chat: when a signed-in customer asks for a person, the email now says who it is from, and replying to it reaches them. Their name and address come from their account. An anonymous visitor's form works as before.
 * Fix - Customer Chat: a customer who signs in from inside the chat can now ask for a person, and their first Add to cart works. Both were refused because the page still held the nonces from before they signed in.
+* Tweak - Customer Chat: the status line above the form's button now reads "Getting the form ready..." in place of "Preparing escalation...".
 
 = 9.3.0 - 2026-11-03 =
 * New - Goals: after a visitor has chatted with Customer Chat, the site tells the Digital Employee Framework when that visitor submits a form (Gravity Forms, Contact Form 7, WPForms, Fluent Forms, Formidable, Ninja Forms or Elementor Pro Forms), reaches a page, places an order, or sends the hand-off form, so the chat's Goals can be counted. Only which chat, which form or page, and when are sent — never what was typed into a form, an order number, a name or an email. Customer Chat keeps the chat's reference in one first-party cookie, def_chat_ref, for this; Clear conversation removes it.

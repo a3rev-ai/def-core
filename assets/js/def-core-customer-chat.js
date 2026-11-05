@@ -130,7 +130,7 @@
 		'get_user_profile':       'Loading your profile...',
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
-		'escalate_to_human':      'Preparing escalation...',
+		'escalate_to_human':      'Getting the form ready...',
 		'retrieve':               'Working on it...',
 		'search':                 'Searching...',
 		'render_product_cards':   'Fetching products...',
@@ -155,7 +155,7 @@
 		'get_user_profile':       'Profile loaded',
 		'handle_file_upload':     'Upload processed',
 		'extract_upload_content': 'File analyzed',
-		'escalate_to_human':      'Escalation ready',
+		'escalate_to_human':      'Form ready',
 	};
 
 	var SSE_TOOL_PACING_MS = 400;
