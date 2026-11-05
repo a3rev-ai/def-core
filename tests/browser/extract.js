@@ -329,6 +329,14 @@ function release() {
 // The SSE stream handlers of both widgets — the streaming state, the renderer
 // and the event switch (V-S7b: `step_superseded` moves a superseded round out
 // of the bubble).
+function scrollArrow() {
+	return slice('scroll arrow',
+		l => l.includes('// Smart scroll — only auto-scroll during streaming'),
+		l => l.includes('// Tweaks item 4 (2026-09-02)'),
+		['function isNearBottom', 'function updateScrollBottomBtn', 'new ResizeObserver'],
+		'SCROLLARROW');
+}
+
 function staffAiStream() {
 	return slice('staff-ai stream',
 		l => l.includes('// Progressive markdown rendering state.'),
@@ -656,6 +664,6 @@ module.exports = { REPO, stubMatchMedia, JS_PATH, CC_PATH, VOICE_PATH, ADMIN_PAT
 	chatAttachments, uploadRail, attachmentPrompt, displayText, conversationList,
 	usage, integrations, documentViewer, documents, artifacts, artifactFrame, cssRules, mediaBlock, ruleBody, RULE_START,
 	setupAssistantCollapse, DRAWER_JS_PATH, release, askEntry, askEntryCalls, buildAskEntry, pushAskEntry,
-	staffAiStream, customerChatStream, scheduled,
+	staffAiStream, scrollArrow, customerChatStream, scheduled,
 	attachGate, uploadStaged, chatAsk, chatOpening, customerChatSource, customerChatLoader, voice, chatVoice, chatStrings,
 	templateSource, templatePage, templateNav, templateModal, phpToHtml };

@@ -1169,6 +1169,35 @@ body {
 	pointer-events: none;
 }
 
+.scroll-bottom-btn {
+	position: absolute;
+	top: -44px;
+	left: 50%;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	transform: translateX(-50%);
+	color: var(--text-secondary);
+	background: var(--bg-main);
+	border: 1px solid var(--border-medium);
+	border-radius: 50%;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+	cursor: pointer;
+}
+
+.scroll-bottom-btn:hover {
+	color: var(--text-primary);
+	border-color: var(--border-hover);
+}
+
+.scroll-bottom-btn[hidden] {
+	display: none;
+}
+
 .composer-wrapper {
 	max-width: 768px;
 	margin: 0 auto;

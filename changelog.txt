@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.5.0 - 2026/11/05 =
+* New - Staff AI: when you scroll up in a long conversation, a small arrow appears above the message box. One click takes you back to the latest message, and it hides once you are there.
+
 = 9.4.1 - 2026/11/05 =
 * Tweak - Settings: the Escalation tab is now Contact Form, and its cards and help text say what they do in plain words. Your saved settings are unchanged.
 
