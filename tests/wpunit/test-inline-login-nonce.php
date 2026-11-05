@@ -41,7 +41,8 @@ class Test_Inline_Login_Nonce extends WP_Ajax_UnitTestCase {
 		} catch ( WPAjaxDieContinueException $e ) {
 			unset( $e );
 		}
-		$response = json_decode( (string) ob_get_clean(), true );
+		// The harness's die handler closes the buffer into _last_response.
+		$response = json_decode( $this->_last_response, true );
 
 		$this->assertTrue( $response['success'] );
 		// The next request: this user, holding only the cookie the browser was sent last.
