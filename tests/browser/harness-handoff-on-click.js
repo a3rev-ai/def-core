@@ -14,7 +14,10 @@
  * Joe's log is silent, so the button is said through the announcer, after the reply.
  * Sam's Cancel puts the button back, as Tess's and Pip's does.
  *
- * 22 checks. Bite: on 9.1.5 every check fails but the four guards (no offer, no button;
+ * The form's Business name and website are a per-site choice, and hidden unless chosen
+ * (9.4.0): each mode shows the right fields and sends, or refuses, as it should.
+ *
+ * 22 checks, then the Business fields'. Bite: on 9.1.5 every check fails but the four guards (no offer, no button;
  * a restored thread re-opens nothing — 9, 13, 15, 22) — the form opened at once, no button.
  */
 const fs = require('fs');
@@ -60,7 +63,12 @@ async function bootJoe(opts) {
 	const done = { thread_id: 'thr-1', choices: [{ message: { content: REPLY } }], tool_outputs: opts.outputs };
 	const res = (body, status) => Promise.resolve({ ok: status < 300, status, headers: { get: () => null },
 		json: () => Promise.resolve(body), text: () => Promise.resolve(JSON.stringify(body)) });
-	w.fetch = function (url) {
+	const sent = [];
+	w.fetch = function (url, init) {
+		if (String(url).endsWith('send-escalation-email')) {
+			sent.push(JSON.parse(init.body));
+			return res({ status: 'sent', ack_sent: !!opts.ackSent }, 200);
+		}
 		if (String(url) !== CC.chatStreamUrl) return res({}, 200);
 		if (opts.sync) return res(done, 200);
 		const enc = new w.TextEncoder();
@@ -73,7 +81,7 @@ async function bootJoe(opts) {
 	const root = w.document.getElementById('host').attachShadow({ mode: 'open' });
 	root.innerHTML = '<div class="def-cc-panel"><button class="def-cc-panel-close" aria-label="Close chat"></button></div>';
 	w.eval(CC_MODULE);
-	w.DEFCustomerChat.init(root, Object.assign({}, CC, opts.strings ? { strings: opts.strings } : {}));
+	w.DEFCustomerChat.init(root, Object.assign({}, CC, opts.config || {}, opts.strings ? { strings: opts.strings } : {}));
 	await sleep(40);
 	const input = root.querySelector('.def-cc-composer-input');
 	if (!opts.storage) input.value = 'Can someone set up my store?';
@@ -83,6 +91,7 @@ async function bootJoe(opts) {
 	const bubbles = root.querySelectorAll('.def-cc-message--assistant');
 	return {
 		root,
+		sent,
 		formOpen: () => root.querySelector('.def-cc-escalation-overlay').classList.contains('def-cc-escalation-overlay--open'),
 		buttons: () => Array.from(root.querySelectorAll('.def-cc-handoff-btn')),
 		reply: bubbles.length ? bubbles[bubbles.length - 1] : null,
@@ -147,11 +156,11 @@ async function bootSam(opts) {
 			!j.formOpen() && !!j.reply && j.reply.textContent.trim() === REPLY,
 			JSON.stringify({ open: j.formOpen(), reply: j.reply && j.reply.textContent.trim() }));
 		check('  … with one button under the reply, reading the form\'s default title',
-			btns.length === 1 && btns[0].textContent === 'Request Human Support' &&
+			btns.length === 1 && btns[0].textContent === 'Talk to a person' &&
 			!!(j.reply.compareDocumentPosition(btns[0]) & 4 /* FOLLOWING */),
 			JSON.stringify(btns.map(b => b.textContent)));
 		check('  … which the screen reader hears, after the reply',
-			JSON.stringify(j.said().slice(-2)) === JSON.stringify([REPLY, 'Request Human Support']),
+			JSON.stringify(j.said().slice(-2)) === JSON.stringify([REPLY, 'Talk to a person']),
 			JSON.stringify(j.said()));
 		const closed = !j.formOpen();
 		if (btns[0]) btns[0].click();
@@ -225,6 +234,49 @@ async function bootSam(opts) {
 	await sleep(50);
 	check('Sam: a resumed thread re-opens nothing (guard)',
 		s.cards().length === 0 && s.buttons().length === 0 && s.messages.textContent.includes(REPLY));
+
+	// ── The Business name and website: a per-site choice, hidden unless chosen ──
+	const submitForm = async (mode, business, website, ackSent) => {
+		const j = await bootJoe({ outputs: [OFFER], ackSent, config: mode ? { escalationBusinessFields: mode } : {} });
+		j.buttons()[0].click();
+		const values = { 'First name': 'Pat', 'Last name': 'Lee', 'Email': 'pat@example.com', 'Subject': 'A question',
+			'Business name': business, 'Business website': website };
+		const labels = [];
+		for (const field of j.root.querySelectorAll('.def-cc-escalation-field')) {
+			const text = field.querySelector('.def-cc-escalation-label').textContent.trim();
+			const input = field.querySelector('input');
+			labels.push(text);
+			if (input) input.value = values[text.replace('*', '').trim()] || '';
+		}
+		j.root.querySelector('.def-cc-escalation-overlay textarea').value = 'Please call me';
+		j.root.querySelector('.def-cc-escalation-submit').click();
+		await sleep(30);
+		const note = j.root.querySelector('.def-cc-escalation-success-note');
+		return { labels, sent: j.sent, note: note.style.display !== 'none' && note.textContent };
+	};
+	const shows = (r, label) => r.labels.includes(label);
+
+	let r = await submitForm(undefined, '', '');
+	check('Business fields: by default neither shows, and the form sends',
+		!r.labels.some(l => l.startsWith('Business')) && r.sent.length === 1 && !('company_name' in r.sent[0]),
+		JSON.stringify(r));
+	r = await submitForm('hidden', '', '');
+	check('  … Hidden is the same', !r.labels.some(l => l.startsWith('Business')) && r.sent.length === 1, JSON.stringify(r));
+	r = await submitForm('optional', '', '');
+	check('  … Optional shows both with no asterisk, and sends with them blank',
+		shows(r, 'Business name') && shows(r, 'Business website') && r.sent.length === 1, JSON.stringify(r));
+	r = await submitForm('optional', '', 'not a website');
+	check('  … Optional still refuses a website that is not one', r.sent.length === 0, JSON.stringify(r));
+	r = await submitForm('required', '', '');
+	check('  … Required shows both with an asterisk, and refuses them blank',
+		shows(r, 'Business name *') && shows(r, 'Business website *') && r.sent.length === 0, JSON.stringify(r));
+	r = await submitForm('required', 'Acme', 'acme.example');
+	check('  … and sends them when filled in',
+		r.sent.length === 1 && r.sent[0].company_name === 'Acme' && r.sent[0].website === 'acme.example', JSON.stringify(r));
+
+	check('Success screen: no confirmation sent, no line about one', (await submitForm()).note === false);
+	check('  … and the line shows only when one went out',
+		(await submitForm(undefined, '', '', true)).note === "We've emailed you a confirmation.");
 
 	console.log('harness-handoff-on-click: the hand-off opens on the person\'s click (v9.2.0)');
 	results.forEach(r => console.log(r));

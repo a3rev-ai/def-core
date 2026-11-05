@@ -882,7 +882,7 @@ $first_tab = 'branding';
 
 			<div class="def-core-field">
 				<label for="def_core_chat_escalation_title"><?php esc_html_e( 'Form title', 'digital-employees' ); ?></label>
-				<input type="text" id="def_core_chat_escalation_title" data-setting="def_core_chat_escalation_title" value="<?php echo esc_attr( $escalation_form['title'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Request Human Support', 'digital-employees' ); ?>" />
+				<input type="text" id="def_core_chat_escalation_title" data-setting="def_core_chat_escalation_title" value="<?php echo esc_attr( $escalation_form['title'] ); ?>" class="regular-text" placeholder="<?php esc_attr_e( 'Talk to a person', 'digital-employees' ); ?>" />
 				<p class="description"><?php esc_html_e( 'Leave empty for the default.', 'digital-employees' ); ?></p>
 			</div>
 
@@ -890,6 +890,16 @@ $first_tab = 'branding';
 				<label for="def_core_chat_escalation_desc"><?php esc_html_e( 'Form description', 'digital-employees' ); ?></label>
 				<input type="text" id="def_core_chat_escalation_desc" data-setting="def_core_chat_escalation_desc" value="<?php echo esc_attr( $escalation_form['desc'] ); ?>" class="large-text" placeholder="<?php esc_attr_e( "Describe your issue below and we'll connect you with a human.", 'digital-employees' ); ?>" />
 				<p class="description"><?php esc_html_e( 'Leave empty for the default.', 'digital-employees' ); ?></p>
+			</div>
+
+			<div class="def-core-field">
+				<label for="def_core_chat_escalation_business_fields"><?php esc_html_e( 'Business name and website', 'digital-employees' ); ?></label>
+				<select id="def_core_chat_escalation_business_fields" data-setting="def_core_chat_escalation_business_fields">
+					<option value="hidden" <?php selected( $escalation_form['business_fields'], 'hidden' ); ?>><?php esc_html_e( 'Hidden', 'digital-employees' ); ?></option>
+					<option value="optional" <?php selected( $escalation_form['business_fields'], 'optional' ); ?>><?php esc_html_e( 'Optional', 'digital-employees' ); ?></option>
+					<option value="required" <?php selected( $escalation_form['business_fields'], 'required' ); ?>><?php esc_html_e( 'Required', 'digital-employees' ); ?></option>
+				</select>
+				<p class="description"><?php esc_html_e( 'For visitors who are not signed in. Choose Required on a site that sells to businesses and uses these details.', 'digital-employees' ); ?></p>
 			</div>
 
 			<div class="def-core-field">
@@ -920,7 +930,7 @@ $first_tab = 'branding';
 			<div class="def-core-field">
 				<label for="def_core_chat_escalation_ack_body"><?php esc_html_e( 'Acknowledgement message', 'digital-employees' ); ?></label>
 				<textarea id="def_core_chat_escalation_ack_body" data-setting="def_core_chat_escalation_ack_body" rows="3" class="large-text" placeholder="<?php esc_attr_e( "Thanks for reaching out — we've received your message and a real person will be in touch soon.", 'digital-employees' ); ?>"><?php echo esc_textarea( $escalation_form['ack_body'] ); ?></textarea>
-				<p class="description"><?php esc_html_e( 'Plain text, sent from the site\'s no-reply address. Visitor content is never included.', 'digital-employees' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Plain text, sent from the site\'s no-reply address. {first-name} adds the visitor\'s first name. Nothing else the visitor typed is included.', 'digital-employees' ); ?></p>
 			</div>
 		</div>
 

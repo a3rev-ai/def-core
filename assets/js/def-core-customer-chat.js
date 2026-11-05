@@ -45,11 +45,12 @@
 		loginTitle: 'Log in to continue',
 		loginSubmit: 'Log in',
 		sessionExpired: 'Session expired — please log in again',
-		escalate: 'Request Human Support',
+		escalate: 'Talk to a person',
 		escalateDesc: "Describe your issue below and we'll connect you with a human.",
 		escalatePref: 'How would you like us to contact you?',
 		escalateSubmit: 'Send',
 		escalateSuccess: 'Your email has been sent.',
+		escalateAckSent: "We've emailed you a confirmation.",
 		uploadFailed: 'Upload failed. Please try again.',
 		uploadReadFailed: 'Could not read the file. Please remove it, re-select it and try again.',
 		fileTypeNotSupported: 'File type not supported',
@@ -130,7 +131,7 @@
 		'get_user_profile':       'Loading your profile...',
 		'handle_file_upload':     'Processing upload...',
 		'extract_upload_content': 'Analyzing file...',
-		'escalate_to_human':      'Preparing escalation...',
+		'escalate_to_human':      'Getting the form ready...',
 		'retrieve':               'Working on it...',
 		'search':                 'Searching...',
 		'render_product_cards':   'Fetching products...',
@@ -155,7 +156,7 @@
 		'get_user_profile':       'Profile loaded',
 		'handle_file_upload':     'Upload processed',
 		'extract_upload_content': 'File analyzed',
-		'escalate_to_human':      'Escalation ready',
+		'escalate_to_human':      'Form ready',
 	};
 
 	var SSE_TOOL_PACING_MS = 400;
@@ -928,12 +929,16 @@
 		anonFields.appendChild(
 			escalationField('Phone', 'tel', 'escalationPhone', false)
 		);
-		anonFields.appendChild(
-			escalationField('Business name', 'text', 'escalationBusiness', true)
-		);
-		anonFields.appendChild(
-			escalationField('Business website', 'text', 'escalationWebsite', true)
-		);
+		var businessFields = config && config.escalationBusinessFields;
+		if (businessFields === 'required' || businessFields === 'optional') {
+			var businessRequired = businessFields === 'required';
+			anonFields.appendChild(
+				escalationField('Business name', 'text', 'escalationBusiness', businessRequired)
+			);
+			anonFields.appendChild(
+				escalationField('Business website', 'text', 'escalationWebsite', businessRequired)
+			);
+		}
 
 		els.escalationAnonFields = anonFields;
 		formWrap.appendChild(anonFields);
@@ -1012,6 +1017,9 @@
 			'</div>' +
 			'<div class="def-cc-escalation-success-text" part="escalation-success-text">' +
 			t('escalateSuccess') +
+			'</div>' +
+			'<div class="def-cc-escalation-success-note">' +
+			t('escalateAckSent') +
 			'</div>' +
 			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--success" part="escalation-cancel escalation-cancel--success">Close</button>';
 		success
@@ -1240,6 +1248,9 @@
 					// Login success — set authenticated token.
 					setContextToken(result.data.token);
 					dropStreamToken();   // minted for the visitor before they logged in
+					// The page's nonces were minted for the visitor too; WordPress now refuses them.
+					config.nonce = config.wpRestNonce = result.data.nonce;
+					wcStoreApiNonce = result.data.store_nonce;
 					try { localStorage.setItem(AUTH_STATE_KEY, 'logged_in'); } catch (e) {}
 					onAuthChange();
 
@@ -3394,18 +3405,17 @@
 			}
 			// The business name + website are the keys that credit a registered prospect and
 			// match an existing CRM contact (7.6.3) — an enquiry without them is uncredited.
-			if (
-				els.escalationBusiness &&
-				!els.escalationBusiness.value.trim()
-			) {
+			var businessRequired = config.escalationBusinessFields === 'required';
+			if (businessRequired && !els.escalationBusiness.value.trim()) {
 				showFieldError(els.escalationBusiness, 'Required');
 				valid = false;
 			}
-			if (
-				els.escalationWebsite &&
-				!isValidWebsite(els.escalationWebsite.value.trim())
-			) {
-				showFieldError(els.escalationWebsite, 'Business website required (e.g. harbour-dental.com)');
+			var site = els.escalationWebsite ? els.escalationWebsite.value.trim() : '';
+			if ((businessRequired || site) && !isValidWebsite(site)) {
+				showFieldError(
+					els.escalationWebsite,
+					businessRequired ? 'Business website required (e.g. harbour-dental.com)' : 'Enter a valid website (e.g. harbour-dental.com)'
+				);
 				valid = false;
 			}
 		}
@@ -3456,8 +3466,8 @@
 			var lastName = els.escalationLastName.value.trim();
 			var email = els.escalationEmail.value.trim();
 			var phone = (els.escalationPhone.value || '').trim();
-			var website = (els.escalationWebsite.value || '').trim();
-			var business = (els.escalationBusiness.value || '').trim();
+			var website = els.escalationWebsite ? els.escalationWebsite.value.trim() : '';
+			var business = els.escalationBusiness ? els.escalationBusiness.value.trim() : '';
 			bodyParts.push('From: ' + firstName + ' ' + lastName);
 			bodyParts.push('Email: ' + email);
 			if (phone) bodyParts.push('Phone: ' + phone);
@@ -3579,6 +3589,8 @@
 					return;
 				}
 				if (result.ok && result.data && result.data.status === 'sent') {
+					els.escalationSuccess.querySelector('.def-cc-escalation-success-note').style.display =
+						result.data.ack_sent ? '' : 'none';
 					showEscalationState('success');
 				} else {
 					showEscalationState('error');

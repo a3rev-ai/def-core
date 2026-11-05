@@ -547,6 +547,7 @@ final class DEF_Core {
 			'buttonIconUrl'   => $this->get_button_icon_url(),
 			'loadingMarkUrl'  => $this->get_loading_mark_url(),
 			'escalationPrefOptions' => self::get_escalation_pref_options(),
+			'escalationBusinessFields' => (string) get_option( 'def_core_chat_escalation_business_fields', 'hidden' ),
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// Greeting Bubble (v3.12.0) — proactive pop-up above the launcher.
@@ -761,6 +762,13 @@ final class DEF_Core {
 
 		// Login successful - set the auth cookie.
 		wp_set_current_user( $user->ID );
+		// A nonce is bound to the session in $_COOKIE, which this request doesn't hold yet.
+		add_action(
+			'set_logged_in_cookie',
+			static function ( $cookie ) {
+				$_COOKIE[ LOGGED_IN_COOKIE ] = $cookie;
+			}
+		);
 		wp_set_auth_cookie( $user->ID, true, is_ssl() );
 
 		// Generate a context token for the newly logged-in user.
@@ -780,8 +788,10 @@ final class DEF_Core {
 
 		wp_send_json_success(
 			array(
-				'user_id' => $user->ID,
-				'token'   => $token,
+				'user_id'     => $user->ID,
+				'token'       => $token,
+				'nonce'       => wp_create_nonce( 'wp_rest' ),
+				'store_nonce' => wp_create_nonce( 'wc_store_api' ),
 			)
 		);
 	}
@@ -1104,11 +1114,12 @@ final class DEF_Core {
 			'loginTitle'           => __( 'Log in to continue', 'digital-employees' ),
 			'loginSubmit'          => __( 'Log in', 'digital-employees' ),
 			'sessionExpired'       => __( 'Session expired — please log in again', 'digital-employees' ),
-			'escalate'             => __( 'Request Human Support', 'digital-employees' ),
+			'escalate'             => __( 'Talk to a person', 'digital-employees' ),
 			'escalateDesc'         => __( "Describe your issue below and we'll connect you with a human.", 'digital-employees' ),
 			'escalatePref'         => __( 'How would you like us to contact you?', 'digital-employees' ),
 			'escalateSubmit'       => __( 'Send', 'digital-employees' ),
 			'escalateSuccess'      => __( 'Your email has been sent.', 'digital-employees' ),
+			'escalateAckSent'      => __( "We've emailed you a confirmation.", 'digital-employees' ),
 			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
 			'uploadReadFailed'     => __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ),
 			'fileTypeNotSupported' => __( 'File type not supported', 'digital-employees' ),

@@ -68,6 +68,13 @@ final class DEF_Core_Escalation {
 	private const RATE_LIMIT_MAX_REQUESTS = 5;
 
 	/**
+	 * The longest {first-name} in an acknowledgement: anything longer is no name.
+	 *
+	 * @var int
+	 */
+	private const ACK_NAME_MAX = 30;
+
+	/**
 	 * Header name for service auth.
 	 *
 	 * @var string
@@ -553,6 +560,16 @@ final class DEF_Core_Escalation {
 			$safe_body['body'] = (string) apply_filters( 'def_core_customer_chat_handoff_body', (string) $safe_body['body'], $safe_body, is_array( $body ) ? $body : array() );
 		}
 
+		// A signed-in customer's form hides the contact fields, so the widget sends no
+		// reply_to and no From line: who they are comes from their account. After the
+		// filter, because companions treat a reply_to as a prospect and this is a customer.
+		if ( empty( $safe_body['reply_to'] ) && '' !== trim( (string) ( $safe_body['body'] ?? '' ) ) && is_user_logged_in() ) {
+			$current_user          = wp_get_current_user();
+			$display_name          = $current_user->display_name ? $current_user->display_name : $current_user->user_login;
+			$safe_body['reply_to'] = $current_user->user_email;
+			$safe_body['body']     = 'From: ' . wp_specialchars_decode( $display_name, ENT_QUOTES ) . "\nEmail: " . $current_user->user_email . "\n\n" . $safe_body['body'];
+		}
+
 		// Delegate to the shared escalation send-email handler.
 		$inner_request = new \WP_REST_Request( 'POST', '/' . DEF_CORE_API_NAME_SPACE . '/escalation/send-email' );
 		$inner_request->set_header( 'Content-Type', 'application/json' );
@@ -568,12 +585,13 @@ final class DEF_Core_Escalation {
 			DEF_Core_Goals::queue( 'handoff_sent', '', $body['thread_id'], 'handoff:' . $body['thread_id'] );
 		}
 
-		// Auto-acknowledgement (5.6.0): a static, admin-configured "we'll be in
-		// touch" note to the person who reached out. Content is NEVER built from
-		// client input (no relay value), the recipient is the visitor's own
-		// reply-to (or the logged-in user's address), and the send rides the
-		// same per-IP rate limit as the escalation itself. Fire-and-forget:
-		// an ack failure must not fail the lead capture.
+		// Auto-acknowledgement (5.6.0): an admin-configured "we'll be in touch" note to
+		// the person who reached out. The address can be one a stranger typed, and an
+		// account's email isn't proven either (WooCommerce changes it unconfirmed), so
+		// the only client text it carries is a first name (ack_first_name): no relay
+		// value. The recipient is the visitor's own reply-to (or the logged-in user's
+		// address), and the send rides the same per-IP rate limit as the escalation
+		// itself. Fire-and-forget: an ack failure must not fail the lead capture.
 		if ( 200 === $response->get_status() && '1' === get_option( 'def_core_chat_escalation_ack_enabled', '0' ) ) {
 			$ack_to = '';
 			if ( ! empty( $safe_body['reply_to'] ) && is_email( $safe_body['reply_to'] ) ) {
@@ -608,11 +626,37 @@ final class DEF_Core_Escalation {
 				if ( ! empty( $ack_sender ) && is_email( $ack_sender ) ) {
 					$ack_headers[] = 'From: ' . $ack_sender;
 				}
-				wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers );
+				$tag         = array( '{first-name}' => self::ack_first_name( (array) $body ) );
+				$ack_subject = strtr( $ack_subject, $tag );
+				$ack_body    = strtr( $ack_body, $tag );
+				if ( wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers ) ) {
+					$response->set_data( array( 'ack_sent' => true ) + (array) $response->get_data() );
+				}
 			}
 		}
 
 		return $response;
+	}
+
+	/**
+	 * The acknowledgement's {first-name}: one short word of letters, so a name can carry
+	 * no link and no sentence to whatever address this goes to. The Hangul fillers are
+	 * letters to Unicode and blank to a reader, so they would pass a sentence as one word.
+	 *
+	 * @param array $raw The raw request body as posted by the widget.
+	 * @return string The first name, or "there".
+	 */
+	private static function ack_first_name( array $raw ): string {
+		$user = wp_get_current_user();
+		$name = (string) ( $raw['contact_name'] ?? '' );
+		if ( $user->exists() ) {
+			$name = $user->first_name ? $user->first_name : $user->display_name;
+		}
+		$name  = (string) preg_replace( '/[\x{115F}\x{1160}\x{3164}\x{FFA0}]/u', ' ', $name );
+		$words = preg_split( '/\s+/u', trim( $name ) );
+		$first = (string) preg_replace( "/[^\p{L}'-]/u", '', (string) ( $words[0] ?? '' ) );
+
+		return '' !== $first && mb_strlen( $first ) <= self::ACK_NAME_MAX ? $first : __( 'there', 'digital-employees' );
 	}
 
 	/**
