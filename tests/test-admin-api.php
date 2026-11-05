@@ -1378,6 +1378,48 @@ foreach ( array( 'pref_options', 'ack_body' ) as $suffix ) {
 	assert_equals( 'sanitize_textarea_field', $allowlist[ "def_core_chat_escalation_$suffix" ]['sanitize'], "$suffix is multi-line text" );
 }
 
+// ── 41c. Logo, icon and button settings ─────────────────────────────────
+echo "\n[41c] Logo, icon and button settings\n";
+reset_test_state();
+setup_admin_user();
+
+$read = function ( $key ) use ( $sa ) {
+	$request = new WP_REST_Request( 'GET', "/def-core/v1/setup/setting/$key" );
+	$request->set_param( 'key', $key );
+	return $sa->rest_get_setting( $request );
+};
+$write = function ( $key, $value ) use ( $sa ) {
+	$request = new WP_REST_Request( 'POST', "/def-core/v1/setup/setting/$key" );
+	$request->set_param( 'key', $key );
+	$request->set_body_params( array( 'value' => $value ) );
+	return $sa->rest_update_setting( $request )->get_status();
+};
+
+// Unset reads as what the site actually does, not blank.
+foreach ( array(
+	'def_core_logo_show_staff_ai'      => '1',
+	'def_core_logo_show_customer_chat' => '1',
+	'def_core_chat_show_floating'      => '1',
+	'def_core_chat_ai_notice'          => '0',
+	'def_core_logo_max_height'         => '40',
+	'def_core_chat_button_position'    => 'right',
+) as $key => $unset ) {
+	assert_equals( $unset, $read( $key )->get_data()['data']['value'], "unset $key reads as $unset" );
+}
+foreach ( array( 'def_core_app_icon_id', 'def_core_chat_button_icon_id', 'def_core_chat_loading_mark_id', 'def_core_chat_privacy_url' ) as $key ) {
+	assert_equals( 200, $read( $key )->get_status(), "$key is readable" );
+}
+
+// A value the save would quietly change is refused, so the assistant can't report one it didn't store.
+assert_equals( 200, $write( 'def_core_logo_max_height', '60' ), 'logo height in range saves' );
+assert_equals( 400, $write( 'def_core_logo_max_height', '200' ), 'logo height out of range is refused' );
+assert_equals( 400, $write( 'def_core_logo_max_height', 'tall' ), 'logo height must be a number' );
+assert_equals( 200, $write( 'def_core_chat_button_position', 'left' ), 'button position takes left' );
+assert_equals( 400, $write( 'def_core_chat_button_position', 'top' ), 'button position refuses anything else' );
+assert_equals( 200, $write( 'def_core_chat_privacy_url', '/terms/' ), 'legal link takes a path' );
+assert_equals( 200, $write( 'def_core_chat_privacy_url', '' ), 'legal link can be cleared' );
+assert_equals( 400, $write( 'def_core_chat_privacy_url', 'javascript:alert(1)' ), 'legal link refuses what the save would drop' );
+
 // ── 42. Logo ID validation ──────────────────────────────────────────────
 echo "\n[42] Logo ID validation\n";
 reset_test_state();
