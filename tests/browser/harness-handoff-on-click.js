@@ -67,7 +67,7 @@ async function bootJoe(opts) {
 	w.fetch = function (url, init) {
 		if (String(url).endsWith('send-escalation-email')) {
 			sent.push(JSON.parse(init.body));
-			return res({ status: 'sent' }, 200);
+			return res({ status: 'sent', ack_sent: !!opts.ackSent }, 200);
 		}
 		if (String(url) !== CC.chatStreamUrl) return res({}, 200);
 		if (opts.sync) return res(done, 200);
@@ -236,8 +236,8 @@ async function bootSam(opts) {
 		s.cards().length === 0 && s.buttons().length === 0 && s.messages.textContent.includes(REPLY));
 
 	// ── The Business name and website: a per-site choice, hidden unless chosen ──
-	const submitForm = async (mode, business, website) => {
-		const j = await bootJoe({ outputs: [OFFER], config: mode ? { escalationBusinessFields: mode } : {} });
+	const submitForm = async (mode, business, website, ackSent) => {
+		const j = await bootJoe({ outputs: [OFFER], ackSent, config: mode ? { escalationBusinessFields: mode } : {} });
 		j.buttons()[0].click();
 		const values = { 'First name': 'Pat', 'Last name': 'Lee', 'Email': 'pat@example.com', 'Subject': 'A question',
 			'Business name': business, 'Business website': website };
@@ -251,7 +251,8 @@ async function bootSam(opts) {
 		j.root.querySelector('.def-cc-escalation-overlay textarea').value = 'Please call me';
 		j.root.querySelector('.def-cc-escalation-submit').click();
 		await sleep(30);
-		return { labels, sent: j.sent };
+		const note = j.root.querySelector('.def-cc-escalation-success-note');
+		return { labels, sent: j.sent, note: note.style.display !== 'none' && note.textContent };
 	};
 	const shows = (r, label) => r.labels.includes(label);
 
@@ -272,6 +273,10 @@ async function bootSam(opts) {
 	r = await submitForm('required', 'Acme', 'acme.example');
 	check('  … and sends them when filled in',
 		r.sent.length === 1 && r.sent[0].company_name === 'Acme' && r.sent[0].website === 'acme.example', JSON.stringify(r));
+
+	check('Success screen: no confirmation sent, no line about one', (await submitForm()).note === false);
+	check('  … and the line shows only when one went out',
+		(await submitForm(undefined, '', '', true)).note === "We've emailed you a confirmation.");
 
 	console.log('harness-handoff-on-click: the hand-off opens on the person\'s click (v9.2.0)');
 	results.forEach(r => console.log(r));

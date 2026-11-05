@@ -578,12 +578,12 @@ final class DEF_Core_Escalation {
 			DEF_Core_Goals::queue( 'handoff_sent', '', $body['thread_id'], 'handoff:' . $body['thread_id'] );
 		}
 
-		// Auto-acknowledgement (5.6.0): a static, admin-configured "we'll be in
-		// touch" note to the person who reached out. Content is NEVER built from
-		// client input (no relay value), the recipient is the visitor's own
-		// reply-to (or the logged-in user's address), and the send rides the
-		// same per-IP rate limit as the escalation itself. Fire-and-forget:
-		// an ack failure must not fail the lead capture.
+		// Auto-acknowledgement (5.6.0): an admin-configured "we'll be in touch" note to
+		// the person who reached out. The address can be one a stranger typed, so what
+		// reaches it from the client is one word of letters (ack_tags): it has no relay
+		// value. The recipient is the visitor's own reply-to (or the logged-in user's
+		// address), and the send rides the same per-IP rate limit as the escalation
+		// itself. Fire-and-forget: an ack failure must not fail the lead capture.
 		if ( 200 === $response->get_status() && '1' === get_option( 'def_core_chat_escalation_ack_enabled', '0' ) ) {
 			$ack_to = '';
 			if ( ! empty( $safe_body['reply_to'] ) && is_email( $safe_body['reply_to'] ) ) {
@@ -618,11 +618,45 @@ final class DEF_Core_Escalation {
 				if ( ! empty( $ack_sender ) && is_email( $ack_sender ) ) {
 					$ack_headers[] = 'From: ' . $ack_sender;
 				}
-				wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers );
+				$tags        = self::ack_tags( (array) $body, $safe_body, $ack_to );
+				$ack_subject = strtr( $ack_subject, array( '{first-name}' => $tags['{first-name}'] ) );
+				$ack_body    = trim( (string) preg_replace( "/\n{3,}/", "\n\n", strtr( $ack_body, $tags ) ) );
+				if ( wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers ) ) {
+					$response->set_data( array( 'ack_sent' => true ) + (array) $response->get_data() );
+				}
 			}
 		}
 
 		return $response;
+	}
+
+	/**
+	 * The acknowledgement's tags. The transcript is the person's own words, so it goes
+	 * only to the address on their own account: to a typed address it would be a relay
+	 * for a stranger's text, and a typo would hand their chat to someone else.
+	 *
+	 * @param array  $raw       The raw request body as posted by the widget.
+	 * @param array  $safe_body The allowlisted fields, with the assembled email body.
+	 * @param string $ack_to    The address the acknowledgement goes to.
+	 * @return array Tag => value.
+	 */
+	private static function ack_tags( array $raw, array $safe_body, string $ack_to ): array {
+		$user = wp_get_current_user();
+		$own  = $user->exists() && 0 === strcasecmp( $ack_to, $user->user_email );
+		$name = (string) ( $raw['contact_name'] ?? '' );
+		if ( $own ) {
+			$name = $user->first_name ? $user->first_name : $user->display_name;
+		}
+		$words  = preg_split( '/\s+/u', trim( $name ) );
+		$first  = (string) preg_replace( "/[^\p{L}'-]/u", '', (string) ( $words[0] ?? '' ) );
+		$marker = 'Conversation Transcript:';
+		$email  = (string) ( $safe_body['body'] ?? '' );
+		$at     = strpos( $email, $marker );
+
+		return array(
+			'{first-name}' => '' !== $first ? $first : __( 'there', 'digital-employees' ),
+			'{transcript}' => $own && false !== $at ? trim( substr( $email, $at + strlen( $marker ) ) ) : '',
+		);
 	}
 
 	/**

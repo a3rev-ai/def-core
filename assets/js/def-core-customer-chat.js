@@ -50,6 +50,7 @@
 		escalatePref: 'How would you like us to contact you?',
 		escalateSubmit: 'Send',
 		escalateSuccess: 'Your email has been sent.',
+		escalateAckSent: "We've emailed you a confirmation.",
 		uploadFailed: 'Upload failed. Please try again.',
 		uploadReadFailed: 'Could not read the file. Please remove it, re-select it and try again.',
 		fileTypeNotSupported: 'File type not supported',
@@ -1016,6 +1017,9 @@
 			'</div>' +
 			'<div class="def-cc-escalation-success-text" part="escalation-success-text">' +
 			t('escalateSuccess') +
+			'</div>' +
+			'<div class="def-cc-escalation-success-note">' +
+			t('escalateAckSent') +
 			'</div>' +
 			'<button type="button" class="def-cc-escalation-cancel def-cc-escalation-cancel--success" part="escalation-cancel escalation-cancel--success">Close</button>';
 		success
@@ -3585,6 +3589,8 @@
 					return;
 				}
 				if (result.ok && result.data && result.data.status === 'sent') {
+					els.escalationSuccess.querySelector('.def-cc-escalation-success-note').style.display =
+						result.data.ack_sent ? '' : 'none';
 					showEscalationState('success');
 				} else {
 					showEscalationState('error');

@@ -1119,6 +1119,7 @@ final class DEF_Core {
 			'escalatePref'         => __( 'How would you like us to contact you?', 'digital-employees' ),
 			'escalateSubmit'       => __( 'Send', 'digital-employees' ),
 			'escalateSuccess'      => __( 'Your email has been sent.', 'digital-employees' ),
+			'escalateAckSent'      => __( "We've emailed you a confirmation.", 'digital-employees' ),
 			'uploadFailed'         => __( 'Upload failed. Please try again.', 'digital-employees' ),
 			'uploadReadFailed'     => __( 'Could not read the file. Please remove it, re-select it and try again.', 'digital-employees' ),
 			'fileTypeNotSupported' => __( 'File type not supported', 'digital-employees' ),
