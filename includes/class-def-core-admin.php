@@ -489,6 +489,7 @@ final class DEF_Core_Admin {
 		$escalation_form = array(
 			'title'        => (string) get_option( 'def_core_chat_escalation_title', '' ),
 			'desc'         => (string) get_option( 'def_core_chat_escalation_desc', '' ),
+			'business_fields' => (string) get_option( 'def_core_chat_escalation_business_fields', 'hidden' ),
 			'pref_enabled' => '1' === get_option( 'def_core_chat_escalation_pref_enabled', '0' ),
 			'pref_options' => (string) get_option( 'def_core_chat_escalation_pref_options', '' ),
 			'ack_enabled'  => '1' === get_option( 'def_core_chat_escalation_ack_enabled', '0' ),
@@ -932,6 +933,11 @@ final class DEF_Core_Admin {
 	 * @param mixed $value The value to sanitize.
 	 * @return string 'modal', 'drawer', or 'spotlight'.
 	 */
+	public static function sanitize_escalation_business_fields( $value ): string {
+		$value = sanitize_text_field( (string) $value );
+		return in_array( $value, array( 'required', 'optional', 'hidden' ), true ) ? $value : 'hidden';
+	}
+
 	public static function sanitize_chat_display_mode( $value ): string {
 		$value = sanitize_text_field( (string) $value );
 		return in_array( $value, array( 'modal', 'drawer', 'spotlight' ), true ) ? $value : 'modal';
@@ -1193,6 +1199,7 @@ final class DEF_Core_Admin {
 		$form_options = array(
 			'def_core_chat_escalation_title'        => 'sanitize_text_field',
 			'def_core_chat_escalation_desc'         => 'sanitize_text_field',
+			'def_core_chat_escalation_business_fields' => array( __CLASS__, 'sanitize_escalation_business_fields' ),
 			'def_core_chat_escalation_pref_enabled' => 'bool',
 			'def_core_chat_escalation_pref_options' => 'sanitize_textarea_field',
 			'def_core_chat_escalation_ack_enabled'  => 'bool',

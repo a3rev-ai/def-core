@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.3.1
+Stable tag: 9.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,7 +120,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 
 == Changelog ==
 
-= 9.3.1 - 2026-11-05 =
+= 9.4.0 - 2026-11-05 =
+* New - Customer Chat: the hand-off form's Business name and website are now a per-site setting: Required, Optional or Hidden. The default is Hidden, so choose Required on a site that uses them.
+* Tweak - Customer Chat: the default button and form title is now "Talk to a person". A title you have set is kept.
 * Fix - Customer Chat: when a signed-in customer asks for a person, the email now says who it is from, and replying to it reaches them. Their name and address come from their account. An anonymous visitor's form works as before.
 * Fix - Customer Chat: a customer who signs in from inside the chat can now ask for a person, and their first Add to cart works. Both were refused because the page still held the nonces from before they signed in.
 * Tweak - Customer Chat: the status line above the form's button now reads "Getting the form ready..." in place of "Preparing escalation...".

@@ -45,7 +45,7 @@
 		loginTitle: 'Log in to continue',
 		loginSubmit: 'Log in',
 		sessionExpired: 'Session expired — please log in again',
-		escalate: 'Request Human Support',
+		escalate: 'Talk to a person',
 		escalateDesc: "Describe your issue below and we'll connect you with a human.",
 		escalatePref: 'How would you like us to contact you?',
 		escalateSubmit: 'Send',
@@ -928,12 +928,16 @@
 		anonFields.appendChild(
 			escalationField('Phone', 'tel', 'escalationPhone', false)
 		);
-		anonFields.appendChild(
-			escalationField('Business name', 'text', 'escalationBusiness', true)
-		);
-		anonFields.appendChild(
-			escalationField('Business website', 'text', 'escalationWebsite', true)
-		);
+		var businessFields = config && config.escalationBusinessFields;
+		if (businessFields === 'required' || businessFields === 'optional') {
+			var businessRequired = businessFields === 'required';
+			anonFields.appendChild(
+				escalationField('Business name', 'text', 'escalationBusiness', businessRequired)
+			);
+			anonFields.appendChild(
+				escalationField('Business website', 'text', 'escalationWebsite', businessRequired)
+			);
+		}
 
 		els.escalationAnonFields = anonFields;
 		formWrap.appendChild(anonFields);
@@ -3397,18 +3401,17 @@
 			}
 			// The business name + website are the keys that credit a registered prospect and
 			// match an existing CRM contact (7.6.3) — an enquiry without them is uncredited.
-			if (
-				els.escalationBusiness &&
-				!els.escalationBusiness.value.trim()
-			) {
+			var businessRequired = config.escalationBusinessFields === 'required';
+			if (businessRequired && !els.escalationBusiness.value.trim()) {
 				showFieldError(els.escalationBusiness, 'Required');
 				valid = false;
 			}
-			if (
-				els.escalationWebsite &&
-				!isValidWebsite(els.escalationWebsite.value.trim())
-			) {
-				showFieldError(els.escalationWebsite, 'Business website required (e.g. harbour-dental.com)');
+			var site = els.escalationWebsite ? els.escalationWebsite.value.trim() : '';
+			if ((businessRequired || site) && !isValidWebsite(site)) {
+				showFieldError(
+					els.escalationWebsite,
+					businessRequired ? 'Business website required (e.g. harbour-dental.com)' : 'Enter a valid website (e.g. harbour-dental.com)'
+				);
 				valid = false;
 			}
 		}
@@ -3459,8 +3462,8 @@
 			var lastName = els.escalationLastName.value.trim();
 			var email = els.escalationEmail.value.trim();
 			var phone = (els.escalationPhone.value || '').trim();
-			var website = (els.escalationWebsite.value || '').trim();
-			var business = (els.escalationBusiness.value || '').trim();
+			var website = els.escalationWebsite ? els.escalationWebsite.value.trim() : '';
+			var business = els.escalationBusiness ? els.escalationBusiness.value.trim() : '';
 			bodyParts.push('From: ' + firstName + ' ' + lastName);
 			bodyParts.push('Email: ' + email);
 			if (phone) bodyParts.push('Phone: ' + phone);

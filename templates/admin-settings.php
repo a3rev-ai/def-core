@@ -893,6 +893,16 @@ $first_tab = 'branding';
 			</div>
 
 			<div class="def-core-field">
+				<label for="def_core_chat_escalation_business_fields"><?php esc_html_e( 'Business name and website', 'digital-employees' ); ?></label>
+				<select id="def_core_chat_escalation_business_fields" data-setting="def_core_chat_escalation_business_fields">
+					<option value="hidden" <?php selected( $escalation_form['business_fields'], 'hidden' ); ?>><?php esc_html_e( 'Hidden', 'digital-employees' ); ?></option>
+					<option value="optional" <?php selected( $escalation_form['business_fields'], 'optional' ); ?>><?php esc_html_e( 'Optional', 'digital-employees' ); ?></option>
+					<option value="required" <?php selected( $escalation_form['business_fields'], 'required' ); ?>><?php esc_html_e( 'Required', 'digital-employees' ); ?></option>
+				</select>
+				<p class="description"><?php esc_html_e( 'For visitors who are not signed in. Choose Required on a site that sells to businesses and uses these details.', 'digital-employees' ); ?></p>
+			</div>
+
+			<div class="def-core-field">
 				<label>
 					<input type="checkbox" id="def_core_chat_escalation_pref_enabled" data-setting="def_core_chat_escalation_pref_enabled" value="1" <?php checked( $escalation_form['pref_enabled'] ); ?> />
 					<?php esc_html_e( 'Ask how the visitor would like to be contacted', 'digital-employees' ); ?>

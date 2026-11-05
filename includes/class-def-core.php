@@ -547,6 +547,7 @@ final class DEF_Core {
 			'buttonIconUrl'   => $this->get_button_icon_url(),
 			'loadingMarkUrl'  => $this->get_loading_mark_url(),
 			'escalationPrefOptions' => self::get_escalation_pref_options(),
+			'escalationBusinessFields' => (string) get_option( 'def_core_chat_escalation_business_fields', 'hidden' ),
 			'buttonLabel'     => get_option( 'def_core_chat_button_label', 'Chat' ),
 			'showFloatingButton' => '0' !== get_option( 'def_core_chat_show_floating', '1' ),
 			// Greeting Bubble (v3.12.0) — proactive pop-up above the launcher.
@@ -1113,7 +1114,7 @@ final class DEF_Core {
 			'loginTitle'           => __( 'Log in to continue', 'digital-employees' ),
 			'loginSubmit'          => __( 'Log in', 'digital-employees' ),
 			'sessionExpired'       => __( 'Session expired — please log in again', 'digital-employees' ),
-			'escalate'             => __( 'Request Human Support', 'digital-employees' ),
+			'escalate'             => __( 'Talk to a person', 'digital-employees' ),
 			'escalateDesc'         => __( "Describe your issue below and we'll connect you with a human.", 'digital-employees' ),
 			'escalatePref'         => __( 'How would you like us to contact you?', 'digital-employees' ),
 			'escalateSubmit'       => __( 'Send', 'digital-employees' ),
