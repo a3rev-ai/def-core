@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.5.2 - 2026/11/05 =
+* Fix - Setup Assistant: it can now read and change ten more settings: the logo options, app icon, chat button position and icon, loading mark, floating button, AI notice and legal link. Before this, asking about them failed.
+
 = 9.5.1 - 2026/11/05 =
 * Fix - Setup Assistant: it can now read and change the Customer Chat Contact Form settings (form title, description, business fields, contact options and the acknowledgement email). Before this, asking about them failed.
 

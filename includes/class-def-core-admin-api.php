@@ -347,6 +347,72 @@ final class DEF_Core_Admin_API {
 			'sanitize'  => 'sanitize_textarea_field',
 			'read_mode' => 'value',
 		),
+		// Logo, icon and button settings — same sanitisers as the settings page save.
+		'def_core_logo_show_staff_ai' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '1',
+			'read_mode' => 'value',
+		),
+		'def_core_logo_show_customer_chat' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '1',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_show_floating' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '1',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_ai_notice' => array(
+			'type'      => 'boolean',
+			'validate'  => 'validate_boolean',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_bool_setting' ),
+			'default'   => '0',
+			'read_mode' => 'value',
+		),
+		'def_core_logo_max_height' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_max_height',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_max_height' ),
+			'default'   => '40',
+			'read_mode' => 'value',
+		),
+		'def_core_app_icon_id' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_id',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_id' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_button_icon_id' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_id',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_id' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_loading_mark_id' => array(
+			'type'      => 'integer',
+			'validate'  => 'validate_logo_id',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_logo_id' ),
+			'read_mode' => 'value',
+		),
+		'def_core_chat_button_position' => array(
+			'type'      => 'enum',
+			'validate'  => 'validate_button_position',
+			'default'   => 'right',
+			'read_mode' => 'value',
+		),
+		'def_core_chat_privacy_url' => array(
+			'type'      => 'string',
+			'validate'  => 'validate_privacy_url',
+			'sanitize'  => array( 'DEF_Core_Admin', 'sanitize_privacy_url' ),
+			'read_mode' => 'value',
+		),
 		// Connection-log verbosity — lets the platform/Setup Assistant dial log
 		// noise remotely (debug | info | warning | error). Reuses the same
 		// sanitiser the admin AJAX save path uses.
@@ -855,6 +921,16 @@ final class DEF_Core_Admin_API {
 			'def_core_chat_escalation_ack_enabled' => 'escalation',
 			'def_core_chat_escalation_ack_subject' => 'escalation',
 			'def_core_chat_escalation_ack_body' => 'escalation',
+			'def_core_logo_show_staff_ai' => 'branding',
+			'def_core_logo_show_customer_chat' => 'branding',
+			'def_core_logo_max_height' => 'branding',
+			'def_core_app_icon_id' => 'branding',
+			'def_core_chat_show_floating' => 'chat-settings',
+			'def_core_chat_ai_notice' => 'chat-settings',
+			'def_core_chat_button_icon_id' => 'chat-settings',
+			'def_core_chat_loading_mark_id' => 'chat-settings',
+			'def_core_chat_button_position' => 'chat-settings',
+			'def_core_chat_privacy_url' => 'chat-settings',
 			'def_core_chat_display_mode'         => 'chat-settings',
 			'def_core_chat_drawer_width'         => 'chat-settings',
 			'def_core_chat_spotlight_width'      => 'chat-settings',
@@ -1370,6 +1446,9 @@ final class DEF_Core_Admin_API {
 	 * @return true|string True if valid, error message otherwise.
 	 */
 	private function validate_logo_id( $value ) {
+		if ( '' !== $value && ! is_numeric( $value ) ) {
+			return 'Logo ID must be a number.';
+		}
 		$id = intval( $value );
 		if ( $id < 0 ) {
 			return 'Logo ID must be a non-negative integer.';
@@ -1532,6 +1611,39 @@ final class DEF_Core_Admin_API {
 	 */
 	private function validate_business_fields( $value ) {
 		return in_array( $value, array( 'required', 'optional', 'hidden' ), true ) ? true : 'Must be required, optional or hidden.';
+	}
+
+	/**
+	 * Validate the logo max height: refuse what the save would quietly change.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_logo_max_height( $value ) {
+		return is_scalar( $value ) && (string) (int) $value === (string) $value && (int) $value === DEF_Core_Admin::sanitize_logo_max_height( $value ) ? true : 'Logo height must be a whole number between 24 and 120.';
+	}
+
+	/**
+	 * Validate the chat button position.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_button_position( $value ) {
+		return in_array( $value, array( 'right', 'left' ), true ) ? true : 'Button position must be "right" or "left".';
+	}
+
+	/**
+	 * Validate the legal link: empty clears it, and a link the save would drop is refused.
+	 *
+	 * @param mixed $value The value to validate.
+	 * @return true|string True if valid, error message otherwise.
+	 */
+	private function validate_privacy_url( $value ) {
+		if ( ! is_scalar( $value ) ) {
+			return 'Value must be text.';
+		}
+		return '' === trim( (string) $value ) || '' !== DEF_Core_Admin::sanitize_privacy_url( $value ) ? true : 'Must be a full web address or a path starting with /.';
 	}
 
 	/**
