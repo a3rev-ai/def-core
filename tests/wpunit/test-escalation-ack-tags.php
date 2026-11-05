@@ -1,8 +1,8 @@
 <?php
 /**
- * The acknowledgement's {first-name} and {transcript}. Its address can be one a stranger
- * typed, so nothing that could carry a message reaches it: a first name is one word of
- * letters, and the transcript goes only to the address on the person's own account.
+ * The acknowledgement's {first-name}. Its address can be one a stranger typed, and an
+ * account's address isn't proven either, so nothing that could carry a message reaches
+ * it: a first name is one short word of letters, and the chat is never included.
  *
  * @package def-core
  */
@@ -29,7 +29,7 @@ class Test_Escalation_Ack_Tags extends WP_UnitTestCase {
 		);
 		update_option( 'def_core_chat_escalation_ack_enabled', '1' );
 		update_option( 'def_core_chat_escalation_ack_subject', 'Thanks {first-name}' );
-		update_option( 'def_core_chat_escalation_ack_body', "Hello {first-name},\n\n{transcript}\n\nThe team" );
+		update_option( 'def_core_chat_escalation_ack_body', "Hello {first-name},\n\nThe team" );
 	}
 
 	private function send( array $fields ): array {
@@ -72,18 +72,32 @@ class Test_Escalation_Ack_Tags extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'Hello there,', $this->mail[1]['message'] );
 	}
 
-	public function test_a_signed_in_customer_gets_their_transcript_at_their_own_address(): void {
+	public function test_a_blank_looking_letter_cannot_pass_a_sentence_as_one_word(): void {
+		$this->send(
+			array(
+				'reply_to'     => 'sam@example.com',
+				'contact_name' => "Your\u{3164}account\u{3164}is\u{3164}locked\u{3164}call\u{3164}now",
+			)
+		);
+		$this->assertStringStartsWith( 'Hello Your,', $this->mail[1]['message'] );
+		$this->assertStringNotContainsString( 'locked', $this->mail[1]['message'] );
+	}
+
+	public function test_a_name_too_long_to_be_one_is_no_name(): void {
+		$this->send( array( 'reply_to' => 'sam@example.com', 'contact_name' => str_repeat( 'a', 31 ) ) );
+		$this->assertStringStartsWith( 'Hello there,', $this->mail[1]['message'] );
+	}
+
+	public function test_a_signed_in_customer_is_greeted_from_their_account(): void {
 		$this->sign_in();
 		$this->send( array() );
 		$this->assertSame( 'pat@example.com', $this->mail[1]['to'] );
 		$this->assertStringStartsWith( 'Hello Pat,', $this->mail[1]['message'] );
-		$this->assertStringContainsString( 'User: visit http://spam.example now', $this->mail[1]['message'] );
 	}
 
-	public function test_signing_in_does_not_open_the_transcript_to_a_typed_address(): void {
+	public function test_an_unproven_account_address_is_sent_none_of_the_chat(): void {
 		$this->sign_in();
-		$this->send( array( 'reply_to' => 'victim@example.com' ) );
-		$this->assertSame( 'victim@example.com', $this->mail[1]['to'] );
+		$this->send( array() );
 		$this->assertStringNotContainsString( 'spam.example', $this->mail[1]['message'] );
 	}
 

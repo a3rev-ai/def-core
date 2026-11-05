@@ -930,7 +930,7 @@ $first_tab = 'branding';
 			<div class="def-core-field">
 				<label for="def_core_chat_escalation_ack_body"><?php esc_html_e( 'Acknowledgement message', 'digital-employees' ); ?></label>
 				<textarea id="def_core_chat_escalation_ack_body" data-setting="def_core_chat_escalation_ack_body" rows="3" class="large-text" placeholder="<?php esc_attr_e( "Thanks for reaching out — we've received your message and a real person will be in touch soon.", 'digital-employees' ); ?>"><?php echo esc_textarea( $escalation_form['ack_body'] ); ?></textarea>
-				<p class="description"><?php esc_html_e( 'Plain text, sent from the site\'s no-reply address. {first-name} adds the visitor\'s first name. {transcript} adds the chat, for signed-in customers only: a visitor\'s words are never emailed to an address they typed.', 'digital-employees' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Plain text, sent from the site\'s no-reply address. {first-name} adds the visitor\'s first name. Nothing else the visitor typed is included.', 'digital-employees' ); ?></p>
 			</div>
 		</div>
 

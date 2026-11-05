@@ -68,6 +68,13 @@ final class DEF_Core_Escalation {
 	private const RATE_LIMIT_MAX_REQUESTS = 5;
 
 	/**
+	 * The longest {first-name} in an acknowledgement: anything longer is no name.
+	 *
+	 * @var int
+	 */
+	private const ACK_NAME_MAX = 30;
+
+	/**
 	 * Header name for service auth.
 	 *
 	 * @var string
@@ -579,8 +586,9 @@ final class DEF_Core_Escalation {
 		}
 
 		// Auto-acknowledgement (5.6.0): an admin-configured "we'll be in touch" note to
-		// the person who reached out. The address can be one a stranger typed, so what
-		// reaches it from the client is one word of letters (ack_tags): it has no relay
+		// the person who reached out. The address can be one a stranger typed, and an
+		// account's email isn't proven either (WooCommerce changes it unconfirmed), so
+		// the only client text it carries is a first name (ack_first_name): no relay
 		// value. The recipient is the visitor's own reply-to (or the logged-in user's
 		// address), and the send rides the same per-IP rate limit as the escalation
 		// itself. Fire-and-forget: an ack failure must not fail the lead capture.
@@ -618,9 +626,9 @@ final class DEF_Core_Escalation {
 				if ( ! empty( $ack_sender ) && is_email( $ack_sender ) ) {
 					$ack_headers[] = 'From: ' . $ack_sender;
 				}
-				$tags        = self::ack_tags( (array) $body, $safe_body, $ack_to );
-				$ack_subject = strtr( $ack_subject, array( '{first-name}' => $tags['{first-name}'] ) );
-				$ack_body    = trim( (string) preg_replace( "/\n{3,}/", "\n\n", strtr( $ack_body, $tags ) ) );
+				$tag         = array( '{first-name}' => self::ack_first_name( (array) $body ) );
+				$ack_subject = strtr( $ack_subject, $tag );
+				$ack_body    = strtr( $ack_body, $tag );
 				if ( wp_mail( $ack_to, $ack_subject, $ack_body, $ack_headers ) ) {
 					$response->set_data( array( 'ack_sent' => true ) + (array) $response->get_data() );
 				}
@@ -631,32 +639,24 @@ final class DEF_Core_Escalation {
 	}
 
 	/**
-	 * The acknowledgement's tags. The transcript is the person's own words, so it goes
-	 * only to the address on their own account: to a typed address it would be a relay
-	 * for a stranger's text, and a typo would hand their chat to someone else.
+	 * The acknowledgement's {first-name}: one short word of letters, so a name can carry
+	 * no link and no sentence to whatever address this goes to. The Hangul fillers are
+	 * letters to Unicode and blank to a reader, so they would pass a sentence as one word.
 	 *
-	 * @param array  $raw       The raw request body as posted by the widget.
-	 * @param array  $safe_body The allowlisted fields, with the assembled email body.
-	 * @param string $ack_to    The address the acknowledgement goes to.
-	 * @return array Tag => value.
+	 * @param array $raw The raw request body as posted by the widget.
+	 * @return string The first name, or "there".
 	 */
-	private static function ack_tags( array $raw, array $safe_body, string $ack_to ): array {
+	private static function ack_first_name( array $raw ): string {
 		$user = wp_get_current_user();
-		$own  = $user->exists() && 0 === strcasecmp( $ack_to, $user->user_email );
 		$name = (string) ( $raw['contact_name'] ?? '' );
-		if ( $own ) {
+		if ( $user->exists() ) {
 			$name = $user->first_name ? $user->first_name : $user->display_name;
 		}
-		$words  = preg_split( '/\s+/u', trim( $name ) );
-		$first  = (string) preg_replace( "/[^\p{L}'-]/u", '', (string) ( $words[0] ?? '' ) );
-		$marker = 'Conversation Transcript:';
-		$email  = (string) ( $safe_body['body'] ?? '' );
-		$at     = strpos( $email, $marker );
+		$name  = (string) preg_replace( '/[\x{115F}\x{1160}\x{3164}\x{FFA0}]/u', ' ', $name );
+		$words = preg_split( '/\s+/u', trim( $name ) );
+		$first = (string) preg_replace( "/[^\p{L}'-]/u", '', (string) ( $words[0] ?? '' ) );
 
-		return array(
-			'{first-name}' => '' !== $first ? $first : __( 'there', 'digital-employees' ),
-			'{transcript}' => $own && false !== $at ? trim( substr( $email, $at + strlen( $marker ) ) ) : '',
-		);
+		return '' !== $first && mb_strlen( $first ) <= self::ACK_NAME_MAX ? $first : __( 'there', 'digital-employees' );
 	}
 
 	/**

@@ -139,6 +139,10 @@ const CAPS_REGISTRY = array(
 		'class' => 'system',
 		'why'   => 'The abuse ceiling inside that window.',
 	),
+	'includes/class-def-core-escalation.php::ACK_NAME_MAX' => array(
+		'class' => 'system',
+		'why'   => 'The acknowledgement can reach an address a stranger typed, from the site\'s domain: a typed name must stay too short to carry a message. Refuses: the email reads "there", and nothing is cut.',
+	),
 	'includes/class-def-core-goals.php::PAGE_PATH_MAX' => array(
 		'class' => 'system',
 		'why'   => 'An anonymous route must not write an unbounded string into the cron option.',

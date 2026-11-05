@@ -121,7 +121,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 == Changelog ==
 
 = 9.4.0 - 2026-11-05 =
-* New - Customer Chat: the acknowledgement email can use {first-name} and, for signed-in customers, {transcript}. When it goes out, the success screen says "We've emailed you a confirmation."
+* New - Customer Chat: the acknowledgement email can greet the visitor with {first-name}. When it goes out, the success screen says "We've emailed you a confirmation."
 * New - Customer Chat: the hand-off form's Business name and website are now a per-site setting: Required, Optional or Hidden. The default is Hidden, so choose Required on a site that uses them.
 * Tweak - Customer Chat: the default button and form title is now "Talk to a person". A title you have set is kept.
 * Fix - Customer Chat: when a signed-in customer asks for a person, the email now says who it is from, and replying to it reaches them. Their name and address come from their account. An anonymous visitor's form works as before.
