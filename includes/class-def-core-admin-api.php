@@ -593,7 +593,7 @@ final class DEF_Core_Admin_API {
 		$esc_setup    = get_option( 'def_core_escalation_setup_assistant', '' );
 		$has_escalation = ! empty( $esc_customer ) || ! empty( $esc_setup );
 		$checkpoints['escalation'] = array(
-			'label'  => 'At least one escalation email configured',
+			'label'  => 'At least one contact email set',
 			'passed' => $has_escalation,
 		);
 

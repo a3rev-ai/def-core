@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.4.1 - 2026/11/05 =
+* Tweak - Settings: the Escalation tab is now Contact Form, and its cards and help text say what they do in plain words. Your saved settings are unchanged.
+
 = 9.4.0 - 2026/11/05 =
 * New - Customer Chat: the acknowledgement email can greet the visitor with {first-name}. When it goes out, the success screen says "We've emailed you a confirmation."
 * New - Customer Chat: the hand-off form's Business name and website are now a per-site setting: Required, Optional or Hidden. The default is Hidden, so choose Required on a site that uses them.
