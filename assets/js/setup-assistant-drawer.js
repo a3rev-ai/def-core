@@ -53,6 +53,14 @@
 		'allowed_origins':            { id: 'def_core_allowed_origins',    max_length: 2000 },
 		'escalation_customer':        { id: 'escalation_customer',         max_length: 320 },
 		'escalation_setup_assistant': { id: 'escalation_setup_assistant',  max_length: 320 },
+		'chat_escalation_title':     { id: 'def_core_chat_escalation_title' },
+		'chat_escalation_desc':      { id: 'def_core_chat_escalation_desc' },
+		'chat_escalation_business_fields':{ id: 'def_core_chat_escalation_business_fields' },
+		'chat_escalation_pref_enabled':{ id: 'def_core_chat_escalation_pref_enabled', type: 'checkbox' },
+		'chat_escalation_pref_options':{ id: 'def_core_chat_escalation_pref_options' },
+		'chat_escalation_ack_enabled':{ id: 'def_core_chat_escalation_ack_enabled', type: 'checkbox' },
+		'chat_escalation_ack_subject':{ id: 'def_core_chat_escalation_ack_subject' },
+		'chat_escalation_ack_body':  { id: 'def_core_chat_escalation_ack_body' },
 		'chat_display_mode':          { type: 'radio', name: 'def_core_chat_display_mode', max_length: 10 },
 		'chat_button_icon':           { type: 'radio', name: 'def_core_chat_button_icon', max_length: 10 },
 		// max_length removed 5.7.11 (ten-bounds deletion): with the REST bound
@@ -1491,7 +1499,11 @@
 		// Handle standard input/textarea.
 		var el = document.getElementById(fieldConfig.id);
 		if (el) {
-			el.value = value;
+			if (fieldConfig.type === 'checkbox') {
+				el.checked = value === '1';
+			} else {
+				el.value = value;
+			}
 			this.triggerChangeEvent(el);
 
 			// Color inputs: update the preview span directly and force swatch repaint.
