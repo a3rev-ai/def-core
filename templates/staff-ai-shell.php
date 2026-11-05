@@ -499,6 +499,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<div class="error-banner" id="errorBanner"></div>
 
 			<div class="composer-container" id="composerContainer">
+				<button type="button" class="scroll-bottom-btn" id="scrollBottomBtn" aria-label="<?php echo esc_attr__( 'Scroll to the latest message', 'digital-employees' ); ?>" hidden>
+					<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+				</button>
 				<!-- Drop overlay -->
 				<div class="upload-drop-overlay" id="uploadDropOverlay">
 					<div class="upload-drop-overlay-content">

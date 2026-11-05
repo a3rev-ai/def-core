@@ -1277,11 +1277,27 @@ function t(key, fallback) {
 			- messagesContainer.clientHeight < threshold;
 	}
 
+	// The arrow back to the latest message: shown while the reader is above it. New content
+	// fires no scroll event, so a reply growing below the reader is caught on the list's size.
+	const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+	function updateScrollBottomBtn() {
+		scrollBottomBtn.hidden = isNearBottom(80);
+	}
+	scrollBottomBtn.addEventListener('click', function() {
+		_userScrolledUp = false;
+		messagesContainer.scrollTo({
+			top: messagesContainer.scrollHeight,
+			behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+		});
+	});
+	new ResizeObserver(updateScrollBottomBtn).observe(messagesList);
+
 	// Single persistent scroll listener — avoids per-message listener accumulation
 	messagesContainer.addEventListener('scroll', function() {
 		if (_isStreaming) {
 			_userScrolledUp = !isNearBottom(80);
 		}
+		updateScrollBottomBtn();
 	});
 
 	// Tweaks item 4 (2026-09-02): the greeting shows on EVERY empty chat (it
