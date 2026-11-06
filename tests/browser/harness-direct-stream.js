@@ -169,7 +169,7 @@ const HEAD = `
 	let nonce = StaffAIConfig.nonce;
 	var messages = [], isLoading = false, isReadOnly = false, conversationOn = false, spokenTurn = false,
 		openingSpoken = null, lastSuggestion = null, selectedModel = '', currentConversationId = null,
-		activeProjectId = null, voiceStopped = false, _isStreaming = false, _userScrolledUp = false,
+		activeProjectId = null, turnReleased = false, _isStreaming = false, _userScrolledUp = false,
 		dirtyInput = false, chipEpoch = 0, readbackBuffer = '';
 	function renderMessages() {
 		messagesList.querySelectorAll('.message').forEach(function (el) { el.remove(); });

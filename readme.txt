@@ -4,7 +4,7 @@ Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.6.0
+Stable tag: 9.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.6.1 - 2026-11-06 =
+* Fix - Staff AI: Stop now ends the reply at once, even while the assistant is still thinking; a tool already running still finishes. New Chat while a reply is being written now opens the new chat with Send ready, and the reply finishes in its own conversation.
 
 = 9.6.0 - 2026-11-06 =
 * New - Staff AI: while the assistant is working, the Send button becomes Stop. Stop keeps what she has written and undoes nothing she has done; a step already running finishes first. The reply says "Stopped" underneath.

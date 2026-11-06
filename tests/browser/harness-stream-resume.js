@@ -91,7 +91,7 @@ const HEAD = `
 	let nonce = StaffAIConfig.nonce;
 	let messages = [], isLoading = false, isReadOnly = false, conversationOn = false, spokenTurn = false,
 		openingSpoken = null, lastSuggestion = null, selectedModel = '', currentConversationId = null,
-		activeProjectId = null, voiceStopped = false, _isStreaming = false, _userScrolledUp = false,
+		activeProjectId = null, turnReleased = false, _isStreaming = false, _userScrolledUp = false,
 		dirtyInput = false, chipEpoch = 0, readbackBuffer = '';
 	function t(k, d) { return d; }
 	// As the console's own: only the .message elements go, anything beside them stays.

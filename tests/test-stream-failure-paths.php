@@ -122,11 +122,11 @@ assert_test(
 // The two halves of a spoken stop that sit outside the browser harness's slice
 // (V-S6b): without either, the discarded reply comes back on screen.
 assert_test(
-	1 === preg_match( '/if \(voiceStopped\) \{ eventQueue\.length = 0; break; \}/', $staff_js ),
+	1 === preg_match( '/if \(turnReleased\) \{ eventQueue\.length = 0; break; \}/', $staff_js ),
 	'staff: a spoken stop empties the event queue — a done event already parsed cannot render the discarded reply'
 );
 assert_test(
-	1 === preg_match( '/catch \(err\) \{[\s\S]{0,200}?if \(voiceStopped\) \{ voiceStopped = false; return; \}/', $staff_js ),
+	1 === preg_match( '/catch \(err\) \{[\s\S]{0,200}?if \(turnReleased\) \{ turnReleased = false; return; \}/', $staff_js ),
 	'staff: the aborted spoken turn returns from the catch — it is never recovered onto the thread'
 );
 

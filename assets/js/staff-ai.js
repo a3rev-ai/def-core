@@ -1147,6 +1147,9 @@ function t(key, fallback) {
 
 	// New chat (shared with Projects P-B's "New chat in this project")
 	function resetToNewChat() {
+		// A reply still running is let go of, as a spoken stop lets go: nothing of it reaches the
+		// new chat, and the send's own finally frees the composer. DEF lands it on its thread.
+		if (_streamAbort) { turnReleased = true; _streamAbort.abort(); }
 		if (conversationOn) endConversation();
 		// Every path to a fresh chat leaves the open page — the sidebar button,
 		// a project row's "New chat", every Ask button.
@@ -2753,7 +2756,7 @@ function t(key, fallback) {
 	var speaker = null;
 	var conversationOn = false;     // the hands-free loop, until the pill is tapped or the room stays quiet
 	var spokenTurn = false;         // the turn in flight was spoken → read it back
-	var voiceStopped = false;       // the turn was aborted by a spoken stop: nothing of it is recovered
+	var turnReleased = false;       // this tab let go of the turn (a spoken stop, New Chat): nothing of it is shown or recovered
 	var openingSpoken = null;       // the opening sentence already read during streaming (device voice)
 	var readbackBuffer = '';        // the reply's own words as streamed — notices (step 0) excluded
 	var readbackCut = 0;            // how much of readbackBuffer the device voice has been given
@@ -2905,7 +2908,7 @@ function t(key, fallback) {
 	// the stop aborts the stream: nothing is rendered, and DEF keeps what it recorded.
 	function handleSpokenStop(text) {
 		if (!spokenTurn || !DefVoice.isStopPhrase(text, t('voiceStopPhrases', "stop, that's all, thanks that's all"), assistantName)) return false;
-		voiceStopped = true;
+		turnReleased = true;
 		dropUnfilledTranscript();
 		removeTypingMessage();
 		renderMessages();
@@ -3329,7 +3332,7 @@ function t(key, fallback) {
 
 			_streamAbort = new AbortController();
 			_turnReachedServer = false;
-			voiceStopped = false;
+			turnReleased = false;
 			_eventsSeen = 0;
 			var response = await openStream(requestBody, _streamAbort.signal);
 			if (!response.ok) {
@@ -3494,7 +3497,7 @@ function t(key, fallback) {
 				processing = true;
 				while (eventQueue.length > 0) {
 					var evt = eventQueue.shift();
-					if (voiceStopped) { eventQueue.length = 0; break; }   // the user said stop: nothing more of this turn is shown
+					if (turnReleased) { eventQueue.length = 0; break; }   // let go of: nothing more of this turn is shown
 					// Every event names its thread (DEF #1118), so a brand-new chat knows where
 					// its reply lives from the first chunk — what recoverTurn() reloads if the
 					// stream dies before `done` (7.6.9).
@@ -3769,7 +3772,7 @@ function t(key, fallback) {
 			try {
 				await readStream(response.body);
 			} catch (e) {
-				if (!turnId || voiceStopped) throw e;   // nothing to re-attach to: the catch below recovers
+				if (!turnId || turnReleased) throw e;   // nothing to re-attach to: the catch below recovers
 			}
 			// A 410: the worker the resume reached does not hold the turn (DEF runs several, so
 			// that is most re-attaches) or none does any more. The thread is polled every 3 s
@@ -3793,7 +3796,7 @@ function t(key, fallback) {
 			if (!finished && !turnId) throw new Error();   // no turn to re-attach to: the catch below recovers
 			var waits = [1000, 2000, 5000];
 			try {
-				for (var attempt = 0; !finished && !voiceStopped; attempt++) {
+				for (var attempt = 0; !finished && !turnReleased; attempt++) {
 					if (currentConversationId !== turnThread) return;   // the person moved on
 					if (cut === 410 && !polling) pollBeside(lastSeq);
 					workingLine().textContent = t('reconnecting', 'Reconnecting…');
@@ -3828,8 +3831,8 @@ function t(key, fallback) {
 		try {
 			await attemptStream();
 		} catch (err) {
-			// The user said stop: the turn is discarded, never recovered onto the thread view.
-			if (voiceStopped) { voiceStopped = false; return; }
+			// Let go of (a spoken stop, New Chat): the turn is discarded, never recovered onto the view.
+			if (turnReleased) { turnReleased = false; return; }
 			console.error('[Staff AI] Streaming error:', err);
 			spokenTurn = false;
 			if (conversationOn) endConversation();

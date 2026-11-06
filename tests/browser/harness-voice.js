@@ -166,7 +166,7 @@ const CONSOLE_TAIL = `
 		startTurn: function () { conversationOn = true; spokenTurn = true; },
 		handleSpokenStop: handleSpokenStop,
 		state: function () { return { on: conversationOn, spoken: spokenTurn,
-			stopped: voiceStopped, mic: micBtn.dataset.state }; }
+			stopped: turnReleased, mic: micBtn.dataset.state }; }
 	};`;
 
 function bootConsole(spoken) {

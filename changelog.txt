@@ -1,5 +1,8 @@
 *** Digital Employee Framework - Core Changelog ***
 
+= 9.6.1 - 2026/11/06 =
+* Fix - Staff AI: Stop now ends the reply at once, even while the assistant is still thinking; a tool already running still finishes. New Chat while a reply is being written now opens the new chat with Send ready, and the reply finishes in its own conversation.
+
 = 9.6.0 - 2026/11/06 =
 * New - Staff AI: while the assistant is working, the Send button becomes Stop. Stop keeps what she has written and undoes nothing she has done; a step already running finishes first. The reply says "Stopped" underneath.
 
