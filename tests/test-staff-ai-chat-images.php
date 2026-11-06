@@ -349,6 +349,17 @@ $msgs = $resp instanceof WP_REST_Response ? ( $resp->data['messages'] ?? array()
 check( ( $msgs[1]['is_complete'] ?? null ) === false, 'a reply DEF says is still being written carries is_complete false' );
 check( ! array_key_exists( 'is_complete', $msgs[0] ?? array() ), 'a message DEF says nothing about carries no is_complete (the console then reads a reply with words as done)' );
 
+// W82: a reply the person stopped keeps its "Stopped" note when the console renders the thread.
+reset_state( true, array( 'def_staff_access' ) );
+$_wp_test_remote_responses[] = ok_json( array( 'messages' => array(
+	array( 'role' => 'assistant', 'content' => 'Half a', 'stopped' => true ),
+	array( 'role' => 'assistant', 'content' => 'All of it.' ),
+) ) );
+$resp = DEF_Core_Staff_AI::rest_load_conversation( new WP_REST_Request( array( 'id' => 'staff-1' ) ) );
+$msgs = $resp instanceof WP_REST_Response ? ( $resp->data['messages'] ?? array() ) : array();
+check( ( $msgs[0]['stopped'] ?? null ) === true && ( $msgs[1]['stopped'] ?? null ) === false,
+	'a stopped reply carries stopped; a finished one carries false' );
+
 // ── 3. The attachment proxy ──────────────────────────────────────────────
 
 echo "\nThe attachment proxy\n";

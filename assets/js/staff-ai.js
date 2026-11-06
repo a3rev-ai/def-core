@@ -1193,10 +1193,33 @@ function t(key, fallback) {
 		updateSendButton();
 	});
 
-	// Update send button state
+	// Update send button state. While a turn this tab started runs (W82) it is Stop: pressing
+	// it asks DEF to stop the reply, and it reads "Stopping…" until the turn's last frame.
+	var stopTurn = null;   // { thread, turn, stopping } — the running turn the button stops
 	function updateSendButton() {
-		sendBtn.disabled = (!composerInput.value.trim() && !hasActiveFiles()) || isLoading || isReadOnly;
+		sendBtn.classList.toggle('is-stop', !!stopTurn);
+		sendBtn.setAttribute('aria-label', !stopTurn ? t('sendMessage', 'Send message')
+			: stopTurn.stopping ? t('stopping', 'Stopping…') : t('stop', 'Stop'));
+		sendBtn.disabled = stopTurn ? stopTurn.stopping
+			: (!composerInput.value.trim() && !hasActiveFiles()) || isLoading || isReadOnly;
 	}
+
+	async function requestStop() {
+		var turn = stopTurn;
+		if (!turn || turn.stopping) return;
+		turn.stopping = true;
+		updateSendButton();
+		try {
+			var res = await wpFetch(apiBase + '/conversations/' + encodeURIComponent(turn.thread) +
+				'/turns/' + encodeURIComponent(turn.turn) + '/stop', { method: 'POST' });
+			if (res.ok) return;
+		} catch (e) { /* said below */ }
+		if (stopTurn !== turn) return;   // the turn ended meanwhile
+		turn.stopping = false;
+		updateSendButton();
+		showInfo(t('stopFailed', "Couldn't stop the reply. Try again."));
+	}
+	// The Stop button end
 
 	// Keyboard handler: Enter to send, Shift+Enter for newline
 	composerInput.addEventListener('keydown', function(e) {
@@ -1225,7 +1248,7 @@ function t(key, fallback) {
 		}
 	});
 
-	sendBtn.addEventListener('click', sendMessage);
+	sendBtn.addEventListener('click', function () { if (stopTurn) requestStop(); else sendMessage(); });
 
 	// Show info
 	function showInfo(msg) {
@@ -1586,6 +1609,8 @@ function t(key, fallback) {
 						}
 					});
 				}
+
+				if (msg.stopped) appendStoppedNote(content);
 
 				// File indicators for uploaded files; a stored turn's come back from the
 				// server on reload (8.0.0) and render through the console's proxy.
@@ -3246,6 +3271,14 @@ function t(key, fallback) {
 		}
 	}
 
+	// A reply the person stopped (W82) keeps its words and says so, small.
+	function appendStoppedNote(content) {
+		var note = document.createElement('div');
+		note.className = 'message-stopped-note';
+		note.textContent = t('stopped', 'Stopped');
+		content.appendChild(note);
+	}
+
 	// Streaming — direct-to-DEF with JWT + SSE
 	// voice (7.7.1): a spoken turn's {audio_base64, audio_mime, audio_seconds,
 	// speech_out} — the recording rides the request; null for a typed turn.
@@ -3548,7 +3581,8 @@ function t(key, fallback) {
 						messages.push({
 							role: 'assistant',
 							content: finalContent,
-							tool_outputs: toolOutputs
+							tool_outputs: toolOutputs,
+							stopped: !!evt.stopped
 						});
 						readBack(finalContent);
 
@@ -3579,6 +3613,7 @@ function t(key, fallback) {
 									streamEl.appendChild(card);
 								}
 							});
+							if (evt.stopped) appendStoppedNote(streamEl);
 						} else {
 							// No streaming happened (tool-only response or empty).
 							// Safe to renderMessages() — there's no streamed DOM
@@ -3677,7 +3712,12 @@ function t(key, fallback) {
 						continue;
 					}
 					if (id !== null) lastSeq = id;
-					if (evt.turn_id && !turnId) { turnId = evt.turn_id; turnThread = evt.thread_id; }
+					if (evt.turn_id && !turnId) {
+						turnId = evt.turn_id;
+						turnThread = evt.thread_id;
+						stopTurn = { thread: turnThread, turn: turnId, stopping: false };   // Send becomes Stop
+						updateSendButton();
+					}
 					if (evt.type === 'done' || evt.type === 'error') finished = true;
 					if (evt.type === 'speech') {
 						// A spoken line in the employee's own voice — or, when its synthesis
@@ -3811,6 +3851,7 @@ function t(key, fallback) {
 			_isStreaming = false;
 			_userScrolledUp = false;
 			isLoading = false;
+			stopTurn = null;
 			updateSendButton();
 			afterSpokenTurn();
 			afterStreamTurn();

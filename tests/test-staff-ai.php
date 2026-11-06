@@ -2372,6 +2372,12 @@ unset( $GLOBALS['_def_test_get_body'] );
 assert_equals( '2026-11-03', $listed['paused_until'] ?? '', 'the card reads the pause date DEF serves' );
 assert_true( true === ( $listed['skip_next'] ?? null ), 'and the skip' );
 
+// Stop (W82): a POST behind the turn resume's gate, relayed to DEF by the Tools proxy.
+$_stop = $_wp_test_rest_routes['a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/turns/(?P<turn>[a-zA-Z0-9_-]+)/stop'] ?? array();
+assert_equals( 'POST', $_stop['methods'] ?? '', 'turn stop = POST' );
+assert_equals( array( 'DEF_Core_Staff_AI', 'rest_permission_check' ), $_stop['permission_callback'] ?? null, 'turn stop takes the conversation routes\' permission callback' );
+assert_equals( array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_turn_stop' ), $_stop['callback'] ?? null, 'turn stop is the Tools proxy' );
+
 echo "\n--- Staff AI Tests: $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
 

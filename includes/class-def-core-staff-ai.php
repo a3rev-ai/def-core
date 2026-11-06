@@ -165,6 +165,18 @@ final class DEF_Core_Staff_AI
 			)
 		);
 
+		// Stop (W82): the console asks DEF to stop a reply still being written. Relayed as
+		// the resume is; DEF checks the thread is this user's and the turn is its reply.
+		register_rest_route(
+			DEF_CORE_API_NAME_SPACE,
+			'/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/turns/(?P<turn>[a-zA-Z0-9_-]+)/stop',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array(__CLASS__, 'rest_permission_check'),
+				'callback'            => array('DEF_Core_Tools', 'rest_proxy_staff_ai_turn_stop'),
+			)
+		);
+
 		// Chat Options: move a chat into / out of one of the caller's projects.
 		register_rest_route(
 			DEF_CORE_API_NAME_SPACE,
@@ -4567,6 +4579,9 @@ final class DEF_Core_Staff_AI
 					'timestamp'    => $msg['timestamp'] ?? '',
 					// A spoken turn (7.7.0) keeps its mic glyph on reload.
 					'via_voice'    => ! empty($msg['via_voice']),
+					// A reply the person stopped keeps its "Stopped" note on reload and on a
+					// re-attach that renders the thread (W82).
+					'stopped'      => ! empty($msg['stopped']),
 					// Pass through replay-safe tool_outputs from the backend (web citation
 					// sources, result cards) so the widget rebuilds inline pills / cards
 					// on history reload.
