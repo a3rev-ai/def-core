@@ -33,7 +33,7 @@ Thank you for your interest in contributing to def-core. This guide covers the w
    npm run env:start
    ```
 
-   This uses [wp-env](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) to spin up WordPress + Docker with the plugin loaded. The environment is configured in `.wp-env.json`.
+   This uses [wp-env](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) to spin up WordPress + Docker. The plugin is mounted at `wp-content/plugins/def-core` whatever your checkout folder is called, and starts inactive: `npm run smoke` activates it, or activate it in wp-admin. The environment is configured in `.wp-env.json`.
 
 4. **Run the tests to verify your setup:**
 
