@@ -5,7 +5,8 @@
  * Enter handler and the send path, sliced by marker from assets/js/staff-ai.js, inside jsdom
  * against a scripted fetch that answers with real SSE byte streams. Once the stream names its
  * turn, Send is Stop; pressing it posts the stop, and it reads "Stopping…", disabled, until
- * the turn's last frame. A stopped `done` keeps the words shown and says "Stopped".
+ * the turn's last frame. A stopped `done` keeps the words shown and says "Stopped". New Chat
+ * while a reply runs lets go of it: nothing of it reaches the new chat, and Send is free.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -47,6 +48,10 @@ const BUTTON = extract.slice('the Stop button',
   l => l.includes('// Update send button state.'),
   l => l.includes('// The Stop button end'),
   ['function updateSendButton', 'async function requestStop', "'/stop'"], 'STOP_BUTTON');
+const NEW_CHAT = extract.slice('New chat',
+  l => l.includes('// New chat (shared with'),
+  l => l.startsWith("\tnewChatBtn.addEventListener('click'"),
+  ['function resetToNewChat', 'turnReleased = true'], 'STOP_NEW_CHAT');
 const KEYS = extract.slice('Enter handler',
   l => l.includes('// Keyboard handler: Enter to send'),
   l => l.includes('// Click in input clears suggestion'),
@@ -78,7 +83,9 @@ function liveStream() {
   let ctrl;
   const response = new Response(new ReadableStream({ start(c) { ctrl = c; } }),
     { status: 200, headers: { 'content-type': 'text/event-stream' } });
-  return { response, push: s => ctrl.enqueue(enc.encode(s)), close: () => ctrl.close() };
+  // As a real fetch does, an abort errors the body the console is reading.
+  const bind = signal => { signal.addEventListener('abort', () => ctrl.error(new Error('aborted'))); return response; };
+  return { response, bind, push: s => ctrl.enqueue(enc.encode(s)), close: () => ctrl.close() };
 }
 // The proxy's own frame for a 410: DEF no longer holds the turn on the worker reached.
 const gone = 'data: ' + JSON.stringify({ type: 'error', message: 'The assistant is unavailable right now. Please try again.', status: 410 }) + '\n\n';
@@ -88,7 +95,7 @@ const HEAD = `
 	let nonce = StaffAIConfig.nonce;
 	let messages = [], isLoading = false, isReadOnly = false, conversationOn = false, spokenTurn = false,
 		openingSpoken = null, lastSuggestion = null, selectedModel = '', currentConversationId = null,
-		activeProjectId = null, voiceStopped = false, _isStreaming = false, _userScrolledUp = false,
+		activeProjectId = null, turnReleased = false, _isStreaming = false, _userScrolledUp = false,
 		dirtyInput = false, chipEpoch = 0, readbackBuffer = '';
 	function t(k, d) { return d; }
 	function renderMessages() {
@@ -109,16 +116,19 @@ const HEAD = `
 	}
 `;
 const TAIL = `
-	return { sendMessage: sendMessage, state: function () { return { isLoading: isLoading, messages: messages }; } };`;
+	return { sendMessage: sendMessage, resetToNewChat: resetToNewChat,
+		watchdog: function () { _streamAbort.abort(); },   // what the visibility watchdog does to a quiet stream
+		state: function () { return { isLoading: isLoading, messages: messages, thread: currentConversationId }; } };`;
 
-function boot(route) {
+function boot(route, held) {   // held: an array that keeps the re-attach waits (>= 1 s) until run
   const dom = new JSDOM('<!doctype html><div id="messagesContainer"><div id="messagesList"></div></div>' +
     '<div id="errorBanner"></div><div id="infoBanner"></div><div id="confirmChips"></div>' +
     '<textarea id="composerInput"></textarea><button id="sendBtn" disabled aria-label="Send message"></button>',
     { url: 'https://e.test/staff-ai/' });
   const window = dom.window, document = window.document;
   window.DefPersona = { createController: () => ({ handleEvent() {}, formatThinkingLabel: m => m, reset() {} }) };
-  const calls = [];
+  const calls = [], clocks = new Set();
+  let loads = 0, clockIds = 0;
   async function fakeFetch(url, init) {
     calls.push({ url, method: (init && init.method) || 'GET' });
     return route(url, init);
@@ -126,7 +136,8 @@ function boot(route) {
   const $ = id => document.getElementById(id);
   const deps = {
     window, document, fetch: fakeFetch, Response, ReadableStream, TextDecoder, AbortController,
-    setTimeout: fn => setTimeout(fn, 0), setInterval: () => 0, clearInterval() {},
+    setTimeout: (fn, ms) => held && ms >= 1000 ? held.push(fn) : setTimeout(fn, 0),
+    setInterval: () => { clocks.add(++clockIds); return clockIds; }, clearInterval: id => clocks.delete(id),
     StaffAIConfig: { nonce: 'n0000000', nonceUrl: 'https://e.test/wp-admin/admin-ajax.php?action=rest-nonce' },
     apiBase: BASE, chatStreamUrl: STREAM_URL, location: { reload() {} },
     messagesList: $('messagesList'), messagesContainer: $('messagesContainer'), errorBanner: $('errorBanner'),
@@ -134,18 +145,21 @@ function boot(route) {
     showInfo: msg => { $('infoBanner').textContent = msg; },
     autoResize() {}, hideInfo() {}, hasActiveFiles: () => false, stagedFiles: [],
     classifySuggestionOutcome: () => ({}), endConversation() {}, browserTimezone: () => '', clearStagedFiles() {},
-    readBack() {}, readBackSoFar() {}, loadConversations() {}, updateReadOnlyState() {}, afterSpokenTurn() {},
+    readBack() {}, readBackSoFar() {}, loadConversations() { loads++; }, updateReadOnlyState() {}, afterSpokenTurn() {},
     dropUnfilledTranscript() { return false; }, uploadAllStagedFiles: async () => ({ success: true, fileIds: [] }),
     renderMarkdown: s => s, speaker: { speak() {} },
     applyCitations() {}, buildCitationMap: () => ({}), createToolOutputCard: () => null, handleSpokenStop: () => false,
+    showChat() {}, renderProjectChip() {}, clearConfirmChips() {}, renderConversationList() {},
+    sidebar: { classList: { contains: () => false } }, toggleSidebar() {},
     console: { info() {}, error() {} }
   };
   const names = Object.keys(deps);
   const api = new window.Function(...names, HEAD + PARSER + '\n' + TOOL_LABELS + '\n' + ESCAPE + '\n' + REQUEST + '\n' +
-    BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + BUTTON + '\n' + KEYS + '\n' + CLICK + '\n' + SEND + TAIL)(...names.map(k => deps[k]));
+    BANNER + '\n' + RECOVER + '\n' + TOOL_ROWS + '\n' + BUTTON + '\n' + NEW_CHAT + '\n' + KEYS + '\n' + CLICK + '\n' + SEND + TAIL)(...names.map(k => deps[k]));
   const btn = $('sendBtn'), list = $('messagesList');
   return {
-    api, calls,
+    api, calls, loads: () => loads, clocks: () => clocks.size,
+    workingLine: () => { const w = list.querySelector('.tool-status'); return w ? w.textContent : null; },
     send: text => { $('composerInput').value = text; return api.sendMessage(); },
     press: () => btn.click(),
     enter: text => {
@@ -257,6 +271,71 @@ function check(label, cond, detail) {
       t.calls.some(c => c.url === BASE + '/conversations/th-1') && words(t.bubble()) === 'The report' &&
       note(t.bubble()) === 'Stopped' && t.banner() === '',
       JSON.stringify({ calls: t.calls.map(c => c.url), words: words(t.bubble()), note: note(t.bubble()), banner: t.banner() }));
+  }
+  {
+    // New Chat while a reply runs: a frame already on its way must not put the old thread back.
+    const live = liveStream();
+    const t = boot((url, init) => url === STREAM_URL ? live.bind(init.signal) : json(200, {}));
+    t.send('Write the report');
+    live.push(delta(1, 'The report '));
+    await settle();
+    live.push(delta(2, 'is half '));
+    t.api.resetToNewChat();
+    await settle();
+    const after = t.button();
+    check('New Chat while a reply runs stays on the new chat with nothing of the old turn, and Send is free',
+      t.api.state().thread === null && t.api.state().messages.length === 0 && t.bubble() === null &&
+      !after.stop && after.label === 'Send message' && !t.api.state().isLoading && t.banner() === '' &&
+      t.calls.length === 1 && t.loads() === 1,
+      JSON.stringify({ state: t.api.state(), after, banner: t.banner(), loads: t.loads(), calls: t.calls.map(c => c.url) }));
+  }
+  {
+    // New Chat while the console waits to re-attach: the wait ends at once, and never re-attaches.
+    const held = [];
+    const t = boot(url => url === STREAM_URL ? sse([delta(1, 'The report ')]) : json(200, {}), held);
+    t.send('Write the report');
+    await settle();
+    const waiting = t.button();
+    t.api.resetToNewChat();
+    await settle();
+    const after = t.button();
+    held.forEach(fn => fn());
+    await settle();
+    check('New Chat during a re-attach wait frees Send at once and never re-attaches',
+      waiting.stop && held.length === 1 && !after.stop && after.label === 'Send message' &&
+      !t.api.state().isLoading && t.api.state().thread === null && t.calls.length === 1,
+      JSON.stringify({ waiting, held: held.length, after, state: t.api.state(), calls: t.calls.map(c => c.url) }));
+  }
+  {
+    // New Chat under a working line: its words and its clock go with the turn.
+    const live = liveStream();
+    const t = boot((url, init) => url === STREAM_URL ? live.bind(init.signal) : json(200, {}));
+    t.send('Write the report');
+    live.push(delta(1, 'The report ') + frame(2, { type: 'progress', label: 'Searching', elapsed_s: 3 }));
+    await settle();
+    const before = { line: t.workingLine(), clocks: t.clocks() };
+    t.api.resetToNewChat();
+    await settle();
+    check('New Chat under a working line takes the line and its clock with the turn',
+      before.line === 'Searching 0:03' && before.clocks === 1 && t.workingLine() === null && t.clocks() === 0,
+      JSON.stringify({ before, line: t.workingLine(), clocks: t.clocks() }));
+  }
+  {
+    // The watchdog cut a quiet stream (it aborts the stream's controller); New Chat in the wait after.
+    const live = liveStream(), held = [];
+    const t = boot((url, init) => url === STREAM_URL ? live.bind(init.signal) : json(200, {}), held);
+    t.send('Write the report');
+    live.push(delta(1, 'The report '));
+    await settle();
+    t.api.watchdog();
+    await settle();
+    const waiting = t.button();
+    t.api.resetToNewChat();
+    await settle();
+    const after = t.button();
+    check('New Chat after the watchdog cut the stream still frees Send at once',
+      waiting.stop && held.length === 1 && !after.stop && !t.api.state().isLoading,
+      JSON.stringify({ waiting, held: held.length, after, state: t.api.state() }));
   }
 
   console.log('Staff AI Stop button (W82)');

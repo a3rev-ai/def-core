@@ -29,7 +29,11 @@
  *   git show origin/main:assets/js/staff-ai.js | sed -n '/^\tfunction renderConversationList/,/Chat Options: the row/p' > /tmp/old.js
  *   CONVERSATION_LIST=/tmp/old.js node tests/browser/harness-conversation-list.js
  *
- * 12 checks.
+ *  4. The list says it is loading (W82, 9.6.1): the shipped placeholder reads
+ *     "Loading conversations…" with a spinner, and "No conversations yet" shows only
+ *     once the fetch has ended with an empty list — or failed, beside the error.
+ *
+ * 16 checks.
  */
 const { JSDOM } = require('jsdom');
 const extract = require('./extract');
@@ -95,13 +99,13 @@ function boot(conversations, currentConversationId) {
 	// currentConversationId is a parameter, and a parameter is a binding the
 	// returned setter can write: that is how a check taps a row and redraws.
 	const api = new window.Function(
-		'window', 'document', 'conversationList', 'conversationPlaceholder',
+		'window', 'document', 'conversationList', 'conversationPlaceholder', 'conversationsLoaded',
 		'conversations', 'currentConversationId', 'closeChatMenu', 't', 'formatTime',
 		'loadConversation', 'openChatMenu',
 		BLOCK + '\nreturn { render: renderConversationList,'
 		+ ' open: function (id) { currentConversationId = id; } };'
 	)(
-		window, document, list, document.getElementById('conversationPlaceholder'),
+		window, document, list, document.getElementById('conversationPlaceholder'), true,
 		conversations, currentConversationId, function () {},
 		function (key, def) { return def; },
 		function (at) { return String(at || ''); },
@@ -247,6 +251,61 @@ const history = () => Array.from({ length: 12 }, (_, i) => ({
 		t.active().join(',') === 'c3', t.active().join(','));
 }
 
-console.log('harness-conversation-list: ' + pass + ' passed, ' + fail + ' failed');
-results.forEach(r => console.log(r));
-process.exit(fail ? 1 : 0);
+// ---- 4. the list says it is loading ----------------------------------------
+(async function () {
+	const fs = require('fs');
+	const LOAD = extract.slice('loadConversations',
+		l => l.startsWith('\tasync function loadConversations() {'),
+		l => l.startsWith('\tfunction renderConversationList() {'),
+		['conversationsLoaded = true'], 'CONVERSATION_LOAD');
+	// The SHIPPED placeholder, with its PHP strings as WordPress prints them untranslated.
+	const php = fs.readFileSync(extract.TEMPLATE_PATH, 'utf8');
+	const placeholder = php.match(/<div class="conversation-list-placeholder"[\s\S]*?<\/div>/)[0]
+		.replace(/<\?php echo esc_html__\( '([^']*)', 'digital-employees' \); \?>/g, '$1');
+
+	function bootLoad(answer) {
+		const dom = new JSDOM('<!doctype html><nav id="conversationList">' + placeholder + '</nav>');
+		const document = dom.window.document;
+		const list = document.getElementById('conversationList');
+		const ph = document.getElementById('conversationPlaceholder');
+		let error = '';
+		const api = new dom.window.Function(
+			'window', 'document', 'conversationList', 'conversationPlaceholder', 'apiRequest',
+			'closeChatMenu', 't', 'formatTime', 'loadConversation', 'openChatMenu', 'hideError', 'showError', 'console',
+			'let conversations = [], currentConversationId = null, conversationsLoaded = false;\n' + LOAD + '\n' + BLOCK +
+			'\nreturn { load: loadConversations, render: renderConversationList };'
+		)(dom.window, document, list, ph, answer, function () {}, function (k, d) { return d; },
+			function () { return ''; }, function () {}, function () {},
+			function () { error = ''; }, function (m) { error = m; }, { error() {} });
+		return {
+			api, error: () => error,
+			text: () => ph.textContent.trim(), spinning: () => !!ph.querySelector('.share-loading-spinner'),
+			shown: () => ph.style.display !== 'none',
+		};
+	}
+
+	let release;
+	const t = bootLoad(() => new Promise(r => { release = r; }));
+	const loading = t.api.load();
+	t.api.render();   // New Chat, a rename: a redraw before the fetch ends
+	check('before the list has loaded it says so, with a spinner, even through a redraw',
+		t.text() === 'Loading conversations…' && t.spinning() && t.shown(), t.text());
+	release({ conversations: [] });
+	await loading;
+	check('a loaded, empty list says "No conversations yet", and the spinner is gone',
+		t.text() === 'No conversations yet' && !t.spinning() && t.shown(), t.text());
+
+	const rows = bootLoad(async () => ({ conversations: [{ id: 'c1', title: 'One', updated_at: '' }] }));
+	await rows.api.load();
+	check('a loaded list with rows hides the placeholder', !rows.shown());
+
+	const failed = bootLoad(async () => { throw new Error('Backend down.'); });
+	await failed.api.load();
+	check('a failed fetch ends on the empty text, not a spinner, with the error showing',
+		failed.text() === 'No conversations yet' && !failed.spinning() && failed.error().indexOf('Backend down.') === 0,
+		failed.text() + ' | ' + failed.error());
+})().then(function () {
+	console.log('harness-conversation-list: ' + pass + ' passed, ' + fail + ' failed');
+	results.forEach(r => console.log(r));
+	process.exit(fail ? 1 : 0);
+}, function (e) { console.error(e); process.exit(1); });

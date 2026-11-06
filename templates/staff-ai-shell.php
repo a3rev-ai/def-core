@@ -129,7 +129,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</nav>
 			<nav class="conversation-list" id="conversationList" aria-label="<?php echo esc_attr__( 'Conversations', 'digital-employees' ); ?>">
 				<div class="conversation-list-placeholder" id="conversationPlaceholder">
-					<?php echo esc_html__( 'No conversations yet', 'digital-employees' ); ?>
+					<span class="share-loading-spinner" aria-hidden="true"></span>
+					<?php echo esc_html__( 'Loading conversations…', 'digital-employees' ); ?>
 				</div>
 			</nav>
 			<div class="sidebar-footer">
@@ -964,6 +965,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			stopping: <?php echo wp_json_encode( __( 'Stopping…', 'digital-employees' ) ); ?>,
 			stopFailed: <?php echo wp_json_encode( __( "Couldn't stop the reply. Try again.", 'digital-employees' ) ); ?>,
 			stopped: <?php echo wp_json_encode( __( 'Stopped', 'digital-employees' ) ); ?>,
+			noConversations: <?php echo wp_json_encode( __( 'No conversations yet', 'digital-employees' ) ); ?>,
 			assistantStopped: <?php echo wp_json_encode( __( 'The assistant stopped before finishing. Please try again.', 'digital-employees' ) ); ?>,
 			micStart: <?php echo wp_json_encode( __( 'Speak', 'digital-employees' ) ); ?>,
 			micDenied: <?php echo wp_json_encode( __( 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.', 'digital-employees' ) ); ?>,

@@ -72,7 +72,7 @@ function boot(script, opts) {
   const api = new window.Function(...names,
     'let nonce = StaffAIConfig.nonce; var isLoading = false, isReadOnly = false, conversationOn = false,' +
     ' spokenTurn = false, openingSpoken = null, lastSuggestion = null, selectedModel = "", currentConversationId = null,' +
-    ' activeProjectId = null, _streamAbort = null, _turnReachedServer = false, voiceStopped = false, _eventsSeen = 0,' +
+    ' activeProjectId = null, _streamAbort = null, _turnReachedServer = false, turnReleased = false, _eventsSeen = 0,' +
     ' _isStreaming = false, _userScrolledUp = false;\n' +
     REQUEST + '\n' + BANNER + '\n' + SEND +
     '\nreturn { sendMessage: sendMessage, apiRequest: apiRequest, nonce: function () { return nonce; } };'
