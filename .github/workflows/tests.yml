@@ -38,13 +38,8 @@ jobs:
     # .wp-env.json (WordPress/WordPress#6.9.1, PHP 8.0), so a WP point
     # release cannot turn this job red on an unrelated morning.
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: widrow
     steps:
       - uses: actions/checkout@v5
-        with:
-          path: widrow
       - uses: actions/setup-node@v4
         with:
           node-version: 20
