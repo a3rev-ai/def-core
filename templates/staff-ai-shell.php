@@ -571,9 +571,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 								</button>
 								<select class="model-select" id="modelSelect" hidden aria-label="<?php echo esc_attr__( 'AI model', 'digital-employees' ); ?>" title="<?php echo esc_attr__( 'Choose the AI model for this session', 'digital-employees' ); ?>"></select>
 								<button type="button" class="send-btn" id="sendBtn" disabled aria-label="<?php echo esc_attr__( 'Send message', 'digital-employees' ); ?>">
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 										<line x1="22" y1="2" x2="11" y2="13"></line>
 										<polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+									</svg>
+									<svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true">
+										<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"></rect>
 									</svg>
 								</button>
 							</div>
@@ -956,6 +959,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 			reloadPage: <?php echo wp_json_encode( __( 'Reload', 'digital-employees' ) ); ?>,
 			stillWorking: <?php echo wp_json_encode( __( 'Your assistant is still working on this — reopen the chat in a minute to see the reply.', 'digital-employees' ) ); ?>,
 			reconnecting: <?php echo wp_json_encode( __( 'Reconnecting…', 'digital-employees' ) ); ?>,
+			sendMessage: <?php echo wp_json_encode( __( 'Send message', 'digital-employees' ) ); ?>,
+			stop: <?php echo wp_json_encode( __( 'Stop', 'digital-employees' ) ); ?>,
+			stopping: <?php echo wp_json_encode( __( 'Stopping…', 'digital-employees' ) ); ?>,
+			stopFailed: <?php echo wp_json_encode( __( "Couldn't stop the reply. Try again.", 'digital-employees' ) ); ?>,
+			stopped: <?php echo wp_json_encode( __( 'Stopped', 'digital-employees' ) ); ?>,
 			assistantStopped: <?php echo wp_json_encode( __( 'The assistant stopped before finishing. Please try again.', 'digital-employees' ) ); ?>,
 			micStart: <?php echo wp_json_encode( __( 'Speak', 'digital-employees' ) ); ?>,
 			micDenied: <?php echo wp_json_encode( __( 'The microphone is blocked for this site in your browser. Allow it in the site permissions (the icon beside the address bar) and try again.', 'digital-employees' ) ); ?>,

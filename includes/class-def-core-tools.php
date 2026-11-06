@@ -729,6 +729,22 @@ final class DEF_Core_Tools {
 	}
 
 	/**
+	 * BFF proxy for the Staff AI Stop button (W82): asks DEF to stop a reply still being
+	 * written. DEF checks the thread is this user's; it answers {state}. No visitor IP, no
+	 * body: a stop sends no message.
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function rest_proxy_staff_ai_turn_stop( $request ) {
+		$headers = self::build_proxy_headers( true, false );
+		$def_url = \DEF_Core::get_def_api_url_internal() . '/api/staff-ai/threads/'
+			. rawurlencode( (string) $request->get_param( 'id' ) ) . '/turns/'
+			. rawurlencode( (string) $request->get_param( 'turn' ) ) . '/stop';
+		return self::json_proxy( $def_url, $headers, '' );
+	}
+
+	/**
 	 * BFF proxy for Staff AI status check.
 	 *
 	 * @param \WP_REST_Request $request The REST request.

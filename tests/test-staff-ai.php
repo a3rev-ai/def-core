@@ -341,6 +341,11 @@ assert_equals( 'GET', $_resume['methods'] ?? '', 'turn resume = GET' );
 assert_equals( array( 'DEF_Core_Staff_AI', 'rest_permission_check' ), $_resume['permission_callback'] ?? null, 'turn resume takes the conversation routes\' permission callback' );
 assert_equals( array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_turn_resume' ), $_resume['callback'] ?? null, 'turn resume is the Tools stream proxy' );
 assert_equals( array( 'type' => 'integer', 'required' => true, 'minimum' => 0 ), $_resume['args']['after'] ?? null, 'turn resume: `after` is a required non-negative integer' );
+// Stop (W82): a POST behind the same gate, relayed to DEF by the Tools proxy.
+$_stop = $_wp_test_rest_routes['a3-ai/v1/staff-ai/conversations/(?P<id>[a-zA-Z0-9_-]+)/turns/(?P<turn>[a-zA-Z0-9_-]+)/stop'] ?? array();
+assert_equals( 'POST', $_stop['methods'] ?? '', 'turn stop = POST' );
+assert_equals( array( 'DEF_Core_Staff_AI', 'rest_permission_check' ), $_stop['permission_callback'] ?? null, 'turn stop takes the conversation routes\' permission callback' );
+assert_equals( array( 'DEF_Core_Tools', 'rest_proxy_staff_ai_turn_stop' ), $_stop['callback'] ?? null, 'turn stop is the Tools proxy' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories']['methods'], 'memories = GET' );
 assert_equals( 'DELETE', $_wp_test_rest_routes['a3-ai/v1/staff-ai/memories/(?P<id>[a-zA-Z0-9-]+)']['methods'], 'memories delete = DELETE' );
 assert_equals( 'GET', $_wp_test_rest_routes['a3-ai/v1/staff-ai/usage']['methods'], 'usage = GET' );
