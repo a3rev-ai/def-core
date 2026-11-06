@@ -80,6 +80,8 @@ function liveStream() {
     { status: 200, headers: { 'content-type': 'text/event-stream' } });
   return { response, push: s => ctrl.enqueue(enc.encode(s)), close: () => ctrl.close() };
 }
+// The proxy's own frame for a 410: DEF no longer holds the turn on the worker reached.
+const gone = 'data: ' + JSON.stringify({ type: 'error', message: 'The assistant is unavailable right now. Please try again.', status: 410 }) + '\n\n';
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const HEAD = `
@@ -240,6 +242,21 @@ function check(label, cond, detail) {
     check('a stopped `done` that arrives on a re-attach keeps the note',
       t.calls.some(c => c.url === resumeUrl(1)) && words(t.bubble()) === 'The report' && note(t.bubble()) === 'Stopped',
       JSON.stringify({ calls: t.calls.map(c => c.url), note: note(t.bubble()) }));
+  }
+  {
+    // The re-attach reaches a worker without the turn (410): the console renders the thread.
+    const t = boot(url => url === STREAM_URL ? sse([delta(1, 'The report ')])
+      : url.indexOf('/turns/') !== -1 ? sse([gone])
+      : url === BASE + '/conversations/th-1' ? json(200, { success: true, id: 'th-1', messages: [
+        { role: 'user', content: 'Write the report' },
+        { role: 'assistant', content: 'The report', is_complete: true, stopped: true }] })
+      : json(200, {}));
+    await t.send('Write the report');
+    await settle();
+    check('a stopped reply read from the thread after a 410 re-attach keeps the note',
+      t.calls.some(c => c.url === BASE + '/conversations/th-1') && words(t.bubble()) === 'The report' &&
+      note(t.bubble()) === 'Stopped' && t.banner() === '',
+      JSON.stringify({ calls: t.calls.map(c => c.url), words: words(t.bubble()), note: note(t.bubble()), banner: t.banner() }));
   }
 
   console.log('Staff AI Stop button (W82)');

@@ -4579,6 +4579,9 @@ final class DEF_Core_Staff_AI
 					'timestamp'    => $msg['timestamp'] ?? '',
 					// A spoken turn (7.7.0) keeps its mic glyph on reload.
 					'via_voice'    => ! empty($msg['via_voice']),
+					// A reply the person stopped keeps its "Stopped" note on reload and on a
+					// re-attach that renders the thread (W82).
+					'stopped'      => ! empty($msg['stopped']),
 					// Pass through replay-safe tool_outputs from the backend (web citation
 					// sources, result cards) so the widget rebuilds inline pills / cards
 					// on history reload.
