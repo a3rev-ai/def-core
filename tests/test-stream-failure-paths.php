@@ -126,7 +126,7 @@ assert_test(
 	'staff: a spoken stop empties the event queue — a done event already parsed cannot render the discarded reply'
 );
 assert_test(
-	1 === preg_match( '/catch \(err\) \{[\s\S]{0,200}?if \(turnReleased\) return;/', $staff_js ),
+	1 === preg_match( '/catch \(err\) \{[\s\S]{0,200}?if \(turnReleased\) \{ loadConversations\(\); return; \}/', $staff_js ),
 	'staff: the aborted spoken turn returns from the catch — it is never recovered onto the thread'
 );
 

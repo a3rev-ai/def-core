@@ -3776,7 +3776,13 @@ function t(key, fallback) {
 			try {
 				await readStream(response.body);
 			} catch (e) {
-				if (!turnId || turnReleased) throw e;   // nothing to re-attach to: the catch below recovers
+				if (!turnId || turnReleased) {   // nothing to re-attach to: the catch below recovers
+					// The working line sits beside the bubble, where a redraw never reaches, and
+					// the finally that clears it is below: clear it and its clock here.
+					clearInterval(progressClock);
+					if (thinkingStatusEl) { thinkingStatusEl.remove(); thinkingStatusEl = null; }
+					throw e;
+				}
 			}
 			// A 410: the worker the resume reached does not hold the turn (DEF runs several, so
 			// that is most re-attaches) or none does any more. The thread is polled every 3 s
@@ -3804,10 +3810,12 @@ function t(key, fallback) {
 					if (currentConversationId !== turnThread) return;   // the person moved on
 					if (cut === 410 && !polling) pollBeside(lastSeq);
 					workingLine().textContent = t('reconnecting', 'Reconnecting…');
-					var waking = _streamAbort;   // New Chat aborts it: the wait ends at once
+					// New Chat aborts it and the wait ends at once. A fresh one: the visibility
+					// watchdog may already have aborted the last, and a second abort does nothing.
+					var waking = _streamAbort = new AbortController();
 					await new Promise(function(r) {
 						setTimeout(r, waits[Math.min(attempt, waits.length - 1)]);
-						if (waking) waking.signal.addEventListener('abort', r);
+						waking.signal.addEventListener('abort', r);
 					});
 					if (finished || turnReleased || currentConversationId !== turnThread) return;
 					var seen = lastSeq, resumed = null;
@@ -3840,7 +3848,7 @@ function t(key, fallback) {
 			await attemptStream();
 		} catch (err) {
 			// Let go of (a spoken stop, New Chat): the turn is discarded, never recovered onto the view.
-			if (turnReleased) return;
+			if (turnReleased) { loadConversations(); return; }   // a first reply's chat joins the sidebar
 			console.error('[Staff AI] Streaming error:', err);
 			spokenTurn = false;
 			if (conversationOn) endConversation();
