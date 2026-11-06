@@ -325,6 +325,7 @@ function t(key, fallback) {
 
 	// State
 	let conversations = [];
+	let conversationsLoaded = false;   // the sidebar says it is loading until the first fetch ends
 	let currentConversationId = null;
 	let messages = [];
 	let isLoading = false;
@@ -559,11 +560,13 @@ function t(key, fallback) {
 		try {
 			const result = await apiRequest('/conversations');
 			conversations = result.conversations || [];
+			conversationsLoaded = true;
 			renderConversationList();
 			hideError();
 		} catch (err) {
 			console.error('Failed to load conversations:', err);
 			conversations = [];
+			conversationsLoaded = true;   // a failed fetch ends on the empty text, beside the error
 			renderConversationList();
 			// Show detailed error with troubleshooting hint
 			let errorMsg = err.message || t('failedToConnect', 'Failed to connect to backend service.');
@@ -592,6 +595,7 @@ function t(key, fallback) {
 		closeChatMenu();
 
 		if (conversations.length === 0) {
+			if (conversationsLoaded) conversationPlaceholder.textContent = t('noConversations', 'No conversations yet');
 			conversationPlaceholder.style.display = 'block';
 			return;   // no rows left to hold an offset: the scroller is 0 either way
 		}

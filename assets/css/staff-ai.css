@@ -237,6 +237,16 @@ body {
 	text-align: center;
 }
 
+/* Until the list has loaded: the share modal's spinner, at the text's size. */
+.conversation-list-placeholder .share-loading-spinner {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border-width: 2px;
+	margin-right: 6px;
+	vertical-align: -2px;
+}
+
 /* Scheduled task card — the list §6.1 asks for: name, description, cadence
    badge, status, and Run now. The card, its head and its actions are the
    console card kit's (C6b); these are the parts only a task card has, inset
