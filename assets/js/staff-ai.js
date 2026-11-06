@@ -1150,7 +1150,7 @@ function t(key, fallback) {
 		// A reply still running is let go of, as a spoken stop lets go: nothing of it reaches the
 		// new chat, and the send's own finally frees the composer. DEF lands it on its thread.
 		if (_streamAbort) { turnReleased = true; _streamAbort.abort(); }
-		if (conversationOn) endConversation();
+		if (conversationOn || spokenTurn) endConversation();   // a reply being read aloud goes quiet too
 		// Every path to a fresh chat leaves the open page — the sidebar button,
 		// a project row's "New chat", every Ask button.
 		showChat({ focus: false });
@@ -3800,8 +3800,12 @@ function t(key, fallback) {
 					if (currentConversationId !== turnThread) return;   // the person moved on
 					if (cut === 410 && !polling) pollBeside(lastSeq);
 					workingLine().textContent = t('reconnecting', 'Reconnecting…');
-					await new Promise(function(r) { setTimeout(r, waits[Math.min(attempt, waits.length - 1)]); });
-					if (finished || currentConversationId !== turnThread) return;
+					var waking = _streamAbort;   // New Chat aborts it: the wait ends at once
+					await new Promise(function(r) {
+						setTimeout(r, waits[Math.min(attempt, waits.length - 1)]);
+						if (waking) waking.signal.addEventListener('abort', r);
+					});
+					if (finished || turnReleased || currentConversationId !== turnThread) return;
 					var seen = lastSeq, resumed = null;
 					cut = null;
 					_streamAbort = new AbortController();
@@ -3832,7 +3836,7 @@ function t(key, fallback) {
 			await attemptStream();
 		} catch (err) {
 			// Let go of (a spoken stop, New Chat): the turn is discarded, never recovered onto the view.
-			if (turnReleased) { turnReleased = false; return; }
+			if (turnReleased) return;
 			console.error('[Staff AI] Streaming error:', err);
 			spokenTurn = false;
 			if (conversationOn) endConversation();
@@ -3851,6 +3855,7 @@ function t(key, fallback) {
 			}
 		} finally {
 			_streamAbort = null;
+			turnReleased = false;
 			_isStreaming = false;
 			_userScrolledUp = false;
 			isLoading = false;

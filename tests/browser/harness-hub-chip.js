@@ -43,7 +43,7 @@ function boot() {
   };
   const names = Object.keys(deps);
   const api = new window.Function(...names,
-    'var currentConversationId = null, isReadOnly = false, conversationOn = false, messages = [], _streamAbort = null, turnReleased = false;\n' +
+    'var currentConversationId = null, isReadOnly = false, conversationOn = false, messages = [], _streamAbort = null, turnReleased = false, spokenTurn = false;\n' +
     CHIP + '\n' + NEW_CHAT + '\n' + LOAD + '\n' +
     'return { setActiveProject: setActiveProject, clearActiveProject: clearActiveProject,' +
     ' resetToNewChat: resetToNewChat, loadConversation: loadConversation,' +

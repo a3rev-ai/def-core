@@ -119,7 +119,7 @@ const TAIL = `
 	return { sendMessage: sendMessage, resetToNewChat: resetToNewChat,
 		state: function () { return { isLoading: isLoading, messages: messages, thread: currentConversationId }; } };`;
 
-function boot(route) {
+function boot(route, held) {   // held: an array that keeps the re-attach waits (>= 1 s) until run
   const dom = new JSDOM('<!doctype html><div id="messagesContainer"><div id="messagesList"></div></div>' +
     '<div id="errorBanner"></div><div id="infoBanner"></div><div id="confirmChips"></div>' +
     '<textarea id="composerInput"></textarea><button id="sendBtn" disabled aria-label="Send message"></button>',
@@ -134,7 +134,7 @@ function boot(route) {
   const $ = id => document.getElementById(id);
   const deps = {
     window, document, fetch: fakeFetch, Response, ReadableStream, TextDecoder, AbortController,
-    setTimeout: fn => setTimeout(fn, 0), setInterval: () => 0, clearInterval() {},
+    setTimeout: (fn, ms) => held && ms >= 1000 ? held.push(fn) : setTimeout(fn, 0), setInterval: () => 0, clearInterval() {},
     StaffAIConfig: { nonce: 'n0000000', nonceUrl: 'https://e.test/wp-admin/admin-ajax.php?action=rest-nonce' },
     apiBase: BASE, chatStreamUrl: STREAM_URL, location: { reload() {} },
     messagesList: $('messagesList'), messagesContainer: $('messagesContainer'), errorBanner: $('errorBanner'),
@@ -284,6 +284,23 @@ function check(label, cond, detail) {
       !after.stop && after.label === 'Send message' && !t.api.state().isLoading && t.banner() === '' &&
       t.calls.length === 1,
       JSON.stringify({ state: t.api.state(), after, banner: t.banner(), calls: t.calls.map(c => c.url) }));
+  }
+  {
+    // New Chat while the console waits to re-attach: the wait ends at once, and never re-attaches.
+    const held = [];
+    const t = boot(url => url === STREAM_URL ? sse([delta(1, 'The report ')]) : json(200, {}), held);
+    t.send('Write the report');
+    await settle();
+    const waiting = t.button();
+    t.api.resetToNewChat();
+    await settle();
+    const after = t.button();
+    held.forEach(fn => fn());
+    await settle();
+    check('New Chat during a re-attach wait frees Send at once and never re-attaches',
+      waiting.stop && held.length === 1 && !after.stop && after.label === 'Send message' &&
+      !t.api.state().isLoading && t.api.state().thread === null && t.calls.length === 1,
+      JSON.stringify({ waiting, held: held.length, after, state: t.api.state(), calls: t.calls.map(c => c.url) }));
   }
 
   console.log('Staff AI Stop button (W82)');
