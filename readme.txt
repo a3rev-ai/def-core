@@ -1,10 +1,10 @@
-=== Digital Employee Framework - Core ===
+=== Widrow AI ===
 Contributors: a3rev
 Tags: ai, chat, digital employee, ai assistant, customer support
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 9.6.1
+Stable tag: 9.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,7 +55,7 @@ When WooCommerce is active, additional tools load automatically — product sear
 
 = From GitHub =
 
-1. Download the latest release from [GitHub Releases](https://github.com/a3rev-ai/def-core/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/a3rev-ai/widrow/releases)
 2. In WordPress, go to **Plugins > Add New > Upload Plugin**
 3. Upload the .zip file and click **Install Now**
 4. Activate the plugin
@@ -64,12 +64,12 @@ The plugin checks GitHub for updates automatically — standard WordPress update
 
 = Manual Installation =
 
-1. Upload the `def-core` folder to `/wp-content/plugins/`
+1. Upload the `widrow-ai` folder to `/wp-content/plugins/`
 2. Activate the plugin through the **Plugins** menu in WordPress
 
 = Configuration =
 
-1. Go to **Digital Employees** in your wp-admin sidebar
+1. Go to **Widrow AI** in your wp-admin sidebar
 2. Use the **Setup Assistant** tab to configure your site conversationally, or configure manually:
 3. **Connection** — push from DEFHO Tenant Portal, or enter API URL and API Key manually
 4. **Branding** — set display name, logo, and app icon
@@ -105,7 +105,7 @@ Yes. The plugin uses RSA-256 signed JWT tokens, all authority is enforced server
 
 = How do I customize the chat button? =
 
-Go to **Digital Employees > Chat Settings**. You can set button position (left/right), colors (auto-detected from your theme or custom), icon style, and button label text.
+Go to **Widrow AI > Chat Settings**. You can set button position (left/right), colors (auto-detected from your theme or custom), icon style, and button label text.
 
 = What data is sent to the AI service? =
 
@@ -119,6 +119,10 @@ Chat messages, user display name, session context, and the visitor's IP address 
 4. Admin Settings — Branding, Chat Settings, Escalation, User Roles, and Connection tabs
 
 == Changelog ==
+
+= 9.7.0 - 2026-11-09 =
+* New - This plugin is now Widrow AI. Its name, the wp-admin menu, its screens and notices, and its block category and editor panel all say Widrow AI. Your settings and your connection stay exactly as they are.
+* Tweak - Updates and downloads now come from github.com/a3rev-ai/widrow, and the download is widrow-ai.zip.
 
 = 9.6.1 - 2026-11-06 =
 * Fix - Staff AI: New Chat while a reply is being written now opens the new chat with Send ready, and the reply finishes in its own conversation.
@@ -1079,9 +1083,9 @@ Initial public release of Digital Employee Framework - Core.
 
 == Additional Info ==
 
-**Support**: For support, visit [defho.ai](https://defho.ai/) or open an issue on [GitHub](https://github.com/a3rev-ai/def-core/issues)
+**Support**: For support, visit [defho.ai](https://defho.ai/) or open an issue on [GitHub](https://github.com/a3rev-ai/widrow/issues)
 
-**Documentation**: See the plugin [README on GitHub](https://github.com/a3rev-ai/def-core) for full documentation
+**Documentation**: See the plugin [README on GitHub](https://github.com/a3rev-ai/widrow) for full documentation
 
 **Security**: Report security issues to security@a3rev.com
 

@@ -1,6 +1,6 @@
 # Security Policy
 
-This repository is def-core, the Digital Employees WordPress plugin.
+This repository is widrow, the Widrow AI WordPress plugin.
 
 ## Supported versions
 

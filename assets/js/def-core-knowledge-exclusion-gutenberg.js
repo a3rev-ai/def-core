@@ -22,7 +22,7 @@
 
 			return el(Panel, {
 				name: 'def-core-knowledge-exclusion',
-				title: __('Digital Employees', 'digital-employees'),
+				title: __('Widrow AI', 'digital-employees'),
 			}, el(wp.components.CheckboxControl, {
 				label: __('Exclude from Digital Employee knowledge', 'digital-employees'),
 				help: __('When checked, this item is excluded from Digital Employee knowledge. If it was already indexed, it is removed on the next sync — this item only, no Full Sync needed.', 'digital-employees'),

@@ -1,6 +1,6 @@
 # API Tools Directory
 
-This directory contains tool implementations and base classes for the Digital Employee Framework - Core plugin.
+This directory contains tool implementations and base classes for the Widrow AI plugin.
 
 ## Structure
 

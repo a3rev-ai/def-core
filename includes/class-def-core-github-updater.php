@@ -8,9 +8,9 @@
  * Usage (in any DEF plugin):
  *   new DEF_Core_GitHub_Updater( [
  *       'file'    => __FILE__,                        // Main plugin file path
- *       'repo'    => 'a3rev-ai/def-core',             // GitHub owner/repo
+ *       'repo'    => 'a3rev-ai/widrow',             // GitHub owner/repo
  *       'slug'    => 'digital-employees',              // Plugin folder name
- *       'asset'   => 'digital-employees.zip',          // Release asset filename
+ *       'asset'   => 'widrow-ai.zip',          // Release asset filename
  *       'version' => DEF_CORE_VERSION,                 // Current installed version
  *   ] );
  *
@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class DEF_Core_GitHub_Updater {
 
 	/**
-	 * GitHub owner/repo (e.g. "a3rev-ai/def-core").
+	 * GitHub owner/repo (e.g. "a3rev-ai/widrow").
 	 *
 	 * @var string
 	 */
@@ -51,7 +51,7 @@ final class DEF_Core_GitHub_Updater {
 	private string $slug;
 
 	/**
-	 * Release asset filename to download (e.g. "digital-employees.zip").
+	 * Release asset filename to download (e.g. "widrow-ai.zip").
 	 *
 	 * @var string
 	 */

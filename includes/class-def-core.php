@@ -212,9 +212,9 @@ final class DEF_Core {
 		// GitHub auto-updater for def-core itself.
 		new DEF_Core_GitHub_Updater( array(
 			'file'    => DEF_CORE_PLUGIN_DIR . 'def-core.php',
-			'repo'    => 'a3rev-ai/def-core',
+			'repo'    => 'a3rev-ai/widrow',
 			'slug'    => 'def-core',
-			'asset'   => 'digital-employees.zip',
+			'asset'   => 'widrow-ai.zip',
 			'version' => DEF_CORE_VERSION,
 		) );
 	}

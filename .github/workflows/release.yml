@@ -17,27 +17,34 @@ jobs:
       - name: Build plugin zip
         run: |
           # Create clean build directory
-          mkdir -p build/digital-employees
+          mkdir -p build/widrow-ai
 
           # Copy only distributable files (no dev files, tests, CI config)
-          cp def-core.php LICENSE README.md readme.txt changelog.txt build/digital-employees/
-          cp -r assets build/digital-employees/
-          cp -r includes build/digital-employees/
-          cp -r languages build/digital-employees/
-          cp -r templates build/digital-employees/
-          cp -r vendor build/digital-employees/
+          cp def-core.php LICENSE README.md readme.txt changelog.txt build/widrow-ai/
+          cp -r assets build/widrow-ai/
+          cp -r includes build/widrow-ai/
+          cp -r languages build/widrow-ai/
+          cp -r templates build/widrow-ai/
+          cp -r vendor build/widrow-ai/
 
           # Remove dev-only vendor packages if any
-          rm -rf build/digital-employees/vendor/bin
+          rm -rf build/widrow-ai/vendor/bin
 
           # Create zip from build directory
           cd build
+          zip -r ../widrow-ai.zip widrow-ai/
+
+          # Sites on 9.6.1 or earlier look for digital-employees.zip by name, so a
+          # release without it gives them no update. It goes when every live site
+          # is on 9.7.0 or later (W86 W6).
+          mv widrow-ai digital-employees
           zip -r ../digital-employees.zip digital-employees/
 
           # Verify structure
           echo "=== Zip contents (first 20 entries) ==="
-          unzip -l ../digital-employees.zip | head -25
+          unzip -l ../widrow-ai.zip | head -25
           echo "=== Verifying main plugin file ==="
+          unzip -p ../widrow-ai.zip widrow-ai/def-core.php | head -5
           unzip -p ../digital-employees.zip digital-employees/def-core.php | head -5
 
       - name: Upload zip to release
@@ -45,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload "${{ github.event.release.tag_name }}" \
-            digital-employees.zip \
+            widrow-ai.zip digital-employees.zip \
             --clobber
 
       # Note: README download badge is updated manually as part of the

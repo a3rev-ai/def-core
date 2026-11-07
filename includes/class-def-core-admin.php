@@ -194,8 +194,8 @@ final class DEF_Core_Admin {
 	 */
 	public static function add_settings_page(): void {
 		add_menu_page(
-			__( 'Digital Employees', 'digital-employees' ),
-			__( 'Digital Employees', 'digital-employees' ),
+			__( 'Widrow AI', 'digital-employees' ),
+			__( 'Widrow AI', 'digital-employees' ),
 			'def_admin_access',
 			'def-core',
 			array( __CLASS__, 'render_settings_page' ),
@@ -203,7 +203,7 @@ final class DEF_Core_Admin {
 			81
 		);
 
-		// Rename the auto-created first submenu from "Digital Employees" to "Settings".
+		// Rename the auto-created first submenu from "Widrow AI" to "Settings".
 		add_submenu_page(
 			'def-core',
 			__( 'Settings', 'digital-employees' ),
@@ -304,8 +304,8 @@ final class DEF_Core_Admin {
 		?>
 		<div class="notice notice-error">
 			<p>
-				<strong><?php esc_html_e( 'Digital Employees — Connection Credentials Error', 'digital-employees' ); ?></strong><br />
-				<?php esc_html_e( 'Your WordPress security keys changed, so the saved DEFHO connection credentials can no longer be read — your Digital Employees are offline. Open Digital Employees → Connection and click "Reconnect to DEFHO" to restore them (a quick sign-in re-provisions the credentials).', 'digital-employees' ); ?>
+				<strong><?php esc_html_e( 'Widrow AI — Connection Credentials Error', 'digital-employees' ); ?></strong><br />
+				<?php esc_html_e( 'Your WordPress security keys changed, so the saved DEFHO connection credentials can no longer be read — your Digital Employees are offline. Open Widrow AI → Connection and click "Reconnect to DEFHO" to restore them (a quick sign-in re-provisions the credentials).', 'digital-employees' ); ?>
 			</p>
 		</div>
 		<?php
@@ -1540,7 +1540,7 @@ final class DEF_Core_Admin {
 
 		$channel_label = ucwords( str_replace( '_', ' ', $channel ) );
 		$subject       = sprintf( '[DEF Test] Contact request test — %s', $channel_label );
-		$body          = __( 'This is a test contact request from Digital Employee Framework. If you received this, contact requests are working correctly.', 'digital-employees' );
+		$body          = __( 'This is a test contact request from Widrow AI. If you received this, contact requests are working correctly.', 'digital-employees' );
 
 		set_transient( $transient_key, 1, 30 );
 		$sent = wp_mail( $to, $subject, $body );

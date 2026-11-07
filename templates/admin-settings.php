@@ -34,7 +34,7 @@ $tabs = array(
 $first_tab = 'branding';
 ?>
 <div class="wrap def-core-wrap">
-	<h1><?php esc_html_e( 'Digital Employees', 'digital-employees' ); ?>
+	<h1><?php esc_html_e( 'Widrow AI', 'digital-employees' ); ?>
 		<?php if ( current_user_can( 'def_admin_access' ) ) : ?>
 		<!-- Setup Assistant trigger button (inline to prevent layout shift) -->
 		<button
@@ -273,7 +273,7 @@ $first_tab = 'branding';
 					</div>
 				</div>
 				<p class="description">
-					<?php esc_html_e( 'The icon for the Staff AI app. Upload a square PNG at least 512×512px, opaque and full-bleed with no rounded corners — the phone rounds it for you. If not set, your logo is used, then your site icon, then the Digital Employees icon. After changing it, remove the app from your phone and add it again: phones cache the icon.', 'digital-employees' ); ?>
+					<?php esc_html_e( 'The icon for the Staff AI app. Upload a square PNG at least 512×512px, opaque and full-bleed with no rounded corners — the phone rounds it for you. If not set, your logo is used, then your site icon, then the Widrow AI icon. After changing it, remove the app from your phone and add it again: phones cache the icon.', 'digital-employees' ); ?>
 				</p>
 			</div>
 		</div>
