@@ -184,7 +184,7 @@ assert_same( 1, $def_core_update_checker->resets, 'an install names no plugin an
 assert_same(
 	true,
 	(bool) preg_match(
-		'/enableReleaseAssets\(\s*null,\s*\$def_core_vcs_api::REQUIRE_RELEASE_ASSETS\s*\)/',
+		'#enableReleaseAssets\(\s*\'/\^widrow-ai\\\\\.zip\$/\',\s*\$def_core_vcs_api::REQUIRE_RELEASE_ASSETS\s*\)#',
 		$src
 	),
 	'the updater REQUIRES the release asset, so a release with no zip is not an update'

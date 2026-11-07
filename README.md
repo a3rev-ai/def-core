@@ -1,12 +1,12 @@
-# Digital Employees
+# Widrow AI
 
 AI-powered Digital Employees for your WordPress site. Customer-facing chat, internal staff assistant, and intelligent setup — all connected to the [Digital Employee Framework](https://defho.ai/).
 
-[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v9.6.1-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/def-core/releases/download/v9.6.1/digital-employees.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
+[![Download Plugin](https://img.shields.io/badge/Download_Plugin-v9.7.0-blue?style=for-the-badge&logo=wordpress)](https://github.com/a3rev-ai/widrow/releases/download/v9.7.0/widrow-ai.zip) [![License: GPL v2+](https://img.shields.io/badge/License-GPL_v2+-green?style=for-the-badge)](https://www.gnu.org/licenses/gpl-2.0.html) [![WordPress Tested 7.1](https://img.shields.io/badge/WordPress-Tested_7.1-21759b?style=for-the-badge&logo=wordpress)](https://wordpress.org/)
 
 ## Where this plugin sits
 
-def-core is the open-source WordPress bridge for the Digital Employee Framework (DEF), built and operated by A3REV Software (ABN 32 556 307 251, Golden Beach, Queensland, Australia). The framework itself is private; this plugin is the part that runs on your own server, so you can read exactly what it does.
+Widrow AI is the open-source WordPress bridge for the Digital Employee Framework (DEF), built and operated by A3REV Software (ABN 32 556 307 251, Golden Beach, Queensland, Australia). The framework itself is private; this plugin is the part that runs on your own server, so you can read exactly what it does.
 
 The framework is governed by a published constitution and reaches businesses through partners. A3REV's own product on it is Widrow, and that is where the framework's public documents live:
 
@@ -81,7 +81,7 @@ An intelligent configuration agent that lives in your wp-admin settings. Guides 
 
 ### From GitHub Releases
 
-1. Download [digital-employees.zip](https://github.com/a3rev-ai/def-core/releases/latest/download/digital-employees.zip) from the latest release
+1. Download [widrow-ai.zip](https://github.com/a3rev-ai/widrow/releases/latest/download/widrow-ai.zip) from the latest release
 2. In WordPress, go to **Plugins > Add New > Upload Plugin**
 3. Upload the .zip and click **Install Now**
 4. Activate the plugin
@@ -90,13 +90,13 @@ The plugin checks GitHub for updates automatically — you'll see standard WordP
 
 ### Manual
 
-1. Clone or download this repository
-2. Upload the `def-core` folder to `/wp-content/plugins/`
+1. Download `widrow-ai.zip` from the latest release and unzip it
+2. Upload the `widrow-ai` folder to `/wp-content/plugins/`
 3. Activate via **Plugins > Installed Plugins**
 
 ## What changed, and when
 
-Every release carries a dated entry in plain words in [changelog.txt](changelog.txt), and the same entries appear on the [Releases page](https://github.com/a3rev-ai/def-core/releases) beside the plugin zip. The engineering rules the plugin is built to are in [docs/](docs/), dated when adopted.
+Every release carries a dated entry in plain words in [changelog.txt](changelog.txt), and the same entries appear on the [Releases page](https://github.com/a3rev-ai/widrow/releases) beside the plugin zip. The engineering rules the plugin is built to are in [docs/](docs/), dated when adopted.
 
 ## Getting Started
 
@@ -112,7 +112,7 @@ Once connected, Customer Chat is available on your frontend and Staff AI is avai
 1. **widrow.ai** is the public face of the framework: the site partners, A3REV Software among them, use to explain Digital Employees to a business.
 2. **defho.ai** is the Partner Portal: a partner signs in, creates the tenant, and sets it up.
 3. **The Tenant Portal**, hosted on defho.ai under the partner's subdomain, is where the business's own settings, keys, knowledge and people live.
-4. **The Digital Employees plugin** (this repo) runs on the business's WordPress. One-Click Connect from the Tenant Portal links them. Joe serves the public; Suzie and Sam serve the business's own staff inside wp-admin.
+4. **The Widrow AI plugin** (this repo) runs on the business's WordPress. One-Click Connect from the Tenant Portal links them. Joe serves the public; Suzie and Sam serve the business's own staff inside wp-admin.
 5. Every surface talks to the **Digital Employee Framework**, which runs the employees and enforces the governance. It is private and governed by the published Constitution.
 
 Joe talks to a business's visitors. Some of them run businesses. The next business meets Widrow, and the ring closes.
@@ -121,7 +121,7 @@ Joe talks to a business's visitors. Some of them run businesses. The next busine
 flowchart TD
     W["widrow.ai<br/>the public face"] --> P["defho.ai<br/>Partner Portal"]
     P --> T["Tenant Portal<br/>the business's settings, keys, knowledge, people"]
-    T -- "One-Click Connect" --> C["Digital Employees plugin<br/>on the business's WordPress"]
+    T -- "One-Click Connect" --> C["Widrow AI plugin<br/>on the business's WordPress"]
     C -- "Joe to the public; Suzie and Sam to staff" --> V["visitors and staff"]
     V -. "the next business" .-> W
     D["DEF, the framework<br/>private, governed by the Constitution"]
@@ -134,7 +134,7 @@ This plugin is the bridge. All AI logic, tool execution, employee orchestration 
 
 ## Admin Settings
 
-Five tabs under **Digital Employees** in wp-admin:
+Five tabs under **Widrow AI** in wp-admin:
 
 | Tab | What It Does |
 |-----|-------------|
@@ -159,7 +159,7 @@ When WooCommerce is active, additional tools load automatically:
 - `[def_chat_button]` — Render the Customer Chat button at a specific location; `prompt="…"` makes it open the chat with that question asked and answered (any element with `data-def-chat-trigger` can carry `data-def-chat-prompt` the same way)
 - `[def_changelog versions="12"]` — Render the plugin's own dated changelog, newest first
 
-**Block:** the *Chat Button* block (8.7.0), under *Digital Employees* in the inserter, is the no-code form of the shortcode: a themed button with a Label and a Question to ask in its sidebar.
+**Block:** the *Chat Button* block (8.7.0), under *Widrow AI* in the inserter, is the no-code form of the shortcode: a themed button with a Label and a Question to ask in its sidebar.
 
 **Hooks:**
 - `def_core_chat_button` — Action to render the chat button in theme templates

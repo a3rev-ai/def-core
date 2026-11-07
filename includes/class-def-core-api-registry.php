@@ -126,7 +126,7 @@ final class DEF_Core_API_Registry {
 			// Allow override if same module, otherwise log warning.
 			$is_same_module = ! empty( $module ) && isset( $this->registered_tools[ $route ]['module'] ) && $this->registered_tools[ $route ]['module'] === $module;
 			if ( ! $is_same_module ) {
-				error_log( sprintf( 'Digital Employee Framework - Core: Tool %s already registered. Skipping duplicate registration.', $route ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( 'Widrow AI: Tool %s already registered. Skipping duplicate registration.', $route ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return false;
 			}
 			// Same module overriding - allowed, continue registration.

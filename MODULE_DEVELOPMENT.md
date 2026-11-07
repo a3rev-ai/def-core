@@ -1,6 +1,6 @@
 # Module Development Guide
 
-This guide explains how to create **module plugins** for the Digital Employee Framework - Core plugin that register additional API tools.
+This guide explains how to create **module plugins** for the Widrow AI plugin that register additional API tools.
 
 ## When to Build a Module vs a Built-in Tool
 
@@ -14,11 +14,11 @@ Build a **separate module plugin** when:
 
 For a real-world example of a module plugin, see [def-wc-subscriptions](https://github.com/a3rev-ai/def-wc-subscriptions) — a WooCommerce Subscriptions integration built as a separate module because WC Subscriptions is a commercial plugin.
 
-If your integration is for a **widely-used free/open-source plugin** (bbPress, etc.), consider contributing a built-in tool to def-core instead — submit a PR at [github.com/a3rev-ai/def-core](https://github.com/a3rev-ai/def-core). Built-in tools use the same `DEF_Core_Tool_Base` class with `should_register()` for conditional activation.
+If your integration is for a **widely-used free/open-source plugin** (bbPress, etc.), consider contributing a built-in tool to def-core instead — submit a PR at [github.com/a3rev-ai/widrow](https://github.com/a3rev-ai/widrow). Built-in tools use the same `DEF_Core_Tool_Base` class with `should_register()` for conditional activation.
 
 ## Overview
 
-The Digital Employee Framework - Core plugin is extensible, allowing modules to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
+The Widrow AI plugin is extensible, allowing modules to register their own API tools that can be called by the Python application. This enables you to add custom functionality without modifying the core plugin.
 
 ## Naming Conventions
 
@@ -87,7 +87,7 @@ Create the main plugin file following the naming convention:
 <?php
 /**
  * Plugin Name: Digital Employees - <Integration>
- * Description: <Integration> module for Digital Employee Framework - Core. Provides <integration> API tools.
+ * Description: <Integration> module for Widrow AI. Provides <integration> API tools.
  * Version: 0.1.0
  * Author: a3rev
  * Requires at least: 6.0
@@ -113,7 +113,7 @@ add_action(
 
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'Digital Employees - <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-<integration>' ); ?></p>
+			<p><?php esc_html_e( 'Digital Employees - <Integration> requires Widrow AI to be installed and activated.', 'def-<integration>' ); ?></p>
 		</div>
 		<?php
 	}
@@ -149,7 +149,7 @@ Extend the base class to create your tool. The tool will **automatically registe
 /**
  * Class DEF_<Integration>_Tool
  *
- * The <integration> module tools for Digital Employee Framework - Core.
+ * The <integration> module tools for Widrow AI.
  *
  * @package def-<integration>
  * @since 0.1.0
@@ -264,7 +264,7 @@ add_action(
 
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'Digital Employee - <Integration> requires Digital Employee Framework - Core to be installed and activated.', 'def-<integration>' ); ?></p>
+			<p><?php esc_html_e( 'Digital Employee - <Integration> requires Widrow AI to be installed and activated.', 'def-<integration>' ); ?></p>
 		</div>
 		<?php
 	}

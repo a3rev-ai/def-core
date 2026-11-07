@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: Digital Employees
+ * Plugin Name: Widrow AI
  * Description: AI-powered Digital Employees for your WordPress site. Customer Chat for visitors, Staff AI for your team, and an intelligent Setup Assistant — all connected to the Digital Employee Framework.
- * Version: 9.6.1
+ * Version: 9.7.0
  * Author: a3rev
  * Author URI: https://a3rev.com/
  * Text Domain: digital-employees
@@ -29,7 +29,7 @@ if ( ! defined( 'DEF_CORE_KEY' ) ) {
 	define( 'DEF_CORE_KEY', 'def-core' );
 }
 if ( ! defined( 'DEF_CORE_VERSION' ) ) {
-	define( 'DEF_CORE_VERSION', '9.6.1' );
+	define( 'DEF_CORE_VERSION', '9.7.0' );
 }
 
 define( 'DEF_CORE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -46,14 +46,14 @@ require_once __DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php'
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 $def_core_update_checker = PucFactory::buildUpdateChecker(
-	'https://github.com/a3rev-ai/def-core/',
+	'https://github.com/a3rev-ai/widrow/',
 	__FILE__,
 	'digital-employees'
 );
 
 // ── A release is only an update once its ZIP is on it (8.2.2) ───────────
 // .github/workflows/release.yml fires on `release: [published]` and THEN builds
-// and uploads digital-employees.zip, so for the first minute or two the latest
+// and uploads widrow-ai.zip, so for the first minute or two the latest
 // release carries no asset. PUC served GitHub's auto-generated source archive in
 // that window — the raw repo, tests and CI config and all — because
 // enableReleaseAssets() defaults to PREFER_RELEASE_ASSETS and getLatestRelease()
@@ -70,7 +70,7 @@ $def_core_update_checker = PucFactory::buildUpdateChecker(
 $def_core_vcs_api = $def_core_update_checker->getVcsApi();
 // Read off the API object's own class: PUC's namespace carries its version
 // (…\v5p6\Vcs\Api), which the next library drop renames.
-$def_core_vcs_api->enableReleaseAssets( null, $def_core_vcs_api::REQUIRE_RELEASE_ASSETS );
+$def_core_vcs_api->enableReleaseAssets( '/^widrow-ai\.zip$/', $def_core_vcs_api::REQUIRE_RELEASE_ASSETS );
 
 add_filter(
 	$def_core_update_checker->getUniqueName( 'vcs_update_detection_strategies' ),

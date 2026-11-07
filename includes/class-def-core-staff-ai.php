@@ -1029,7 +1029,7 @@ final class DEF_Core_Staff_AI
 		if (! $base_url) {
 			return new \WP_Error(
 				'staff_ai_not_configured',
-				__('Staff AI backend URL is not configured. Go to Settings > Digital Employees to set the Staff AI API URL.', 'digital-employees'),
+				__('Staff AI backend URL is not configured. Go to Widrow AI → Settings to set the Staff AI API URL.', 'digital-employees'),
 				array('status' => 503)
 			);
 		}
@@ -1050,7 +1050,7 @@ final class DEF_Core_Staff_AI
 		if ( empty( $api_key ) ) {
 			return new \WP_Error(
 				'staff_ai_not_configured',
-				__( 'API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees' ),
+				__( 'API key not configured. Go to Widrow AI → Settings to set up the connection.', 'digital-employees' ),
 				array( 'status' => 503 )
 			);
 		}
@@ -5703,7 +5703,7 @@ final class DEF_Core_Staff_AI
 		$user    = wp_get_current_user();
 		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 		if ( empty( $api_key ) ) {
-			wp_die(__('API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
+			wp_die(__('API key not configured. Go to Widrow AI → Settings to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
 		}
 		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
 
@@ -5807,7 +5807,7 @@ final class DEF_Core_Staff_AI
 		$user    = wp_get_current_user();
 		$api_key = \DEF_Core_Encryption::get_secret( 'def_core_api_key' );
 		if ( empty( $api_key ) ) {
-			wp_die(__('API key not configured. Go to Settings > Digital Employees to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
+			wp_die(__('API key not configured. Go to Widrow AI → Settings to set up the connection.', 'digital-employees'), __('Error', 'digital-employees'), array('response' => 503));
 		}
 		$capabilities = \DEF_Core_Tools::get_user_def_capabilities( $user );
 
@@ -6047,7 +6047,7 @@ final class DEF_Core_Staff_AI
 	 */
 	public static function access_denied_message(): string
 	{
-		return __("Your account doesn't have Staff AI access. Ask your site administrator to grant it in Digital Employees → Settings → User Roles.", 'digital-employees');
+		return __("Your account doesn't have Staff AI access. Ask your site administrator to grant it in Widrow AI → Settings → User Roles.", 'digital-employees');
 	}
 
 	/**
@@ -6472,7 +6472,7 @@ JS;
 		$template = DEF_CORE_PLUGIN_DIR . 'templates/staff-ai-shell.php';
 		if ( ! file_exists( $template ) ) {
 			wp_die(
-				esc_html__( 'Staff AI template not found. Please reinstall the def-core plugin.', 'digital-employees' ),
+				esc_html__( 'Staff AI template not found. Please reinstall the Widrow AI plugin.', 'digital-employees' ),
 				esc_html__( 'Template Error', 'digital-employees' ),
 				array( 'response' => 500 )
 			);

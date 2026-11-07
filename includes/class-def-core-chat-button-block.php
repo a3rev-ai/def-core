@@ -47,7 +47,7 @@ final class DEF_Core_Chat_Button_Block {
 	public static function add_category( array $categories ): array {
 		$categories[] = array(
 			'slug'  => self::CATEGORY,
-			'title' => __( 'Digital Employees', 'digital-employees' ),
+			'title' => __( 'Widrow AI', 'digital-employees' ),
 		);
 		return $categories;
 	}

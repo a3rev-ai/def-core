@@ -264,7 +264,7 @@ class DEF_Core_Knowledge_Exclusion {
 	public static function register_classic_meta_box( $post ): void {
 		add_meta_box(
 			'def_core_knowledge_exclusion',
-			esc_html__( 'Digital Employees', 'digital-employees' ),
+			esc_html__( 'Widrow AI', 'digital-employees' ),
 			array( __CLASS__, 'render_classic_meta_box' ),
 			$post->post_type,
 			'side',

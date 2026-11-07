@@ -1,6 +1,6 @@
-# Contributing to def-core
+# Contributing to Widrow AI
 
-Thank you for your interest in contributing to def-core. This guide covers the workflow and conventions for submitting changes.
+Thank you for your interest in contributing to Widrow AI. This guide covers the workflow and conventions for submitting changes.
 
 ## Getting Started
 
@@ -16,8 +16,8 @@ Thank you for your interest in contributing to def-core. This guide covers the w
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/a3rev-ai/def-core.git
-   cd def-core
+   git clone https://github.com/a3rev-ai/widrow.git
+   cd widrow
    ```
 
 2. **Install dependencies:**
@@ -128,12 +128,12 @@ Releases are cut **manually** after a version-bumping PR is merged to `main`. Th
 
    Replace `X.Y.Z` (e.g. `2.7.0`) and the title. The `awk` extracts the matching `= X.Y.Z =` section from `changelog.txt` for the release notes; you can edit those notes on the GitHub release page after creation if you want richer formatting.
 
-3. The `release.yml` workflow fires on the `release: published` event, builds `digital-employees.zip`, and attaches it to the release.
+3. The `release.yml` workflow fires on the `release: published` event, builds `widrow-ai.zip` and `digital-employees.zip`, and attaches them to the release.
 4. Verify the asset is attached:
 
    ```bash
    gh release view vX.Y.Z --json assets --jq '.assets[].name'
-   # Expect: digital-employees.zip
+   # Expect: widrow-ai.zip and digital-employees.zip
    ```
 
 5. WordPress sites with the plugin installed will see the update on their next auto-update check (or immediately when an admin clicks **Plugins → Check for updates** or **Dashboard → Updates → Check again**).
@@ -172,7 +172,7 @@ WordPress's `version_compare()` has a quirk where `2.2.10` is treated as **less 
 
 ## Extending the Plugin
 
-def-core has a module system for adding new tool endpoints. See [MODULE_DEVELOPMENT.md](MODULE_DEVELOPMENT.md) for the full guide on:
+Widrow AI has a module system for adding new tool endpoints. See [MODULE_DEVELOPMENT.md](MODULE_DEVELOPMENT.md) for the full guide on:
 
 - Creating extension modules
 - Registering tools via the API Registry
@@ -183,7 +183,7 @@ def-core has a module system for adding new tool endpoints. See [MODULE_DEVELOPM
 
 Do not report security issues in public issues. Email security@a3rev.com instead, as set out in [SECURITY.md](SECURITY.md).
 
-Open an issue at [github.com/a3rev-ai/def-core/issues](https://github.com/a3rev-ai/def-core/issues) with:
+Open an issue at [github.com/a3rev-ai/widrow/issues](https://github.com/a3rev-ai/widrow/issues) with:
 
 - WordPress version and PHP version
 - Steps to reproduce
