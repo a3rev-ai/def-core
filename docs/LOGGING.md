@@ -1,6 +1,6 @@
 # Connection Logging
 
-Digital Employees includes a built-in connection logging system for diagnosing sync pipeline issues between your WordPress site and the DEF backend. It follows the same pattern as WooCommerce's gateway logging — structured, queryable logs stored in your WordPress database.
+Widrow AI includes a built-in connection logging system for diagnosing sync pipeline issues between your WordPress site and the DEF backend. It follows the same pattern as WooCommerce's gateway logging — structured, queryable logs stored in your WordPress database.
 
 ## Overview
 
@@ -15,7 +15,7 @@ It does **not** log general WordPress activity, theme/plugin behavior, or user a
 
 ## Viewing Logs
 
-Navigate to **Digital Employees > Logs** in wp-admin. The Logs page provides:
+Navigate to **Widrow AI > Logs** in wp-admin. The Logs page provides:
 
 - **Log table** — newest first, color-coded by level (Debug=gray, Info=blue, Warning=amber, Error=red)
 - **Filters** — Level dropdown, Source dropdown, free-text search across message, context, and request ID
@@ -29,7 +29,7 @@ Navigate to **Digital Employees > Logs** in wp-admin. The Logs page provides:
 
 ## Log Level Setting
 
-Navigate to **Digital Employees > Settings > Connection** tab. At the bottom you'll find the **Logging** card with a Log Level dropdown:
+Navigate to **Widrow AI > Settings > Connection** tab. At the bottom you'll find the **Logging** card with a Log Level dropdown:
 
 | Level | What's logged | When to use |
 |-------|--------------|-------------|

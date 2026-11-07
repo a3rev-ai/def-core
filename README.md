@@ -90,7 +90,7 @@ The plugin checks GitHub for updates automatically — you'll see standard WordP
 
 ### Manual
 
-1. Clone or download this repository
+1. Download `widrow-ai.zip` from the latest release and unzip it
 2. Upload the `widrow-ai` folder to `/wp-content/plugins/`
 3. Activate via **Plugins > Installed Plugins**
 

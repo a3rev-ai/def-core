@@ -123,6 +123,7 @@ Chat messages, user display name, session context, and the visitor's IP address 
 = 9.7.0 - 2026-11-09 =
 * New - This plugin is now Widrow AI. Its name, the wp-admin menu, its screens and notices, and its block category and editor panel all say Widrow AI. Your settings and your connection stay exactly as they are.
 * Tweak - Updates and downloads now come from github.com/a3rev-ai/widrow, and the download is widrow-ai.zip.
+* Fix - A failed update check could stop the next one from working for up to an hour. It no longer does.
 
 = 9.6.1 - 2026-11-06 =
 * Fix - Staff AI: New Chat while a reply is being written now opens the new chat with Send ready, and the reply finishes in its own conversation.

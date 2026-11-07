@@ -228,7 +228,8 @@ final class DEF_Core_GitHub_Updater {
 	private function get_remote_info(): ?array {
 		$cached = get_transient( $this->cache_key );
 		if ( false !== $cached ) {
-			return $cached;
+			// A cached failure comes back from the options table as '', not null.
+			return is_array( $cached ) ? $cached : null;
 		}
 
 		$response = wp_remote_get(

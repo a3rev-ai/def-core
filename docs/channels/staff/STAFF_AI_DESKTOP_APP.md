@@ -110,7 +110,7 @@ Administrators can customize the icon that appears on users' desktops.
 
 ### Uploading a Custom Icon
 
-1. Go to **wp-admin > Digital Employees > Branding**
+1. Go to **wp-admin > Widrow AI > Branding**
 2. Scroll down to the **Web App Icon** section
 3. Click **Select Icon**
 4. Upload or choose a square PNG image (recommended: **512 x 512 pixels**)
@@ -201,7 +201,7 @@ If you created a bookmark shortcut:
 ### App shows wrong name or icon
 
 The app name and icon are captured at install time. To update:
-1. Ask your administrator to update the icon in **Digital Employees > Branding > Web App Icon**
+1. Ask your administrator to update the icon in **Widrow AI > Branding > Web App Icon**
 2. Uninstall the app (Section 5)
 3. Reinstall the app (Section 2)
 

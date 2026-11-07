@@ -112,6 +112,15 @@ final class GitHubUpdaterTest extends TestCase {
 
 	// ── check_update: cached remote info ────────────────────────────────
 
+	public function test_check_update_survives_a_cached_failure(): void {
+		set_transient( 'def_gh_update_digital-employees', '' );
+
+		$updater = new DEF_Core_GitHub_Updater( $this->config );
+		$result  = $updater->check_update( $this->make_transient() );
+
+		$this->assertEmpty( $result->response );
+	}
+
 	public function test_check_update_uses_cached_info(): void {
 		// Pre-seed the transient cache directly.
 		$cache_key = 'def_gh_update_digital-employees';

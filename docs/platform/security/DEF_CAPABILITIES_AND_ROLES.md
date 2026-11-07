@@ -30,9 +30,9 @@ Therefore:
 def-core MUST register the following capabilities.
 
 ### 2.1 `def_dashboard_access`
-Grants access to the **DEF admin platform UI** in wp-admin (Digital Employees menu and pages).
+Grants access to the **DEF admin platform UI** in wp-admin (Widrow AI menu and pages).
 
-Use this to allow only those users who need acccess to the Digital Employees wp-admin menu and pages, regardless of their WordPress user role.
+Use this to allow only those users who need acccess to the Widrow AI wp-admin menu and pages, regardless of their WordPress user role.
 
 ---
 
@@ -148,7 +148,7 @@ Capabilities are assigned **directly to WordPress users** via the DEF platform U
 
 Authoritative location:
 
-**Digital Employees → Security & Access → Access Control**
+**Widrow AI → Security & Access → Access Control**
 
 This screen MUST support:
 - searching/selecting WP users

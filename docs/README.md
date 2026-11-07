@@ -1,6 +1,6 @@
 # What this folder is
 
-These are the standing engineering rules for the Digital Employees plugin: what contributors, and the AI agents that work on this code, must follow. They are dated when adopted and change only when a rule changes, so a file untouched for months is a rule that has held, not a document that was forgotten.
+These are the standing engineering rules for the Widrow AI plugin: what contributors, and the AI agents that work on this code, must follow. They are dated when adopted and change only when a rule changes, so a file untouched for months is a rule that has held, not a document that was forgotten.
 
 - `platform/` — the rules the plugin is built to: logging, escalation, document permissions, privacy posture, and the API, routing, search, security and tools contracts.
 - `ai-agents/` — the code-review and security-policy agents run on every change, and the workflow that requires both to pass before a merge.
