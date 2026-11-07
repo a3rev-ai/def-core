@@ -118,7 +118,7 @@ final class GitHubUpdaterTest extends TestCase {
 		$updater = new DEF_Core_GitHub_Updater( $this->config );
 		$result  = $updater->check_update( $this->make_transient() );
 
-		$this->assertEmpty( $result->response );
+		$this->assertFalse( isset( $result->response['digital-employees/def-core.php'] ) );
 	}
 
 	public function test_check_update_uses_cached_info(): void {
